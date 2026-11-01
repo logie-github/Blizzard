@@ -1,46 +1,49 @@
-# Blizzard Launcher
+# Blizzard
 
-A standalone Android frontend showcase, named **Blizzard Launcher**, with application ID and namespace **com.logie.blizz**. Requires Android 8 or later.
+An Android launcher for Blizzard's games, styled after the World of Warcraft app in
+`logie-github/YeaBwoi` (`warcraft/android`): the same frost palette, Cinzel and Jost, the game's
+window frames and the drifting snow, in Blizzard's blue. Package `com.logie.blizz`, Android 8 or later.
 
-This project is separate from `../YeaBwoi`. It does not depend on that checkout, its release feeds, native libraries, server packages, or build scripts.
+## Use
 
-The first stage includes:
+- The shelf: the ice field and the Blizzard logo over the games' box art, in alphabetical order:
+  Diablo, Diablo II, StarCraft, StarCraft II, Warcraft: Orcs & Humans, Warcraft II: Tides of
+  Darkness, Warcraft III: Reign of Chaos, Warcraft III: The Frozen Throne.
+- Tap a box: the game's page. **Play** opens the app the game is played with. The first time,
+  it asks which installed app that is; after that the app's icon sits in the box's corner, and
+  tapping the app's name under Play changes it (or sets it to none).
+- The Warcraft games open the Warcraft app (`com.logie.warcrafts`) on their own when it's installed.
+- Made for the Galaxy Z Fold:
+  - **Cover screen:** the shelf two boxes across; a game's page opens over it, Back returns.
+  - **Inner screen:** the shelf on the left of the hinge, the chosen game on the right.
+  - **Half-open, like a laptop (tabletop):** the box art stands on the top half; Play and the
+    row of boxes lie on the bottom half.
+  - Folding or unfolding keeps the game you were on.
+- A controller or keyboard moves between the boxes; the focused one lifts and lights up.
 
-- A dark blue Discover screen with a selectable featured universe.
-- Warcraft, Diablo, StarCraft, and Warcraft strategy showcase entries.
-- Category filters and universe detail dialogs.
-- A Library of favorites persisted locally across launches.
-- An original lettermark launcher icon and system bar inset handling.
+The launcher opens apps; it holds no game files, accounts or downloads.
 
-Entries are previews, not claims of supported or installed games. No game launch, installation, account login, downloads, game files or runtime integrations are included. Artwork currently uses colored panels and typographic emblems.
+## Art
+
+The user's art is in `branding/` (box art in `branding/covers/`, the header, logo, icon and the
+footer reference). `python3 tools/make-art.py` (from the repository root) makes the app's
+pictures and its adaptive icon from it into `app/src/main/res`; their output is committed.
 
 ## Build
 
-Use JDK 21 and Android SDK 35. Set `ANDROID_HOME` or put `sdk.dir=/path/to/android-sdk` in `local.properties`.
+JDK 21 and Android SDK 35 (`ANDROID_HOME`, or `sdk.dir` in `local.properties`).
 
 ```sh
-./gradlew :app:assembleDebug
-./gradlew :app:lintDebug
+./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+`testDebugUnitTest` also renders the screens to `app/build/reports/previews/` (Robolectric).
+Every build is signed with `app/sideload.keystore`, so each release installs over the last.
 
-## Source repository findings
+## Releases
 
-YeaBwoi is a collection of independent Android game apps, rather than one shared emulator:
+A push to `main` builds, tests and publishes the APK as the release `Blizzard 1.0.N`
+(tag `blizzard-build-N`, `.github/workflows/build-apk.yml`).
 
-| Area | Structure and runtime |
-| --- | --- |
-| `overlay/`, `patches/`, `games/` | Shared Dolphin modifications and per-game identity/artwork, applied to pinned upstream source by preparation scripts. |
-| `azuredreams/`, `parasiteeve/` | Android launchers around libretro PlayStation cores through LibretroDroid. |
-| `v3gold/` | Vita3K-based Android app. |
-| `warcraft/android/` | Compose launcher coupled to Winlator's Wine/Box64 Windows runtime, game imports, local realm servers, databases and per-realm services. |
-| `warcrafts/` | Warcraft I/II through native Stratagus tooling; Warcraft III through Winlator. |
-
-The existing Warcraft `MainActivity` coordinates the launcher, title music, update checks, and multiple game lifecycle handlers. Its Gradle app also compiles Winlator sources and native code and consumes server package configuration. Copying that app would bring these dependencies into a frontend-only milestone. This project starts with an independent Android application and a small local catalog instead.
-
-## Next stage
-
-Decide the concrete games and versions to support, then define their install and launch interfaces independently of the showcase. Integrate runtimes individually after that decision. A future migration of existing saves or realm data needs an explicit plan: this package has its own Android storage.
-
-This is an independent project, unaffiliated with Blizzard Entertainment. Game names belong to their respective owners.
+Not affiliated with Blizzard Entertainment. All trademarks referenced herein are the properties
+of their respective owners.

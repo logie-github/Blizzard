@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Blizzard</string>
+    <string name="play">Play</string>
+    <string name="choose_app">Play with</string>
+    <string name="search">Search</string>
+    <string name="unlink">None</string>
+    <string name="trademarks">All trademarks referenced herein are the properties of their respective owners.</string>
+</resources>
