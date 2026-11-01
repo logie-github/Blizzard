@@ -10,6 +10,11 @@ data class Game(
     val year: Int,
     @DrawableRes val cover: Int,
     val suggestedPackage: String? = null,
+    /** The game's own loading screen: its art, and its logo over it (the box art and Blizzard's otherwise). */
+    @DrawableRes val splash: Int? = null,
+    @DrawableRes val splashLogo: Int? = null,
+    /** Where the splash is held when it's cut to the screen: -1 its top edge, 0 its middle. */
+    val splashTop: Float = -0.2f,
 ) {
     val fullTitle: String get() = if (subtitle == null) title else "$title: $subtitle"
 }
@@ -19,8 +24,8 @@ object Games {
 
     /** The shelf, in alphabetical order. */
     val all: List<Game> = listOf(
-        Game("diablo", "Diablo", null, 1996, R.drawable.cover_diablo),
-        Game("diablo2", "Diablo II", null, 2000, R.drawable.cover_diablo2),
+        Game("diablo", "Diablo", null, 1996, R.drawable.cover_diablo, splash = R.drawable.splash_diablo, splashLogo = R.drawable.splash_logo_diablo),
+        Game("diablo2", "Diablo II", null, 2000, R.drawable.cover_diablo2, splash = R.drawable.splash_diablo2, splashLogo = R.drawable.splash_logo_diablo2, splashTop = -1f),
         Game("starcraft", "StarCraft", null, 1998, R.drawable.cover_starcraft),
         Game("starcraft2", "StarCraft II", null, 2010, R.drawable.cover_starcraft2),
         Game("warcraft", "Warcraft", "Orcs & Humans", 1994, R.drawable.cover_warcraft, WARCRAFTS),

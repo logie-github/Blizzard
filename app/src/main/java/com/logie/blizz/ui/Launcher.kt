@@ -436,6 +436,7 @@ private fun Footer() {
     ) {
         Image(painterResource(R.drawable.blizz_logo), contentDescription = null, modifier = Modifier.width(120.dp).graphicsLayer { alpha = 0.9f })
         Text(stringResource(R.string.trademarks), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+        BugReportsLink()
     }
 }
 

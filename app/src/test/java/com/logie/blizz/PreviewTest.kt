@@ -67,6 +67,30 @@ class PreviewTest {
         screenshot("cover-game")
     }
 
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    @Test fun diabloSplash() {
+        compose.setContent { com.logie.blizz.ui.BlizzTheme { com.logie.blizz.game.Loading("diablo", "Starting…") } }
+        screenshot("splash-diablo")
+    }
+
+    @Config(qualifiers = "w840dp-h750dp-xxhdpi")
+    @Test fun diabloSplashInner() {
+        compose.setContent { com.logie.blizz.ui.BlizzTheme { com.logie.blizz.game.Loading("diablo", "Starting…") } }
+        screenshot("splash-diablo-inner")
+    }
+
+    @Config(qualifiers = "w891dp-h411dp-xxhdpi")
+    @Test fun diablo2Splash() {
+        compose.setContent { com.logie.blizz.ui.BlizzTheme { com.logie.blizz.game.Loading("diablo2", "Starting…") } }
+        screenshot("splash-diablo2")
+    }
+
+    @Config(qualifiers = "w840dp-h750dp-xxhdpi")
+    @Test fun diablo2SplashInner() {
+        compose.setContent { com.logie.blizz.ui.BlizzTheme { com.logie.blizz.game.Loading("diablo2", "Starting…") } }
+        screenshot("splash-diablo2-inner")
+    }
+
     @Config(qualifiers = "w840dp-h750dp-xxhdpi")
     @Test fun inner() {
         compose.setContent { Launcher(fold = null) }

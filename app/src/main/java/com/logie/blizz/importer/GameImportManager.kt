@@ -99,7 +99,10 @@ object GameImportManager {
                 state = when (result) {
                     is ImportPipeline.Result.Waiting -> state.copy(record = result.record, missing = result.missing, autoSources = result.autoSources)
                     is ImportPipeline.Result.Done -> state.copy(record = result.record, validation = result.validation, entry = result.entry, missing = emptyList())
-                    is ImportPipeline.Result.Failed -> state.copy(record = result.record, validation = result.validation, missing = emptyList())
+                    is ImportPipeline.Result.Failed -> {
+                        reportFailure(app, gameId, repair, result)
+                        state.copy(record = result.record, validation = result.validation, missing = emptyList())
+                    }
                 }
             } finally {
                 synchronized(cancels) { cancels.remove(gameId) }
@@ -107,6 +110,23 @@ object GameImportManager {
                 if (synchronized(cancels) { cancels.isEmpty() }) ImportService.stop(app)
             }
         }
+    }
+
+    /** Not bugs: the person stopped it, the phone is full, or the game is a version the app doesn't play. */
+    private val NOT_BUGS = setOf(Problem.CANCELLED, Problem.INSUFFICIENT_STORAGE, Problem.UNSUPPORTED_VERSION)
+
+    /** A failed import, sent as a GitHub issue ([com.logie.blizz.reports.BugReports]). */
+    private fun reportFailure(context: Context, gameId: String, repair: Boolean, result: ImportPipeline.Result.Failed) {
+        val e = result.error
+        if (e.problem in NOT_BUGS) return
+        val checks = result.validation?.checks?.joinToString("; ") { "${if (it.passed) "✓" else "✗"} ${it.name} (${it.detail})" }
+        com.logie.blizz.reports.BugReports.report(
+            context,
+            "${com.logie.blizz.Games.all.firstOrNull { it.id == gameId }?.title ?: gameId} ${if (repair) "repair" else "import"} (${e.problem})",
+            e.message ?: e.problem.name,
+            listOf("Game" to gameId, "Problem" to e.problem.name, "Online" to online(context).toString(), "Checks" to checks),
+            log = listOfNotNull(e.detail, e.cause?.stackTraceToString()).joinToString("\n\n").ifEmpty { null },
+        )
     }
 
     fun cancel(gameId: String) {
