@@ -67,10 +67,14 @@ app said, its checks and the end of the log; CD keys and tokens are taken out. T
 `files/reports` and sent at once, again every minute while any wait, and the same failure goes
 once a day at most. Stopping an import, a full phone and an unsupported game version aren't sent.
 
-They go with a GitHub token entered once on the phone (the footer's **Bug reports**): a
-fine-grained token with Issues read and write on this repository. It stays in the app's private
-storage; the APK carries none, since anyone with the APK could read one. Until it's entered,
-reports wait.
+They go with the token CI builds in, as YeaBwoi's apps carry theirs: the repository secret
+`BLIZZ_REPORT_TOKEN` (a token that may open issues here). Without it, reports wait on the phone.
+
+## Updates
+
+Each time it opens, the app looks at this repository's releases (`blizzard-build-N`); a newer build
+downloads by itself (a banner shows it) and Android's installer opens for the one tap Android
+requires. The first time, Android asks to allow installs from this app.
 
 ## Controls
 
@@ -80,7 +84,7 @@ The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfi
 | --- | --- | --- |
 | Tap | Right click (left on the game's panels) | Left click: walk, attack, pick up |
 | Hold | Left click (twice: double click) | Right click: cast |
-| Swipe | Pan the map | Walk after the finger |
+| Swipe | Pan the map | Drag: walk after the finger. Quick flick: the arrow key its way (menus) |
 | Resting finger | Shift | Shift |
 | Two / three / four fingers | Game menu / keyboard / app menu | Same |
 
@@ -107,7 +111,8 @@ Every build is signed with `app/sideload.keystore`, so each release installs ove
 
 ## Releases
 
-A push to `main` builds, tests and publishes `Blizzard 1.0.N` (tag `blizzard-build-N`).
+A push to `main` builds, tests and publishes `Blizzard 1.0.N` (tag `blizzard-build-N`), which the
+app installed on the phone picks up the next time it opens.
 
 Not affiliated with Blizzard Entertainment. All trademarks referenced herein are the properties
 of their respective owners.

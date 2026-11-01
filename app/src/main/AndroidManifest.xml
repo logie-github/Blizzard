@@ -6,6 +6,8 @@
     <!-- Downloads (Blizzard's legacy servers, DevilutionX's releases); nothing reaches Battle.net. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Updates from this repository's releases, handed to Android's installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Imports of gigabytes keep running with the app in the background. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

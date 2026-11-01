@@ -139,7 +139,8 @@ class GestureView(
                 postDelayed(hold, Gestures.HOLD_MS)
             }
             MotionEvent.ACTION_MOVE -> gestures.move(
-                List(event.pointerCount) { i -> Gestures.Touch(event.getPointerId(i), event.getX(i), event.getY(i)) }
+                List(event.pointerCount) { i -> Gestures.Touch(event.getPointerId(i), event.getX(i), event.getY(i)) },
+                now,
             )
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 if (event.actionMasked == MotionEvent.ACTION_UP) removeCallbacks(hold)

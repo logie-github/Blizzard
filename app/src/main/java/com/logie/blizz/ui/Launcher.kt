@@ -176,6 +176,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
             }
         }
         }
+        UpdateBanner()
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
         picking?.let { game ->
@@ -436,7 +437,6 @@ private fun Footer() {
     ) {
         Image(painterResource(R.drawable.blizz_logo), contentDescription = null, modifier = Modifier.width(120.dp).graphicsLayer { alpha = 0.9f })
         Text(stringResource(R.string.trademarks), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-        BugReportsLink()
     }
 }
 
