@@ -8,16 +8,14 @@ RES = Path("app/src/main/res")
 NODPI = RES / "drawable-nodpi"
 NODPI.mkdir(parents=True, exist_ok=True)
 
-# Box art: 600x900 (2:3), the shelf's shape.
+# Box art: 600x800 (3:4), cut from the 2:3 art. How much of the cut comes off the top: the rest
+# comes off the bottom, so each game's logo stays whole.
+TOP_SHARE = {"diablo": 0.5, "diablo2": 0.5, "warcraft3_tft": 0.6}
 for f in sorted((B / "covers").iterdir()):
-    im = Image.open(f).convert("RGB")
-    w, h = im.size
-    if abs(w / h - 2 / 3) > 0.01:  # crop to 2:3, keeping the top (the art) and the bottom (the logo) centred
-        if w / h > 2 / 3:
-            nw = round(h * 2 / 3); im = im.crop(((w - nw) // 2, 0, (w - nw) // 2 + nw, h))
-        else:
-            nh = round(w * 3 / 2); im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))
-    im = im.resize((600, 900), Image.LANCZOS)
+    im = Image.open(f).convert("RGB").resize((600, 900), Image.LANCZOS)
+    cut = 100
+    top = round(cut * TOP_SHARE.get(f.stem, 1.0))
+    im = im.crop((0, top, 600, top + 800))
     im.save(NODPI / f"cover_{f.stem}.webp", quality=90)
 
 # The header: the ice field.
@@ -40,7 +38,7 @@ logo.save(NODPI / "blizz_logo.webp", quality=92)
 icon = Image.open(B / "icon.png").convert("RGB")
 for name, size in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
     d = RES / f"mipmap-{name}"; d.mkdir(exist_ok=True)
-    icon.resize((size, size), Image.LANCZOS).save(d / "ic_launcher.png")
+    icon.resize((size, size), Image.LANCZOS).save(d / "ic_blizz.png")
 
 S = icon.width
 white = Image.new("L", icon.size, 0)
@@ -60,6 +58,6 @@ fg = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
 side = 300
 e = emblem.resize((side, round(side * emblem.height / emblem.width)), Image.LANCZOS)
 fg.paste(e, ((432 - e.width) // 2, (432 - e.height) // 2), e)
-fg.save(NODPI / "ic_launcher_foreground.png")
+fg.save(NODPI / "ic_blizz_foreground.png")
 bg = icon.resize((432, 432), Image.LANCZOS)
-bg.save(NODPI / "ic_launcher_background.png")
+bg.save(NODPI / "ic_blizz_background.png")

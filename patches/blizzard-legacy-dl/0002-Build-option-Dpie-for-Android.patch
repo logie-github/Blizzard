@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <b@x>
+Date: Sun, 1 Nov 2026 21:27:34 +0000
+Subject: [PATCH] Build option -Dpie, for Android
+
+---
+ build.zig | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/build.zig b/build.zig
+index c175f8e..3f8d03f 100644
+--- a/build.zig
++++ b/build.zig
+@@ -64,6 +64,8 @@ pub fn build(b: *std.Build) void {
+             .link_libc = true,
+         }),
+     });
++    // Android: a position-independent executable, as its loader expects of every program.
++    if (b.option(bool, "pie", "Build a position-independent executable") orelse false) cli.pie = true;
+     b.installArtifact(cli);
+ 
+     const run = b.addRunArtifact(cli);

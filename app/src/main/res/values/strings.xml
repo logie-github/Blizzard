@@ -4,5 +4,21 @@
     <string name="choose_app">Play with</string>
     <string name="search">Search</string>
     <string name="unlink">None</string>
+    <string name="blizz_cancel">Cancel</string>
     <string name="trademarks">All trademarks referenced herein are the properties of their respective owners.</string>
+
+    <string name="blizz_game_loading">Starting…</string>
+    <string name="blizz_game_loading_update">Updating Windows\' files…</string>
+    <string name="game_menu_back">Back to the game</string>
+    <string name="game_menu_keyboard">Keyboard</string>
+    <string name="game_menu_chat">Chat</string>
+    <string name="game_menu_leave">Leave the game</string>
+    <string name="game_menu_leave_note">Save first: leaving closes the game.</string>
+    <string name="game_prompt_send">Send</string>
+    <string name="game_error">Something went wrong: %1$s</string>
+    <string name="game_error_missing">%1$s isn\'t installed: use Repair.</string>
+    <string name="game_error_runtime">The Windows runtime couldn\'t be installed. Check there\'s free space (about 1.5 GB) and try again.</string>
+    <string name="game_error_windows">The games\' Windows couldn\'t be made. Check there\'s free space and try again.</string>
+    <string name="import_running">Importing a game</string>
+    <string name="import_channel">Game imports</string>
 </resources>

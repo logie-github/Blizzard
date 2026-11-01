@@ -1,49 +1,97 @@
 # Blizzard
 
 An Android launcher for Blizzard's games, styled after the World of Warcraft app in
-`logie-github/YeaBwoi` (`warcraft/android`): the same frost palette, Cinzel and Jost, the game's
-window frames and the drifting snow, in Blizzard's blue. Package `com.logie.blizz`, Android 8 or later.
+`logie-github/YeaBwoi` (`warcraft/android`): its frost palette, Cinzel and Jost, the game's window
+frames and the drifting snow, in Blizzard's blue. Package `com.logie.blizz`, Android 8 or later,
+arm64 phones. Made for the Galaxy Z Fold.
 
-## Use
+## The shelf
 
-- The shelf: the ice field and the Blizzard logo over the games' box art, in alphabetical order:
-  Diablo, Diablo II, StarCraft, StarCraft II, Warcraft: Orcs & Humans, Warcraft II: Tides of
-  Darkness, Warcraft III: Reign of Chaos, Warcraft III: The Frozen Throne.
-- Tap a box: the game's page. **Play** opens the app the game is played with. The first time,
-  it asks which installed app that is; after that the app's icon sits in the box's corner, and
-  tapping the app's name under Play changes it (or sets it to none).
-- The Warcraft games open the Warcraft app (`com.logie.warcrafts`) on their own when it's installed.
-- Made for the Galaxy Z Fold:
-  - **Cover screen:** the shelf two boxes across; a game's page opens over it, Back returns.
-  - **Inner screen:** the shelf on the left of the hinge, the chosen game on the right.
-  - **Half-open, like a laptop (tabletop):** the box art stands on the top half; Play and the
-    row of boxes lie on the bottom half.
-  - Folding or unfolding keeps the game you were on.
-- A controller or keyboard moves between the boxes; the focused one lifts and lights up.
+The ice field and the Blizzard logo over the games' box art (3:4), in alphabetical order:
+Diablo, Diablo II, StarCraft, StarCraft II, Warcraft: Orcs & Humans, Warcraft II, Warcraft III:
+Reign of Chaos, Warcraft III: The Frozen Throne.
 
-The launcher opens apps; it holds no game files, accounts or downloads.
+- **Cover screen:** two boxes across; a game's page opens over the shelf, Back returns.
+- **Inner screen:** every box in one row under the header, the chosen one lifted; its game below.
+- **Half-open like a laptop (tabletop):** the box art above the hinge, Play and the boxes below.
 
-## Art
+The Warcraft games open the Warcraft app (`com.logie.warcrafts`) when it's installed, or any app
+chosen for them.
 
-The user's art is in `branding/` (box art in `branding/covers/`, the header, logo, icon and the
-footer reference). `python3 tools/make-art.py` (from the repository root) makes the app's
-pictures and its adaptive icon from it into `app/src/main/res`; their output is committed.
+## Auto Import
+
+Diablo, Diablo II, StarCraft and StarCraft II are imported into the app and played on its own
+Winlator (Wine and Box64), offline, with the touch gestures of YeaBwoi's Warcraft app. On a game's
+page, **Auto Import** opens the wizard: Detect, Acquire, Request (only what it can't get itself),
+Install, Validate. Then the button becomes **Play**; the status line under it opens the wizard
+again for **Repair**.
+
+Where it looks: the app's import folder (`Android/data/com.logie.blizz/files/import`, which a
+computer can copy into over USB) and every folder chosen with **Search a folder** (kept).
+
+| Game | Where it comes from | Asks for |
+| --- | --- | --- |
+| **Diablo** (+ Hellfire) | DevilutionX's Windows build from its GitHub release (GitHub's SHA-256 checked), or a release zip you have | `DIABDAT.MPQ`: the file, a folder, a disc image or GOG's offline installer (unpacked by innoextract, never run). Hellfire's four archives are optional. |
+| **Diablo II** + Lord of Destruction | Blizzard's own legacy servers (base game, then the expansion; every piece checked), or your installation folder or a zip of it | Nothing when online. No CD key: optional fields take the original keys if you want them stored. |
+| **StarCraft** + Brood War | Blizzard's own legacy servers (1.15.2, disc-free), or your installation folder | `StarCraft.mpq` / `BroodWar.mpq` when an installation lacks them: the archive, the disc's `INSTALL.EXE` or the disc image. |
+| **StarCraft II** 3.0.5.39117 | Your files only (a folder or a zip); never downloaded | The installation, and `StarCraft II Offline.exe` if it isn't in it. Any other build is refused. |
+
+Statuses: Ready to Play, Imported — Launch Untested, Import Incomplete, Missing Required File,
+Unsupported Client Version, Launch Test Failed. A game's first window coming up under Winlator is
+recorded apart from the file checks.
+
+What's checked: the game's program (Windows x86, its version), every DLL its import table names
+(Windows' own aside), every data archive (an MPQ header), the expansion's archives. Saves are kept
+apart from the game folders (`files/saves`, or inside the games' Windows) and no import or repair
+writes over one. Blizzard's and Battle.net's names are blocked in the runtime's hosts file.
+
+Version notes:
+
+- Diablo II: 1.14 (1.14b is what Blizzard serves). Older clients are refused (they need the disc).
+- StarCraft: Blizzard serves 1.15.2; installations at 1.15.2 to 1.16.1 are accepted. Blizzard no
+  longer serves the 1.16.1 patch, so the app doesn't apply it. Remastered is refused.
+- StarCraft II: stays **Imported — Launch Untested**: files can't show that the offline launcher
+  works under Winlator or that the campaigns load.
+
+DevilutionX is under its Sustainable Use License (non-commercial use, free distribution); the app
+downloads the project's own release on the phone and redistributes nothing of it.
+
+## Controls
+
+The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfile.kt`):
+
+| | StarCraft, StarCraft II | Diablo, Diablo II |
+| --- | --- | --- |
+| Tap | Right click (left on the game's panels) | Left click: walk, attack, pick up |
+| Hold | Left click (twice: double click) | Right click: cast |
+| Swipe | Pan the map | Walk after the finger |
+| Resting finger | Shift | Shift |
+| Two / three / four fingers | Game menu / keyboard / app menu | Same |
+
+A mouse, keyboard or controller works as on a PC. Back is Escape.
 
 ## Build
 
-JDK 21 and Android SDK 35 (`ANDROID_HOME`, or `sdk.dir` in `local.properties`).
+JDK 21, Android SDK 35, NDK 24.0.8215888 and CMake 3.22.1.
 
 ```sh
+scripts/prepare-winlator.sh   # Winlator into app/winlator (winlator-version.env, patches/winlator)
+scripts/build-tools.sh        # innoextract and blizzard-legacy-dl into app/tools (tools.env)
 ./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-`testDebugUnitTest` also renders the screens to `app/build/reports/previews/` (Robolectric).
+blizzard-legacy-dl is built with Zig 0.17 for arm64 (static), with `patches/blizzard-legacy-dl`:
+its name lookups go through the app (Android has no `/etc/resolv.conf`), and it's built
+position-independent. `testDebugUnitTest` also renders the screens to `app/build/reports/previews/`.
+`BLIZZ_REAL_GAMES=<dir>` points one test at real installations (`d2/`, `sc/`) to check the readers
+on Blizzard's own programs.
+
+The art is in `branding/`; `python3 tools/make-art.py` makes the app's pictures and icon from it.
 Every build is signed with `app/sideload.keystore`, so each release installs over the last.
 
 ## Releases
 
-A push to `main` builds, tests and publishes the APK as the release `Blizzard 1.0.N`
-(tag `blizzard-build-N`, `.github/workflows/build-apk.yml`).
+A push to `main` builds, tests and publishes `Blizzard 1.0.N` (tag `blizzard-build-N`).
 
 Not affiliated with Blizzard Entertainment. All trademarks referenced herein are the properties
 of their respective owners.

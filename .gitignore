@@ -3,3 +3,7 @@
 local.properties
 *.iml
 .idea/
+app/winlator/
+app/tools/
+build/
+app/.cxx/

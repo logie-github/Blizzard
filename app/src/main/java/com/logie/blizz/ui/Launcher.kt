@@ -16,6 +16,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -48,6 +50,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -104,16 +107,23 @@ import com.logie.blizz.Games
 import com.logie.blizz.InstalledApp
 import com.logie.blizz.Links
 import com.logie.blizz.R
+import com.logie.blizz.game.Spinner
+import com.logie.blizz.game.WindowsRuntime
+import com.logie.blizz.importer.GameImportManager
+import com.logie.blizz.importer.Stage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
  * The shelf of box art and a game's own page, laid out for the screen it's on: on a narrow screen
- * (the Fold's cover screen) the page opens over the shelf; on a wide one (the inner screen) they
- * sit side by side, split at the hinge; half-open like a laptop, the box art stands above the
- * hinge with Play and the other games below it.
+ * (the Fold's cover screen) the page opens over the shelf; on a wide one (the inner screen) every
+ * box sits in one row under the header, the chosen one lifted, its game below; half-open like a
+ * laptop, the box art stands above the hinge with Play and the other games below it.
  */
+/** Opens a game's import wizard (Repair, a status line): set by [Launcher]. */
+internal val LocalOpenWizard = androidx.compose.runtime.staticCompositionLocalOf<(Game) -> Unit> { {} }
+
 @Composable
 fun Launcher(fold: Fold? = rememberFold()) {
     val context = LocalContext.current
@@ -127,37 +137,29 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val linkKey = version * 10_000 + resumed
 
     val open = Games.all.firstOrNull { it.id == openId }
+    var wizardFor by remember { mutableStateOf<Game?>(null) }
+    LaunchedEffect(resumed) { Games.all.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(game: Game) {
+        // Diablo, Diablo II, StarCraft and StarCraft II: imported into the app and played on its Winlator.
+        if (GameImportManager.importable(game.id)) {
+            val entry = GameImportManager.library(context).get(game.id)
+            if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) WindowsRuntime.play(context, entry) else wizardFor = game
+            return
+        }
         if (!Links.launch(context, game)) { launchAfterPick = true; picking = game }
     }
     fun chooseApp(game: Game) { launchAfterPick = false; picking = game }
 
     BlizzTheme {
+        androidx.compose.runtime.CompositionLocalProvider(LocalOpenWizard provides { g: Game -> wizardFor = g }) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
-            val twoPane = maxWidth >= 600.dp && maxWidth > maxHeight * 0.75f
+            val wide = maxWidth >= 600.dp && maxWidth > maxHeight * 0.75f
             when {
                 fold?.tabletop == true && maxHeight >= 480.dp -> {
                     val game = open ?: Games.all.first()
                     TabletopPage(game, fold, linkKey, onSelect = { openId = it.id }, onPlay = { play(game) }, onChooseApp = { chooseApp(game) })
                 }
-                twoPane -> {
-                    val game = open ?: Games.all.first()
-                    // Split at the hinge when there's one down the middle, else in half.
-                    val hinge = fold?.takeIf { it.vertical && it.start > 240.dp && it.end < maxWidth - 240.dp }
-                    val left = hinge?.start ?: (maxWidth * 0.5f)
-                    val gap = hinge?.let { it.end - it.start } ?: 0.dp
-                    Row(Modifier.fillMaxSize()) {
-                        Box(Modifier.width(left).fillMaxHeight()) {
-                            Shelf(linkKey, selectedId = game.id, onOpen = { openId = it.id })
-                        }
-                        Spacer(Modifier.width(gap).fillMaxHeight().background(Colors.Abyss))
-                        Box(Modifier.weight(1f).fillMaxHeight()) {
-                            Crossfade(game, animationSpec = tween(320), label = "pane") { shown ->
-                                GamePage(shown, linkKey, onBack = null, onPlay = { play(shown) }, onChooseApp = { chooseApp(shown) })
-                            }
-                        }
-                    }
-                }
+                wide -> WideLauncher(open ?: Games.all.first(), linkKey, onSelect = { openId = it.id }, onPlay = ::play, onChooseApp = ::chooseApp)
                 else -> {
                     Shelf(linkKey, selectedId = null, onOpen = { openId = it.id })
                     AnimatedContent(
@@ -173,6 +175,9 @@ fun Launcher(fold: Fold? = rememberFold()) {
                 }
             }
         }
+        }
+        wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
+        RuntimeOverlay()
         picking?.let { game ->
             AppPicker(
                 game,
@@ -183,6 +188,101 @@ fun Launcher(fold: Fold? = rememberFold()) {
                     if (app != null && launchAfterPick) Links.launch(context, game)
                 },
             )
+        }
+    }
+}
+
+/** The box art's shape: 3:4. */
+const val COVER_RATIO = 3f / 4f
+
+// The inner screen: one row of boxes
+
+@Composable
+private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onPlay: (Game) -> Unit, onChooseApp: (Game) -> Unit) {
+    val context = LocalContext.current
+    BoxWithConstraints(Modifier.fillMaxSize().background(Colors.Abyss)) {
+        val width = maxWidth
+        val height = maxHeight
+        // The chosen game's art, blown up and dimmed, behind everything.
+        Crossfade(game, animationSpec = tween(500), label = "backdrop") { shown ->
+            Image(
+                painterResource(shown.cover), contentDescription = null, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.4f; scaleX = 1.2f; scaleY = 1.2f }
+                    .let { if (Build.VERSION.SDK_INT >= 31) it.blur(32.dp) else it },
+            )
+        }
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Colors.Abyss.copy(alpha = 0.5f), Colors.Abyss.copy(alpha = 0.95f)))))
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom)),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Header(width, height * 0.62f)
+            // Every box in one row, as wide as the screen allows; the chosen one lifted and lit.
+            val gap = 8.dp
+            val side = 20.dp
+            val n = Games.all.size
+            val fit = (min(width, 1400.dp) - side * 2 - gap * (n - 1)) / n
+            val coverWidth = min(fit.coerceAtLeast(72.dp), 190.dp)
+            val rowState = rememberLazyListState()
+            LaunchedEffect(game) {
+                val index = Games.all.indexOf(game)
+                if (rowState.layoutInfo.visibleItemsInfo.none { it.index == index && it.offset >= 0 }) rowState.animateScrollToItem(maxOf(index - 1, 0))
+            }
+            LazyRow(
+                state = rowState,
+                modifier = Modifier.fillMaxWidth().height(coverWidth / COVER_RATIO * 1.08f + 28.dp),
+                contentPadding = PaddingValues(start = side, end = side, top = 18.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                itemsIndexed(Games.all, key = { _, it -> it.id }) { index, item ->
+                    val chosen = item.id == game.id
+                    val lift by animateFloatAsState(if (chosen) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 500f), label = "lift")
+                    Box(Modifier.width(coverWidth).graphicsLayer {
+                        val s = 1f + 0.06f * lift
+                        scaleX = s; scaleY = s
+                        translationY = -12.dp.toPx() * lift
+                        alpha = 0.72f + 0.28f * lift
+                    }) {
+                        Cover(item, linkKey, index, chosen, Modifier.fillMaxWidth()) { onSelect(item) }
+                    }
+                }
+            }
+            // The chosen game.
+            AnimatedContent(
+                targetState = game,
+                transitionSpec = {
+                    val right = Games.all.indexOf(targetState) > Games.all.indexOf(initialState)
+                    (fadeIn(tween(300)) + slideInHorizontally(tween(300)) { if (right) it / 6 else -it / 6 }) togetherWith
+                        (fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { if (right) -it / 6 else it / 6 })
+                },
+                label = "chosen",
+                modifier = Modifier.widthIn(max = 900.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 24.dp),
+            ) { shown ->
+                val linked = remember(linkKey, shown) { Links.packageFor(context, shown) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(shown.title, style = DisplayStyle.copy(fontSize = 30.sp, lineHeight = 36.sp, shadow = IceGlow))
+                        shown.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow)) }
+                        Text(shown.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        PlayButton(shown, Modifier.widthIn(min = 220.dp)) { onPlay(shown) }
+                        ImportStatus(shown)
+                        if (linked != null) {
+                            Row(
+                                Modifier.clip(CircleShape).clickable { onChooseApp(shown) }.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                AppIcon(linked, Modifier.size(22.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(remember(linked) { Links.label(context, linked) }, style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
+                            }
+                        }
+                    }
+                }
+            }
+            Footer()
         }
     }
 }
@@ -299,7 +399,7 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
 
     Box(
         modifier
-            .aspectRatio(2f / 3f)
+            .aspectRatio(COVER_RATIO)
             .graphicsLayer {
                 alpha = appear.value
                 translationY = (1f - appear.value) * 24.dp.toPx()
@@ -384,7 +484,7 @@ private fun BigCover(game: Game, modifier: Modifier) {
     Image(
         painterResource(game.cover), contentDescription = game.fullTitle, contentScale = ContentScale.Crop,
         modifier = modifier
-            .aspectRatio(2f / 3f)
+            .aspectRatio(COVER_RATIO)
             .graphicsLayer { translationY = -6.dp.toPx() * y }
             .drawBehind { drawRect(Brush.radialGradient(listOf(Colors.Ice.copy(alpha = 0.35f), Color.Transparent), radius = size.maxDimension * 0.8f)) }
             .drawWithContent { drawContent(); drawFrame(arm = 14.dp.toPx(), stroke = 1.8.dp.toPx()) },
@@ -399,7 +499,8 @@ private fun Details(game: Game, linked: String?, onPlay: () -> Unit, onChooseApp
         game.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow), textAlign = textAlign) }
         Text(game.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist), textAlign = textAlign)
         Spacer(Modifier.height(16.dp))
-        FrameButton(stringResource(R.string.play), Modifier.widthIn(min = 220.dp), onClick = onPlay)
+        PlayButton(game, Modifier.widthIn(min = 220.dp), onPlay)
+        ImportStatus(game)
         if (linked != null) {
             Spacer(Modifier.height(6.dp))
             Row(
@@ -454,7 +555,8 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    FrameButton(stringResource(R.string.play), Modifier.widthIn(min = 240.dp), onClick = onPlay)
+                    PlayButton(game, Modifier.widthIn(min = 240.dp), onPlay)
+                    ImportStatus(game)
                     if (linked != null) AppIcon(linked, Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onChooseApp).padding(4.dp))
                 }
                 LazyRow(
@@ -468,6 +570,72 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
                 }
             }
         }
+    }
+}
+
+// Imported games
+
+/** Play, or Auto Import for an importable game that isn't in the app yet. */
+@Composable
+private fun PlayButton(game: Game, modifier: Modifier, onPlay: () -> Unit) {
+    val states by GameImportManager.states.collectAsState()
+    val importable = GameImportManager.importable(game.id)
+    val state = states[game.id]
+    val label = when {
+        !importable -> stringResource(R.string.play)
+        state?.running == true -> "Importing…"
+        state?.entry != null -> stringResource(R.string.play)
+        else -> "Auto Import"
+    }
+    FrameButton(label, modifier, onClick = onPlay)
+}
+
+/** An imported game's status, which opens its wizard (Repair, Reimport, details). */
+@Composable
+private fun ImportStatus(game: Game) {
+    if (!GameImportManager.importable(game.id)) return
+    val states by GameImportManager.states.collectAsState()
+    val state = states[game.id] ?: return
+    val open = LocalOpenWizard.current
+    val text = when {
+        state.running -> state.progress?.label ?: "Importing…"
+        else -> statusLabel(state.record.stage, state.record.outcome, state.record.launchTest, game.id)
+    }
+    if (text.isEmpty() && state.entry == null) return
+    Row(
+        Modifier.clip(CircleShape).clickable { open(game) }.padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text, style = MaterialTheme.typography.bodySmall.copy(color = if (state.record.stage == Stage.READY) Colors.Ice else Colors.Mist))
+        if (state.entry != null && !state.running) Text("  ·  Repair", style = MaterialTheme.typography.bodySmall.copy(color = Colors.Mist))
+    }
+}
+
+/** Starting an imported game: the runtime's install and Windows' first start, or what went wrong. */
+@Composable
+private fun RuntimeOverlay() {
+    val state by WindowsRuntime.state.collectAsState()
+    when (val s = state) {
+        is WindowsRuntime.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Column(Modifier.fillMaxSize().background(Colors.Abyss.copy(alpha = 0.92f)), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
+                Spinner(44.dp)
+                Text(
+                    when (s.step) {
+                        WindowsRuntime.Step.RUNTIME -> "Installing the Windows runtime" + (s.progress?.let { " ${(it * 100).toInt()}%" } ?: "")
+                        WindowsRuntime.Step.WINDOWS -> "Preparing Windows"
+                        WindowsRuntime.Step.STARTING -> "Starting"
+                    },
+                    style = MaterialTheme.typography.titleMedium, color = Colors.Mist,
+                )
+            }
+        }
+        is WindowsRuntime.State.Failed -> Dialog(onDismissRequest = { WindowsRuntime.dismiss() }) {
+            Column(Modifier.drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(s.message, style = MaterialTheme.typography.bodyLarge)
+                FrameButton("OK", Modifier.align(Alignment.End)) { WindowsRuntime.dismiss() }
+            }
+        }
+        else -> {}
     }
 }
 
