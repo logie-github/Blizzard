@@ -17,8 +17,8 @@ import java.net.URL
 import java.security.MessageDigest
 
 /**
- * The app's failures, sent to its GitHub repository as issues, by themselves (once a token is set,
- * [setToken]): the app crashing, an
+ * The app's failures, sent to its GitHub repository as issues, by themselves (with the token CI
+ * builds in, as YeaBwoi's apps do): the app crashing, an
  * import failing, a game failing to start. Each is written to `files/reports` first, then sent at
  * once and again every minute while any wait (offline, GitHub busy), and kept until GitHub takes
  * it. The same failure goes once a day at most. Stopping an import, a full phone and a game
@@ -48,19 +48,9 @@ object BugReports {
 
     /** The repository the issues go to. */
     const val repo = "logie-github/Blizzard"
-    private const val PREFS = "reports"
 
-    /**
-     * The GitHub token the reports are sent with: one the person entered on this phone (a
-     * fine-grained token that may open issues on [repo]), kept in the app's private storage and
-     * never in the APK, where anyone with the APK could read it. Without one, reports wait.
-     */
-    fun token(context: Context): String = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("token", "").orEmpty()
-
-    fun setToken(context: Context, token: String) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("token", token.trim()).apply()
-        sendSoon(context.applicationContext)
-    }
+    /** The token the issues are opened with: CI's BLIZZ_REPORT_TOKEN secret, built in. Without one, reports wait. */
+    fun token(@Suppress("UNUSED_PARAMETER") context: Context): String = BuildConfig.REPORT_TOKEN
 
     fun configured(context: Context): Boolean = token(context).isNotEmpty()
 

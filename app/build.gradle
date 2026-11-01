@@ -38,6 +38,11 @@ android {
 		targetSdk = 28
 		versionCode = prop('blizzVersionCode', '1').toInteger()
 		versionName = prop('blizzVersionName', '1.0')
+		// Updates from this repository's releases (blizzard-build-N), and the token the bug reports
+		// open issues with: CI's BLIZZ_REPORT_TOKEN secret, as YeaBwoi's apps carry theirs.
+		buildConfigField "String", "UPDATE_REPO", "\"${prop('blizzUpdateRepo', 'logie-github/Blizzard')}\""
+		buildConfigField "String", "RELEASE_TAG_PREFIX", "\"blizzard-build\""
+		buildConfigField "String", "REPORT_TOKEN", "\"${prop('blizzReportToken', '')}\""
 
 		ndk {
 			// Phones only: the games' runtime is built for arm64.

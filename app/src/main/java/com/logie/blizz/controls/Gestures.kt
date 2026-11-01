@@ -53,7 +53,8 @@ interface GestureOutput {
  * (no Android types), fed touch events by the game screen and unit-tested:
  *
  * - **Swipe** one finger: the map pans the way the finger goes (the arrow keys), for as long as the
- *   finger stays away from where it landed ([Profile.ARPG]: the hero walks after the finger).
+ *   finger stays away from where it landed ([Profile.ARPG]: the hero walks after the finger; a
+ *   quick flick is the arrow key its way instead, which the menus move with).
  * - **Tap**: right click there (move, attack, gather, set a rally point); on the game's panels the
  *   game screen makes it a left click ([com.logie.blizz.game.GestureView]). [Profile.ARPG]: left click.
  * - **Touch and hold** ([HOLD_MS], a buzz): left click there when the finger lifts (select a unit,
@@ -72,6 +73,11 @@ class Gestures(private val out: GestureOutput, density: Float, private val profi
         const val MULTI_TAP_MS = 500L
         /** A finger down this long before another lands is resting (Shift), not half of a two-finger tap. */
         const val REST_MS = 200L
+        /**
+         * [Profile.ARPG]: a swipe whose finger lifts within this long is a flick, the arrow key its
+         * way (the menus move with them); one down longer walks.
+         */
+        const val FLICK_MS = 250L
         /** A second hold this soon after the first one lifted, on the same spot, is a double click. */
         const val DOUBLE_HOLD_MS = 900L
     }
@@ -148,10 +154,10 @@ class Gestures(private val out: GestureOutput, density: Float, private val profi
     /** A finger where it is now. */
     data class Touch(val id: Int, val x: Float, val y: Float)
 
-    fun move(id: Int, x: Float, y: Float) = move(listOf(Touch(id, x, y)))
+    fun move(id: Int, x: Float, y: Float, now: Long = Long.MAX_VALUE / 2) = move(listOf(Touch(id, x, y)), now)
 
     /** Every finger of one touch event moved: all of them first, then what that means. */
-    fun move(touches: List<Touch>) {
+    fun move(touches: List<Touch>, now: Long = Long.MAX_VALUE / 2) {
         for (touch in touches) {
             val finger = fingers[touch.id] ?: continue
             finger.x = touch.x
@@ -163,15 +169,10 @@ class Gestures(private val out: GestureOutput, density: Float, private val profi
                 val finger = fingers.values.firstOrNull() ?: return
                 if (finger.moved) {
                     mode = Mode.PAN
-                    if (profile == Profile.ARPG) {
-                        out.pointerTo(finger.startX, finger.startY)
-                        out.buttonDown(Button.LEFT)
-                        walking = true
-                    }
-                    pan(finger)
+                    pan(finger, now)
                 }
             }
-            Mode.PAN -> fingers.values.firstOrNull()?.let { pan(it) }
+            Mode.PAN -> fingers.values.firstOrNull()?.let { pan(it, now) }
             Mode.MULTI -> moveMulti()
             Mode.SHIFT, Mode.IDLE, Mode.DONE -> {}
         }
@@ -192,6 +193,8 @@ class Gestures(private val out: GestureOutput, density: Float, private val profi
             }
             Mode.PENDING, Mode.HELD -> if (fingers.isEmpty()) clickFor(finger, now)
             Mode.PAN -> if (fingers.isEmpty()) {
+                // [Profile.ARPG]: lifted before it walked: a flick, the arrow key its way.
+                if (profile == Profile.ARPG && !walking) flick(finger)
                 releaseKeys()
                 stopWalking()
             }
@@ -275,12 +278,29 @@ class Gestures(private val out: GestureOutput, density: Float, private val profi
         out.buttonUp(Button.LEFT)
     }
 
+    /** [Profile.ARPG]: a flick's arrow key, pressed and let go, the way the finger went most. */
+    private fun flick(finger: Finger) {
+        val dx = finger.x - finger.startX
+        val dy = finger.y - finger.startY
+        val key = if (abs(dx) >= abs(dy)) (if (dx > 0) Key.RIGHT else Key.LEFT) else (if (dy > 0) Key.DOWN else Key.UP)
+        out.keyDown(key)
+        out.keyUp(key)
+    }
+
     /**
      * The arrow keys toward where the finger went from where it landed, beyond a small dead zone;
-     * [Profile.ARPG]: the pointer, with the left button held, where the finger is.
+     * [Profile.ARPG]: once the finger's been down [FLICK_MS], the hero walks: the left button held
+     * where it landed, the pointer following it. (Sooner, it may be a flick: nothing's pressed yet,
+     * so a flick over a menu clicks nothing.)
      */
-    private fun pan(finger: Finger) {
+    private fun pan(finger: Finger, now: Long) {
         if (profile == Profile.ARPG) {
+            if (!walking) {
+                if (now - finger.downAt < FLICK_MS) return
+                out.pointerTo(finger.startX, finger.startY)
+                out.buttonDown(Button.LEFT)
+                walking = true
+            }
             out.pointerTo(finger.x, finger.y)
             return
         }

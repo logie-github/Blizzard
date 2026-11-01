@@ -43,8 +43,21 @@ class GesturesTest {
         g.down(0, 100f, 100f, 1000); g.onHold(1000 + Gestures.HOLD_MS); g.up(0, 100f, 100f, 1600)
         assertEquals(listOf("buzz", "to 100,100", "click RIGHT"), out.events)
         out.events.clear()
-        g.down(0, 100f, 100f, 5000); g.move(0, 150f, 100f); g.move(0, 220f, 130f); g.up(0, 220f, 130f, 5600)
+        g.down(0, 100f, 100f, 5000); g.move(0, 150f, 100f, 5300); g.move(0, 220f, 130f, 5400); g.up(0, 220f, 130f, 5600)
         assertEquals(listOf("to 100,100", "down LEFT", "to 150,100", "to 220,130", "up LEFT"), out.events)
+    }
+
+    @Test fun arpgFlicksAreArrowKeysAndClickNothing() {
+        val out = Recorder()
+        val g = Gestures(out, 1f, Profile.ARPG)
+        g.down(0, 100f, 100f, 0); g.move(0, 100f, 160f, 60); g.up(0, 100f, 200f, 120)
+        assertEquals(listOf("key down DOWN", "key up DOWN"), out.events)
+        out.events.clear()
+        g.down(0, 300f, 100f, 1000); g.move(0, 250f, 105f, 1050); g.up(0, 200f, 110f, 1100)
+        assertEquals(listOf("key down LEFT", "key up LEFT"), out.events)
+        out.events.clear()
+        g.down(0, 100f, 300f, 2000); g.move(0, 100f, 240f, 2050); g.up(0, 100f, 200f, 2100)
+        assertEquals(listOf("key down UP", "key up UP"), out.events)
     }
 
     @Test fun twoThreeFourFingersAreTheSameInBothProfiles() {
