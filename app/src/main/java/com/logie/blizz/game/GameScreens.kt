@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -137,7 +139,33 @@ class GameLoading(private val activity: Activity) {
 @Composable
 internal fun Loading(gameId: String?, text: String) {
     val game = Games.all.firstOrNull { it.id == gameId }
+    val splash = game?.splash
     Box(Modifier.fillMaxSize().background(Colors.Abyss), contentAlignment = Alignment.Center) {
+        if (splash != null) {
+            // The game's own art filling the screen (cut at its sides, or below, never above for Diablo II), its logo low over it, embers rising.
+            Image(painterResource(splash), contentDescription = null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, game.splashTop), modifier = Modifier.fillMaxSize())
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.9f))))
+            Snow(alpha = 0.8f, color = Color(0xFFFF8A3D), rising = true, flakes = 50)
+            // A very wide screen (the cover screen sideways): the logo to the lower right, off the face.
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val wide = maxWidth > maxHeight * 1.7f
+                val logoWidth = if (wide) maxWidth * 0.24f else 340.dp
+                Column(
+                    Modifier.fillMaxSize().padding(bottom = 28.dp, end = if (wide) 36.dp else 0.dp),
+                    horizontalAlignment = if (wide) Alignment.End else Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom),
+                ) {
+                    game.splashLogo?.let {
+                        Image(painterResource(it), contentDescription = game.fullTitle, contentScale = ContentScale.Fit, modifier = Modifier.width(logoWidth))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Spinner(26.dp, accent = Color(0xFFFF8A3D))
+                        Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
+                    }
+                }
+            }
+            return@Box
+        }
         if (game != null) {
             Image(
                 painterResource(game.cover), contentDescription = null, contentScale = ContentScale.Crop,
@@ -156,14 +184,14 @@ internal fun Loading(gameId: String?, text: String) {
 
 /** Waiting: a bright arc running round a steel ring. */
 @Composable
-fun Spinner(size: Dp, modifier: Modifier = Modifier) {
+fun Spinner(size: Dp, modifier: Modifier = Modifier, accent: Color = Colors.Ice) {
     val motion = rememberInfiniteTransition(label = "spinner")
     val turn by motion.animateFloat(0f, 360f, infiniteRepeatable(tween(1_400, easing = LinearEasing)), label = "turn")
     Canvas(modifier.size(size)) {
         val r = this.size.minDimension / 2 * 0.86f
         drawCircle(Colors.Steel, r, style = Stroke(1.2.dp.toPx()))
         drawArc(
-            Brush.sweepGradient(listOf(Color.Transparent, Colors.Ice, Colors.Glow)),
+            Brush.sweepGradient(listOf(Color.Transparent, accent, if (accent == Colors.Ice) Colors.Glow else accent)),
             startAngle = turn, sweepAngle = 100f, useCenter = false,
             topLeft = Offset(center.x - r, center.y - r), size = Size(r * 2, r * 2),
             style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round),

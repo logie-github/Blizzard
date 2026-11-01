@@ -178,9 +178,9 @@ fun FrameTitle(text: String, modifier: Modifier = Modifier, style: TextStyle = M
     }
 }
 
-/** Snow drifting down over the picture. */
+/** Snow drifting down over the picture ([rising]: embers going up). */
 @Composable
-fun Snow(modifier: Modifier = Modifier, flakes: Int = 70, alpha: Float = 1f) {
+fun Snow(modifier: Modifier = Modifier, flakes: Int = 70, alpha: Float = 1f, color: Color = Colors.Glow, rising: Boolean = false) {
     val motion = rememberInfiniteTransition(label = "snow")
     val time by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(20_000, easing = LinearEasing)), label = "time")
     val seeds = remember(flakes) {
@@ -190,11 +190,12 @@ fun Snow(modifier: Modifier = Modifier, flakes: Int = 70, alpha: Float = 1f) {
     Canvas(modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }) {
         for (seed in seeds) {
             val (x0, y0, depth, phase) = seed.toList()
-            val fall = (y0 + time * (1f + 2f * depth)) % 1f
+            val travel = (y0 + time * (1f + 2f * depth)) % 1f
+            val fall = if (rising) 1f - travel else travel
             val sway = sin((time * 6f + phase) * 2 * PI).toFloat() * 0.012f
             val x = ((x0 + sway - time * 0.15f * depth) % 1f + 1f) % 1f
             drawCircle(
-                Colors.Glow.copy(alpha = 0.25f + 0.5f * depth),
+                color.copy(alpha = 0.25f + 0.5f * depth),
                 radius = (0.8f + 1.8f * depth).dp.toPx(),
                 center = Offset(x * size.width, fall * size.height),
             )

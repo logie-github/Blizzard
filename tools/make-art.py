@@ -61,3 +61,13 @@ fg.paste(e, ((432 - e.width) // 2, (432 - e.height) // 2), e)
 fg.save(NODPI / "ic_blizz_foreground.png")
 bg = icon.resize((432, 432), Image.LANCZOS)
 bg.save(NODPI / "ic_blizz_background.png")
+
+# Games' own loading screens (branding/splash/<game>.png, and <game>-logo.png over it).
+for f in sorted(p for p in (B / "splash").iterdir() if p.suffix in (".png", ".jpg")):
+    im = Image.open(f)
+    if f.stem.endswith("-logo"):
+        im.convert("RGBA").save(NODPI / f"splash_logo_{f.stem[:-5]}.webp", quality=92)
+    else:
+        im = im.convert("RGB")
+        im.thumbnail((1920, 1920), Image.LANCZOS)
+        im.save(NODPI / f"splash_{f.stem}.webp", quality=86)

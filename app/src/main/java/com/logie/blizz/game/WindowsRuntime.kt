@@ -101,11 +101,13 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
 
         _state.value = State.Preparing(Step.STARTING)
-        val execPath = program.path + if (entry.arguments.isNotEmpty()) " ${entry.arguments}" else ""
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
-            .putExtra("exec_path", execPath)
+            // The program's path alone (Winlator makes it a Windows path); its arguments apart
+            // (patches/winlator/0005): paths in them would otherwise break that conversion.
+            .putExtra("exec_path", program.path)
+            .putExtra("exec_args", entry.arguments)
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)

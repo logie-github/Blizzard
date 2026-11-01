@@ -56,6 +56,9 @@ Version notes:
 DevilutionX is under its Sustainable Use License (non-commercial use, free distribution); the app
 downloads the project's own release on the phone and redistributes nothing of it.
 
+Diablo and Diablo II start behind their own splash (`branding/splash/`): the art fills the screen,
+cut at its sides (Diablo II is never cut at its top), its logo low over it, embers rising.
+
 ## Controls
 
 The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfile.kt`):
