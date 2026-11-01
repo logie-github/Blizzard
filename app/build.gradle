@@ -9,6 +9,16 @@ def prop = { String name, String fallback ->
 	value.isEmpty() ? fallback : value
 }
 
+// The games' runtime, Winlator (scripts/prepare-winlator.sh puts it in app/winlator), and the
+// importers' programs (scripts/build-tools.sh puts them in app/tools).
+def winlator = file("winlator")
+if (!new File(winlator, "java").isDirectory()) {
+	throw new GradleException("Winlator isn't in app/winlator: run scripts/prepare-winlator.sh")
+}
+if (!file("tools/jniLibs/arm64-v8a/libbldl.so").isFile()) {
+	throw new GradleException("The importers' programs aren't in app/tools: run scripts/build-tools.sh")
+}
+
 android {
 	namespace = 'com.logie.blizz'
 	compileSdk = 35
@@ -18,9 +28,33 @@ android {
 	defaultConfig {
 		applicationId = 'com.logie.blizz'
 		minSdk = 26
-		targetSdk = 35
+		// 28, like Termux and Winlator: Android lets apps that target 28 or lower run programs from
+		// their own storage, which is where the games' Wine runs from.
+		//noinspection ExpiredTargetSdkVersion
+		targetSdk = 28
 		versionCode = prop('blizzVersionCode', '1').toInteger()
 		versionName = prop('blizzVersionName', '1.0')
+
+		ndk {
+			// Phones only: the games' runtime is built for arm64.
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	// Winlator's native code (its X server, renderers, audio), with the NDK and CMake it's made for.
+	ndkVersion = "24.0.8215888"
+	externalNativeBuild {
+		cmake {
+			path = file("winlator/cpp/CMakeLists.txt")
+			version = "3.22.1"
+		}
+	}
+
+	packaging {
+		jniLibs {
+			// Winlator loads its libraries from files, and the importers' programs run from there.
+			useLegacyPackaging = true
+		}
 	}
 
 	// One key for every build, so each release installs over the last.
@@ -36,13 +70,35 @@ android {
 		debug { signingConfig = signingConfigs.sideload }
 		release {
 			signingConfig = signingConfigs.sideload
-			minifyEnabled = false
+			minifyEnabled = true
+			// Winlator looks some of its resources up by name.
+			shrinkResources = false
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 		}
 	}
 
 	compileOptions {
 		sourceCompatibility JavaVersion.VERSION_17
 		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	sourceSets {
+		main {
+			assets.srcDirs += ['winlator/assets']
+			java.srcDirs += ['winlator/java']
+			res.srcDirs += ['winlator/res']
+			jniLibs.srcDirs += ['winlator/jniLibs', 'tools/jniLibs']
+		}
+	}
+
+	androidResources {
+		// Already compressed.
+		noCompress += ['tzst', 'zip']
+	}
+
+	lint {
+		abortOnError = false
+		checkReleaseBuilds = false
 	}
 
 	testOptions.unitTests.includeAndroidResources = true
@@ -61,8 +117,17 @@ dependencies {
 	implementation 'androidx.activity:activity-compose:1.9.3'
 	implementation 'androidx.core:core-ktx:1.12.0'
 	implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
 	// The Fold's hinge: where it is, and whether the phone's half-open.
 	implementation 'androidx.window:window:1.3.0'
+	// Winlator's.
+	implementation 'androidx.appcompat:appcompat:1.6.1'
+	implementation 'com.google.android.material:material:1.11.0'
+	implementation 'org.apache.commons:commons-compress:1.27.1'
+	implementation 'org.tukaani:xz:1.10'
+	implementation 'androidx.preference:preference:1.2.1'
+	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
 	testImplementation 'junit:junit:4.13.2'
 	testImplementation 'org.robolectric:robolectric:4.16'
 	testImplementation 'androidx.compose.ui:ui-test-junit4'

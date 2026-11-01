@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <b@x>
+Date: Sun, 1 Nov 2026 21:22:44 +0000
+Subject: [PATCH] Android: resolve names through the app's loopback resolver
+ (BLDL_RESOLVER)
+
+---
+ src/connect.zig | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/src/connect.zig b/src/connect.zig
+index 94a996b..09b1f17 100644
+--- a/src/connect.zig
++++ b/src/connect.zig
+@@ -204,6 +204,8 @@ pub fn resolve(io: std.Io, host: []const u8, port: u16, out: []net.IpAddress) ![
+         out[0] = one;
+         return out[0..1];
+     } else |_| {}
++    // Android has no /etc/resolv.conf: the app that runs this answers on a loopback port instead.
++    if (std.c.getenv("BLDL_RESOLVER")) |p| return resolveVia(io, std.mem.span(p), host, port, out);
+     const name = try net.HostName.init(host);
+     var buf: [32]net.HostName.LookupResult = undefined;
+     var q: std.Io.Queue(net.HostName.LookupResult) = .init(&buf);
+@@ -221,6 +223,32 @@ pub fn resolve(io: std.Io, host: []const u8, port: u16, out: []net.IpAddress) ![
+     return ordered(found[0..n], out);
+ }
+ 
++/// The addresses of `host` from the resolver listening on 127.0.0.1:`port_text`: the host's name and a
++/// newline out, one address a line back until the resolver closes the connection.
++fn resolveVia(io: std.Io, port_text: []const u8, host: []const u8, port: u16, out: []net.IpAddress) ![]net.IpAddress {
++    const resolver_port = std.fmt.parseInt(u16, port_text, 10) catch return error.UnknownHostName;
++    const loopback = try net.IpAddress.parse("127.0.0.1", resolver_port);
++    const stream = loopback.connect(io, .{ .mode = .stream }) catch return error.UnknownHostName;
++    defer stream.close(io);
++    var wbuf: [300]u8 = undefined;
++    var w = stream.writer(io, &wbuf);
++    w.interface.writeAll(host) catch return error.UnknownHostName;
++    w.interface.writeAll("\n") catch return error.UnknownHostName;
++    w.interface.flush() catch return error.UnknownHostName;
++    var rbuf: [1024]u8 = undefined;
++    var r = stream.reader(io, &rbuf);
++    var found: [32]net.IpAddress = undefined;
++    var n: usize = 0;
++    while (r.interface.takeDelimiter('\n') catch null) |line| {
++        const text = std.mem.trim(u8, line, " \r\t");
++        if (text.len == 0 or n >= found.len) continue;
++        found[n] = net.IpAddress.parse(text, port) catch continue;
++        n += 1;
++    }
++    if (n == 0) return error.UnknownHostName;
++    return ordered(found[0..n], out);
++}
++
+ /// A connection to `uri`'s host for `client`: one it already holds, else one to whichever of the host's addresses
+ /// answers first, verified as the host itself (the address only says where to connect; the certificate and the
+ /// Host header are the name's). Pass it as `RequestOptions.connection`, or use `warm` for a client that fetches.

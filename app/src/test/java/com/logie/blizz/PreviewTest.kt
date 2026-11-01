@@ -68,17 +68,22 @@ class PreviewTest {
     }
 
     @Config(qualifiers = "w840dp-h750dp-xxhdpi")
-    @Test fun innerOpen() {
-        compose.setContent { Launcher(fold = Fold(vertical = true, halfOpen = false, start = 420.dp, end = 420.dp)) }
-        open("StarCraft II")
-        screenshot("inner-open")
+    @Test fun inner() {
+        compose.setContent { Launcher(fold = null) }
+        screenshot("inner")
     }
 
     @Config(qualifiers = "w840dp-h750dp-xxhdpi")
-    @Test fun innerBook() {
-        compose.setContent { Launcher(fold = Fold(vertical = true, halfOpen = true, start = 410.dp, end = 430.dp)) }
-        open("Diablo")
-        screenshot("inner-book")
+    @Test fun innerChosen() {
+        compose.setContent { Launcher(fold = null) }
+        open("StarCraft II")
+        screenshot("inner-chosen")
+    }
+
+    @Config(qualifiers = "w750dp-h840dp-xxhdpi")
+    @Test fun innerUpright() {
+        compose.setContent { Launcher(fold = null) }
+        screenshot("inner-upright")
     }
 
     @Config(qualifiers = "w840dp-h750dp-xxhdpi")

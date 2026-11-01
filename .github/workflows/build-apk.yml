@@ -1,4 +1,9 @@
 name: Build Blizzard Launcher
+
+# Builds the launcher with the games' runtime (Winlator, scripts/prepare-winlator.sh) and the
+# importers' programs (innoextract and blizzard-legacy-dl for arm64, scripts/build-tools.sh), both
+# cached by their pins and patches; runs the unit tests; and on main publishes the APK as a
+# release (blizzard-build-N).
 on:
   push:
     branches: [main]
@@ -6,9 +11,13 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: blizzard-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -16,11 +25,48 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      # The runner's own Android SDK.
+
+      # The runner's own Android SDK; Winlator's native code and the tools need the NDK and CMake.
       - name: Install build tools
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;35.0.0" \
+            "ndk;24.0.8215888" "cmake;3.22.1" > /dev/null
+
+      - name: Look for Winlator
+        id: winlator
+        uses: actions/cache/restore@v4
+        with:
+          path: app/winlator
+          key: blizz-winlator-v1-${{ hashFiles('winlator-version.env', 'patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+      - name: Prepare Winlator
+        if: steps.winlator.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard > /dev/null
+          scripts/prepare-winlator.sh
+      - name: Save Winlator
+        if: steps.winlator.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: app/winlator
+          key: ${{ steps.winlator.outputs.cache-primary-key }}
+
+      - name: Look for the importers' programs
+        id: tools
+        uses: actions/cache/restore@v4
+        with:
+          path: app/tools
+          key: blizz-tools-v1-${{ hashFiles('tools.env', 'patches/blizzard-legacy-dl/**', 'scripts/build-tools.sh') }}
+      - name: Build the importers' programs
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-tools.sh
+      - name: Save the importers' programs
+        if: steps.tools.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: app/tools
+          key: ${{ steps.tools.outputs.cache-primary-key }}
+
       - run: chmod +x gradlew
       - name: Build and test
         run: >
