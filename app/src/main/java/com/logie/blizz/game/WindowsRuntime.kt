@@ -69,6 +69,11 @@ object WindowsRuntime {
                 throw e
             } catch (e: Exception) {
                 _state.value = State.Failed(app.getString(R.string.game_error, e.message ?: e.javaClass.simpleName))
+                com.logie.blizz.reports.BugReports.report(
+                    app, "${entry.title} launch", e.message ?: e.javaClass.simpleName,
+                    listOf("Game" to entry.gameId, "Version" to entry.clientVersion, "Program" to entry.executable, "Arguments" to entry.arguments),
+                    log = e.stackTraceToString(),
+                )
             }
         }
     }

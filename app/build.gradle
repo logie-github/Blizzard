@@ -23,7 +23,11 @@ android {
 	namespace = 'com.logie.blizz'
 	compileSdk = 35
 
-	buildFeatures { compose = true }
+	buildFeatures {
+		compose = true
+		// The version, for the bug reports.
+		buildConfig = true
+	}
 
 	defaultConfig {
 		applicationId = 'com.logie.blizz'

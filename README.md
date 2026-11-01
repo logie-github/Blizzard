@@ -59,6 +59,19 @@ downloads the project's own release on the phone and redistributes nothing of it
 Diablo and Diablo II start behind their own splash (`branding/splash/`): the art fills the screen,
 cut at its sides (Diablo II is never cut at its top), its logo low over it, embers rising.
 
+## Bug reports
+
+Crashes, failed imports and failed game starts are sent to this repository as GitHub issues by
+themselves (labels `bug`, `auto-report`), with the app's version, the phone, the game, what the
+app said, its checks and the end of the log; CD keys and tokens are taken out. They're queued in
+`files/reports` and sent at once, again every minute while any wait, and the same failure goes
+once a day at most. Stopping an import, a full phone and an unsupported game version aren't sent.
+
+They go with a GitHub token entered once on the phone (the footer's **Bug reports**): a
+fine-grained token with Issues read and write on this repository. It stays in the app's private
+storage; the APK carries none, since anyone with the APK could read one. Until it's entered,
+reports wait.
+
 ## Controls
 
 The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfile.kt`):

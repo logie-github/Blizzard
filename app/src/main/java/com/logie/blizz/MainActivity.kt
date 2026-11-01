@@ -11,6 +11,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Crashes and failures from now on go to GitHub as issues; ones waiting from before go now.
+        com.logie.blizz.reports.BugReports.start(this)
         setContent { Launcher() }
     }
 
