@@ -100,7 +100,8 @@ android "$WORK/innoextract" "$WORK/innoextract-build" \
 	-DBoost_USE_STATIC_RUNTIME=ON \
 	-DLZMA_INCLUDE_DIR="$PREFIX/include" -DLZMA_LIBRARY="$PREFIX/lib/liblzma.a" \
 	-DZLIB_INCLUDE_DIR="$PREFIX/include" -DZLIB_LIBRARY="$PREFIX/lib/libz.a" \
-	-DBZIP2_INCLUDE_DIR="$PREFIX/include" -DBZIP2_LIBRARIES="$PREFIX/lib/libbz2.a" -DBZIP2_LIBRARY="$PREFIX/lib/libbz2.a"
+	-DBZIP2_INCLUDE_DIR="$PREFIX/include" -DBZIP2_LIBRARIES="$PREFIX/lib/libbz2.a" -DBZIP2_LIBRARY="$PREFIX/lib/libbz2.a" \
+	"-DCMAKE_EXE_LINKER_FLAGS=-L$PREFIX/lib"
 make -C "$WORK/innoextract-build" -j"$JOBS" innoextract > "$WORK/innoextract.make.log" || { tail -40 "$WORK/innoextract.make.log"; exit 1; }
 "$TOOLCHAIN/llvm-strip" -o "$OUT/libinnoextract.so" "$WORK/innoextract-build/innoextract"
 
