@@ -10,9 +10,9 @@ The first stage includes:
 - Warcraft, Diablo, StarCraft, and Warcraft strategy showcase entries.
 - Category filters and universe detail dialogs.
 - A Library of favorites persisted locally across launches.
-- An original lettermark launcher icon and system bar inset handling.
+- The supplied blue app icon, Blizzard wordmark, icy landscape background, and system bar inset handling.
 
-Entries are previews, not claims of supported or installed games. No game launch, installation, account login, downloads, game files or runtime integrations are included. Artwork currently uses colored panels and typographic emblems.
+Entries are previews, not claims of supported or installed games. No game launch, installation, account login, downloads, game files or runtime integrations are included. The interface uses a shared dark navy and electric blue palette, bordered translucent panels, and a dark overlay on the supplied icy landscape for readable text. Universe emblems remain typographic.
 
 ## Build
 
@@ -44,3 +44,8 @@ The existing Warcraft `MainActivity` coordinates the launcher, title music, upda
 Decide the concrete games and versions to support, then define their install and launch interfaces independently of the showcase. Integrate runtimes individually after that decision. A future migration of existing saves or realm data needs an explicit plan: this package has its own Android storage.
 
 This is an independent project, unaffiliated with Blizzard Entertainment. Game names belong to their respective owners.
+
+
+## Theme assets
+
+Colors live in `app/src/main/res/values/colors.xml` and are shared by the app screens, controls, dialogs, and system bars. The supplied app icon and ice background are preserved in `drawable-nodpi`; the supplied SVG wordmark is represented as a native Android vector drawable. The app icon also supplies the adaptive launcher icon. These assets are bundled for offline use.

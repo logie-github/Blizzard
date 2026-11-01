@@ -4,21 +4,22 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.content.SharedPreferences;
-import android.graphics.Color;
+import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
 
 /** Offline showcase. Runtime integration belongs outside the presentation layer. */
 public final class MainActivity extends Activity {
-    private static final int BG = 0xff0a101c, PANEL = 0xff141f30, BLUE = 0xff58c8ff, MUTED = 0xffa3b3c9;
+    private int background, panel, blue, textPrimary, muted, border, onBlue, bluePressed;
     private final Game[] games = {
-        new Game("warcraft", "WORLD OF", "WARCRAFT", "A world worth getting lost in.", "Explore Azeroth, from its earliest adventures to new horizons.", "ROLE PLAYING", 0xff37577d, "W"),
-        new Game("diablo", "THE WORLD OF", "DIABLO", "Into the darkness.", "Discover Sanctuary and its dark fantasy adventures.", "ACTION RPG", 0xff773b3e, "D"),
-        new Game("starcraft", "THE UNIVERSE OF", "STARCRAFT", "The frontier is calling.", "Explore a distant future of rival factions and interstellar strategy.", "STRATEGY", 0xff345d69, "S"),
-        new Game("warcraft-rts", "THE ORIGINS OF", "WARCRAFT", "Every legend has a beginning.", "Return to the strategy adventures that shaped Azeroth.", "STRATEGY", 0xff536447, "W")
+        new Game("warcraft", "WORLD OF", "WARCRAFT", "A world worth getting lost in.", "Explore Azeroth, from its earliest adventures to new horizons.", "ROLE PLAYING", "W"),
+        new Game("diablo", "THE WORLD OF", "DIABLO", "Into the darkness.", "Discover Sanctuary and its dark fantasy adventures.", "ACTION RPG", "D"),
+        new Game("starcraft", "THE UNIVERSE OF", "STARCRAFT", "The frontier is calling.", "Explore a distant future of rival factions and interstellar strategy.", "STRATEGY", "S"),
+        new Game("warcraft-rts", "THE ORIGINS OF", "WARCRAFT", "Every legend has a beginning.", "Return to the strategy adventures that shaped Azeroth.", "STRATEGY", "W")
     };
     private SharedPreferences prefs;
     private LinearLayout root, content;
@@ -28,6 +29,14 @@ public final class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        background = getColor(R.color.blizzard_background);
+        panel = getColor(R.color.blizzard_panel);
+        blue = getColor(R.color.blizzard_blue);
+        textPrimary = getColor(R.color.blizzard_text);
+        muted = getColor(R.color.blizzard_text_muted);
+        border = getColor(R.color.blizzard_border);
+        onBlue = getColor(R.color.blizzard_on_blue);
+        bluePressed = getColor(R.color.blizzard_blue_pressed);
         prefs = getSharedPreferences("library", MODE_PRIVATE);
         if (state != null) { page = state.getString("page", page); filter = state.getString("filter", filter); selected = state.getString("selected", selected); }
         render();
@@ -36,7 +45,19 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(out); out.putString("page", page); out.putString("filter", filter); out.putString("selected", selected);
     }
     private void render() {
-        root = column(); root.setBackgroundColor(BG);
+        FrameLayout scene = new FrameLayout(this);
+        scene.setBackgroundColor(background);
+        ImageView backdrop = new ImageView(this);
+        backdrop.setImageResource(R.drawable.ice_background);
+        backdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        backdrop.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        scene.addView(backdrop, new FrameLayout.LayoutParams(-1, -1));
+        View shade = new View(this);
+        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            new int[]{0x99131929, 0xdd131929, 0xf5131929}));
+        shade.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        scene.addView(shade, new FrameLayout.LayoutParams(-1, -1));
+        root = column();
         root.setPadding(dp(22), dp(20), dp(22), dp(12));
         // Respect Android 15 edge-to-edge system bars and display cutouts.
         root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -48,48 +69,63 @@ public final class MainActivity extends Activity {
             }
             return insets;
         });
-        setContentView(root);
+        scene.addView(root, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(scene);
         LinearLayout brand = row();
-        TextView logo = text("B", 28, BLUE); logo.setTypeface(null, Typeface.BOLD); brand.addView(logo);
-        LinearLayout title = column(); title.setPadding(dp(12),0,0,0); title.addView(text("BLIZZARD LAUNCHER", 16, Color.WHITE)); title.addView(text("YOUR NEXT ADVENTURE", 10, MUTED));
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView logo = new ImageView(this); logo.setImageResource(R.drawable.app_logo);
+        logo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        brand.addView(logo, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout title = column(); title.setPadding(dp(12),0,0,0);
+        ImageView wordmark = new ImageView(this); wordmark.setImageResource(R.drawable.blizzard_wordmark);
+        wordmark.setScaleType(ImageView.ScaleType.FIT_START); wordmark.setContentDescription("Blizzard Launcher");
+        title.addView(wordmark, new LinearLayout.LayoutParams(dp(124), dp(65)));
+        title.addView(text("YOUR NEXT ADVENTURE", 10, muted));
         brand.addView(title, new LinearLayout.LayoutParams(0,-2,1));
-        TextView info = text("ⓘ",24,MUTED); info.setContentDescription("About Blizzard Launcher"); info.setOnClickListener(v -> about()); brand.addView(info); root.addView(brand);
+        TextView info = text("ⓘ",24,muted); info.setGravity(Gravity.CENTER);
+        info.setContentDescription("About Blizzard Launcher"); info.setFocusable(true);
+        info.setBackground(new RippleDrawable(ColorStateList.valueOf(0x4400b4ff), rounded(panel), null));
+        info.setOnClickListener(v -> about()); brand.addView(info,new LinearLayout.LayoutParams(dp(48),dp(48))); root.addView(brand);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true);
         content = column(); content.setPadding(0,dp(28),0,dp(20)); scroll.addView(content); root.addView(scroll, new LinearLayout.LayoutParams(-1,0,1));
         if (page.equals("Discover")) discover(); else library();
         LinearLayout nav = row();
         for (String name : new String[]{"Discover", "Library"}) {
-            Button b = button(name, page.equals(name)); b.setOnClickListener(v -> {page = name; render();}); nav.addView(b,new LinearLayout.LayoutParams(0,dp(52),1));
+            Button b = button(name, page.equals(name)); b.setSelected(page.equals(name));
+            b.setOnClickListener(v -> {page = name; render();});
+            LinearLayout.LayoutParams navParams = new LinearLayout.LayoutParams(0,dp(52),1);
+            if (nav.getChildCount() > 0) navParams.leftMargin = dp(8);
+            nav.addView(b,navParams);
         }
         root.addView(nav);
         root.requestApplyInsets();
     }
     private void discover() {
-        content.addView(text("THE COLLECTION",11,BLUE)); content.addView(text("Choose your universe.",30,Color.WHITE));
-        TextView intro = text("Legendary worlds. One place to begin.",14,MUTED); intro.setPadding(0,dp(8),0,dp(20)); content.addView(intro);
+        content.addView(text("THE COLLECTION",11,blue)); content.addView(text("Choose your universe.",30,textPrimary));
+        TextView intro = text("Legendary worlds. One place to begin.",14,muted); intro.setPadding(0,dp(8),0,dp(20)); content.addView(intro);
         Game hero = games[0]; for(Game g:games) if(g.id.equals(selected)) hero=g;
         LinearLayout feature = column(); feature.setPadding(dp(24),dp(28),dp(24),dp(24));
-        feature.setBackground(gradient(hero.color));
-        feature.addView(text("FEATURED UNIVERSE  /  " + hero.genre,10,0xffceeaff));
-        TextView emblem = text(hero.mark,80,0xffa9c8e5); emblem.setGravity(Gravity.END); emblem.setTypeface(Typeface.SERIF,Typeface.BOLD); feature.addView(emblem);
-        feature.addView(text(hero.eyebrow,12,0xffd0e0ee));
-        TextView name = text(hero.title,34,Color.WHITE); name.setTypeface(Typeface.SERIF,Typeface.BOLD); feature.addView(name);
-        feature.addView(text(hero.tagline,16,Color.WHITE));
+        feature.setBackground(gradient());
+        feature.addView(text("FEATURED UNIVERSE  /  " + hero.genre,10,blue));
+        TextView emblem = text(hero.mark,80,blue); emblem.setGravity(Gravity.END); emblem.setTypeface(Typeface.SERIF,Typeface.BOLD); feature.addView(emblem);
+        feature.addView(text(hero.eyebrow,12,muted));
+        TextView name = text(hero.title,34,textPrimary); name.setTypeface(Typeface.SERIF,Typeface.BOLD); feature.addView(name);
+        feature.addView(text(hero.tagline,16,textPrimary));
         Button explore = button("Explore universe  ›",true); final Game featured=hero; explore.setOnClickListener(v -> details(featured)); feature.addView(explore); content.addView(feature);
-        TextView heading=text("Explore the collection",21,Color.WHITE); heading.setPadding(0,dp(26),0,dp(12)); content.addView(heading);
-        LinearLayout filters=row(); for(String f:new String[]{"All games","Role playing","Strategy"}) { Button b=button(f,filter.equals(f)); b.setTextSize(11); b.setOnClickListener(v->{filter=f;render();}); filters.addView(b,new LinearLayout.LayoutParams(0,dp(48),1)); } content.addView(filters);
+        TextView heading=text("Explore the collection",21,textPrimary); heading.setPadding(0,dp(26),0,dp(12)); content.addView(heading);
+        LinearLayout filters=row(); for(String f:new String[]{"All games","Role playing","Strategy"}) { Button b=button(f,filter.equals(f)); b.setSelected(filter.equals(f)); b.setTextSize(11); b.setOnClickListener(v->{filter=f;render();}); LinearLayout.LayoutParams filterParams=new LinearLayout.LayoutParams(0,dp(48),1); if(filters.getChildCount()>0)filterParams.leftMargin=dp(6); filters.addView(b,filterParams); } content.addView(filters);
         for(Game g:games) if(filter.equals("All games") || (filter.equals("Strategy") ? g.genre.equals("STRATEGY") : !g.genre.equals("STRATEGY"))) card(g);
     }
     private void library() {
-        content.addView(text("YOUR COLLECTION",11,BLUE)); content.addView(text("Library",32,Color.WHITE));
-        content.addView(text("Keep your favorite universes close.",14,MUTED));
+        content.addView(text("YOUR COLLECTION",11,blue)); content.addView(text("Library",32,textPrimary));
+        content.addView(text("Keep your favorite universes close.",14,muted));
         boolean any=false; for(Game g:games) if(prefs.getBoolean(g.id,false)){card(g);any=true;}
-        if(!any) { TextView empty=text("Your collection starts here.\n\nExplore a universe and add it to your library. Game installation and launching will arrive in a later stage.",17,MUTED); empty.setPadding(0,dp(42),0,dp(24)); content.addView(empty); Button browse=button("Explore games",true); browse.setOnClickListener(v->{page="Discover";render();}); content.addView(browse); }
+        if(!any) { TextView empty=text("Your collection starts here.\n\nExplore a universe and add it to your library. Game installation and launching will arrive in a later stage.",17,muted); empty.setPadding(dp(20),dp(24),dp(20),dp(24)); empty.setBackground(rounded(panel)); LinearLayout.LayoutParams emptyParams=new LinearLayout.LayoutParams(-1,-2); emptyParams.topMargin=dp(24); emptyParams.bottomMargin=dp(12); content.addView(empty,emptyParams); Button browse=button("Explore games",true); browse.setOnClickListener(v->{page="Discover";render();}); content.addView(browse); }
     }
     private void card(Game g) {
-        LinearLayout card=row(); card.setGravity(Gravity.CENTER_VERTICAL); card.setPadding(dp(16),dp(18),dp(16),dp(18)); card.setBackground(rounded(PANEL));
-        TextView mark=text(g.mark,30,g.color | 0xff808080); mark.setTypeface(Typeface.SERIF,Typeface.BOLD); mark.setWidth(dp(48)); card.addView(mark);
-        LinearLayout labels=column(); labels.addView(text(g.eyebrow+" "+g.title,15,Color.WHITE)); labels.addView(text(g.genre+"  ·  PREVIEW",10,MUTED)); card.addView(labels,new LinearLayout.LayoutParams(0,-2,1)); card.addView(text("›",25,BLUE));
+        LinearLayout card=row(); card.setGravity(Gravity.CENTER_VERTICAL); card.setPadding(dp(16),dp(18),dp(16),dp(18)); card.setBackground(new RippleDrawable(ColorStateList.valueOf(0x4400b4ff),rounded(panel),null));
+        TextView mark=text(g.mark,30,blue); mark.setTypeface(Typeface.SERIF,Typeface.BOLD); mark.setWidth(dp(48)); card.addView(mark);
+        LinearLayout labels=column(); labels.addView(text(g.eyebrow+" "+g.title,15,textPrimary)); labels.addView(text(g.genre+"  ·  PREVIEW",10,muted)); card.addView(labels,new LinearLayout.LayoutParams(0,-2,1)); card.addView(text("›",25,blue));
         card.setOnClickListener(v->{selected=g.id;details(g);}); card.setFocusable(true); card.setContentDescription("Explore "+g.eyebrow+" "+g.title);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2); p.topMargin=dp(12); content.addView(card,p);
     }
@@ -105,12 +141,19 @@ public final class MainActivity extends Activity {
     private LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
     private LinearLayout row(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.HORIZONTAL);return l;}
     private TextView text(String s,int size,int color){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);return t;}
-    private Button button(String s,boolean active){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(active?BG:MUTED);b.setTextSize(14);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(active?BLUE:PANEL));return b;}
-    private GradientDrawable rounded(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));return d;}
-    private GradientDrawable gradient(int color){GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TR_BL,new int[]{color,0xff101d31});d.setCornerRadius(dp(16));d.setStroke(dp(1),0xff34516e);return d;}
+    private Button button(String s,boolean active){
+        Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(active?onBlue:textPrimary);b.setTextSize(14);
+        b.setMinHeight(dp(48));b.setMinimumHeight(dp(48));b.setPadding(dp(8),dp(8),dp(8),dp(8));
+        b.setBackgroundTintList(null);
+        b.setBackground(new RippleDrawable(ColorStateList.valueOf(active?bluePressed:0x4400b4ff),rounded(active?blue:panel),null));
+        return b;
+    }
+    private GradientDrawable rounded(int color){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(12));d.setStroke(dp(1),color==blue?blue:border);return d;}
+    private GradientDrawable gradient(){GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TR_BL,new int[]{0xdd174364,0xf5131929});d.setCornerRadius(dp(16));d.setStroke(dp(1),border);return d;}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private static final class Game {
-        final String id,eyebrow,title,tagline,description,genre,mark; final int color;
-        Game(String id,String eyebrow,String title,String tagline,String description,String genre,int color,String mark){this.id=id;this.eyebrow=eyebrow;this.title=title;this.tagline=tagline;this.description=description;this.genre=genre;this.color=color;this.mark=mark;}
+        final String id,eyebrow,title,tagline,description,genre,mark;
+        Game(String id,String eyebrow,String title,String tagline,String description,String genre,String mark){this.id=id;this.eyebrow=eyebrow;this.title=title;this.tagline=tagline;this.description=description;this.genre=genre;this.mark=mark;}
     }
 }
+

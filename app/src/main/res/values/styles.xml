@@ -1,10 +1,24 @@
 <resources>
     <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#58C8FF</item>
+        <item name="android:colorAccent">@color/blizzard_blue</item>
+        <item name="android:colorBackground">@color/blizzard_background</item>
+        <item name="android:windowBackground">@color/blizzard_background</item>
+        <item name="android:textColorPrimary">@color/blizzard_text</item>
+        <item name="android:textColorSecondary">@color/blizzard_text_muted</item>
+        <item name="android:alertDialogTheme">@style/BlizzardDialogTheme</item>
         <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">#0A101C</item>
-        <item name="android:navigationBarColor">#0A101C</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:statusBarColor">@color/blizzard_background</item>
+        <item name="android:navigationBarColor">@color/blizzard_background</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="BlizzardDialogTheme" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">@color/blizzard_blue</item>
+        <item name="android:colorBackground">@color/blizzard_background</item>
+        <item name="android:textColorPrimary">@color/blizzard_text</item>
+        <item name="android:textColorSecondary">@color/blizzard_text_muted</item>
+    </style>
 </resources>
+

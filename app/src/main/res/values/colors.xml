@@ -1,0 +1,10 @@
+<resources>
+    <color name="blizzard_background">#131929</color>
+    <color name="blizzard_panel">#EE1E293E</color>
+    <color name="blizzard_blue">#00B4FF</color>
+    <color name="blizzard_blue_pressed">#60D0FF</color>
+    <color name="blizzard_text">#F5F7FA</color>
+    <color name="blizzard_text_muted">#B4BFD0</color>
+    <color name="blizzard_border">#3A506B</color>
+    <color name="blizzard_on_blue">#071421</color>
+</resources>
