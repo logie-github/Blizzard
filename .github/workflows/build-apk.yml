@@ -5,7 +5,7 @@ on:
   pull_request:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -19,8 +19,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - run: chmod +x gradlew
-      - run: ./gradlew :app:assembleDebug :app:lintDebug --no-daemon
+      - name: Build and test
+        run: >
+          ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
+          -PblizzVersionCode=${{ github.run_number }} -PblizzVersionName=1.0.${{ github.run_number }}
+      - run: cp app/build/outputs/apk/debug/app-debug.apk Blizzard.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Blizzard-Launcher-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Blizzard
+          path: |
+            Blizzard.apk
+            app/build/reports/previews/
+      - name: Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "blizzard-build-${{ github.run_number }}" Blizzard.apk
+          --target "${{ github.sha }}" --title "Blizzard 1.0.${{ github.run_number }}"
+          --notes "Install Blizzard.apk on the phone; it installs over earlier releases."
