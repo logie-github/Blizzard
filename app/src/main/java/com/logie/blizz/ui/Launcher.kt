@@ -21,7 +21,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -122,6 +126,9 @@ import kotlinx.coroutines.withContext
  * laptop, the box art stands above the hinge with Play and the other games below it.
  */
 /** Opens a game's import wizard (Repair, a status line): set by [Launcher]. */
+internal val LocalOpenSplash = androidx.compose.runtime.staticCompositionLocalOf<(Game) -> Unit> { {} }
+
+/** Opens a game's import wizard (Repair, a status line): set by [Launcher]. */
 internal val LocalOpenWizard = androidx.compose.runtime.staticCompositionLocalOf<(Game) -> Unit> { {} }
 
 @Composable
@@ -138,6 +145,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
 
     val open = Games.all.firstOrNull { it.id == openId }
     var wizardFor by remember { mutableStateOf<Game?>(null) }
+    var splashFor by remember { mutableStateOf<Game?>(null) }
     LaunchedEffect(Unit) { Variants.load(context) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {
@@ -154,7 +162,10 @@ fun Launcher(fold: Fold? = rememberFold()) {
     fun chooseApp(game: Game) { launchAfterPick = false; picking = game }
 
     BlizzTheme {
-        androidx.compose.runtime.CompositionLocalProvider(LocalOpenWizard provides { g: Game -> wizardFor = g }) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalOpenWizard provides { g: Game -> wizardFor = g },
+            LocalOpenSplash provides { g: Game -> splashFor = Variants.effective(g) },
+        ) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight * 0.75f
             when {
@@ -180,6 +191,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
         }
         }
         UpdateBanner()
+        splashFor?.let { SplashDialog(it, onDismiss = { splashFor = null }) }
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
         picking?.let { game ->
@@ -389,6 +401,7 @@ private fun CoverGrid(games: List<Game>, columns: Int, linkKey: Int, selectedId:
 }
 
 /** A box on the shelf: lit and lifted when pressed or focused, the app it plays with in its corner. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val context = LocalContext.current
@@ -402,6 +415,8 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
         appear.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
     }
     val linked = remember(linkKey) { Links.packageFor(context, game) }
+    val haptic = LocalHapticFeedback.current
+    val openSplash = LocalOpenSplash.current
 
     Box(
         modifier
@@ -415,7 +430,10 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
             .drawBehind {
                 if (lit > 0f) drawRect(Brush.radialGradient(listOf(Colors.Ice.copy(alpha = 0.45f * lit), Color.Transparent), radius = size.maxDimension * 0.75f))
             }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+            .combinedClickable(
+                interactionSource = interaction, indication = null, onClick = onClick,
+                onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openSplash(game) },
+            ),
     ) {
         Image(
             painterResource(game.cover),
@@ -471,8 +489,11 @@ private fun GamePage(game: Game, linkKey: Int, onBack: (() -> Unit)?, onPlay: ()
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BigCover(game: Game, modifier: Modifier) {
+    val haptic = LocalHapticFeedback.current
+    val openSplash = LocalOpenSplash.current
     val float = rememberInfiniteTransition(label = "float")
     val y by float.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "y")
     Image(
@@ -481,7 +502,10 @@ private fun BigCover(game: Game, modifier: Modifier) {
             .aspectRatio(COVER_RATIO)
             .graphicsLayer { translationY = -6.dp.toPx() * y }
             .drawBehind { drawRect(Brush.radialGradient(listOf(Colors.Ice.copy(alpha = 0.35f), Color.Transparent), radius = size.maxDimension * 0.8f)) }
-            .drawWithContent { drawContent(); drawFrame(arm = 14.dp.toPx(), stroke = 1.8.dp.toPx()) },
+            .drawWithContent { drawContent(); drawFrame(arm = 14.dp.toPx(), stroke = 1.8.dp.toPx()) }
+            .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}, onLongClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress); openSplash(game)
+            }),
     )
 }
 
