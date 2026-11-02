@@ -105,4 +105,16 @@ class RemasteredTest {
         assertTrue(StarCraftRemasteredImporter.isGameRoot(names))
         assertTrue(!StarCraftRemasteredImporter.isGameRoot(setOf("data/", "stardat.mpq", "starcraft.exe")))
     }
+
+    @Test fun the123LayoutWithDataFilesOnlyDeepDownAndTheProgramInX86Validates() {
+        val dir = java.io.File(System.getProperty("java.io.tmpdir"), "sc-r-${System.nanoTime()}")
+        Fixtures.pe(java.io.File(dir, "x86/StarCraft.exe"), "1.23.10.13515")
+        java.io.File(dir, "Data/config/44").mkdirs()
+        java.io.File(dir, "Data/data").mkdirs()
+        java.io.File(dir, "Data/data/data.000").writeText("x")
+        java.io.File(dir, "Data/config/44/a").writeText("x")
+        val v = StarCraftRemasteredImporter().validateDir(dir)
+        assertTrue(v.checks.joinToString { "${it.name}:${it.passed}" }, v.checks.take(3).all { it.passed })
+        dir.deleteRecursively()
+    }
 }

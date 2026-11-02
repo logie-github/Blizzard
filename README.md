@@ -135,3 +135,7 @@ Hold a game's art to open it. Pinch the preview to zoom the picture and drag to 
 
 - 1.23.x keeps its program in `x86/` and `x86_64/` (the folder's top has `StarCraft Launcher.exe`); the import accepts that layout and starts `x86/StarCraft.exe`.
 - Diablo II, StarCraft and Warcraft II use cnc-ddraw's GDI renderer (no OpenGL or Direct3D needed), written to its `ddraw.ini` at every start. Untested on a phone.
+
+## Game log
+
+While a game runs, the app keeps the last 400 lines Wine printed (errors and the libraries it loaded). The game menu (four fingers) has **Send a report (with the game's log)**, which files it as a GitHub issue, for black screens that leave no crash behind.

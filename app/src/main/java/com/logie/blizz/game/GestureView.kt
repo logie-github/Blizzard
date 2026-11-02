@@ -44,6 +44,7 @@ class GestureView(
     private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
+    init { GameLog.start() }
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
     private val controlsStore = ControlsStore(java.io.File(activity.filesDir, "controls"))
     /** The controls file as it was when [gestures] were made: a game kept running in the background doesn't restart when the controls change. */
@@ -234,6 +235,15 @@ class GestureView(
         onChat = { askText(chat = true) },
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { leave() },
+        onReport = {
+            com.logie.blizz.reports.BugReports.report(
+                activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
+                "Sent from the game menu",
+                listOf("Game" to gameId, "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
+                log = GameLog.snapshot().ifEmpty { null },
+            )
+            android.widget.Toast.makeText(activity, "Report sent (it goes out when the phone is online).", android.widget.Toast.LENGTH_LONG).show()
+        },
     )
 
     override fun feedback() {

@@ -106,6 +106,9 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId) }
+        // Wine's errors and the libraries it loads, kept for the game menu's report ([GameLog]).
+        android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
+            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,loaddll").apply()
 
         _state.value = State.Preparing(Step.STARTING)
         val intent = Intent(context, XServerDisplayActivity::class.java)

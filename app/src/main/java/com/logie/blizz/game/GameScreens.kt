@@ -250,7 +250,7 @@ private fun Panel(modifier: Modifier, content: @Composable () -> Unit) {
 
 /** The app's menu over the game (four fingers): back to the game, the keyboard, or leave. */
 object GameMenu {
-    fun show(activity: Activity, gameId: String?, onKeyboard: () -> Unit, onChat: () -> Unit, onTypeKey: (String) -> Unit, onLeave: () -> Unit) {
+    fun show(activity: Activity, gameId: String?, onKeyboard: () -> Unit, onChat: () -> Unit, onTypeKey: (String) -> Unit, onLeave: () -> Unit, onReport: () -> Unit = {}) {
         var dialog: ComponentDialog? = null
         fun close(then: () -> Unit) = { dialog?.dismiss(); then() }
         dialog = fullScreenDialog(activity, dim = true) {
@@ -264,6 +264,7 @@ object GameMenu {
                         FrameButton(stringResource(R.string.game_menu_back), Modifier.fillMaxWidth(), onClick = close {})
                         FrameButton(stringResource(R.string.game_menu_keyboard), Modifier.fillMaxWidth(), primary = false, onClick = close(onKeyboard))
                         FrameButton(stringResource(R.string.game_menu_chat), Modifier.fillMaxWidth(), primary = false, onClick = close(onChat))
+                        FrameButton("Send a report (with the game's log)", Modifier.fillMaxWidth(), primary = false, onClick = close(onReport))
                         FrameButton(stringResource(R.string.game_menu_leave), Modifier.fillMaxWidth(), primary = false, onClick = close(onLeave))
                         Text(stringResource(R.string.game_menu_leave_note), style = MaterialTheme.typography.bodySmall)
                     }
