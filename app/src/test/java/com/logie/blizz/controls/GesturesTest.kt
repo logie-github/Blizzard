@@ -209,4 +209,16 @@ class GesturesTest {
         store.reset("diablo")
         assertEquals(ControlsStore.defaults("diablo"), store.load("diablo"))
     }
+
+    @Test fun theStampChangesWhenTheSavedControlsDo() {
+        val dir = java.io.File(System.getProperty("java.io.tmpdir"), "controls-stamp-${System.nanoTime()}")
+        val store = ControlsStore(dir)
+        val none = store.stamp("diablo")
+        store.save(ControlsStore.defaults("diablo").copy(keys = mapOf("x" to com.logie.blizz.controls.KeyCombo.parse("F5")!!)))
+        val saved = store.stamp("diablo")
+        assertTrue(saved != none)
+        store.reset("diablo")
+        assertEquals(none, store.stamp("diablo"))
+        dir.deleteRecursively()
+    }
 }

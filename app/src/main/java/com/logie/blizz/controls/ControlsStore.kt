@@ -10,6 +10,9 @@ class ControlsStore(private val dir: File) {
     fun load(gameId: String): GameControls = runCatching { GameControls.fromJson(JSONObject(file(gameId).readText())) }
         .getOrNull() ?: defaults(gameId)
 
+    /** Changes whenever the saved controls do (or are reset): to notice a change made while the game was running. */
+    fun stamp(gameId: String): Long = file(gameId).let { if (it.isFile) it.lastModified() * 31 + it.length() else 0L }
+
     fun save(controls: GameControls) {
         dir.mkdirs()
         val temp = File(dir, ".${controls.gameId}.tmp")
