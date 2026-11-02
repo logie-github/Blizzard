@@ -58,6 +58,10 @@ object Updater {
                 val apk = download(app, update) { done, total -> _state.value = State.Downloading(update, done, total) }
                 ready(app, update, apk)
             } catch (e: IOException) {
+                com.logie.blizz.reports.BugReports.report(
+                    app, "App update download", e.message ?: "IOException",
+                    listOf("Update" to update.title, "Size" to update.size.toString()), log = e.stackTraceToString(),
+                )
                 _state.value = State.Failed("The update couldn't be downloaded (${e.message}). It'll be tried again next time.")
             }
         }

@@ -22,6 +22,26 @@ object Splashes {
     /** Changes whenever one is set or cleared, so screens showing them look again. */
     val version: StateFlow<Int> = _version
 
+    /**
+     * How the person framed it: the background's zoom (1 to 4) and pan (fractions of the screen, the
+     * shift of its centre), and the logo's cell in a 3x3 grid (0 top left to 8 bottom right; -1 the
+     * built-in place) with its size (a multiple of the usual).
+     */
+    data class Layout(val zoom: Float = 1f, val panX: Float = 0f, val panY: Float = 0f, val logoCell: Int = -1, val logoScale: Float = 1f)
+
+    fun layout(context: Context, gameId: String): Layout = runCatching {
+        val j = org.json.JSONObject(File(dir(context, gameId), "layout.json").readText())
+        Layout(j.optDouble("zoom", 1.0).toFloat().coerceIn(1f, 4f), j.optDouble("panX", 0.0).toFloat(), j.optDouble("panY", 0.0).toFloat(),
+            j.optInt("logoCell", -1).coerceIn(-1, 8), j.optDouble("logoScale", 1.0).toFloat().coerceIn(0.3f, 2.5f))
+    }.getOrDefault(Layout())
+
+    fun setLayout(context: Context, gameId: String, layout: Layout) {
+        val target = File(dir(context, gameId), "layout.json")
+        target.parentFile?.mkdirs()
+        target.writeText(org.json.JSONObject().put("zoom", layout.zoom.toDouble()).put("panX", layout.panX.toDouble()).put("panY", layout.panY.toDouble())
+            .put("logoCell", layout.logoCell).put("logoScale", layout.logoScale.toDouble()).toString())
+    }
+
     private fun dir(context: Context, gameId: String) = File(File(context.filesDir, "splash"), gameId)
 
     fun file(context: Context, gameId: String, kind: Kind): File? = File(dir(context, gameId), kind.file).takeIf { it.isFile }
@@ -57,6 +77,7 @@ object Splashes {
     /** Back to the built-in picture: one [kind], or both. */
     fun clear(context: Context, gameId: String, kind: Kind? = null) {
         for (k in Kind.entries) if (kind == null || kind == k) File(dir(context, gameId), k.file).delete()
+        if (kind == null) File(dir(context, gameId), "layout.json").delete()
         _version.value++
     }
 }

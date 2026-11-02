@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -141,7 +142,7 @@ class GameLoading(private val activity: Activity) {
 }
 
 @Composable
-internal fun Loading(gameId: String?, text: String) {
+internal fun Loading(gameId: String?, text: String, layoutOverride: Splashes.Layout? = null, grid: Boolean = false) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val game = Games.find(gameId)
     val version by Splashes.version.collectAsState()
@@ -151,19 +152,33 @@ internal fun Loading(gameId: String?, text: String) {
         load(Splashes.Kind.BACKGROUND) to load(Splashes.Kind.LOGO)
     }
     val (customBackground, customLogo) = custom
+    val layout = layoutOverride ?: remember(gameId, version) { gameId?.let { Splashes.layout(context, it) } ?: Splashes.Layout() }
     val art: Painter? = customBackground?.let { BitmapPainter(it) } ?: game?.splash?.let { painterResource(it) }
     val logo: Painter? = customLogo?.let { BitmapPainter(it) } ?: game?.splashLogo?.let { painterResource(it) }
     Box(Modifier.fillMaxSize().background(Colors.Abyss), contentAlignment = Alignment.Center) {
         if (art != null) {
             // The art filling the screen (cut at its sides, or below), its logo low over it, embers rising.
-            Image(art, contentDescription = null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, if (customBackground != null) 0f else game?.splashTop ?: -0.2f), modifier = Modifier.fillMaxSize())
+            Image(art, contentDescription = null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, if (customBackground != null) 0f else game?.splashTop ?: -0.2f),
+                modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = layout.zoom; scaleY = layout.zoom; translationX = layout.panX * size.width; translationY = layout.panY * size.height })
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.9f))))
             Snow(alpha = 0.8f, color = Color(0xFFFF8A3D), rising = true, flakes = 50)
             // A very wide screen (the cover screen sideways): the logo to the lower right, off the face.
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth > maxHeight * 1.7f
-                val logoWidth = if (wide) maxWidth * 0.24f else 340.dp
-                Column(
+                val logoWidth = (if (wide) maxWidth * 0.24f else 340.dp) * layout.logoScale
+                if (layout.logoCell >= 0) {
+                    // The person's place for the logo: a cell of the 3x3 grid; the status stays at the bottom centre.
+                    val col = layout.logoCell % 3
+                    val row = layout.logoCell / 3
+                    logo?.let {
+                        Image(it, contentDescription = game?.fullTitle, contentScale = ContentScale.Fit,
+                            modifier = Modifier.align(BiasAlignment(col - 1f, row - 1f)).padding(horizontal = 24.dp, vertical = if (row == 2) 72.dp else 24.dp).width(logoWidth.coerceAtMost(maxWidth * 0.9f)))
+                    }
+                    Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Spinner(26.dp, accent = Color(0xFFFF8A3D))
+                        Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
+                    }
+                } else Column(
                     Modifier.fillMaxSize().padding(bottom = 28.dp, end = if (wide) 36.dp else 0.dp),
                     horizontalAlignment = if (wide) Alignment.End else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom),
@@ -174,6 +189,15 @@ internal fun Loading(gameId: String?, text: String) {
                         Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
                     }
                 }
+            }
+            if (grid) Canvas(Modifier.fillMaxSize()) {
+                val line = Color.White.copy(alpha = 0.55f)
+                for (i in 1..2) {
+                    drawLine(line, Offset(size.width * i / 3, 0f), Offset(size.width * i / 3, size.height), 1.dp.toPx())
+                    drawLine(line, Offset(0f, size.height * i / 3), Offset(size.width, size.height * i / 3), 1.dp.toPx())
+                }
+                drawLine(Colors.Ice.copy(alpha = 0.8f), Offset(size.width / 2 - 8.dp.toPx(), size.height / 2), Offset(size.width / 2 + 8.dp.toPx(), size.height / 2), 1.5.dp.toPx())
+                drawLine(Colors.Ice.copy(alpha = 0.8f), Offset(size.width / 2, size.height / 2 - 8.dp.toPx()), Offset(size.width / 2, size.height / 2 + 8.dp.toPx()), 1.5.dp.toPx())
             }
             return@Box
         }

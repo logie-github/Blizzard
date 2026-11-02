@@ -209,4 +209,28 @@ class GesturesTest {
         store.reset("diablo")
         assertEquals(ControlsStore.defaults("diablo"), store.load("diablo"))
     }
+
+    @Test fun theStampChangesWhenTheSavedControlsDo() {
+        val dir = java.io.File(System.getProperty("java.io.tmpdir"), "controls-stamp-${System.nanoTime()}")
+        val store = ControlsStore(dir)
+        val none = store.stamp("diablo")
+        store.save(ControlsStore.defaults("diablo").copy(keys = mapOf("x" to com.logie.blizz.controls.KeyCombo.parse("F5")!!)))
+        val saved = store.stamp("diablo")
+        assertTrue(saved != none)
+        store.reset("diablo")
+        assertEquals(none, store.stamp("diablo"))
+        dir.deleteRecursively()
+    }
+
+    @Test fun aRuleAddedForAGestureAndAreaAlreadyUsedBeatsTheDefault() {
+        val base = ControlsStore.defaults("diablo")
+        val added = base.copy(rules = base.rules + Rule(Trigger.TAP, "anywhere", "rclick"))
+        assertEquals("rclick", Bindings.of("diablo", added).resolve(Trigger.TAP, 0.5f, 0.5f)?.id)
+        // And after saving and loading, as the game does.
+        val dir = java.io.File(System.getProperty("java.io.tmpdir"), "controls-rule-${System.nanoTime()}")
+        val store = ControlsStore(dir)
+        store.save(added)
+        assertEquals("rclick", Bindings.of("diablo", store.load("diablo")).resolve(Trigger.TAP, 0.5f, 0.5f)?.id)
+        dir.deleteRecursively()
+    }
 }

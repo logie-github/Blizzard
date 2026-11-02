@@ -64,10 +64,24 @@ object Fixtures {
         return file
     }
 
-    /** An MPQ archive: its header, then padding. */
-    fun mpq(file: File, size: Int = 4096): File {
-        val bytes = ByteArray(size)
+    /** An MPQ archive: its header, a hash table holding [names] (as the game's archives do), then padding. */
+    fun mpq(file: File, names: List<String> = emptyList(), size: Int = 4096): File {
+        val count = generateSequence(16) { it * 2 }.first { it >= names.size * 2 }
+        val bytes = ByteArray(maxOf(size, 32 + count * 16 + 64))
+        fun put(at: Int, v: Int) { bytes[at] = v.toByte(); bytes[at + 1] = (v ushr 8).toByte(); bytes[at + 2] = (v ushr 16).toByte(); bytes[at + 3] = (v ushr 24).toByte() }
         bytes[0] = 'M'.code.toByte(); bytes[1] = 'P'.code.toByte(); bytes[2] = 'Q'.code.toByte(); bytes[3] = 0x1A
+        put(4, 32); put(8, bytes.size); bytes[12] = 0; bytes[14] = 3
+        put(16, 32); put(20, 32 + count * 16); put(24, count); put(28, names.size)
+        val table = ByteArray(count * 16) { 0xFF.toByte() }
+        fun tput(at: Int, v: Int) { table[at] = v.toByte(); table[at + 1] = (v ushr 8).toByte(); table[at + 2] = (v ushr 16).toByte(); table[at + 3] = (v ushr 24).toByte() }
+        names.forEachIndexed { block, name ->
+            var i = MpqContents.hash(name, 0) and (count - 1)
+            while (table[i * 16 + 12] != 0xFF.toByte() || table[i * 16 + 13] != 0xFF.toByte()) i = (i + 1) and (count - 1)
+            tput(i * 16, MpqContents.hash(name, 1)); tput(i * 16 + 4, MpqContents.hash(name, 2))
+            tput(i * 16 + 8, 0); tput(i * 16 + 12, block)
+        }
+        MpqContents.encrypt(table, MpqContents.hash("(hash table)", 3))
+        table.copyInto(bytes, 32)
         file.parentFile?.mkdirs()
         file.writeBytes(bytes)
         return file
@@ -187,7 +201,7 @@ object Fixtures {
     fun starcraftInstall(dir: File, version: String = "1.15.2.1", discs: Boolean = true): File {
         pe(File(dir, "StarCraft.exe"), version, imports = listOf("KERNEL32.dll", "storm.dll", "Local.dll", "Smackw32.dll"))
         StarCraftClassicImporter.REQUIRED.forEach { File(dir, it).writeBytes(ByteArray(64)) }
-        StarCraftClassicImporter.ARCHIVES.forEach { mpq(File(dir, it)) }
+        StarCraftClassicImporter.ARCHIVES.forEach { mpq(File(dir, it), StarCraftClassicImporter.CONTENTS[it] ?: emptyList()) }
         if (discs) {
             installExe(File(dir, "Starcraft.mpq"))
             installExe(File(dir, "BroodWar.mpq"))

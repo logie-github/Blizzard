@@ -46,6 +46,23 @@ class StarCraft2OfflineImporter : GameImporter {
 
     private val isGameRoot: (Set<String>) -> Boolean = { "versions/" in it && "sc2data/" in it }
 
+    /**
+     * The game's folder wherever its own markers are in what was unpacked, whatever the folders around
+     * them are called: a "Versions" folder holding Base*, an "SC2Data" folder, or SC2.exe / SC2_x64.exe
+     * in a Base* folder. Plain Kotlin, unit-tested.
+     */
+    fun looseGameRoot(dir: File): File? {
+        val all = dir.walkTopDown().maxDepth(14).toList()
+        all.firstOrNull { it.isDirectory && it.name.equals("Versions", true) && it.listFiles().orEmpty().any { c -> c.isDirectory && c.name.startsWith("Base", true) } }
+            ?.let { return it.parentFile }
+        all.firstOrNull { it.isDirectory && it.name.equals("SC2Data", true) }?.let { return it.parentFile }
+        all.firstOrNull { it.isFile && it.name.lowercase() in setOf("sc2.exe", "sc2_x64.exe") }?.let { exe ->
+            val base = exe.parentFile
+            return if (base.name.startsWith("Base", true) && base.parentFile?.name.equals("Versions", true)) base.parentFile.parentFile else base
+        }
+        return null
+    }
+
     private fun findInstall(node: SourceNode, depth: Int): SourceNode? = Packages.findRoot(node, depth, isGameRoot)
 
     override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> = emptyList()
@@ -75,7 +92,7 @@ class StarCraft2OfflineImporter : GameImporter {
             asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { true }
             val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
             if (install != null) {
-                val root = Packages.materialize(install, env, staging, scratch, "StarCraft II", PROMPT_INSTALL, isGameRoot, ::precheckVersion, ::precheckVersion)
+                val root = Packages.materialize(install, env, staging, scratch, "StarCraft II", PROMPT_INSTALL, isGameRoot, ::precheckVersion, ::precheckVersion, looseRoot = ::looseGameRoot)
                 // Moved, not copied: it was just unpacked beside staging.
                 for (f in root.listFiles().orEmpty()) {
                     val target = File(staging, f.name)

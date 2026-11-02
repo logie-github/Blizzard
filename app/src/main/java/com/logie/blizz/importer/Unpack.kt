@@ -218,6 +218,7 @@ object Packages {
     fun materialize(
         source: SourceNode, env: ImportEnv, staging: File, scratch: File, what: String, prompt: String,
         isRoot: (Set<String>) -> Boolean, checkFound: (SourceNode) -> Unit = {}, checkUnpacked: (File) -> Unit = {},
+        looseRoot: (File) -> File? = { null },
     ): File {
         val out = File(scratch, "game").also { it.deleteRecursively(); it.mkdirs() }
         val found: SourceNode?
@@ -249,10 +250,49 @@ object Packages {
         val package_ = setup ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no $what in that folder (and no installer). $prompt")
         FileValidator.requireSpace(scratch, (package_.size + siblings.sumOf { it.size }).coerceAtLeast(1L shl 30) + (2L shl 30))
         Unpacker(env.innoextract).unpack(package_, siblings, out, scratch, env.cancel, env.progress)
-        val root = findRoot(out, 6, isRoot)
-            ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "${package_.name} has no $what in it once unpacked. $prompt")
+        // The strict shape first; then a wildcard search for the game's own markers wherever they landed
+        // (any depth, any case); then archives inside what was unpacked, unpacked in turn.
+        var root = findRoot(out, 6, isRoot) ?: looseRoot(out)
+        if (root == null) root = unpackNested(out, env, scratch, isRoot, looseRoot)
+        if (root == null) {
+            throw ImportException(
+                Problem.MISSING_SOURCE_DATA,
+                "${package_.name} has no $what in it once unpacked. $prompt",
+                "Unpacked: ${outline(out)}",
+            )
+        }
         checkUnpacked(root)
         return root
+    }
+
+    /** Archives inside the unpacked files (a zip, 7z, tar or disc image holding the game), unpacked beside them, then looked through again. */
+    private fun unpackNested(out: File, env: ImportEnv, scratch: File, isRoot: (Set<String>) -> Boolean, looseRoot: (File) -> File?): File? {
+        val archives = out.walkTopDown().maxDepth(8).filter { it.isFile && it.length() >= (1L shl 16) }
+            .filter { runCatching { Format.of(FileNode(it)) }.getOrDefault(Format.UNKNOWN) in NESTED }.take(6).toList()
+        for ((i, archive) in archives.withIndex()) {
+            val into = File(scratch, "nested-$i").also { it.deleteRecursively(); it.mkdirs() }
+            runCatching { Unpacker(env.innoextract).unpack(FileNode(archive), emptyList(), into, scratch, env.cancel, env.progress) }
+                .onFailure { if (it is ImportException && it.problem == Problem.CANCELLED) throw it }
+            (findRoot(into, 6, isRoot) ?: looseRoot(into))?.let { return it }
+        }
+        return null
+    }
+
+    private val NESTED = setOf(Format.ZIP, Format.SEVEN_Z, Format.TAR, Format.TAR_GZ, Format.TAR_XZ, Format.TAR_BZ2, Format.TAR_ZST, Format.ISO)
+
+    /** What an unpacked folder holds, briefly (folders with their file counts to three levels, the biggest files), for the error details. */
+    fun outline(dir: File): String {
+        val lines = ArrayList<String>()
+        fun walk(d: File, depth: Int) {
+            val kids = d.listFiles()?.sortedBy { it.name.lowercase() } ?: return
+            for (k in kids.filter { it.isDirectory }.take(12)) {
+                lines += "${"  ".repeat(depth)}${k.name}/ (${k.walkTopDown().count { it.isFile }} files)"
+                if (depth < 2) walk(k, depth + 1)
+            }
+        }
+        walk(dir, 0)
+        val big = dir.walkTopDown().filter { it.isFile }.sortedByDescending { it.length() }.take(8).map { "${it.relativeTo(dir).path} (${it.length() shr 20} MB)" }
+        return "\n" + lines.take(40).joinToString("\n") + "\nLargest: " + big.joinToString("; ")
     }
 
     private fun copyTree(root: SourceNode, into: File, env: ImportEnv, total: Long, what: String) {

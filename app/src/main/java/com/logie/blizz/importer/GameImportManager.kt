@@ -113,8 +113,8 @@ object GameImportManager {
         }
     }
 
-    /** Not bugs: the person stopped it, the phone is full, or the game is a version the app doesn't play. */
-    private val NOT_BUGS = setOf(Problem.CANCELLED, Problem.INSUFFICIENT_STORAGE, Problem.UNSUPPORTED_VERSION)
+    /** Not a failure: the person stopped it. Every other failed install is sent, a full phone and an unsupported version included. */
+    private val NOT_BUGS = setOf(Problem.CANCELLED)
 
     /** A failed import, sent as a GitHub issue ([com.logie.blizz.reports.BugReports]). */
     private fun reportFailure(context: Context, gameId: String, repair: Boolean, result: ImportPipeline.Result.Failed) {
@@ -128,6 +128,17 @@ object GameImportManager {
             listOf("Game" to gameId, "Problem" to e.problem.name, "Online" to online(context).toString(), "Checks" to checks),
             log = listOfNotNull(e.detail, e.cause?.stackTraceToString()).joinToString("\n\n").ifEmpty { null },
         )
+    }
+
+    /** Back to not installed (not while it's importing): the game's files, entry and record go; saves and downloads stay. */
+    fun reset(context: Context, gameId: String) {
+        val app = context.applicationContext
+        val factory = importers[gameId] ?: return
+        if (synchronized(cancels) { cancels.containsKey(gameId) }) return
+        scope.launch {
+            GameReset.reset(paths(app), gameId, factory().keptInGame)
+            publish(WizardState(gameId, repo(app).load(gameId), entry = null))
+        }
     }
 
     fun cancel(gameId: String) {

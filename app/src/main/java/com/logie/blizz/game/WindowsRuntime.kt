@@ -102,8 +102,9 @@ object WindowsRuntime {
 
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = size
-        val container = container(context, width, height)
+        val container = container(context, width, height, entry.gameId)
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
+        withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
 
         _state.value = State.Preparing(Step.STARTING)
         val intent = Intent(context, XServerDisplayActivity::class.java)
@@ -136,8 +137,15 @@ object WindowsRuntime {
         return "D:" + paths.games.path + "S:" + paths.saves.path
     }
 
+    /**
+     * The classic 2D games (Diablo II, StarCraft, Warcraft II) draw with DirectDraw, which Wine's own
+     * version runs at a few frames a second and plays no videos through; cnc-ddraw draws them with OpenGL.
+     */
+    private fun dxwrapperConfig(gameId: String): String =
+        if (gameId in setOf("diablo2", "starcraft", "warcraft2")) "ddrawWrapper=cnc-ddraw" else ""
+
     /** The games' Windows: made the first time, its screen and drives set every time. */
-    private suspend fun container(context: Context, width: Int, height: Int): Container {
+    private suspend fun container(context: Context, width: Int, height: Int, gameId: String): Container {
         val manager = ContainerManager(context)
         val drives = drives(context)
         val screenSize = "${width}x$height"
@@ -145,6 +153,7 @@ object WindowsRuntime {
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
+            existing.setDXWrapperConfig(dxwrapperConfig(gameId))
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
@@ -155,6 +164,7 @@ object WindowsRuntime {
             .put("envVars", defaults.getEnvVars())
             .put("graphicsDriver", defaults.getGraphicsDriver())
             .put("dxwrapper", defaults.getDXWrapper())
+            .put("dxwrapperConfig", dxwrapperConfig(gameId))
             .put("audioDriver", defaults.getAudioDriver())
             .put("wincomponents", defaults.getWinComponents())
             .put("drives", drives)
@@ -166,6 +176,26 @@ object WindowsRuntime {
             manager.createContainerAsync(data) { container -> done.resume(container) }
         }
         return created ?: throw IllegalStateException(context.getString(R.string.game_error_windows))
+    }
+
+    /**
+     * What the games' own installers write to the registry, which they read their data folder from:
+     * StarCraft's InstallPath (and its programs), in both views of HKLM a 32-bit program can have.
+     * Written every start, so a moved or reset installation is found again.
+     */
+    private fun registerInstall(context: Context, container: Container, entry: LibraryEntry) {
+        if (entry.gameId != "starcraft") return
+        val system = File(container.rootDir, ".wine/system.reg")
+        if (!system.isFile) return
+        val folder = File(entry.installPath)
+        val dos = "D:\\${folder.name}\\"
+        com.winlator.core.WineRegistryEditor(system).use { registry ->
+            for (key in listOf("Software\\Blizzard Entertainment\\Starcraft", "Software\\Wow6432Node\\Blizzard Entertainment\\Starcraft")) {
+                registry.setStringValue(key, "InstallPath", dos)
+                registry.setStringValue(key, "Program", dos + "StarCraft.exe")
+                registry.setStringValue(key, "StarEditPath", dos + "StarEdit.exe")
+            }
+        }
     }
 
     /**

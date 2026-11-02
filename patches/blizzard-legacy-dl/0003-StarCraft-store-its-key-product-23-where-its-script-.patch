@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <b@x>
+Date: Mon, 2 Nov 2026 00:58:29 +0000
+Subject: [PATCH] StarCraft: store its key (product 23) where its script puts
+ it
+
+The game opens font\font.gid at start; without the member it stops with "unable to open a required file".
+---
+ src/installer.zig | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/installer.zig b/src/installer.zig
+index 612b94b..7ae945f 100644
+--- a/src/installer.zig
++++ b/src/installer.zig
+@@ -96,6 +96,9 @@ pub const Secrets = struct {
+         return switch (product_id orelse return null) {
+             @backingInt(keystore.Product.classic) => self.classic,
+             @backingInt(keystore.Product.expansion) => self.expansion,
++            // StarCraft's own key (its script's product 23): StarCraft opens the font\font.gid it's
++            // written into at start, and stops with "unable to open a required file" without it.
++            23 => self.classic,
+             else => null,
+         };
+     }

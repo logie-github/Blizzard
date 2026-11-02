@@ -45,6 +45,16 @@ class SplashesTest {
         assertNull(Splashes.file(context, "diablo2", Splashes.Kind.LOGO))
     }
 
+    @Test fun theFramingIsKeptPerGameAndResetWithTheArt() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val layout = Splashes.Layout(zoom = 2.5f, panX = 0.2f, panY = -0.1f, logoCell = 6, logoScale = 1.4f)
+        Splashes.setLayout(context, "diablo", layout)
+        assertEquals(layout, Splashes.layout(context, "diablo"))
+        assertEquals(Splashes.Layout(), Splashes.layout(context, "diablo2"))
+        Splashes.clear(context, "diablo")
+        assertEquals(Splashes.Layout(), Splashes.layout(context, "diablo"))
+    }
+
     @Test fun resetGoesBackToTheBuiltInPicture() {
         Splashes.set(context, "starcraft", Splashes.Kind.BACKGROUND, image("a.png", 100, 100))
         Splashes.set(context, "starcraft", Splashes.Kind.LOGO, image("b.png", 100, 100))

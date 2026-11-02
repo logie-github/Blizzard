@@ -66,7 +66,7 @@ Crashes, failed imports and failed game starts are sent to this repository as Gi
 themselves (labels `bug`, `auto-report`), with the app's version, the phone, the game, what the
 app said, its checks and the end of the log; CD keys and tokens are taken out. They're queued in
 `files/reports` and sent at once, again every minute while any wait, and the same failure goes
-once a day at most. Stopping an import, a full phone and an unsupported game version aren't sent.
+once a day at most. Only an import you stop yourself isn't sent; a full phone, an unsupported game version and a failed app-update download are.
 
 They go with the token CI builds in, as YeaBwoi's apps carry theirs: the repository secret
 `BLIZZ_REPORT_TOKEN` (a token that may open issues here). Without it, reports wait on the phone.
@@ -120,3 +120,13 @@ app installed on the phone picks up the next time it opens.
 
 Not affiliated with Blizzard Entertainment. All trademarks referenced herein are the properties
 of their respective owners.
+
+## Reset and graphics notes
+
+- **Reset installation:** every game's import screen has a Reset button (with a confirmation). It removes the game's imported files and state so the import runs again; saves are kept.
+- **StarCraft key:** the downloaded StarCraft is installed with a placeholder key and owner (the game runs offline), which avoids the `font\font.gid` "File not found" error.
+- **Classic 2D games** (Diablo II, StarCraft, Warcraft II) draw through cnc-ddraw (OpenGL) instead of Wine's DirectDraw, aimed at the low frame rate and missing videos. Untested on a phone.
+
+## Art editor
+
+Hold a game's art to open it. Pinch the preview to zoom the picture and drag to move it (or use the Picture zoom slider); the 3x3 grid (with a centre mark) helps line it up. Pick which of the nine cells holds the logo, and its size. Auto logo returns to the built-in place; Reset removes your pictures and framing.

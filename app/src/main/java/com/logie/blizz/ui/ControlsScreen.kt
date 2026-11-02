@@ -159,7 +159,7 @@ fun ControlsScreen(game: Game, onDismiss: () -> Unit) {
         }
         if (recording) {
             Recorder(catalog, initialFunction = recordFor, onDismiss = { recording = false }) { rule ->
-                update(controls.copy(rules = controls.rules + rule))
+                update(controls.copy(rules = controls.rules.filterNot { it.trigger == rule.trigger && it.area == rule.area } + rule))
                 recording = false
             }
         }
@@ -168,7 +168,7 @@ fun ControlsScreen(game: Game, onDismiss: () -> Unit) {
                 update(controls.copy(rules = controls.rules.filterIndexed { j, _ -> j != i }))
                 editing = null
             } }) { new ->
-                update(controls.copy(rules = if (index == null) controls.rules + new else controls.rules.toMutableList().also { it[index] = new }))
+                update(controls.copy(rules = if (index == null) controls.rules.filterNot { it.trigger == new.trigger && it.area == new.area } + new else controls.rules.toMutableList().also { it[index] = new }))
                 editing = null
             }
         }

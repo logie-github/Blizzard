@@ -119,6 +119,107 @@ object Mpq {
     }
 }
 
+/** What's inside an MPQ archive, from its hash table, without unpacking anything. Plain Kotlin, unit-tested. */
+object MpqContents {
+    private val crypt = IntArray(0x500).also { table ->
+        var seed = 0x00100001L
+        for (i in 0 until 0x100) {
+            var index = i
+            repeat(5) {
+                seed = (seed * 125 + 3) % 0x2AAAAB
+                val high = (seed and 0xFFFF) shl 16
+                seed = (seed * 125 + 3) % 0x2AAAAB
+                table[index] = (high or (seed and 0xFFFF)).toInt()
+                index += 0x100
+            }
+        }
+    }
+
+    /** The archive's hash of [name] for [type] (0 position, 1 and 2 the name's two checks, 3 the table's key). */
+    fun hash(name: String, type: Int): Int {
+        var s1 = 0x7FED7FED
+        var s2 = 0xEEEEEEEE.toInt()
+        for (c in name.uppercase()) {
+            val ch = c.code and 0xFF
+            s1 = crypt[(type shl 8) + ch] xor (s1 + s2)
+            s2 = ch + s1 + s2 + (s2 shl 5) + 3
+        }
+        return s1
+    }
+
+    fun decrypt(data: ByteArray, firstKey: Int) {
+        var key = firstKey
+        var s2 = 0xEEEEEEEE.toInt()
+        var i = 0
+        while (i + 3 < data.size) {
+            s2 += crypt[0x400 + (key and 0xFF)]
+            val v = le32(data, i) xor (key + s2)
+            key = ((key.inv() shl 0x15) + 0x11111111) or (key ushr 0x0B)
+            s2 = v + s2 + (s2 shl 5) + 3
+            put32(data, i, v)
+            i += 4
+        }
+    }
+
+    fun encrypt(data: ByteArray, firstKey: Int) {
+        var key = firstKey
+        var s2 = 0xEEEEEEEE.toInt()
+        var i = 0
+        while (i + 3 < data.size) {
+            s2 += crypt[0x400 + (key and 0xFF)]
+            val plain = le32(data, i)
+            val v = plain xor (key + s2)
+            key = ((key.inv() shl 0x15) + 0x11111111) or (key ushr 0x0B)
+            s2 = plain + s2 + (s2 shl 5) + 3
+            put32(data, i, v)
+            i += 4
+        }
+    }
+
+    /**
+     * Which of [names] ("font\\font.gid") [file] holds, or null when its header or hash table can't
+     * be read (damaged, cut short, or not an MPQ). An archive after a program (a disc's INSTALL.EXE) is found too.
+     */
+    fun has(file: File, names: List<String>): Map<String, Boolean>? = runCatching {
+        RandomAccessFile(file, "r").use { f ->
+            var base = -1L
+            var offset = 0L
+            val magic = ByteArray(4)
+            val end = minOf(f.length() - 32, 64L shl 20)
+            while (offset <= end) {
+                f.seek(offset); f.readFully(magic)
+                if (magic[0] == 'M'.code.toByte() && magic[1] == 'P'.code.toByte() && magic[2] == 'Q'.code.toByte() && magic[3] == 0x1A.toByte()) { base = offset; break }
+                offset += 512
+            }
+            if (base < 0) return@use null
+            val header = ByteArray(32)
+            f.seek(base); f.readFully(header)
+            val hashPos = le32(header, 16).toLong() and 0xffffffffL
+            val hashCount = le32(header, 24)
+            if (hashCount <= 0 || hashCount > (1 shl 22) || hashCount and (hashCount - 1) != 0) return@use null
+            if (base + hashPos + hashCount * 16L > f.length()) return@use null
+            val table = ByteArray(hashCount * 16)
+            f.seek(base + hashPos); f.readFully(table)
+            decrypt(table, hash("(hash table)", 3))
+            names.associateWith { name ->
+                val a = hash(name, 1)
+                val b = hash(name, 2)
+                (0 until hashCount).any { i ->
+                    val block = le32(table, i * 16 + 12)
+                    le32(table, i * 16) == a && le32(table, i * 16 + 4) == b && block != -1 && block != -2
+                }
+            }
+        }
+    }.getOrNull()
+
+    private fun le32(b: ByteArray, i: Int): Int =
+        (b[i].toInt() and 0xff) or ((b[i + 1].toInt() and 0xff) shl 8) or ((b[i + 2].toInt() and 0xff) shl 16) or ((b[i + 3].toInt() and 0xff) shl 24)
+
+    private fun put32(b: ByteArray, i: Int, v: Int) {
+        b[i] = v.toByte(); b[i + 1] = (v ushr 8).toByte(); b[i + 2] = (v ushr 16).toByte(); b[i + 3] = (v ushr 24).toByte()
+    }
+}
+
 /** Checks of an installed game's files. */
 object FileValidator {
     /** [name] in [dir], whatever its case (Windows games don't care, Android's storage does). */

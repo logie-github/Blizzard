@@ -37,7 +37,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.logie.blizz.importer.FileValidator
 import com.logie.blizz.update.Updater
 
-/** The update, at the top of the launcher while it downloads; then Android's installer. */
+/** The update, at the bottom centre of the launcher while it downloads; then Android's installer. */
 @Composable
 fun UpdateBanner() {
     val context = LocalContext.current
@@ -45,8 +45,8 @@ fun UpdateBanner() {
     // Back from "install unknown apps": on to the installer.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { Updater.retryInstall(context) }
     val state by Updater.state.collectAsState()
-    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.TopCenter) {
-        AnimatedVisibility(state !is Updater.State.Idle, enter = fadeIn() + slideInVertically(), exit = fadeOut() + slideOutVertically()) {
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.BottomCenter) {
+        AnimatedVisibility(state !is Updater.State.Idle, enter = fadeIn() + slideInVertically { it }, exit = fadeOut() + slideOutVertically { it }) {
             Column(
                 Modifier.padding(12.dp).widthIn(max = 520.dp).fillMaxWidth()
                     .drawBehind { drawRect(Colors.Deep.copy(alpha = 0.95f)); drawFrame(arm = 6.dp.toPx()) }

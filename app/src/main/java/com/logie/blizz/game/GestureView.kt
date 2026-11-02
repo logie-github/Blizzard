@@ -45,8 +45,21 @@ class GestureView(
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
-    private val bindings = Bindings.of(gameId ?: "", ControlsStore(java.io.File(activity.filesDir, "controls")).load(gameId ?: ""))
-    private val gestures = Gestures(this, density, bindings, locate = ::locate)
+    private val controlsStore = ControlsStore(java.io.File(activity.filesDir, "controls"))
+    /** The controls file as it was when [gestures] were made: a game kept running in the background doesn't restart when the controls change. */
+    private var controlsStamp = controlsStore.stamp(gameId ?: "")
+    private var gestures = makeGestures()
+
+    private fun makeGestures() = Gestures(this, density, Bindings.of(gameId ?: "", controlsStore.load(gameId ?: "")), locate = ::locate)
+
+    /** Picks up controls changed (or reset) in the launcher since: checked as a new touch starts, when no gesture is running. */
+    private fun reloadControlsIfChanged() {
+        val now = controlsStore.stamp(gameId ?: "")
+        if (now == controlsStamp) return
+        controlsStamp = now
+        gestures.cancel()
+        gestures = makeGestures()
+    }
     private val vibrate = GameSettings.vibration(activity)
 
     /** From the view's pixels to the game screen's. */
@@ -147,7 +160,10 @@ class GestureView(
         val id = event.getPointerId(index)
         val now = event.eventTime
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> gestures.down(id, event.getX(index), event.getY(index), now)
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) reloadControlsIfChanged()
+                gestures.down(id, event.getX(index), event.getY(index), now)
+            }
             MotionEvent.ACTION_MOVE -> gestures.move(
                 List(event.pointerCount) { i -> Gestures.Touch(event.getPointerId(i), event.getX(i), event.getY(i)) },
                 now,
