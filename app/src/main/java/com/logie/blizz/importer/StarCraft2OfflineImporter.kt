@@ -3,10 +3,11 @@ package com.logie.blizz.importer
 import java.io.File
 
 /**
- * StarCraft II 3.0.5.39117 (Wings of Liberty, Heart of the Swarm and Legacy of the Void) with the
- * offline launcher that goes with that build ("StarCraft II Offline.exe"), from the person's own
- * files only: nothing is downloaded, no Battle.net credentials are asked for, and no batch file or
- * other program of the package is run. The version is checked from the game's own folder
+ * StarCraft II 3.0.5.39117 or 3.1.4.41219 with the offline launcher that goes with the build
+ * ("StarCraft II Offline.exe"), from the person's own files only: nothing is downloaded, no
+ * Battle.net credentials are asked for, and no batch file or other program of the package is
+ * run. They can be a folder of the installed game, or a zip, 7z, tar, disc image or installer
+ * (Setup.exe with its data files, whatever they're called) ([Unpacker]). The version is checked from the game's own folder
  * (Versions/Base39117) and program, and a current Battle.net build is refused, never substituted.
  *
  * Files can't show that the offline launcher works under Winlator, nor that the campaigns load:
@@ -18,13 +19,13 @@ class StarCraft2OfflineImporter : GameImporter {
     override val title = "StarCraft II"
 
     companion object {
-        const val BUILD = "39117"
-        const val VERSION = "3.0.5.39117"
+        /** The builds this plays: the build number (the game's folder, Versions/Base<build>) and its program's version. */
+        val BUILDS = linkedMapOf("39117" to "3.0.5.39117", "41219" to "3.1.4.41219")
         const val LAUNCHER = "StarCraft II Offline.exe"
         val GAME_EXES = listOf("SC2_x64.exe", "SC2.exe")
-        const val PROMPT_INSTALL = "Select your StarCraft II 3.0.5 installation folder or game archive."
+        const val PROMPT_INSTALL = "Select your StarCraft II installation: its folder, a zip, 7z, tar or disc image of it, or its installer (Setup.exe, with its data files in the same folder)."
         const val PROMPT_LAUNCHER = "The supported offline launcher was not found. Select the matching StarCraft II Offline.exe and associated files."
-        const val PROMPT_VERSION = "This StarCraft II installation is not version 3.0.5.39117. Select a compatible installation."
+        val PROMPT_VERSION = "This StarCraft II installation is not version ${BUILDS.values.joinToString(" or ")}. Select a compatible installation."
         /** Inside the games' Windows: where the game keeps profiles and saves. */
         const val DOCUMENTS = "C:\\users\\xuser\\Documents\\StarCraft II"
     }
@@ -34,7 +35,11 @@ class StarCraft2OfflineImporter : GameImporter {
         val found = LinkedHashMap<String, SourceNode>()
         val roots = env.searchRoots()
         roots.firstNotNullOfOrNull { findInstall(it, 4) }?.let { found["install"] = it }
-        Scan(roots, 5).named(LAUNCHER)?.let { found["launcher"] = it }
+        val scan = Scan(roots, 5)
+        scan.named(LAUNCHER)?.let { found["launcher"] = it }
+        if (found["install"] == null) {
+            scan.matching(Regex("(?i)(sc2|starcraft.?(ii|2)).*\\.(zip|7z|iso|tar|tar\\.gz|tgz|tar\\.xz|tar\\.bz2|tar\\.zst)")).firstOrNull()?.let { found["install"] = it }
+        }
         val v = validateDir(env.paths.game(gameId))
         return Detection(v.filesOk, found)
     }
@@ -71,27 +76,13 @@ class StarCraft2OfflineImporter : GameImporter {
             asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { true }
             val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
             if (install != null) {
-                val lower = install.name.lowercase()
-                when {
-                    install.isDirectory -> {
-                        val root = findInstall(install, 4) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no StarCraft II in that folder (no Versions and SC2Data folders). $PROMPT_INSTALL")
-                        precheckVersion(root)
-                        val total = root.walk(12).sumOf { it.size }
-                        FileValidator.requireSpace(staging, total)
-                        copyTree(root, staging, env, total)
-                    }
-                    lower.endsWith(".zip") -> {
-                        FileValidator.requireSpace(staging, install.size * 2)
-                        val out = File(scratch, "zip")
-                        env.progress(Progress(Stage.EXTRACTING, "Unpacking ${install.name}"))
-                        install.open().use { ZipExtractor.extract(it, out, env.cancel) }
-                        val root = out.walkTopDown().maxDepth(5).firstOrNull { it.isDirectory && File(it, "Versions").isDirectory && File(it, "SC2Data").isDirectory }
-                            ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "That archive has no StarCraft II installation in it (no Versions and SC2Data folders).")
-                        root.listFiles()!!.forEach { f -> val t = File(staging, f.name); t.deleteRecursively(); if (!f.renameTo(t)) f.copyRecursively(t, true) }
-                    }
-                    lower.endsWith(".7z") || lower.endsWith(".rar") || lower.endsWith(".iso") ->
-                        throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${install.name}: this importer reads folders and zip archives. Unpack it to a folder first, then select the folder.")
-                    else -> throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${install.name} isn't a StarCraft II folder or archive. $PROMPT_INSTALL")
+                val root = materialize(install, env, staging, scratch)
+                precheckVersion(root)
+                // Moved, not copied: it was just unpacked beside staging.
+                for (f in root.listFiles().orEmpty()) {
+                    val target = File(staging, f.name)
+                    target.deleteRecursively()
+                    if (!f.renameTo(target)) f.copyRecursively(target, true)
                 }
             }
             // The offline launcher and the files beside it, when it came separately.
@@ -118,10 +109,56 @@ class StarCraft2OfflineImporter : GameImporter {
         }
     }
 
-    /** Before copying gigabytes: the folder's build is the supported one. */
+    /** The folder with Versions and SC2Data that [install] holds, unpacked or copied under [scratch]. */
+    private fun materialize(install: SourceNode, env: ImportEnv, staging: File, scratch: File): File {
+        val out = File(scratch, "game").also { it.deleteRecursively(); it.mkdirs() }
+        val unpacker = Unpacker(env.innoextract)
+        val found: SourceNode?
+        val setup: SourceNode?
+        val siblings: List<SourceNode>
+        if (install.isDirectory) {
+            found = findInstall(install, 4)
+            if (found == null) {
+                // No game in it: an installer and its data files, in it or in a folder just under it.
+                val holder = (listOf(install) + install.children().filter { it.isDirectory }).firstOrNull { Installers.setupIn(it.children()) != null }
+                siblings = holder?.children() ?: emptyList()
+                setup = Installers.setupIn(siblings)
+            } else {
+                setup = null
+                siblings = emptyList()
+            }
+        } else {
+            found = null
+            setup = install
+            siblings = install.localFile()?.parentFile?.listFiles()?.map { FileNode(it) } ?: emptyList()
+        }
+        if (found != null) {
+            val total = found.walk(12).sumOf { it.size }
+            precheckVersion(found)
+            FileValidator.requireSpace(staging, total)
+            copyTree(found, out, env, total)
+            return out
+        }
+        val source = setup ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no StarCraft II in that folder (no Versions and SC2Data folders, no installer). $PROMPT_INSTALL")
+        FileValidator.requireSpace(scratch, (source.size + siblings.sumOf { it.size }).coerceAtLeast(1L shl 30) + (2L shl 30))
+        unpacker.unpack(source, siblings, out, scratch, env.cancel, env.progress)
+        // Wherever in what was unpacked the game's folders are.
+        return out.walkTopDown().maxDepth(6).firstOrNull { it.isDirectory && File(it, "Versions").isDirectory && File(it, "SC2Data").isDirectory }
+            ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "${source.name} has no StarCraft II in it (no Versions and SC2Data folders after unpacking). $PROMPT_INSTALL")
+    }
+
+    /** The unpacked game's build is one this plays, before it's moved in. */
+    private fun precheckVersion(root: File) {
+        val versions = File(root, "Versions").list()?.toList() ?: emptyList()
+        if (BUILDS.keys.none { build -> versions.any { it.equals("Base$build", true) } }) {
+            throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "Versions: ${versions.joinToString().ifEmpty { "none" }}")
+        }
+    }
+
+    /** Before copying gigabytes: the folder's build is one this plays. */
     private fun precheckVersion(root: SourceNode) {
         val versions = root.child("Versions")?.children()?.filter { it.isDirectory }?.map { it.name } ?: emptyList()
-        if (versions.none { it.equals("Base$BUILD", true) }) {
+        if (BUILDS.keys.none { build -> versions.any { it.equals("Base$build", true) } }) {
             throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "Versions: ${versions.joinToString().ifEmpty { "none" }}")
         }
     }
@@ -170,13 +207,16 @@ class StarCraft2OfflineImporter : GameImporter {
     fun validateDir(dir: File): Validation {
         val checks = ArrayList<Check>()
         val versions = File(dir, "Versions").list()?.toList() ?: emptyList()
-        val base = File(File(dir, "Versions"), "Base$BUILD")
+        // The build that's there (the newest this plays, if more than one).
+        val build = BUILDS.keys.lastOrNull { File(File(dir, "Versions"), "Base$it").isDirectory } ?: BUILDS.keys.first()
+        val VERSION = BUILDS.getValue(build)
+        val base = File(File(dir, "Versions"), "Base$build")
         checks += Check("Game assets (SC2Data)", File(dir, "SC2Data").isDirectory && (File(dir, "SC2Data").list()?.isNotEmpty() == true), if (File(dir, "SC2Data").isDirectory) "present" else "missing")
         val exe = GAME_EXES.firstNotNullOfOrNull { FileValidator.find(base, it) }
         val pe = exe?.let { PeInfo.read(it) }
-        checks += Check("Supported version ($VERSION)", base.isDirectory && pe?.version == VERSION, when {
+        checks += Check("Supported version (${BUILDS.values.joinToString(" or ")})", base.isDirectory && pe?.version == VERSION, when {
             !base.isDirectory -> "Versions: ${versions.joinToString().ifEmpty { "none" }}"
-            pe == null -> "no SC2 program in Base$BUILD"
+            pe == null -> "no SC2 program in Base$build"
             else -> "${exe.name} ${pe.version}"
         })
         val launcher = FileValidator.find(dir, LAUNCHER)

@@ -104,7 +104,7 @@ class ImporterAcceptanceTest {
         assertEquals("Select your original StarCraft/Brood War installation folder, legacy installer, or disc image.", sc.missing.single().prompt)
 
         val sc2 = run(StarCraft2OfflineImporter()) as ImportPipeline.Result.Waiting
-        assertEquals("Select your StarCraft II 3.0.5 installation folder or game archive.", sc2.missing.single().prompt)
+        assertTrue(sc2.missing.single().prompt.startsWith("Select your StarCraft II installation"))
         assertEquals(Stage.WAITING_FOR_USER_FILE, sc2.record.stage)
     }
 
@@ -184,7 +184,7 @@ class ImporterAcceptanceTest {
 
         val sc2 = run(StarCraft2OfflineImporter(), mapOf(picked("install", Fixtures.starcraft2Install(tmp.newFolder("sc2"), build = "75689", version = "4.11.4.75689")))) as ImportPipeline.Result.Failed
         assertEquals(Problem.UNSUPPORTED_VERSION, sc2.error.problem)
-        assertEquals("This StarCraft II installation is not version 3.0.5.39117. Select a compatible installation.", sc2.error.message)
+        assertEquals("This StarCraft II installation is not version 3.0.5.39117 or 3.1.4.41219. Select a compatible installation.", sc2.error.message)
         assertNull(Library(paths).get("starcraft2"))
     }
 

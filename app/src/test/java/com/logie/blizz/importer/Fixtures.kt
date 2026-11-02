@@ -94,40 +94,73 @@ object Fixtures {
         return file
     }
 
-    /** An ISO 9660 image named [volume] with [files] in its root folder. */
+    /** An ISO 9660 image named [volume] with [files] in it (paths with "/" make folders); long names as Joliet's second table. */
     fun iso(file: File, volume: String, files: Map<String, ByteArray>): File {
         val sector = 2048
-        val dirSector = 18
-        var next = 19
-        val placed = files.map { (name, data) ->
-            val at = next
-            next += (data.size + sector - 1) / sector
-            Triple(name, at, data)
+        class Dir(val name: String, val path: String = "", val dirs: MutableMap<String, Dir> = linkedMapOf(), val files: MutableMap<String, ByteArray> = linkedMapOf()) {
+            var extent = 0
+            var size = sector
         }
+        val root = Dir("")
+        for ((path, data) in files) {
+            val parts = path.split('/')
+            var d = root
+            for (p in parts.dropLast(1)) d = d.dirs.getOrPut(p) { Dir(p, d.path + p + "/") }
+            d.files[parts.last()] = data
+        }
+        val all = ArrayList<Dir>()
+        fun collect(d: Dir) { all += d; d.dirs.values.forEach { collect(it) } }
+        collect(root)
+        // Two tables (primary, Joliet) of one sector per folder each; then the data.
+        var next = 20
+        val primaryAt = HashMap<Dir, Int>(); val jolietAt = HashMap<Dir, Int>()
+        for (d in all) { primaryAt[d] = next++; jolietAt[d] = next++ }
+        val dataAt = HashMap<String, Int>()
+        fun place(d: Dir, prefix: String) {
+            for ((n, data) in d.files) { dataAt["$prefix$n"] = next; next += (data.size + sector - 1) / sector }
+            for ((n, sub) in d.dirs) place(sub, "$prefix$n/")
+        }
+        place(root, "")
         val image = ByteArray(next * sector)
-        val pvd = ByteBuffer.wrap(image, 16 * sector, sector).order(ByteOrder.LITTLE_ENDIAN)
-        image[16 * sector] = 1
-        "CD001".toByteArray().copyInto(image, 16 * sector + 1)
-        volume.padEnd(32).toByteArray().copyInto(image, 16 * sector + 40)
-        fun record(buf: ByteArray, offset: Int, name: ByteArray, extent: Int, size: Int, dir: Boolean): Int {
+        fun record(buf: ByteArray, off: Int, name: ByteArray, extent: Int, size: Int, dir: Boolean): Int {
             val length = 33 + name.size + (if (name.size % 2 == 0) 1 else 0)
-            buf[offset] = length.toByte()
-            ByteBuffer.wrap(buf, offset + 2, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(extent)
-            ByteBuffer.wrap(buf, offset + 10, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(size)
-            buf[offset + 25] = if (dir) 2 else 0
-            buf[offset + 32] = name.size.toByte()
-            name.copyInto(buf, offset + 33)
+            buf[off] = length.toByte()
+            ByteBuffer.wrap(buf, off + 2, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(extent)
+            ByteBuffer.wrap(buf, off + 10, 4).order(ByteOrder.LITTLE_ENDIAN).putInt(size)
+            buf[off + 25] = if (dir) 2 else 0
+            buf[off + 32] = name.size.toByte()
+            name.copyInto(buf, off + 33)
             return length
         }
-        record(image, 16 * sector + 156, byteArrayOf(0), dirSector, sector, true)
-        var at = dirSector * sector
-        at += record(image, at, byteArrayOf(0), dirSector, sector, true)
-        at += record(image, at, byteArrayOf(1), dirSector, sector, true)
-        for ((name, extent, data) in placed) {
-            at += record(image, at, "$name;1".toByteArray(), extent, data.size, false)
-            data.copyInto(image, extent * sector)
+        fun descriptor(sectorNo: Int, type: Int, table: Map<Dir, Int>, joliet: Boolean) {
+            val at = sectorNo * sector
+            image[at] = type.toByte()
+            "CD001".toByteArray().copyInto(image, at + 1)
+            image[at + 6] = 1
+            if (joliet) { "%/E".toByteArray().copyInto(image, at + 88) }
+            volume.padEnd(32).toByteArray().copyInto(image, at + 40)
+            record(image, at + 156, byteArrayOf(0), table.getValue(root), sector, true)
         }
-        pvd.position(0)
+        descriptor(16, 1, primaryAt, false)
+        descriptor(17, 2, jolietAt, true)
+        image[18 * sector] = 255.toByte(); "CD001".toByteArray().copyInto(image, 18 * sector + 1)
+        fun name(n: String, joliet: Boolean) = if (joliet) n.toByteArray(Charsets.UTF_16BE) else (n.uppercase().take(30) + ";1").toByteArray()
+        for (d in all) for (joliet in listOf(false, true)) {
+            val table = if (joliet) jolietAt else primaryAt
+            var at = table.getValue(d) * sector
+            at += record(image, at, byteArrayOf(0), table.getValue(d), sector, true)
+            at += record(image, at, byteArrayOf(1), table.getValue(d), sector, true)
+            for ((n, sub) in d.dirs) at += record(image, at, if (joliet) n.toByteArray(Charsets.UTF_16BE) else n.uppercase().toByteArray(), table.getValue(sub), sector, true)
+            for ((n, data) in d.files) {
+                val key = d.path + n
+                at += record(image, at, name(n, joliet), dataAt.getValue(key), data.size, false)
+            }
+        }
+        for ((key, extent) in dataAt) {
+            val parts = key.split('/'); var d = root
+            for (p in parts.dropLast(1)) d = d.dirs.getValue(p)
+            d.files.getValue(parts.last()).copyInto(image, extent * sector)
+        }
         file.parentFile?.mkdirs()
         file.writeBytes(image)
         return file
