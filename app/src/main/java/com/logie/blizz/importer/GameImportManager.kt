@@ -113,8 +113,8 @@ object GameImportManager {
         }
     }
 
-    /** Not bugs: the person stopped it, the phone is full, or the game is a version the app doesn't play. */
-    private val NOT_BUGS = setOf(Problem.CANCELLED, Problem.INSUFFICIENT_STORAGE, Problem.UNSUPPORTED_VERSION)
+    /** Not a failure: the person stopped it. Every other failed install is sent, a full phone and an unsupported version included. */
+    private val NOT_BUGS = setOf(Problem.CANCELLED)
 
     /** A failed import, sent as a GitHub issue ([com.logie.blizz.reports.BugReports]). */
     private fun reportFailure(context: Context, gameId: String, repair: Boolean, result: ImportPipeline.Result.Failed) {

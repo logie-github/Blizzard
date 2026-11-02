@@ -66,7 +66,7 @@ Crashes, failed imports and failed game starts are sent to this repository as Gi
 themselves (labels `bug`, `auto-report`), with the app's version, the phone, the game, what the
 app said, its checks and the end of the log; CD keys and tokens are taken out. They're queued in
 `files/reports` and sent at once, again every minute while any wait, and the same failure goes
-once a day at most. Stopping an import, a full phone and an unsupported game version aren't sent.
+once a day at most. Only an import you stop yourself isn't sent; a full phone, an unsupported game version and a failed app-update download are.
 
 They go with the token CI builds in, as YeaBwoi's apps carry theirs: the repository secret
 `BLIZZ_REPORT_TOKEN` (a token that may open issues here). Without it, reports wait on the phone.
