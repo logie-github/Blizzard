@@ -176,12 +176,46 @@ class GestureView(
         return true
     }
 
+    private var lastBack = 0L
+    private var windowShown = false
+
+    /** Back: the game's Escape; twice in a second, the app's menu (a way in when four fingers don't open it). */
+    fun backPressed() {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastBack < 1000) { lastBack = 0; showMenu() } else { lastBack = now; escape() }
+    }
+
+    /** No game window after a minute and a half: the log is sent without anyone having to reach the menu. */
+    private val noWindowReport = Runnable {
+        if (!windowShown) sendReport("didn't start (no window in 90 s)")
+    }
+
+    /** A minute into a game: its log, once a day (the same title isn't sent twice in a day), for black screens that nothing reports. */
+    private val minuteReport = Runnable { sendReport("log after 60 s") }
+
+    private fun sendReport(what: String) {
+        com.logie.blizz.reports.BugReports.report(
+            activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} $what",
+            "Sent by the app",
+            listOf("Game" to gameId, "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}", "Window shown" to windowShown.toString()),
+            log = GameLog.snapshot().ifEmpty { null },
+        )
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        postDelayed(noWindowReport, 90_000)
+    }
+
     /** Back in the game: Escape (cancels an order, closes a menu). */
     fun escape() = tapKey(XKeycode.KEY_ESC)
 
     /** The game's first window is up: on a touch screen the finger is the pointer, never drawn. */
     fun onGameWindowShown() {
         xServer.renderer.isCursorVisible = false
+        windowShown = true
+        removeCallbacks(noWindowReport)
+        postDelayed(minuteReport, 60_000)
         // Recorded apart from the import's file checks: the program started under Winlator.
         gameId?.let { id ->
             val app = activity.applicationContext
@@ -299,6 +333,8 @@ class GestureView(
     }
 
     override fun onDetachedFromWindow() {
+        removeCallbacks(noWindowReport)
+        removeCallbacks(minuteReport)
         removeCallbacks(typeNext)
         removeCallbacks(ticker)
         super.onDetachedFromWindow()

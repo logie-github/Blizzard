@@ -260,6 +260,14 @@ object Packages {
             val heads = siblings.filter { !it.isDirectory && it.size >= (1L shl 20) }.take(6).map { it.name to headOf(it) }
             val arc = heads.firstOrNull { (_, h) -> h.size >= 4 && h[0] == 'A'.code.toByte() && h[1] == 'r'.code.toByte() && h[2] == 'C'.code.toByte() && h[3] == 1.toByte() }
             val headText = heads.joinToString("; ") { (n, h) -> "$n starts ${h.take(8).joinToString(" ") { "%02x".format(it) }}" }
+            val repack = out.walkTopDown().maxDepth(4).any { it.isFile && it.name.lowercase() in setOf("unarc.dll", "isdone.dll", "cls-lolz_x64.exe", "xt22.exe") }
+            if (repack && arc == null) {
+                throw ImportException(
+                    Problem.UNSUPPORTED_INSTALLER,
+                    "${package_.name} is a repack: its installer unpacks the game with Windows programs (ISDone/unarc, and compressors such as xtool and lolz) over its own data files, so there are no game files to read until it has run. This app can't run it yet. Give the game as an installed folder, a zip, 7z, tar or disc image instead.",
+                    "Data files: $headText${outline(out)}",
+                )
+            }
             if (arc != null) {
                 throw ImportException(
                     Problem.UNSUPPORTED_INSTALLER,

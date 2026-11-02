@@ -139,3 +139,7 @@ Hold a game's art to open it. Pinch the preview to zoom the picture and drag to 
 ## Game log
 
 While a game runs, the app keeps the last 400 lines Wine printed (errors and the libraries it loaded). The game menu (four fingers) has **Send a report (with the game's log)**, which files it as a GitHub issue, for black screens that leave no crash behind.
+
+- **Back twice** (within a second) opens the app's menu, for when four fingers don't.
+- A game that shows no window for 90 seconds, and every game one minute in, send their Wine log as an issue (once a day per game), so a black screen is reported without anyone reaching the menu.
+- **Repack installers** (Setup.exe with `Data01.dxn`-style files: ISDone, unarc, xtool, lolz) can't be read: they unpack the game with Windows programs when they run. Use an installed folder, zip, 7z, tar or disc image.
