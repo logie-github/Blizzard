@@ -12,7 +12,7 @@ object Catalog {
     }
 
     fun of(gameId: String): Game = when (gameId) {
-        "diablo" -> DIABLO
+        "diablo", "installer" -> DIABLO
         "diablo2" -> DIABLO2
         "starcraft", "starcraft_remastered" -> STARCRAFT
         "starcraft2" -> STARCRAFT2

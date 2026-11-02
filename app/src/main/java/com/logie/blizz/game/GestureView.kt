@@ -217,7 +217,7 @@ class GestureView(
         removeCallbacks(noWindowReport)
         postDelayed(minuteReport, 60_000)
         // Recorded apart from the import's file checks: the program started under Winlator.
-        gameId?.let { id ->
+        gameId?.takeIf { it != "installer" }?.let { id ->
             val app = activity.applicationContext
             Thread { runCatching { com.logie.blizz.importer.GameImportManager.recordLaunch(app, id, com.logie.blizz.importer.LaunchTest.WINDOW_SHOWN) } }.start()
         }

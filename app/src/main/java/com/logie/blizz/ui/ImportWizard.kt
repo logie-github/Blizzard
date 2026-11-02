@@ -192,6 +192,11 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                         FrameButton("Play") { onDismiss(); onPlay() }
                     }
                     record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton("Auto Import") { GameImportManager.start(context, game.id) }
+                    record.problem == Problem.INSTALLER_MUST_RUN -> {
+                        FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
+                        FrameButton("Retry", primary = false) { GameImportManager.start(context, game.id) }
+                        FrameButton("Run the installer") { GameImportManager.runInstaller(context, game.id) }
+                    }
                     else -> {
                         FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
                         FrameButton("Retry") { GameImportManager.start(context, game.id) }

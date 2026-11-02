@@ -138,7 +138,9 @@ object WindowsRuntime {
         val paths = GameImportManager.paths(context)
         paths.games.mkdirs()
         paths.saves.mkdirs()
-        return "D:" + paths.games.path + "S:" + paths.saves.path
+        paths.staging.mkdirs()
+        // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
+        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
     }
 
     /**

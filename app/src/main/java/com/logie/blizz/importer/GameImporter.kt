@@ -134,6 +134,7 @@ object GameReset {
         File(paths.state, "import-$gameId.json").delete()
         paths.staging(gameId).deleteRecursively()
         File(paths.staging, "$gameId-scratch").deleteRecursively()
+        paths.installer(gameId).deleteRecursively()
         File(paths.games, ".$gameId.old").deleteRecursively()
         val game = paths.game(gameId)
         if (!game.exists()) return

@@ -261,17 +261,12 @@ object Packages {
             val arc = heads.firstOrNull { (_, h) -> h.size >= 4 && h[0] == 'A'.code.toByte() && h[1] == 'r'.code.toByte() && h[2] == 'C'.code.toByte() && h[3] == 1.toByte() }
             val headText = heads.joinToString("; ") { (n, h) -> "$n starts ${h.take(8).joinToString(" ") { "%02x".format(it) }}" }
             val repack = out.walkTopDown().maxDepth(4).any { it.isFile && it.name.lowercase() in setOf("unarc.dll", "isdone.dll", "cls-lolz_x64.exe", "xt22.exe") }
-            if (repack && arc == null) {
+            // An installer that unpacked to no game (a repack's, which unpacks the game with Windows programs
+            // when it runs): it's run in the app's Windows, which is what it's made for.
+            if (repack || (arc != null) || Format.of(package_) == Format.PROGRAM) {
                 throw ImportException(
-                    Problem.UNSUPPORTED_INSTALLER,
-                    "${package_.name} is a repack: its installer unpacks the game with Windows programs (ISDone/unarc, and compressors such as xtool and lolz) over its own data files, so there are no game files to read until it has run. This app can't run it yet. Give the game as an installed folder, a zip, 7z, tar or disc image instead.",
-                    "Data files: $headText${outline(out)}",
-                )
-            }
-            if (arc != null) {
-                throw ImportException(
-                    Problem.UNSUPPORTED_INSTALLER,
-                    "${package_.name} is a repack: ${arc.first} is a FreeArc archive that only the installer's own unpacker (a Windows program) opens, and this app can't read FreeArc yet. Give the game as an installed folder, a zip, 7z, tar or disc image instead.",
+                    Problem.INSTALLER_MUST_RUN,
+                    "${package_.name} makes the game's files when it runs (it unpacks them with its own Windows programs). The app can run it for you in its Windows: tap Run the installer.",
                     "Data files: $headText${outline(out)}",
                 )
             }

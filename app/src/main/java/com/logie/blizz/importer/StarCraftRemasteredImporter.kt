@@ -79,7 +79,7 @@ class StarCraftRemasteredImporter : GameImporter {
     override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) = Unit
 
     override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
-        val have = FileValidator.find(env.paths.game(gameId), EXE) != null || detection.found["install"] != null || supplied["install"] is Supplied.Picked
+        val have = FileValidator.find(env.paths.game(gameId), EXE) != null || detection.found["install"] != null || supplied["install"] is Supplied.Picked || InstallerRun.out(env.paths, gameId).isDirectory
         return if (have) emptyList() else listOf(MissingInput("install", PROMPT_INSTALL, PickKind.FILE_OR_FOLDER))
     }
 
@@ -90,8 +90,9 @@ class StarCraftRemasteredImporter : GameImporter {
             val staging = asm.begin()
             asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { true }
             val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
-            if (install != null) {
-                val root = Packages.materialize(install, env, staging, scratch, "StarCraft: Remastered", PROMPT_INSTALL, isGameRoot, checkUnpacked = ::precheck)
+            val installed = InstallerRun.finishedRoot(env.paths, gameId, isGameRoot) { null }
+            if (install != null || installed != null) {
+                val root = installed ?: Packages.materialize(install!!, env, staging, scratch, "StarCraft: Remastered", PROMPT_INSTALL, isGameRoot, checkUnpacked = ::precheck)
                 precheck(root)
                 for (f in root.listFiles().orEmpty()) {
                     val target = File(staging, f.name)
@@ -107,6 +108,7 @@ class StarCraftRemasteredImporter : GameImporter {
                 "Checks: ${check.checks.joinToString("; ") { "${if (it.passed) "ok" else "FAILED"} ${it.name} (${it.detail})" }}\n${diagnose(staging)}",
             )
             asm.commit()
+            env.paths.installer(gameId).deleteRecursively()
         } catch (e: Throwable) {
             asm.abandon()
             throw e

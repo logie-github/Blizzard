@@ -65,6 +65,24 @@ class UnpackTest {
         assertImported(run(Fixtures.zip(tmp.newFile("outer.zip"), mapOf("Disc/readme.txt" to "hi".toByteArray(), "Disc/Data/game.zip" to inner.readBytes()))), "3.0.5.39117")
     }
 
+    @Test fun whatTheGamesOwnInstallerMadeIsImported() {
+        paths = GamePaths(tmp.newFolder())
+        Fixtures.starcraft2Install(File(paths.installer("starcraft2"), "out/StarCraft II"))
+        val pipeline = ImportPipeline(ImportStateRepository(paths), Library(paths))
+        val result = pipeline.run(StarCraft2OfflineImporter(), env(), emptyMap())
+        assertImported(result, "3.0.5.39117")
+        // The installer's copy is gone once the game is in.
+        assertTrue(!paths.installer("starcraft2").exists())
+    }
+
+    @Test fun anInstallerThatMakesNoFilesUntilItRunsIsSaidToNeedRunning() {
+        val dir = tmp.newFolder("repack")
+        File(dir, "Setup.exe").writeBytes(ByteArray(2048) { if (it < 2) "MZ"[it].code.toByte() else 0 })
+        File(dir, "Data01.dxn").writeBytes(ByteArray(1 shl 21) { 7 })
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Failed)
+    }
+
     @Test fun zip() = assertImported(run(Fixtures.zip(tmp.newFile("sc2.zip"), game().mapKeys { "StarCraft II/${it.key}" })), "3.0.5.39117")
 
     @Test fun theNewerBuildToo() = assertImported(run(Fixtures.zip(tmp.newFile("sc2.zip"), game("41219", "3.1.4.41219"))), "3.1.4.41219")

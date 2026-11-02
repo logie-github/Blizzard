@@ -142,4 +142,4 @@ While a game runs, the app keeps the last 400 lines Wine printed (errors and the
 
 - **Back twice** (within a second) opens the app's menu, for when four fingers don't.
 - A game that shows no window for 90 seconds, and every game one minute in, send their Wine log as an issue (once a day per game), so a black screen is reported without anyone reaching the menu.
-- **Repack installers** (Setup.exe with `Data01.dxn`-style files: ISDone, unarc, xtool, lolz) can't be read: they unpack the game with Windows programs when they run. Use an installed folder, zip, 7z, tar or disc image.
+- **Repack installers** (Setup.exe with `Data01.dxn`-style files: ISDone, unarc, xtool, lolz) make the game's files only when they run. The import says so and offers **Run the installer**: the installer and its data files are copied into the app (about the game's size again is needed free, twice over with the install), run silently in the app's Windows (`/SILENT /DIR=T:\<game>-installer\out`), and when it has finished, **Retry** imports what it installed and deletes the copy. Under emulation this can take hours. Untested on a phone.
