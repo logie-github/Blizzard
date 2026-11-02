@@ -120,3 +120,9 @@ app installed on the phone picks up the next time it opens.
 
 Not affiliated with Blizzard Entertainment. All trademarks referenced herein are the properties
 of their respective owners.
+
+## Reset and graphics notes
+
+- **Reset installation:** every game's import screen has a Reset button (with a confirmation). It removes the game's imported files and state so the import runs again; saves are kept.
+- **StarCraft key:** the downloaded StarCraft is installed with a placeholder key and owner (the game runs offline), which avoids the `font\font.gid` "File not found" error.
+- **Classic 2D games** (Diablo II, StarCraft, Warcraft II) draw through cnc-ddraw (OpenGL) instead of Wine's DirectDraw, aimed at the low frame rate and missing videos. Untested on a phone.

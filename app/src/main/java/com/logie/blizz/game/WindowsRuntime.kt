@@ -102,7 +102,7 @@ object WindowsRuntime {
 
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = size
-        val container = container(context, width, height)
+        val container = container(context, width, height, entry.gameId)
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
 
@@ -137,8 +137,15 @@ object WindowsRuntime {
         return "D:" + paths.games.path + "S:" + paths.saves.path
     }
 
+    /**
+     * The classic 2D games (Diablo II, StarCraft, Warcraft II) draw with DirectDraw, which Wine's own
+     * version runs at a few frames a second and plays no videos through; cnc-ddraw draws them with OpenGL.
+     */
+    private fun dxwrapperConfig(gameId: String): String =
+        if (gameId in setOf("diablo2", "starcraft", "warcraft2")) "ddrawWrapper=cnc-ddraw" else ""
+
     /** The games' Windows: made the first time, its screen and drives set every time. */
-    private suspend fun container(context: Context, width: Int, height: Int): Container {
+    private suspend fun container(context: Context, width: Int, height: Int, gameId: String): Container {
         val manager = ContainerManager(context)
         val drives = drives(context)
         val screenSize = "${width}x$height"
@@ -146,6 +153,7 @@ object WindowsRuntime {
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
+            existing.setDXWrapperConfig(dxwrapperConfig(gameId))
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
@@ -156,6 +164,7 @@ object WindowsRuntime {
             .put("envVars", defaults.getEnvVars())
             .put("graphicsDriver", defaults.getGraphicsDriver())
             .put("dxwrapper", defaults.getDXWrapper())
+            .put("dxwrapperConfig", dxwrapperConfig(gameId))
             .put("audioDriver", defaults.getAudioDriver())
             .put("wincomponents", defaults.getWinComponents())
             .put("drives", drives)
