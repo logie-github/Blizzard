@@ -12,6 +12,23 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,20 +56,70 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) Splashes.set(context, game.id, Splashes.Kind.LOGO, uri)
     }
+    var layout by remember { mutableStateOf(Splashes.layout(context, game.id)) }
+    var grid by remember { mutableStateOf(true) }
+    // Saved a moment after the last change.
+    LaunchedEffect(layout) { delay(300); Splashes.setLayout(context, game.id, layout) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.padding(18.dp).widthIn(max = 620.dp).fillMaxWidth().drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier.padding(18.dp).widthIn(max = 620.dp).fillMaxWidth().verticalScroll(rememberScrollState())
+                .drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FrameTitle(game.fullTitle)
-            // The loading screen itself, at a third of the size.
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clipToBounds().border(1.dp, Colors.Steel).background(Colors.Abyss)) {
-                Box(Modifier.graphicsLayer { scaleX = 0.5f; scaleY = 0.5f }) { Loading(game.id, "Starting…") }
+            // The loading screen itself, at half the size: pinch to zoom the picture, drag to move it.
+            BoxWithConstraints(
+                Modifier.fillMaxWidth().aspectRatio(16f / 9f).clipToBounds().border(1.dp, Colors.Steel).background(Colors.Abyss)
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            val z = (layout.zoom * zoom).coerceIn(1f, 4f)
+                            val limit = (z - 1f) / 2f
+                            layout = layout.copy(
+                                zoom = z,
+                                panX = (layout.panX + pan.x / size.width).coerceIn(-limit, limit),
+                                panY = (layout.panY + pan.y / size.height).coerceIn(-limit, limit),
+                            )
+                        }
+                    },
+            ) {
+                Box(Modifier.requiredSize(maxWidth * 2, maxHeight * 2).graphicsLayer { scaleX = 0.5f; scaleY = 0.5f }) {
+                    Loading(game.id, "Starting…", layoutOverride = layout, grid = grid)
+                }
             }
+            Text("Pinch to zoom the picture, drag to move it.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
                 FrameButton("Background") { pickBackground.launch(arrayOf("image/*")) }
                 FrameButton("Logo") { pickLogo.launch(arrayOf("image/*")) }
-                FrameButton("Reset", primary = false) { Splashes.clear(context, game.id) }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Logo place", style = MaterialTheme.typography.labelMedium)
+                    for (row in 0..2) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (col in 0..2) {
+                            val cell = row * 3 + col
+                            val on = layout.logoCell == cell
+                            Box(
+                                Modifier.size(34.dp).border(1.dp, if (on) Colors.Ice else Colors.Steel).background(if (on) Colors.Ice.copy(alpha = 0.35f) else Colors.Abyss)
+                                    .clickable { layout = layout.copy(logoCell = cell) },
+                            )
+                        }
+                    }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Logo size", style = MaterialTheme.typography.labelMedium)
+                    Slider(layout.logoScale, { layout = layout.copy(logoScale = it) }, valueRange = 0.3f..2.5f)
+                    Text("Picture zoom", style = MaterialTheme.typography.labelMedium)
+                    Slider(layout.zoom, { z ->
+                        val limit = (z - 1f) / 2f
+                        layout = layout.copy(zoom = z, panX = layout.panX.coerceIn(-limit, limit), panY = layout.panY.coerceIn(-limit, limit))
+                    }, valueRange = 1f..4f)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+                FrameButton(if (grid) "Grid: on" else "Grid: off", primary = false) { grid = !grid }
+                FrameButton("Centre picture", primary = false) { layout = layout.copy(zoom = layout.zoom, panX = 0f, panY = 0f) }
+                FrameButton("Auto logo", primary = false) { layout = layout.copy(logoCell = -1, logoScale = 1f) }
+                FrameButton("Reset", primary = false) { Splashes.clear(context, game.id); layout = Splashes.Layout() }
             }
         }
     }
