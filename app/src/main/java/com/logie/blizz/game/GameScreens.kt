@@ -36,6 +36,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -138,12 +142,21 @@ class GameLoading(private val activity: Activity) {
 
 @Composable
 internal fun Loading(gameId: String?, text: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val game = Games.find(gameId)
-    val splash = game?.splash
+    val version by Splashes.version.collectAsState()
+    // The person's own picture and logo (hold the game's art), else the game's own.
+    val custom = remember(gameId, version) {
+        fun load(kind: Splashes.Kind) = gameId?.let { Splashes.file(context, it, kind) }?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+        load(Splashes.Kind.BACKGROUND) to load(Splashes.Kind.LOGO)
+    }
+    val (customBackground, customLogo) = custom
+    val art: Painter? = customBackground?.let { BitmapPainter(it) } ?: game?.splash?.let { painterResource(it) }
+    val logo: Painter? = customLogo?.let { BitmapPainter(it) } ?: game?.splashLogo?.let { painterResource(it) }
     Box(Modifier.fillMaxSize().background(Colors.Abyss), contentAlignment = Alignment.Center) {
-        if (splash != null) {
-            // The game's own art filling the screen (cut at its sides, or below, never above for Diablo II), its logo low over it, embers rising.
-            Image(painterResource(splash), contentDescription = null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, game.splashTop), modifier = Modifier.fillMaxSize())
+        if (art != null) {
+            // The art filling the screen (cut at its sides, or below), its logo low over it, embers rising.
+            Image(art, contentDescription = null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, if (customBackground != null) 0f else game?.splashTop ?: -0.2f), modifier = Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.9f))))
             Snow(alpha = 0.8f, color = Color(0xFFFF8A3D), rising = true, flakes = 50)
             // A very wide screen (the cover screen sideways): the logo to the lower right, off the face.
@@ -155,9 +168,7 @@ internal fun Loading(gameId: String?, text: String) {
                     horizontalAlignment = if (wide) Alignment.End else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Bottom),
                 ) {
-                    game.splashLogo?.let {
-                        Image(painterResource(it), contentDescription = game.fullTitle, contentScale = ContentScale.Fit, modifier = Modifier.width(logoWidth))
-                    }
+                    logo?.let { Image(it, contentDescription = game?.fullTitle, contentScale = ContentScale.Fit, modifier = Modifier.width(logoWidth)) }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Spinner(26.dp, accent = Color(0xFFFF8A3D))
                         Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
@@ -175,7 +186,8 @@ internal fun Loading(gameId: String?, text: String) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Colors.Abyss.copy(alpha = 0.55f), Colors.Abyss.copy(alpha = 0.9f)))))
         Snow(alpha = 0.6f)
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(22.dp)) {
-            Image(painterResource(R.drawable.blizz_logo), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.width(260.dp))
+            if (logo != null) Image(logo, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.width(300.dp))
+            else Image(painterResource(R.drawable.blizz_logo), contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.width(260.dp))
             Spinner(44.dp)
             Text(text, style = MaterialTheme.typography.titleMedium, color = Colors.Mist, textAlign = TextAlign.Center)
         }
