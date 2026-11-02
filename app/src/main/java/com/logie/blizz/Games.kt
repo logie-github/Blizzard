@@ -33,8 +33,8 @@ object Games {
         Game("starcraft", "StarCraft", null, 1998, R.drawable.cover_starcraft, variantLabel = "Classic",
             variants = listOf(Game("starcraft_remastered", "StarCraft", "Remastered", 2017, R.drawable.cover_starcraft, variantLabel = "Remastered"))),
         Game("starcraft2", "StarCraft II", null, 2010, R.drawable.cover_starcraft2),
-        Game("warcraft", "Warcraft", "Orcs & Humans", 1994, R.drawable.cover_warcraft, WARCRAFTS),
-        Game("warcraft2", "Warcraft II", "Tides of Darkness", 1995, R.drawable.cover_warcraft2, WARCRAFTS),
+        Game("warcraft", "Warcraft", "Orcs & Humans", 1994, R.drawable.cover_warcraft),
+        Game("warcraft2", "Warcraft II", "Tides of Darkness", 1995, R.drawable.cover_warcraft2),
         Game("warcraft3_roc", "Warcraft III", "Reign of Chaos", 2002, R.drawable.cover_warcraft3_roc, WARCRAFTS),
         Game("warcraft3_tft", "Warcraft III", "The Frozen Throne", 2003, R.drawable.cover_warcraft3_tft, WARCRAFTS),
     ).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Game::title).thenBy(String.CASE_INSENSITIVE_ORDER) { it.subtitle.orEmpty() })

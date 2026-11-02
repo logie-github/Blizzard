@@ -43,6 +43,9 @@ object GameImportManager {
         "starcraft" to { StarCraftClassicImporter() },
         "starcraft_remastered" to { StarCraftRemasteredImporter() },
         "starcraft2" to { StarCraft2OfflineImporter() },
+        // Warcraft I and II: native Stratagus from the GOG files (the conversion tools are set in [env]).
+        "warcraft" to { Warcraft1Importer() },
+        "warcraft2" to { Warcraft2Importer() },
     )
 
     fun importable(gameId: String) = gameId in importers
@@ -250,6 +253,7 @@ object GameImportManager {
         val paths = paths(context)
         val bldl = Tools.file(context, "libbldl.so")
         val inno = Tools.file(context, "libinnoextract.so")
+        ConversionTools.installed = DeviceConversionTools(context.applicationContext)
         return ImportEnv(
             paths = paths,
             searchRoots = { searchRoots(context) },
