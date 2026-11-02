@@ -135,7 +135,7 @@ class StarCraftRemasteredImporter : GameImporter {
         checks += Check("Version $VERSION (1.23.x)", pe != null && (pe.version == null || pe.version.startsWith(FAMILY)), pe?.version ?: "unknown")
         val data = FileValidator.find(dir, "Data")?.takeIf { it.isDirectory }
             ?: dir.walkTopDown().maxDepth(3).firstOrNull { it.isDirectory && it.name.equals("Data", true) }
-        checks += Check("Game data (Data)", data != null && data.isDirectory && (data.walkTopDown().take(3).count { it.isFile } > 0), if (data == null) "missing" else "present")
+        checks += Check("Game data (Data)", data != null && data.isDirectory && data.walkTopDown().any { it.isFile }, if (data == null) "missing" else "present")
         if (exe != null && pe != null) {
             val missing = Dependencies.missing(exe)
             checks += Check("Game libraries", missing.isEmpty(), if (missing.isEmpty()) "present" else "missing ${missing.joinToString()}")
