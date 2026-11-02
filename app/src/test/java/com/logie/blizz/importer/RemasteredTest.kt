@@ -89,4 +89,20 @@ class RemasteredTest {
         val diablo = Games.all.first { it.id == "diablo" }
         assertEquals("diablo", Variants.effective(diablo, mapOf("diablo" to "starcraft_remastered")).id)
     }
+
+    @Test fun the123FolderWithItsProgramInX86IsAGameRoot() {
+        val names = Packages.names(listOf("Data/", "locales/", "Maps/", "x86/", "x86_64/", "StarCraft Launcher.exe", "Launcher.db").map {
+            object : SourceNode {
+                override val name = it.trimEnd('/')
+                override val isDirectory = it.endsWith("/")
+                override val size = 1L
+                override val display = it
+                override fun children() = emptyList<SourceNode>()
+                override fun open() = java.io.ByteArrayInputStream(ByteArray(0))
+                override fun localFile(): java.io.File? = null
+            }
+        })
+        assertTrue(StarCraftRemasteredImporter.isGameRoot(names))
+        assertTrue(!StarCraftRemasteredImporter.isGameRoot(setOf("data/", "stardat.mpq", "starcraft.exe")))
+    }
 }

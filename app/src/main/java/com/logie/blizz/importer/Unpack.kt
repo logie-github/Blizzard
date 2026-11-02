@@ -255,10 +255,22 @@ object Packages {
         var root = findRoot(out, 6, isRoot) ?: looseRoot(out)
         if (root == null) root = unpackNested(out, env, scratch, isRoot, looseRoot)
         if (root == null) {
+            // A repack's installer only runs its own unpacker over the data files: innoextract gets the
+            // installer's little files, and the game stays inside a FreeArc archive (signature "ArC", 1).
+            val heads = siblings.filter { !it.isDirectory && it.size >= (1L shl 20) }.take(6).map { it.name to headOf(it) }
+            val arc = heads.firstOrNull { (_, h) -> h.size >= 4 && h[0] == 'A'.code.toByte() && h[1] == 'r'.code.toByte() && h[2] == 'C'.code.toByte() && h[3] == 1.toByte() }
+            val headText = heads.joinToString("; ") { (n, h) -> "$n starts ${h.take(8).joinToString(" ") { "%02x".format(it) }}" }
+            if (arc != null) {
+                throw ImportException(
+                    Problem.UNSUPPORTED_INSTALLER,
+                    "${package_.name} is a repack: ${arc.first} is a FreeArc archive that only the installer's own unpacker (a Windows program) opens, and this app can't read FreeArc yet. Give the game as an installed folder, a zip, 7z, tar or disc image instead.",
+                    "Data files: $headText${outline(out)}",
+                )
+            }
             throw ImportException(
                 Problem.MISSING_SOURCE_DATA,
                 "${package_.name} has no $what in it once unpacked. $prompt",
-                "Unpacked: ${outline(out)}",
+                "Data files: $headText\nUnpacked: ${outline(out)}",
             )
         }
         checkUnpacked(root)
@@ -277,6 +289,10 @@ object Packages {
         }
         return null
     }
+
+    private fun headOf(node: SourceNode): ByteArray = runCatching {
+        node.open().use { input -> ByteArray(16).let { b -> b.copyOf(input.read(b).coerceAtLeast(0)) } }
+    }.getOrDefault(ByteArray(0))
 
     private val NESTED = setOf(Format.ZIP, Format.SEVEN_Z, Format.TAR, Format.TAR_GZ, Format.TAR_XZ, Format.TAR_BZ2, Format.TAR_ZST, Format.ISO)
 

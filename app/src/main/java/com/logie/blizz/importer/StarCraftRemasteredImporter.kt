@@ -26,7 +26,21 @@ class StarCraftRemasteredImporter : GameImporter {
         const val DOCUMENTS = "C:\\users\\xuser\\Documents\\StarCraft"
 
         /** The remastered game's folder: its program and its data folder, and none of the classic game's archives. */
-        val isGameRoot: (Set<String>) -> Boolean = { "starcraft.exe" in it && "data/" in it && "stardat.mpq" !in it }
+        val isGameRoot: (Set<String>) -> Boolean = {
+            "data/" in it && "stardat.mpq" !in it &&
+                // 1.23's program is in x86/ and x86_64/ (the launcher is at the top); older folders have it at the top.
+                ("starcraft.exe" in it || "x86/" in it || "x86_64/" in it || "starcraft launcher.exe" in it)
+        }
+
+        /** The game's program: at the top, else the 32-bit one in x86/, else x86_64/ (the folder's own, relative to [dir]). */
+        fun programIn(dir: File): File? {
+            FileValidator.find(dir, EXE)?.let { return it }
+            for (sub in listOf("x86", "x86_64")) {
+                val folder = FileValidator.find(dir, sub)?.takeIf { it.isDirectory } ?: continue
+                FileValidator.find(folder, EXE)?.let { return it }
+            }
+            return null
+        }
     }
 
     override fun detect(env: ImportEnv): Detection {
@@ -80,7 +94,7 @@ class StarCraftRemasteredImporter : GameImporter {
 
     /** The unpacked program is a remastered build, before gigabytes are moved in. */
     private fun precheck(root: File) {
-        val exe = FileValidator.find(root, EXE) ?: return
+        val exe = programIn(root) ?: return
         val version = PeInfo.read(exe)?.version
         if (version == null || !version.startsWith(FAMILY)) {
             throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "$EXE: ${version ?: "no version"}")
@@ -91,7 +105,7 @@ class StarCraftRemasteredImporter : GameImporter {
 
     fun validateDir(dir: File): Validation {
         val checks = ArrayList<Check>()
-        val exe = FileValidator.find(dir, EXE)
+        val exe = programIn(dir)
         val pe = exe?.let { PeInfo.read(it) }
         checks += Check(EXE, pe != null && pe.isWindowsX86Family, if (exe == null) "missing" else if (pe == null) "not a Windows program" else "present")
         checks += Check("Version $VERSION (1.23.x)", pe?.version?.startsWith(FAMILY) == true, pe?.version ?: "unknown")
@@ -128,7 +142,7 @@ class StarCraftRemasteredImporter : GameImporter {
         products = listOf("SCR"),
         clientVersion = validation.clientVersion ?: "",
         installPath = env.paths.game(gameId).path,
-        executable = FileValidator.find(env.paths.game(gameId), EXE)?.name ?: EXE,
+        executable = programIn(env.paths.game(gameId))?.relativeTo(env.paths.game(gameId))?.path ?: EXE,
         runtime = LibraryEntry.RUNTIME_WINLATOR,
         arguments = "",
         stage = Stage.IMPORTED_UNTESTED,

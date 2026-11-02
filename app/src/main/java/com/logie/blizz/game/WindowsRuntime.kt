@@ -105,6 +105,7 @@ object WindowsRuntime {
         val container = container(context, width, height, entry.gameId)
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
+        withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId) }
 
         _state.value = State.Preparing(Step.STARTING)
         val intent = Intent(context, XServerDisplayActivity::class.java)
@@ -143,6 +144,21 @@ object WindowsRuntime {
      */
     private fun dxwrapperConfig(gameId: String): String =
         if (gameId in setOf("diablo2", "starcraft", "warcraft2")) "ddrawWrapper=cnc-ddraw" else ""
+
+    /**
+     * cnc-ddraw's settings for the classic games: its GDI renderer (a window of the game's own size
+     * stretched to the screen, no OpenGL or Direct3D needed, which a phone's Wine may not have), the
+     * game's size kept in proportion, one CPU thread for the old programs. Written every start.
+     */
+    private fun writeDDrawConfig(container: Container, gameId: String) {
+        if (dxwrapperConfig(gameId).isEmpty()) return
+        val ini = File(container.rootDir, ".wine/drive_c/ProgramData/cnc-ddraw/ddraw.ini")
+        ini.parentFile?.mkdirs()
+        ini.writeText(
+            "[ddraw]\nrenderer=gdi\nfullscreen=true\nwindowed=false\nmaintas=true\nboxing=false\nadjmouse=true\n" +
+                "vsync=false\nmaxfps=60\nsinglecpu=true\nnoactivateapp=false\nhook_peekmessage=false\n",
+        )
+    }
 
     /** The games' Windows: made the first time, its screen and drives set every time. */
     private suspend fun container(context: Context, width: Int, height: Int, gameId: String): Container {

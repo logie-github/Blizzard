@@ -130,3 +130,8 @@ of their respective owners.
 ## Art editor
 
 Hold a game's art to open it. Pinch the preview to zoom the picture and drag to move it (or use the Picture zoom slider); the 3x3 grid (with a centre mark) helps line it up. Pick which of the nine cells holds the logo, and its size. Auto logo returns to the built-in place; Reset removes your pictures and framing.
+
+## StarCraft: Remastered folders and classic-game graphics
+
+- 1.23.x keeps its program in `x86/` and `x86_64/` (the folder's top has `StarCraft Launcher.exe`); the import accepts that layout and starts `x86/StarCraft.exe`.
+- Diablo II, StarCraft and Warcraft II use cnc-ddraw's GDI renderer (no OpenGL or Direct3D needed), written to its `ddraw.ini` at every start. Untested on a phone.
