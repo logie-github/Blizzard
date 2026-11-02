@@ -106,6 +106,12 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId) }
+        // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
+        if (entry.gameId.startsWith("warcraft3")) {
+            withContext(Dispatchers.IO) {
+                runCatching { Wc3Setup.apply(container.rootDir, size.first, size.second, "D:\\" + File(entry.installPath).name + "\\") }
+            }
+        }
         // Wine's errors and the libraries it loads, kept for the game menu's report ([GameLog]).
         android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
             .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,loaddll").apply()

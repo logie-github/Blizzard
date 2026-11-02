@@ -46,6 +46,9 @@ object GameImportManager {
         // Warcraft I and II: native Stratagus from the GOG files (the conversion tools are set in [env]).
         "warcraft" to { Warcraft1Importer() },
         "warcraft2" to { Warcraft2Importer() },
+        // Warcraft III, one install for both ("warcraft3_tft" uses RoC's when it's there), on the app's Winlator.
+        "warcraft3_roc" to { Warcraft3Importer(Warcraft3Importer.Product.ROC) },
+        "warcraft3_tft" to { Warcraft3Importer(Warcraft3Importer.Product.TFT) },
     )
 
     fun importable(gameId: String) = gameId in importers

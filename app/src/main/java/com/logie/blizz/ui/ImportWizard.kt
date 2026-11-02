@@ -170,6 +170,8 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     Details(record.detail, state.validation?.checks?.map { Triple(it.name, it.passed, it.detail) })
                 }
                 if (game.id == "diablo2" && !state.running && state.entry == null) CdKeys(game.id)
+                // Warcraft III asks for CD keys at its first start: the ones the person has, kept apart from the game.
+                if (game.id.startsWith("warcraft3") && !state.running) Wc3Keys()
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {

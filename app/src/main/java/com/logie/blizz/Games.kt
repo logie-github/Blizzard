@@ -24,8 +24,6 @@ data class Game(
 }
 
 object Games {
-    private const val WARCRAFTS = "com.logie.warcrafts"
-
     /** The shelf, in alphabetical order. */
     val all: List<Game> = listOf(
         Game("diablo", "Diablo", null, 1996, R.drawable.cover_diablo, splash = R.drawable.splash_diablo, splashLogo = R.drawable.splash_logo_diablo),
@@ -35,8 +33,8 @@ object Games {
         Game("starcraft2", "StarCraft II", null, 2010, R.drawable.cover_starcraft2),
         Game("warcraft", "Warcraft", "Orcs & Humans", 1994, R.drawable.cover_warcraft),
         Game("warcraft2", "Warcraft II", "Tides of Darkness", 1995, R.drawable.cover_warcraft2),
-        Game("warcraft3_roc", "Warcraft III", "Reign of Chaos", 2002, R.drawable.cover_warcraft3_roc, WARCRAFTS),
-        Game("warcraft3_tft", "Warcraft III", "The Frozen Throne", 2003, R.drawable.cover_warcraft3_tft, WARCRAFTS),
+        Game("warcraft3_roc", "Warcraft III", "Reign of Chaos", 2002, R.drawable.cover_warcraft3_roc),
+        Game("warcraft3_tft", "Warcraft III", "The Frozen Throne", 2003, R.drawable.cover_warcraft3_tft),
     ).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Game::title).thenBy(String.CASE_INSENSITIVE_ORDER) { it.subtitle.orEmpty() })
 
     /** A game or one of its variants, by id. */
