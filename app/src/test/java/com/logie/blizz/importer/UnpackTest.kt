@@ -49,6 +49,22 @@ class UnpackTest {
         assertEquals(Stage.IMPORTED_UNTESTED, result.record.stage)
     }
 
+    @Test fun theGameFoundWhereverItsMarkersLandedAndWhateverTheFoldersAreCalled() {
+        val dir = tmp.newFolder("loose")
+        File(dir, "app/{commonappdata}/odd/VERSIONS/base39117").mkdirs()
+        File(dir, "app/{commonappdata}/odd/VERSIONS/base39117/SC2.exe").writeText("x")
+        assertEquals(File(dir, "app/{commonappdata}/odd"), StarCraft2OfflineImporter().looseGameRoot(dir))
+        val data = tmp.newFolder("loose2")
+        File(data, "x/y/sc2data").mkdirs()
+        assertEquals(File(data, "x/y"), StarCraft2OfflineImporter().looseGameRoot(data))
+        assertEquals(null, StarCraft2OfflineImporter().looseGameRoot(tmp.newFolder("empty")))
+    }
+
+    @Test fun aGameInsideAnArchiveInsideTheOneGiven() {
+        val inner = Fixtures.zip(tmp.newFile("inner.zip"), game() + ("pad.bin" to ByteArray(1 shl 18).also { java.util.Random(7).nextBytes(it) }))
+        assertImported(run(Fixtures.zip(tmp.newFile("outer.zip"), mapOf("Disc/readme.txt" to "hi".toByteArray(), "Disc/Data/game.zip" to inner.readBytes()))), "3.0.5.39117")
+    }
+
     @Test fun zip() = assertImported(run(Fixtures.zip(tmp.newFile("sc2.zip"), game().mapKeys { "StarCraft II/${it.key}" })), "3.0.5.39117")
 
     @Test fun theNewerBuildToo() = assertImported(run(Fixtures.zip(tmp.newFile("sc2.zip"), game("41219", "3.1.4.41219"))), "3.1.4.41219")
