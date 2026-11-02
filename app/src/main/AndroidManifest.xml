@@ -50,6 +50,18 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Warcraft I and II, native: Stratagus on SDL's screen, in a process of its own that ends
+             with the game (the engine keeps its state in the process). -->
+        <activity
+            android:name=".game.StratagusActivity"
+            android:exported="false"
+            android:process=":stratagus"
+            android:theme="@style/AppTheme"
+            android:screenOrientation="sensorLandscape"
+            android:launchMode="singleTask"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode"
+            android:resizeableActivity="true" />
+
         <!-- The games: Winlator's screen (its X server with Wine and Box64 behind it), its controls
              editor, and the service that keeps the game alive in the background. Its own main
              screen stays, unlisted, for the code that refers to it. -->
