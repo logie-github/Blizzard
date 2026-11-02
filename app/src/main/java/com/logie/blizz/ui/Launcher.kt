@@ -268,7 +268,10 @@ private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onP
                         Text(shown.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        PlayButton(shown, Modifier.widthIn(min = 220.dp)) { onPlay(shown) }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            PlayButton(shown, Modifier.widthIn(min = 220.dp)) { onPlay(shown) }
+                            ControlsButton(shown)
+                        }
                         ImportStatus(shown)
                         if (linked != null) {
                             Row(
@@ -283,7 +286,6 @@ private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onP
                     }
                 }
             }
-            Footer()
         }
     }
 }
@@ -312,7 +314,6 @@ private fun Shelf(linkKey: Int, selectedId: String?, onOpen: (Game) -> Unit) {
                 val fit = ((width - 36.dp) / 150.dp).toInt()
                 val columns = listOf(8, 4, 2).firstOrNull { it <= fit && Games.all.size % it == 0 } ?: 2
                 CoverGrid(Games.all, columns, linkKey, selectedId, onOpen)
-                Footer()
             }
         }
     }
@@ -428,18 +429,6 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
     }
 }
 
-@Composable
-private fun Footer() {
-    Column(
-        Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 28.dp).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Image(painterResource(R.drawable.blizz_logo), contentDescription = null, modifier = Modifier.width(120.dp).graphicsLayer { alpha = 0.9f })
-        Text(stringResource(R.string.trademarks), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-    }
-}
-
 // A game's page
 
 @Composable
@@ -500,7 +489,10 @@ private fun Details(game: Game, linked: String?, onPlay: () -> Unit, onChooseApp
         game.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow), textAlign = textAlign) }
         Text(game.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist), textAlign = textAlign)
         Spacer(Modifier.height(16.dp))
-        PlayButton(game, Modifier.widthIn(min = 220.dp), onPlay)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PlayButton(game, Modifier.widthIn(min = 220.dp), onPlay)
+            ControlsButton(game)
+        }
         ImportStatus(game)
         if (linked != null) {
             Spacer(Modifier.height(6.dp))
@@ -557,6 +549,7 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     PlayButton(game, Modifier.widthIn(min = 240.dp), onPlay)
+                    ControlsButton(game)
                     ImportStatus(game)
                     if (linked != null) AppIcon(linked, Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onChooseApp).padding(4.dp))
                 }
