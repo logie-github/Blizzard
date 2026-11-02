@@ -32,14 +32,34 @@ class StarCraftRemasteredImporter : GameImporter {
                 ("starcraft.exe" in it || "x86/" in it || "x86_64/" in it || "starcraft launcher.exe" in it)
         }
 
-        /** The game's program: at the top, else the 32-bit one in x86/, else x86_64/ (the folder's own, relative to [dir]). */
-        fun programIn(dir: File): File? {
-            FileValidator.find(dir, EXE)?.let { return it }
+        private val NOT_THE_GAME = Regex("(?i)launcher|editor|setup|unins|crash|agent|update|redist|vc_|dxsetup|bnet|battle")
+
+        /**
+         * The game's program: StarCraft.exe at the top, else the 32-bit one in x86/, else x86_64/; failing
+         * those, a wildcard search of the whole folder (to [depth] down) for the program that is the game:
+         * a Windows program with "starcraft" in its name that isn't a launcher, editor or installer, the
+         * 32-bit one and then the biggest first.
+         */
+        fun programIn(dir: File, depth: Int = 5): File? {
+            FileValidator.find(dir, EXE)?.takeIf { it.isFile }?.let { return it }
             for (sub in listOf("x86", "x86_64")) {
                 val folder = FileValidator.find(dir, sub)?.takeIf { it.isDirectory } ?: continue
-                FileValidator.find(folder, EXE)?.let { return it }
+                FileValidator.find(folder, EXE)?.takeIf { it.isFile }?.let { return it }
             }
-            return null
+            return dir.walkTopDown().maxDepth(depth)
+                .filter { it.isFile && it.name.endsWith(".exe", true) && it.name.contains("starcraft", true) && !NOT_THE_GAME.containsMatchIn(it.name) }
+                .mapNotNull { f -> PeInfo.read(f)?.takeIf { it.isWindowsX86Family }?.let { f to it } }
+                .sortedWith(compareByDescending<Pair<File, PeInfo>> { it.second.isX86 }.thenByDescending { it.first.length() })
+                .map { it.first }.firstOrNull()
+        }
+
+        /** What's in [dir], for an error's details: every program with its size, type and version, and the folders. */
+        fun diagnose(dir: File): String {
+            val exes = dir.walkTopDown().maxDepth(5).filter { it.isFile && it.name.endsWith(".exe", true) }.take(30).joinToString("\n") { f ->
+                val pe = PeInfo.read(f)
+                "${f.relativeTo(dir).path} (${f.length() shr 10} kB, ${pe?.let { if (it.isX64) "64-bit" else if (it.isX86) "32-bit" else "machine ${it.machine}" } ?: "not a Windows program"}, ${pe?.version ?: "no version"})"
+            }
+            return "Programs:\n${exes.ifEmpty { "none" }}${Packages.outline(dir)}"
         }
     }
 
@@ -82,7 +102,10 @@ class StarCraftRemasteredImporter : GameImporter {
             File(env.paths.saves(gameId), "Documents").mkdirs()
             env.progress(Progress(Stage.VALIDATING, "Checking StarCraft: Remastered"))
             val check = validateDir(staging)
-            if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "StarCraft: Remastered's files didn't check out.")
+            if (!check.filesOk) throw ImportException(
+                check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "StarCraft: Remastered's files didn't check out.",
+                "Checks: ${check.checks.joinToString("; ") { "${if (it.passed) "ok" else "FAILED"} ${it.name} (${it.detail})" }}\n${diagnose(staging)}",
+            )
             asm.commit()
         } catch (e: Throwable) {
             asm.abandon()
@@ -96,8 +119,9 @@ class StarCraftRemasteredImporter : GameImporter {
     private fun precheck(root: File) {
         val exe = programIn(root) ?: return
         val version = PeInfo.read(exe)?.version
-        if (version == null || !version.startsWith(FAMILY)) {
-            throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "$EXE: ${version ?: "no version"}")
+        // A version that can't be read isn't held against it; one that's read and isn't 1.23.x is.
+        if (version != null && !version.startsWith(FAMILY)) {
+            throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "${exe.name}: $version")
         }
     }
 
@@ -108,8 +132,9 @@ class StarCraftRemasteredImporter : GameImporter {
         val exe = programIn(dir)
         val pe = exe?.let { PeInfo.read(it) }
         checks += Check(EXE, pe != null && pe.isWindowsX86Family, if (exe == null) "missing" else if (pe == null) "not a Windows program" else "present")
-        checks += Check("Version $VERSION (1.23.x)", pe?.version?.startsWith(FAMILY) == true, pe?.version ?: "unknown")
-        val data = FileValidator.find(dir, "Data")
+        checks += Check("Version $VERSION (1.23.x)", pe != null && (pe.version == null || pe.version.startsWith(FAMILY)), pe?.version ?: "unknown")
+        val data = FileValidator.find(dir, "Data")?.takeIf { it.isDirectory }
+            ?: dir.walkTopDown().maxDepth(3).firstOrNull { it.isDirectory && it.name.equals("Data", true) }
         checks += Check("Game data (Data)", data != null && data.isDirectory && (data.walkTopDown().take(3).count { it.isFile } > 0), if (data == null) "missing" else "present")
         if (exe != null && pe != null) {
             val missing = Dependencies.missing(exe)
