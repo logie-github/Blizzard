@@ -1,0 +1,15 @@
+diff --git a/gameheaders/stratagus-gameutils.h b/gameheaders/stratagus-gameutils.h
+index 1b815bb..ba056ab 100644
+--- a/gameheaders/stratagus-gameutils.h
++++ b/gameheaders/stratagus-gameutils.h
+@@ -66,7 +66,9 @@ stratagus-game-launcher.h - Stratagus Game Launcher
+ 	 PathRemoveFileSpecA(x); \
+ 	 if (x[strlen(x) - 1] == '\\') x[strlen(x) - 1] = '\0'
+ #else
+-# if defined(USE_MAC)
++// Android's dirname() returns the parent in a buffer of its own and leaves its argument as it was
++// (glibc's cuts the argument itself), like macOS's.
++# if defined(USE_MAC) || defined(__ANDROID__)
+ #  define parentdir(x) strcpy(x, dirname(x))
+ # else
+ #  define parentdir(x) dirname(x)

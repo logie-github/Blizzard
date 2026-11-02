@@ -1,0 +1,155 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9ba6081..80314ba 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1135,7 +1135,14 @@ add_custom_command(OUTPUT tolua.cpp
+ )
+ 
+ add_library(stratagus_lib STATIC ${stratagus_SRCS} ${stratagus_HDRS})
+-if (ENABLE_STDIO_REDIRECT)
++if (ANDROID)
++	# SDL's Android activity loads the game from libmain.so and calls its SDL_main.
++	add_library(stratagus SHARED src/stratagus/main.cpp)
++	set_target_properties(stratagus PROPERTIES OUTPUT_NAME main)
++	# SDL is linked in whole: its Java activity calls its JNI functions, which nothing in C refers to.
++	target_link_libraries(stratagus PRIVATE -Wl,--whole-archive ${SDL2_LIBRARY} -Wl,--no-whole-archive
++		log android GLESv1_CM GLESv2 OpenSLES)
++elseif (ENABLE_STDIO_REDIRECT)
+ 	add_executable(stratagus WIN32 src/stratagus/main.cpp)
+ else ()
+ 	add_executable(stratagus src/stratagus/main.cpp)
+diff --git a/src/include/shaders.h b/src/include/shaders.h
+index 3d4e1bd..a3a8bf5 100644
+--- a/src/include/shaders.h
++++ b/src/include/shaders.h
+@@ -3,7 +3,7 @@
+ 
+ #include <SDL.h>
+ 
+-#ifndef __APPLE__
++#if !defined(__APPLE__) && !defined(__ANDROID__)
+ extern bool LoadShaderExtensions();
+ extern bool RenderWithShader(SDL_Renderer *renderer, SDL_Window* win, SDL_Texture* backBuffer);
+ #else
+diff --git a/src/ui/interface.cpp b/src/ui/interface.cpp
+index 5fea085..1dab5b7 100644
+--- a/src/ui/interface.cpp
++++ b/src/ui/interface.cpp
+@@ -1212,6 +1212,11 @@ void HandleKeyRepeat(unsigned, unsigned keychar)
+ */
+ bool HandleMouseScrollArea(const PixelPos &mousePos)
+ {
++#ifdef __ANDROID__
++	// A finger lifted near the edge leaves the pointer there: no scrolling by the edges on a
++	// touch screen (the app's swipe scrolls with the arrow keys).
++	return false;
++#endif
+ 	if (mousePos.x < ScrollMarginLeft) {
+ 		if (mousePos.y < ScrollMarginTop) {
+ 			CursorOn = ECursorOn::ScrollLeftUp;
+diff --git a/src/video/sdl.cpp b/src/video/sdl.cpp
+index 18af132..1f4abd0 100644
+--- a/src/video/sdl.cpp
++++ b/src/video/sdl.cpp
+@@ -40,6 +40,8 @@
+ #include "network.h"
+ #include "online_service.h"
+ #include "parameters.h"
++#include "player.h"
++#include "interface.h"
+ #include "sound_server.h"
+ #include "translate.h"
+ #include "ui.h"
+@@ -340,7 +342,12 @@ void InitVideoSdl()
+ 		}
+ 
+ 		SDL_CUSTOM_KEY_UP = SDL_RegisterEvents(1);
++#ifdef __ANDROID__
++		// Text comes from the app's own prompt: text events on, the phone's keyboard down.
++		SDL_EventState(SDL_TEXTINPUT, SDL_ENABLE);
++#else
+ 		SDL_StartTextInput();
++#endif
+ 
+ 		// Clean up on exit
+ 		atexit(CleanUpVideoSdl);
+@@ -413,7 +420,11 @@ void InitVideoSdl()
+ 		           SDL_GetError());
+ 		exit(1);
+ 	}
++#ifdef __ANDROID__
++	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
++#else
+ 	SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
++#endif
+ 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+ 	int rendererFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE;
+ 	if (!Parameters::Instance.benchmark) {
+@@ -567,6 +578,32 @@ static bool isTextInput(int key) {
+ **  @param callbacks  Callback structure for events.
+ **  @param event      SDL event structure pointer.
+ */
++#ifdef __ANDROID__
++/**
++**  The Warcraft app's touch controls: a tap is a right click. On the battlefield it gives orders
++**  to what's selected; where a right click would do nothing (the menus, the panel's buttons, the
++**  map with none of the player's units selected) it's the left click, which does something there:
++**  a tap presses a button, or selects the unit under the finger.
++**  The release goes as the press went.
++*/
++static Uint8 TouchButtonPress(Uint8 button, Uint8 &pressedAs)
++{
++	pressedAs = button;
++	if (button != SDL_BUTTON_RIGHT) {
++		return button;
++	}
++	const bool battlefield = GameRunning && GetCallbacks() == &GameCallbacks
++		&& (CursorOn == ECursorOn::Map || CursorOn == ECursorOn::Minimap);
++	const bool orders = !Selected.empty() && Selected[0]->Player == ThisPlayer;
++	if (!battlefield || (CursorOn == ECursorOn::Map && !orders)) {
++		pressedAs = SDL_BUTTON_LEFT;
++	}
++	return pressedAs;
++}
++
++static Uint8 TouchRightPressedAs = SDL_BUTTON_RIGHT;
++#endif
++
+ static void SdlDoEvent(const EventCallback &callbacks, SDL_Event &event)
+ {
+ 	unsigned int keysym = 0;
+@@ -574,11 +611,21 @@ static void SdlDoEvent(const EventCallback &callbacks, SDL_Event &event)
+ 	switch (event.type) {
+ 		case SDL_MOUSEBUTTONDOWN:
+ 			event.button.y = static_cast<int>(std::floor(event.button.y / Video.VerticalPixelSize + 0.5));
++#ifdef __ANDROID__
++			if (event.button.button == SDL_BUTTON_RIGHT) {
++				event.button.button = TouchButtonPress(event.button.button, TouchRightPressedAs);
++			}
++#endif
+ 			InputMouseButtonPress(callbacks, SDL_GetTicks(), event.button.button);
+ 			break;
+ 
+ 		case SDL_MOUSEBUTTONUP:
+ 			event.button.y = static_cast<int>(std::floor(event.button.y / Video.VerticalPixelSize + 0.5));
++#ifdef __ANDROID__
++			if (event.button.button == SDL_BUTTON_RIGHT) {
++				event.button.button = TouchRightPressedAs;
++			}
++#endif
+ 			InputMouseButtonRelease(callbacks, SDL_GetTicks(), event.button.button);
+ 			break;
+ 
+diff --git a/src/video/shaders.cpp b/src/video/shaders.cpp
+index 61b52a3..c774db0 100644
+--- a/src/video/shaders.cpp
++++ b/src/video/shaders.cpp
+@@ -25,7 +25,7 @@
+ 
+ #include "shaders.h"
+ 
+-#ifndef __APPLE__
++#if !defined(__APPLE__) && !defined(__ANDROID__)
+ 
+ #include "stratagus.h"
+ 

@@ -1,0 +1,50 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d7a0d4b..a61f920 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -14,6 +14,16 @@ if(CMAKE_CROSSCOMPILING OR CMAKE_TOOLCHAIN_FILE)
+       -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}
+     )
+   endif()
++  if(ANDROID)
++    # The NDK's toolchain needs the ABI, platform and STL in every project it configures.
++    list(APPEND STRATAGUS_EXTERNAL_CMAKE_ARGS
++      -DANDROID_ABI:STRING=${ANDROID_ABI}
++      -DANDROID_PLATFORM:STRING=${ANDROID_PLATFORM}
++      -DANDROID_STL:STRING=${ANDROID_STL}
++      -DCMAKE_MAKE_PROGRAM:FILEPATH=${CMAKE_MAKE_PROGRAM}
++      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
++    )
++  endif()
+   if(CMAKE_RC_COMPILER)
+     list(APPEND STRATAGUS_EXTERNAL_CMAKE_ARGS
+       -DCMAKE_RC_COMPILER:FILEPATH=${CMAKE_RC_COMPILER}
+@@ -27,10 +37,18 @@ macro(vendored_lua)
+   if(NOT DEFINED USE_VENDORED_LUA)
+     set(USE_VENDORED_LUA true)
+ 
++    set(STRATAGUS_LUA_CMAKE_ARGS)
++    if(ANDROID)
++      # Lua 5.1 keeps a string's characters right after its header (getstr(ts) is ts + 1). With
++      # the NDK's _FORTIFY_SOURCE=2 the compiler takes that as no room at all, and the checked
++      # strchr on a weak table's mode (lgc.c) aborts the game. Lua is built without FORTIFY (the
++      # NDK's other flags kept).
++      set(STRATAGUS_LUA_CMAKE_ARGS "-DCMAKE_C_FLAGS:STRING=${CMAKE_C_FLAGS} -U_FORTIFY_SOURCE")
++    endif()
+     ExternalProject_Add(lua
+       SOURCE_DIR ${CMAKE_CURRENT_MACRO_LIST_DIR}/lua-5.1.5/
+       PREFIX "${CMAKE_CURRENT_BINARY_DIR}/lua/"
+-      CMAKE_ARGS ${STRATAGUS_EXTERNAL_CMAKE_ARGS}
++      CMAKE_ARGS ${STRATAGUS_EXTERNAL_CMAKE_ARGS} ${STRATAGUS_LUA_CMAKE_ARGS}
+       CMAKE_CACHE_ARGS -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
+       INSTALL_COMMAND ""
+     )
+@@ -101,6 +119,8 @@ macro(vendored_png)
+       CMAKE_ARGS ${STRATAGUS_EXTERNAL_CMAKE_ARGS}
+       CMAKE_CACHE_ARGS -DZLIB_FOUND:STRING=1 -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR} -DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARIES}
+       -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
++      # Only the static library is used (its shared one needs a generated version script).
++      -DPNG_SHARED:BOOL=OFF -DPNG_TESTS:BOOL=OFF
+     )
+ 
+     add_dependencies(png zlib)

@@ -1,0 +1,151 @@
+diff --git a/src/stratagus/stratagus.cpp b/src/stratagus/stratagus.cpp
+index 9fe2913..01a095e 100644
+--- a/src/stratagus/stratagus.cpp
++++ b/src/stratagus/stratagus.cpp
+@@ -222,6 +222,106 @@ extern void beos_init(int argc, char **argv);
+ #include <stacktrace/stack_exception.hpp>
+ #else
+ #include "st_backtrace.h"
++
++#ifdef __ANDROID__
++#include <dlfcn.h>
++#include <exception>
++#include <signal.h>
++#include <unistd.h>
++#include <unwind.h>
++
++// Android starts apps in "/" and keeps no output of theirs: the game's folder (-d) is made the
++// working directory, the engine's output goes to stdout.txt and stderr.txt in it, and a crash
++// writes its signal and stack there, for the app to show.
++namespace {
++void WriteStderr(const char *text) { write(STDERR_FILENO, text, strlen(text)); }
++
++void WriteAddress(const char *label, uintptr_t pc)
++{
++	char line[512];
++	Dl_info info{};
++	if (dladdr(reinterpret_cast<void *>(pc), &info) && info.dli_fname) {
++		const char *file = strrchr(info.dli_fname, '/');
++		snprintf(line, sizeof(line), "%s %s+0x%zx %s\n", label, file ? file + 1 : info.dli_fname,
++		         static_cast<size_t>(pc - reinterpret_cast<uintptr_t>(info.dli_fbase)),
++		         info.dli_sname ? info.dli_sname : "");
++	} else {
++		snprintf(line, sizeof(line), "%s 0x%zx\n", label, static_cast<size_t>(pc));
++	}
++	WriteStderr(line);
++}
++
++_Unwind_Reason_Code WriteFrame(_Unwind_Context *context, void *count)
++{
++	int &n = *static_cast<int *>(count);
++	const uintptr_t pc = _Unwind_GetIP(context);
++	if (pc) {
++		char label[8];
++		snprintf(label, sizeof(label), "#%02d", n);
++		WriteAddress(label, pc);
++	}
++	return ++n < 40 ? _URC_NO_REASON : _URC_END_OF_STACK;
++}
++
++void Crashed(int signal, siginfo_t *info, void *context)
++{
++	char line[160];
++	snprintf(line, sizeof(line), "\nStratagus stopped: signal %d (%s) at %p\n", signal, strsignal(signal), info->si_addr);
++	WriteStderr(line);
++#if defined(__aarch64__)
++	const auto *uc = static_cast<const ucontext_t *>(context);
++	WriteAddress("pc", uc->uc_mcontext.pc);
++	WriteAddress("lr", uc->uc_mcontext.regs[30]);
++#endif
++	int count = 0;
++	_Unwind_Backtrace(WriteFrame, &count);
++	// Then as Android would have: its own crash report, the process ended.
++	::signal(signal, SIG_DFL);
++	raise(signal);
++}
++
++void CatchCrashes()
++{
++	static char stack[64 * 1024];
++	stack_t alternate{};
++	alternate.ss_sp = stack;
++	alternate.ss_size = sizeof(stack);
++	sigaltstack(&alternate, nullptr);
++	struct sigaction action{};
++	action.sa_sigaction = Crashed;
++	action.sa_flags = SA_SIGINFO | SA_ONSTACK;
++	sigemptyset(&action.sa_mask);
++	for (int signal : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL}) {
++		sigaction(signal, &action, nullptr);
++	}
++	std::set_terminate([] {
++		if (const auto exception = std::current_exception()) {
++			try {
++				std::rethrow_exception(exception);
++			} catch (const std::exception &e) {
++				fprintf(stderr, "Stratagus stopped: uncaught exception: %s\n", e.what());
++			} catch (...) {
++				fprintf(stderr, "Stratagus stopped: uncaught exception\n");
++			}
++		}
++		abort();
++	});
++}
++
++void UseGameFolder(const std::string &folder)
++{
++	if (chdir(folder.c_str()) != 0) {
++		return;
++	}
++	if (freopen("stdout.txt", "w", stdout)) {
++		setvbuf(stdout, nullptr, _IOLBF, 0);
++	}
++	if (freopen("stderr.txt", "w", stderr)) {
++		setvbuf(stderr, nullptr, _IONBF, 0);
++	}
++}
++} // namespace
++#endif
+ #endif
+ 
+ #include <cstdlib>
+@@ -423,6 +523,9 @@ void Exit(int err)
+ 	delete UnitManager;
+ 
+ 	fprintf(stdout, "%s", _("Thanks for playing Stratagus.\n"));
++#ifdef __ANDROID__
++	fprintf(stderr, "Stratagus: exit %d\n", err);
++#endif
+ 	exit(err);
+ }
+ 
+@@ -438,6 +541,9 @@ void ExitFatal(int err)
+ 	throw stacktrace::stack_runtime_error((const char*)err);
+ #else
+ 	print_backtrace();
++#endif
++#ifdef __ANDROID__
++	fprintf(stderr, "Stratagus: fatal exit %d\n", err);
+ #endif
+ 	exit(err);
+ }
+@@ -578,6 +684,9 @@ void ParseCommandLine(int argc, char **argv, Parameters &parameters)
+ 				while ((index = StratagusLibPath.find('\\')) != std::string::npos) {
+ 					StratagusLibPath[index] = '/';
+ 				}
++#ifdef __ANDROID__
++				UseGameFolder(StratagusLibPath);
++#endif
+ 				continue;
+ 			}
+ 			case 'D':
+@@ -699,6 +808,9 @@ static LONG WINAPI CreateDumpFile(EXCEPTION_POINTERS *ExceptionInfo)
+ */
+ int stratagusMain(int argc, char **argv)
+ try {
++#ifdef __ANDROID__
++	CatchCrashes();
++#endif
+ 	for (int i = 0; i < argc; i++) {
+ 		OriginalArgv.push_back(std::string(argv[i]));
+ 	}
