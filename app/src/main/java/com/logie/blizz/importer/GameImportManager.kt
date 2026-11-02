@@ -41,6 +41,7 @@ object GameImportManager {
         "diablo" to { Diablo1DevilutionXImporter() },
         "diablo2" to { Diablo2ClassicImporter() },
         "starcraft" to { StarCraftClassicImporter() },
+        "starcraft_remastered" to { StarCraftRemasteredImporter() },
         "starcraft2" to { StarCraft2OfflineImporter() },
     )
 
@@ -122,7 +123,7 @@ object GameImportManager {
         val checks = result.validation?.checks?.joinToString("; ") { "${if (it.passed) "✓" else "✗"} ${it.name} (${it.detail})" }
         com.logie.blizz.reports.BugReports.report(
             context,
-            "${com.logie.blizz.Games.all.firstOrNull { it.id == gameId }?.title ?: gameId} ${if (repair) "repair" else "import"} (${e.problem})",
+            "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} ${if (repair) "repair" else "import"} (${e.problem})",
             e.message ?: e.problem.name,
             listOf("Game" to gameId, "Problem" to e.problem.name, "Online" to online(context).toString(), "Checks" to checks),
             log = listOfNotNull(e.detail, e.cause?.stackTraceToString()).joinToString("\n\n").ifEmpty { null },

@@ -195,6 +195,15 @@ object Fixtures {
         return dir
     }
 
+    /** StarCraft: Remastered: a 64-bit StarCraft.exe at [version], its Data folder, no classic archives. */
+    fun starcraftRemastered(dir: File, version: String = "1.23.10.12409"): File {
+        pe(File(dir, "StarCraft.exe"), version, PeInfo.MACHINE_AMD64, listOf("KERNEL32.dll", "d3d11.dll"))
+        File(dir, "Data/data").mkdirs()
+        File(dir, "Data/data/data.000").writeBytes(ByteArray(128))
+        File(dir, ".product.db").writeBytes(ByteArray(8))
+        return dir
+    }
+
     fun starcraft2Install(dir: File, build: String = "39117", version: String = "3.0.5.39117", launcher: Boolean = true): File {
         pe(File(dir, "Versions/Base$build/SC2_x64.exe"), version, PeInfo.MACHINE_AMD64, listOf("KERNEL32.dll", "d3d9.dll"))
         File(dir, "SC2Data/data").mkdirs()

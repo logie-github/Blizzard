@@ -82,7 +82,10 @@ class Gestures(
     private var actor: Int? = null
 
     private class Pending(val x: Float, val y: Float, val at: Long)
+    /** A tap waiting to see whether a second one follows (only where the rules have a double tap). */
     private var pendingTap: Pending? = null
+    /** The last tap, acted on or not: a touch right after it, on the same spot, is a double tap hold. */
+    private var lastTap: Pending? = null
     private var pendingTwo: Pending? = null
 
     /** The hold or drag in progress: what it holds down, to let go. */
@@ -105,7 +108,7 @@ class Gestures(
     fun down(id: Int, x: Float, y: Float, now: Long) {
         val finger = Finger(x, y, now)
         if (fingers.isEmpty()) {
-            val tap = pendingTap
+            val tap = pendingTap ?: lastTap
             finger.second = tap != null && now - tap.at <= DOUBLE_MS && hypot(x - tap.x, y - tap.y) <= sameSpot
             if (!finger.second) flushTap()
             fingers[id] = finger
@@ -271,18 +274,18 @@ class Gestures(
             }
             fire(Trigger.TWO_FINGER_TAP, two.x, two.y)
         }
-        if (finger.second) {
+        val here = Pending(finger.startX, finger.startY, now)
+        val double = resolve(Trigger.DOUBLE_TAP, finger.startX, finger.startY) != null
+        if (finger.second && double && pendingTap != null) {
             pendingTap = null
-            if (resolve(Trigger.DOUBLE_TAP, finger.startX, finger.startY) != null) {
-                fire(Trigger.DOUBLE_TAP, finger.startX, finger.startY)
-                return
-            }
-            // No double tap here: two taps.
-            fire(Trigger.TAP, finger.startX, finger.startY)
+            lastTap = null
+            fire(Trigger.DOUBLE_TAP, finger.startX, finger.startY)
+            return
         }
-        val waits = resolve(Trigger.DOUBLE_TAP, finger.startX, finger.startY) != null ||
-            resolve(Trigger.DOUBLE_TAP_HOLD, finger.startX, finger.startY) != null
-        if (waits) pendingTap = Pending(finger.startX, finger.startY, now) else fire(Trigger.TAP, finger.startX, finger.startY)
+        flushTap()
+        lastTap = here
+        // A tap waits only where a double tap could follow it; everywhere else it acts at once.
+        if (double) pendingTap = here else fire(Trigger.TAP, finger.startX, finger.startY)
     }
 
     private fun flushTap() {

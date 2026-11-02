@@ -457,7 +457,8 @@ private object NoOutput : GestureOutput {
 
 /** The Controls button on a game's page. */
 @Composable
-fun ControlsButton(game: Game) {
+fun ControlsButton(shown: Game) {
+    val game = effectiveGame(shown)
     var open by remember { mutableStateOf(false) }
     Icon(Icons.Default.Mouse, contentDescription = "Controls", tint = Colors.Mist,
         modifier = Modifier.clip(RoundedCornerShape(50)).clickable { open = true }.padding(10.dp).size(26.dp))

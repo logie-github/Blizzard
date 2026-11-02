@@ -27,6 +27,7 @@ data class KeyCombo(val key: String, val ctrl: Boolean = false, val shift: Boole
             val parts = text.split('+').map { it.trim() }.let { if (text.endsWith("++")) it.dropLast(2) + "+" else it }
             val key = parts.last().ifEmpty { return null }
             val mods = parts.dropLast(1).map { it.lowercase() }
+            if (mods.any { it !in setOf("ctrl", "alt", "shift") }) return null
             val name = KEYS.firstOrNull { it.equals(key, ignoreCase = true) } ?: return null
             return KeyCombo(name, ctrl = "ctrl" in mods, shift = "shift" in mods, alt = "alt" in mods)
         }

@@ -186,3 +186,90 @@ object Installers {
         return exes.firstOrNull { it.name.startsWith("setup", true) } ?: exes.singleOrNull()
     }
 }
+
+/**
+ * A game's folder out of whatever the person gave ([Unpacker]'s formats, or an installed folder):
+ * the shared first half of the importers that take a package (StarCraft II, StarCraft Remastered).
+ */
+object Packages {
+    /** A folder's own entry names, lower-case, folders ending in "/": what [isRoot] looks at. */
+    fun names(children: List<SourceNode>): Set<String> = children.map { it.name.lowercase() + if (it.isDirectory) "/" else "" }.toSet()
+
+    /** The first folder under [node] (to [depth] down) whose entries [isRoot] approves of. */
+    fun findRoot(node: SourceNode, depth: Int, isRoot: (Set<String>) -> Boolean): SourceNode? {
+        if (!node.isDirectory || depth < 0) return null
+        val children = runCatching { node.children() }.getOrDefault(emptyList())
+        if (isRoot(names(children))) return node
+        return children.filter { it.isDirectory }.firstNotNullOfOrNull { findRoot(it, depth - 1, isRoot) }
+    }
+
+    /** The same on a folder on this phone. */
+    fun findRoot(dir: File, depth: Int, isRoot: (Set<String>) -> Boolean): File? =
+        dir.walkTopDown().maxDepth(depth).firstOrNull { it.isDirectory && isRoot(names(it)) }
+
+    private fun names(dir: File): Set<String> = dir.listFiles().orEmpty().map { it.name.lowercase() + if (it.isDirectory) "/" else "" }.toSet()
+
+    /**
+     * The game's folder from [source]: an installed folder (copied to a folder of its own under
+     * [scratch]), a zip, 7z, tar, disc image, or installer with its data files (unpacked there).
+     * [checkFound] and [checkUnpacked] refuse a wrong version before the gigabytes are copied and
+     * after they're unpacked. [what] names the game for the person.
+     */
+    fun materialize(
+        source: SourceNode, env: ImportEnv, staging: File, scratch: File, what: String, prompt: String,
+        isRoot: (Set<String>) -> Boolean, checkFound: (SourceNode) -> Unit = {}, checkUnpacked: (File) -> Unit = {},
+    ): File {
+        val out = File(scratch, "game").also { it.deleteRecursively(); it.mkdirs() }
+        val found: SourceNode?
+        val setup: SourceNode?
+        val siblings: List<SourceNode>
+        if (source.isDirectory) {
+            found = findRoot(source, 4, isRoot)
+            if (found == null) {
+                // No game in it: an installer and its data files, in it or in a folder just under it.
+                val holder = (listOf(source) + source.children().filter { it.isDirectory }).firstOrNull { Installers.setupIn(it.children()) != null }
+                siblings = holder?.children() ?: emptyList()
+                setup = Installers.setupIn(siblings)
+            } else {
+                setup = null
+                siblings = emptyList()
+            }
+        } else {
+            found = null
+            setup = source
+            siblings = source.localFile()?.parentFile?.listFiles()?.map { FileNode(it) } ?: emptyList()
+        }
+        if (found != null) {
+            checkFound(found)
+            val total = found.walk(12).sumOf { it.size }
+            FileValidator.requireSpace(staging, total)
+            copyTree(found, out, env, total, what)
+            return out
+        }
+        val package_ = setup ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no $what in that folder (and no installer). $prompt")
+        FileValidator.requireSpace(scratch, (package_.size + siblings.sumOf { it.size }).coerceAtLeast(1L shl 30) + (2L shl 30))
+        Unpacker(env.innoextract).unpack(package_, siblings, out, scratch, env.cancel, env.progress)
+        val root = findRoot(out, 6, isRoot)
+            ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "${package_.name} has no $what in it once unpacked. $prompt")
+        checkUnpacked(root)
+        return root
+    }
+
+    private fun copyTree(root: SourceNode, into: File, env: ImportEnv, total: Long, what: String) {
+        var done = 0L
+        fun walk(node: SourceNode, to: File, depth: Int) {
+            for (child in node.children()) {
+                env.cancel.check()
+                if (child.isDirectory) {
+                    if (depth < 12) walk(child, File(to, child.name), depth + 1)
+                } else {
+                    copyInto(child, to, child.name, env.cancel) { n ->
+                        done += n
+                        env.progress(Progress(Stage.EXTRACTING, "Copying $what", done, total))
+                    }
+                }
+            }
+        }
+        walk(root, into, 0)
+    }
+}

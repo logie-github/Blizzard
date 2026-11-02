@@ -11,6 +11,8 @@ enum class LaunchProfile(val id: String, val fixedSize: Pair<Int, Int>?, val lin
     DIABLO2("diablo2", 800 to 600),
     STARCRAFT("starcraft", 640 to 480),
     STARCRAFT2("starcraft2", null),
+    /** The remastered game draws at the phone's shape. */
+    STARCRAFT_REMASTERED("starcraft_remastered", null),
     WARCRAFT3("warcraft3", null);
 
     companion object {
