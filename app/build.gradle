@@ -18,6 +18,12 @@ if (!new File(winlator, "java").isDirectory()) {
 if (!file("tools/jniLibs/arm64-v8a/libbldl.so").isFile()) {
 	throw new GradleException("The importers' programs aren't in app/tools: run scripts/build-tools.sh")
 }
+// Warcraft I and II, native: the Stratagus engine, its data tools, SDL's Java activity and the games'
+// scripts (scripts/build-stratagus.sh puts them in app/stratagus; --placeholders for a quick local
+// configuration without the NDK).
+if (!file("stratagus/jniLibs/arm64-v8a/libmain.so").isFile()) {
+	throw new GradleException("Stratagus isn't in app/stratagus: run scripts/build-stratagus.sh")
+}
 
 android {
 	namespace = 'com.logie.blizz'
@@ -93,10 +99,10 @@ android {
 
 	sourceSets {
 		main {
-			assets.srcDirs += ['winlator/assets']
-			java.srcDirs += ['winlator/java']
+			assets.srcDirs += ['winlator/assets', 'stratagus/assets']
+			java.srcDirs += ['winlator/java', 'stratagus/java']
 			res.srcDirs += ['winlator/res']
-			jniLibs.srcDirs += ['winlator/jniLibs', 'tools/jniLibs']
+			jniLibs.srcDirs += ['winlator/jniLibs', 'tools/jniLibs', 'stratagus/jniLibs']
 		}
 	}
 

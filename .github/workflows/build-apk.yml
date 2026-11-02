@@ -67,6 +67,22 @@ jobs:
           path: app/tools
           key: ${{ steps.tools.outputs.cache-primary-key }}
 
+      - name: Look for Stratagus
+        id: stratagus
+        uses: actions/cache/restore@v4
+        with:
+          path: app/stratagus
+          key: blizz-stratagus-v1-${{ hashFiles('stratagus.env', 'patches/stratagus/**', 'patches/stratagus-deps/**', 'scripts/build-stratagus.sh') }}
+      - name: Build Stratagus (Warcraft I and II)
+        if: steps.stratagus.outputs.cache-hit != 'true'
+        run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-stratagus.sh
+      - name: Save Stratagus
+        if: steps.stratagus.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: app/stratagus
+          key: ${{ steps.stratagus.outputs.cache-primary-key }}
+
       - run: chmod +x gradlew
       - name: Build and test
         env:
