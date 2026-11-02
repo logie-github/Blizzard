@@ -225,7 +225,7 @@ object Packages {
         val setup: SourceNode?
         val siblings: List<SourceNode>
         if (source.isDirectory) {
-            found = findRoot(source, 4, isRoot)
+            found = findRoot(source, 6, isRoot)
             if (found == null) {
                 // No game in it: an installer and its data files, in it or in a folder just under it.
                 val holder = (listOf(source) + source.children().filter { it.isDirectory }).firstOrNull { Installers.setupIn(it.children()) != null }
