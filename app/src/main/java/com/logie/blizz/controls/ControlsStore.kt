@@ -35,9 +35,12 @@ class Bindings(val game: Catalog.Game, val controls: GameControls) {
 
     /** The function [trigger] at ([x], [y]) (fractions of the game's screen) runs: the rule with the smallest area there wins. */
     fun resolve(trigger: Trigger, x: Float, y: Float): GameFunction? = controls.rules.asSequence()
-        .filter { it.trigger == trigger }
-        .mapNotNull { rule -> game.area(rule.area)?.takeIf { it.contains(x, y) }?.let { area -> area to rule } }
-        .sortedBy { it.first.size }
+        .withIndex()
+        .filter { it.value.trigger == trigger }
+        .mapNotNull { (i, rule) -> game.area(rule.area)?.takeIf { it.contains(x, y) }?.let { area -> Triple(area, rule, i) } }
+        // The smallest area wins; of equal areas the rule made last, so a rule the person adds beats the default it replaces.
+        .sortedWith(compareBy<Triple<Area, Rule, Int>> { it.first.size }.thenByDescending { it.third })
+        .map { it.first to it.second }
         .mapNotNull { (_, rule) -> game.function(rule.function) }
         .firstOrNull()
         // "Nothing" in a smaller area switches that spot off.
