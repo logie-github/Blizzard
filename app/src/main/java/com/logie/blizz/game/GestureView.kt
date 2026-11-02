@@ -17,11 +17,12 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
+import com.logie.blizz.controls.Bindings
 import com.logie.blizz.controls.Button
+import com.logie.blizz.controls.ControlsStore
 import com.logie.blizz.controls.GestureOutput
 import com.logie.blizz.controls.Gestures
-import com.logie.blizz.controls.Key
-import com.logie.blizz.controls.Profile
+import com.logie.blizz.controls.xKeyName
 import com.winlator.core.AppUtils
 import com.winlator.math.XForm
 import com.winlator.renderer.ViewTransformation
@@ -30,13 +31,10 @@ import com.winlator.xserver.XKeycode
 import com.winlator.xserver.XServer
 
 /**
- * The games' touch controls ([Gestures], YeaBwoi's Warcraft app's) over Winlator's game screen, in
- * place of its touchpad: Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004).
- * It turns the gestures into the X server's pointer, buttons and keys, where Wine passes them to
- * the game, with nothing drawn over the game. The game's control profile ([Profile], from the
- * launch entry) says what a tap, a hold and a swipe are; a resting finger is Shift, two fingers
- * open the game's menu, three the phone's keyboard, four the app's menu ([GameMenu]). Back is the
- * game's Escape.
+ * The games' touch controls ([Gestures]) over Winlator's game screen, in place of its touchpad:
+ * Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004). The game's rules (its
+ * Controls, [ControlsStore]) say what each gesture does where; this turns that into the X server's
+ * pointer, buttons and keys, where Wine passes them to the game. Back is the game's Escape.
  */
 @SuppressLint("ViewConstructor")
 class GestureView(
@@ -46,14 +44,35 @@ class GestureView(
     private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
-    private val launch = LaunchProfile.of(activity.intent.getStringExtra(EXTRA_PROFILE))
-    private val gestures = Gestures(this, density, launch.gestures)
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
+    private val bindings = Bindings.of(gameId ?: "", ControlsStore(java.io.File(activity.filesDir, "controls")).load(gameId ?: ""))
+    private val gestures = Gestures(this, density, bindings, locate = ::locate)
     private val vibrate = GameSettings.vibration(activity)
 
     /** From the view's pixels to the game screen's. */
     private val xform = XForm.getInstance()
-    private val hold = Runnable { gestures.onHold(SystemClock.uptimeMillis()) }
+    private val ticker = object : Runnable {
+        override fun run() {
+            gestures.tick(SystemClock.uptimeMillis())
+            if (gestures.needsTicks()) postDelayed(this, TICK_MS) else ticking = false
+        }
+    }
+    private var ticking = false
+
+    /** A point of the view as fractions of the game's screen, for the rules' areas. */
+    private fun locate(x: Float, y: Float): Pair<Float, Float> {
+        val point = XForm.transformPoint(xform, x, y)
+        val w = xServer.screenInfo.width.toFloat().coerceAtLeast(1f)
+        val h = xServer.screenInfo.height.toFloat().coerceAtLeast(1f)
+        return (point[0] / w).coerceIn(0f, 1f) to (point[1] / h).coerceIn(0f, 1f)
+    }
+
+    private fun keepTicking() {
+        if (!ticking && gestures.needsTicks()) {
+            ticking = true
+            postDelayed(ticker, TICK_MS)
+        }
+    }
 
     /** Key presses still to send for text from the prompt, a few milliseconds apart. */
     private val typing = ArrayDeque<() -> Unit>()
@@ -128,29 +147,15 @@ class GestureView(
         val id = event.getPointerId(index)
         val now = event.eventTime
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                gestures.down(id, event.getX(index), event.getY(index), now)
-                postDelayed(hold, Gestures.HOLD_MS)
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                // Each finger can be a hold (the one tapping while another rests).
-                removeCallbacks(hold)
-                gestures.down(id, event.getX(index), event.getY(index), now)
-                postDelayed(hold, Gestures.HOLD_MS)
-            }
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> gestures.down(id, event.getX(index), event.getY(index), now)
             MotionEvent.ACTION_MOVE -> gestures.move(
                 List(event.pointerCount) { i -> Gestures.Touch(event.getPointerId(i), event.getX(i), event.getY(i)) },
                 now,
             )
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-                if (event.actionMasked == MotionEvent.ACTION_UP) removeCallbacks(hold)
-                gestures.up(id, event.getX(index), event.getY(index), now)
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                removeCallbacks(hold)
-                gestures.cancel()
-            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> gestures.up(id, event.getX(index), event.getY(index), now)
+            MotionEvent.ACTION_CANCEL -> gestures.cancel()
         }
+        keepTicking()
         return true
     }
 
@@ -171,29 +176,12 @@ class GestureView(
 
     override fun pointerTo(x: Float, y: Float) {
         val point = XForm.transformPoint(xform, x, y)
-        pointerY = point[1]
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
     }
 
-    /** Where the pointer is, down the game's screen (0 top, 1 bottom). */
-    private var pointerY = 0f
-
-    /**
-     * The game's own panels (StarCraft's console along the bottom, its menu bar along the top),
-     * where a right click does nothing useful: a tap there is the left click that presses what's
-     * under it ([LaunchProfile.panelTop], [LaunchProfile.barBottom]). Elsewhere it stays the right click.
-     */
-    private fun onInterface(): Boolean {
-        val height = xServer.screenInfo.height.toFloat()
-        if (height <= 0f) return false
-        val y = pointerY / height
-        return y >= launch.panelTop || y <= launch.barBottom
-    }
-
     override fun click(button: Button) {
-        val pressed = if (button == Button.RIGHT && onInterface()) Button.LEFT else button
-        xServer.injectPointerButtonPress(pressed.x)
-        postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS)
+        xServer.injectPointerButtonPress(button.x)
+        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
     }
 
     override fun doubleClick(button: Button) {
@@ -213,11 +201,13 @@ class GestureView(
         xServer.injectPointerButtonRelease(button)
     }
 
-    override fun keyDown(key: Key) = xServer.injectKeyPress(key.x)
+    override fun keyDown(key: String) {
+        runCatching { XKeycode.valueOf(xKeyName(key)) }.getOrNull()?.let { xServer.injectKeyPress(it) }
+    }
 
-    override fun keyUp(key: Key) = xServer.injectKeyRelease(key.x)
-
-    override fun gameMenu() = tapKey(if (launch.menuKey == LaunchProfile.MenuKey.ESCAPE) XKeycode.KEY_ESC else XKeycode.KEY_F10)
+    override fun keyUp(key: String) {
+        runCatching { XKeycode.valueOf(xKeyName(key)) }.getOrNull()?.let { xServer.injectKeyRelease(it) }
+    }
 
     override fun openKeyboard() = askText(chat = true)
 
@@ -284,6 +274,7 @@ class GestureView(
 
     override fun onDetachedFromWindow() {
         removeCallbacks(typeNext)
+        removeCallbacks(ticker)
         super.onDetachedFromWindow()
     }
 
@@ -294,6 +285,7 @@ class GestureView(
         const val EXTRA_PROFILE = "com.logie.blizz.PROFILE"
 
         private const val CLICK_MS = 40L
+        private const val TICK_MS = 30L
         private const val KEY_MS = 50L
         private const val TYPE_STEP_MS = 15L
 
@@ -301,15 +293,6 @@ class GestureView(
             get() = when (this) {
                 Button.LEFT -> Pointer.Button.BUTTON_LEFT
                 Button.RIGHT -> Pointer.Button.BUTTON_RIGHT
-            }
-
-        private val Key.x: XKeycode
-            get() = when (this) {
-                Key.LEFT -> XKeycode.KEY_LEFT
-                Key.RIGHT -> XKeycode.KEY_RIGHT
-                Key.UP -> XKeycode.KEY_UP
-                Key.DOWN -> XKeycode.KEY_DOWN
-                Key.SHIFT -> XKeycode.KEY_SHIFT_L
             }
     }
 }

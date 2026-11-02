@@ -100,26 +100,54 @@ object ZipExtractor {
 }
 
 /**
- * Disc images (ISO 9660), read without mounting: the root folder's files, and a file streamed out
- * by name (the StarCraft discs' INSTALL.EXE). Plain Kotlin, unit-tested.
+ * Disc images (ISO 9660 with Joliet's long names), read without mounting: every file with its
+ * path, and a file streamed out by name (the StarCraft discs' INSTALL.EXE). Plain Kotlin, unit-tested.
  */
 class Iso9660(private val file: File) {
     data class Entry(val name: String, val extent: Long, val size: Long, val isDirectory: Boolean)
 
     private val sector = 2048L
 
+    /** The root folder of the best table the image has (Joliet's, else the primary one). */
+    private data class Table(val extent: Long, val size: Long, val joliet: Boolean)
+
+    private fun table(f: RandomAccessFile): Table {
+        var primary: Table? = null
+        var joliet: Table? = null
+        var at = 16L
+        while (at < 64) {
+            val vd = ByteArray(2048)
+            f.seek(at * sector)
+            if (f.read(vd) != 2048 || String(vd, 1, 5, Charsets.US_ASCII) != "CD001") break
+            val type = vd[0].toInt()
+            if (type == 255) break
+            val record = vd.copyOfRange(156, 156 + 34)
+            val t = Table(le32(record, 2).toLong() and 0xffffffffL, le32(record, 10).toLong() and 0xffffffffL, type == 2)
+            if (type == 1) primary = t
+            // Joliet: a supplementary descriptor whose escape sequence is %/@, %/C or %/E.
+            if (type == 2 && vd[88].toInt() == '%'.code && vd[89].toInt() == '/'.code && vd[90].toInt() in listOf('@'.code, 'C'.code, 'E'.code)) joliet = t
+            at++
+        }
+        return joliet ?: primary ?: throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${file.name} isn't a disc image this app can read (ISO 9660).")
+    }
+
     /** The root folder's entries; throws when [file] isn't an ISO 9660 image. */
     fun root(): List<Entry> = RandomAccessFile(file, "r").use { f ->
-        // The primary volume descriptor, at sector 16: type 1, "CD001".
-        val pvd = ByteArray(2048)
-        f.seek(16 * sector)
-        if (f.read(pvd) != 2048 || pvd[0].toInt() != 1 || String(pvd, 1, 5, Charsets.US_ASCII) != "CD001") {
-            throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${file.name} isn't a disc image this app can read (ISO 9660). Select the disc's INSTALL.EXE instead.")
+        val t = table(f)
+        directory(f, t.extent, t.size, t.joliet)
+    }
+
+    /** Every file in the image, by path with "/" between folders. */
+    fun files(): List<Pair<String, Entry>> = RandomAccessFile(file, "r").use { f ->
+        val t = table(f)
+        val out = ArrayList<Pair<String, Entry>>()
+        fun walk(extent: Long, size: Long, prefix: String, depth: Int) {
+            for (e in directory(f, extent, size, t.joliet)) {
+                if (e.isDirectory) { if (depth < 24) walk(e.extent, e.size, "$prefix${e.name}/", depth + 1) } else out += (prefix + e.name) to e
+            }
         }
-        val rootRecord = pvd.copyOfRange(156, 156 + 34)
-        val extent = le32(rootRecord, 2).toLong()
-        val size = le32(rootRecord, 10).toLong()
-        directory(f, extent, size)
+        walk(t.extent, t.size, "", 0)
+        out
     }
 
     fun find(name: String): Entry? = root().firstOrNull { it.name.equals(name, ignoreCase = true) }
@@ -146,8 +174,8 @@ class Iso9660(private val file: File) {
         }
     }
 
-    private fun directory(f: RandomAccessFile, extent: Long, size: Long): List<Entry> {
-        val data = ByteArray(size.toInt().coerceAtMost(1 shl 20))
+    private fun directory(f: RandomAccessFile, extent: Long, size: Long, joliet: Boolean): List<Entry> {
+        val data = ByteArray(size.toInt().coerceAtMost(1 shl 22))
         f.seek(extent * sector)
         f.readFully(data)
         val out = ArrayList<Entry>()
@@ -160,11 +188,12 @@ class Iso9660(private val file: File) {
                 continue
             }
             val nameLength = data[i + 32].toInt() and 0xff
-            val rawName = String(data, i + 33, nameLength, Charsets.ISO_8859_1)
             val flags = data[i + 25].toInt()
-            if (!(nameLength == 1 && (data[i + 33].toInt() == 0 || data[i + 33].toInt() == 1))) {
+            val dot = nameLength == 1 && (data[i + 33].toInt() == 0 || data[i + 33].toInt() == 1)
+            if (!dot) {
+                val raw = if (joliet) String(data, i + 33, nameLength, Charsets.UTF_16BE) else String(data, i + 33, nameLength, Charsets.ISO_8859_1)
                 out += Entry(
-                    name = rawName.substringBefore(';').trimEnd('.'),
+                    name = raw.substringBefore(';').trimEnd('.'),
                     extent = le32(data, i + 2).toLong() and 0xffffffffL,
                     size = le32(data, i + 10).toLong() and 0xffffffffL,
                     isDirectory = flags and 2 != 0,

@@ -34,7 +34,8 @@ computer can copy into over USB) and every folder chosen with **Search a folder*
 | **Diablo** (+ Hellfire) | DevilutionX's Windows build from its GitHub release (GitHub's SHA-256 checked), or a release zip you have | `DIABDAT.MPQ`: the file, a folder, a disc image or GOG's offline installer (unpacked by innoextract, never run). Hellfire's four archives are optional. |
 | **Diablo II** + Lord of Destruction | Blizzard's own legacy servers (base game, then the expansion; every piece checked), or your installation folder or a zip of it | Nothing when online. No CD key: optional fields take the original keys if you want them stored. |
 | **StarCraft** + Brood War | Blizzard's own legacy servers (1.15.2, disc-free), or your installation folder | `StarCraft.mpq` / `BroodWar.mpq` when an installation lacks them: the archive, the disc's `INSTALL.EXE` or the disc image. |
-| **StarCraft II** 3.0.5.39117 | Your files only (a folder or a zip); never downloaded | The installation, and `StarCraft II Offline.exe` if it isn't in it. Any other build is refused. |
+| **StarCraft II** 3.0.5.39117 or 3.1.4.41219 | Your files only; never downloaded | The installation in any form: its folder, a zip, 7z, tar (gz, xz, bz2, zst), a disc image, or an installer (`Setup.exe` with its data files beside it, whatever they're called: innoextract reads Inno Setup ones). `StarCraft II Offline.exe` if it isn't in it (else the game's own program starts). Any other build is refused. |
+| **StarCraft: Remastered** 1.23.10.12409 | Your files only, in any of those forms | A second installation beside the classic StarCraft (its own folder, saves and controls): the game's page has a **Classic · Remastered** switch. Imported — Launch Untested. |
 
 Statuses: Ready to Play, Imported — Launch Untested, Import Incomplete, Missing Required File,
 Unsupported Client Version, Launch Test Failed. A game's first window coming up under Winlator is
@@ -77,6 +78,9 @@ downloads by itself (a banner shows it) and Android's installer opens for the on
 requires. The first time, Android asks to allow installs from this app.
 
 ## Controls
+
+Each game's **Controls** button (beside Play) lists every function with its key and the gestures that run it, and the gesture rules: *If [gesture] [where] then [function]*. Keys are the game's own defaults (Diablo's are DevilutionX's); change a key by tapping it. Add a rule with the record button: do the gesture on the pad and it names the gesture and where it was; pick what it does. Where several rules match, the smallest area wins; "Nothing" switches a spot off. Saved per game; the reset button restores the defaults.
+
 
 The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfile.kt`):
 

@@ -138,7 +138,7 @@ class GameLoading(private val activity: Activity) {
 
 @Composable
 internal fun Loading(gameId: String?, text: String) {
-    val game = Games.all.firstOrNull { it.id == gameId }
+    val game = Games.find(gameId)
     val splash = game?.splash
     Box(Modifier.fillMaxSize().background(Colors.Abyss), contentAlignment = Alignment.Center) {
         if (splash != null) {
@@ -224,7 +224,7 @@ object GameMenu {
             ) {
                 Panel(Modifier.widthIn(max = 420.dp).padding(24.dp)) {
                     Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FrameTitle(Games.all.firstOrNull { it.id == gameId }?.fullTitle ?: stringResource(R.string.app_name))
+                        FrameTitle(Games.find(gameId)?.fullTitle ?: stringResource(R.string.app_name))
                         FrameButton(stringResource(R.string.game_menu_back), Modifier.fillMaxWidth(), onClick = close {})
                         FrameButton(stringResource(R.string.game_menu_keyboard), Modifier.fillMaxWidth(), primary = false, onClick = close(onKeyboard))
                         FrameButton(stringResource(R.string.game_menu_chat), Modifier.fillMaxWidth(), primary = false, onClick = close(onChat))

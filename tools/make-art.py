@@ -33,34 +33,69 @@ for y in range(logo.height):
 logo.thumbnail((1200, 1200), Image.LANCZOS)
 logo.save(NODPI / "blizz_logo.webp", quality=92)
 
-# The icon. Legacy squares, and an adaptive icon: the emblem (everything inside the white star)
-# over the streaked blue.
-icon = Image.open(B / "icon.png").convert("RGB")
-for name, size in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
-    d = RES / f"mipmap-{name}"; d.mkdir(exist_ok=True)
-    icon.resize((size, size), Image.LANCZOS).save(d / "ic_blizz.png")
+# The icon: the compass with its B, on blue. Adaptive: the compass (its star, frame and B, cut out
+# of branding/icon.png) over a blue of its own; legacy squares and the themed (one-colour) icon
+# are made from the same two.
+import random
+from PIL import ImageFilter, ImageChops
 
+icon = Image.open(B / "icon.png").convert("RGB")
 S = icon.width
 white = Image.new("L", icon.size, 0)
 wp, ip = white.load(), icon.load()
 for y in range(S):
     for x in range(S):
-        r, g, b = ip[x, y]
-        wp[x, y] = 255 if min(r, g, b) > 200 else 0
+        wp[x, y] = 255 if min(ip[x, y]) > 200 else 0
 outside = white.copy()
 for seed in [(0, 0), (S - 1, 0), (0, S - 1), (S - 1, S - 1)]:
     ImageDraw.floodfill(outside, seed, 128)
 mask = outside.point(lambda v: 0 if v == 128 else 255)
-box = mask.getbbox()
-emblem = icon.convert("RGBA"); emblem.putalpha(mask); emblem = emblem.crop(box)
-# The foreground is 108dp; its safe circle is 66dp across, and the star's points may reach a little past it.
+emblem = icon.convert("RGBA"); emblem.putalpha(mask); emblem = emblem.crop(mask.getbbox())
+# The B and the star are the white parts of the emblem: the themed icon's shape.
+shape = white.crop(mask.getbbox())
+
+def blue(size):
+    """Blizzard blue: bright at the lower right, deep at the upper left, with the soft diagonal streaks of the art."""
+    n = 256
+    grad = Image.new("RGB", (n, n))
+    gp = grad.load()
+    top, bottom = (8, 70, 160), (36, 150, 245)
+    for y in range(n):
+        for x in range(n):
+            t = (x + y) / (2 * n - 2)
+            gp[x, y] = tuple(round(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
+    streaks = Image.new("L", (n, n), 0)
+    d = ImageDraw.Draw(streaks)
+    rnd = random.Random(5)
+    for _ in range(26):
+        x0, y0 = rnd.randint(-40, n), rnd.randint(0, n)
+        length = rnd.randint(40, 120)
+        d.line([(x0, y0), (x0 + length, y0 - length // 3)], fill=rnd.randint(30, 90), width=rnd.randint(1, 3))
+    streaks = streaks.filter(ImageFilter.GaussianBlur(2.2))
+    light = Image.new("RGB", (n, n), (150, 215, 255))
+    out = Image.composite(light, grad, streaks)
+    return out.resize((size, size), Image.LANCZOS)
+
+# Legacy squares: the compass over the blue, the star's tips cut off by nothing (the square holds them).
+square = blue(432)
+side = 372
+e = emblem.resize((side, round(side * emblem.height / emblem.width)), Image.LANCZOS)
+square.paste(e, ((432 - e.width) // 2, (432 - e.height) // 2), e)
+for name, size in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
+    d = RES / f"mipmap-{name}"; d.mkdir(exist_ok=True)
+    square.resize((size, size), Image.LANCZOS).save(d / "ic_blizz.png")
+
+# Adaptive: 108dp layers, of which a circle of 66dp always shows. The compass fills that circle.
 fg = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
-side = 300
+side = 228
 e = emblem.resize((side, round(side * emblem.height / emblem.width)), Image.LANCZOS)
 fg.paste(e, ((432 - e.width) // 2, (432 - e.height) // 2), e)
 fg.save(NODPI / "ic_blizz_foreground.png")
-bg = icon.resize((432, 432), Image.LANCZOS)
-bg.save(NODPI / "ic_blizz_background.png")
+blue(432).save(NODPI / "ic_blizz_background.png")
+mono = Image.new("RGBA", (432, 432), (0, 0, 0, 0))
+m = shape.resize((side, round(side * shape.height / shape.width)), Image.LANCZOS)
+mono.paste(Image.new("RGBA", m.size, (255, 255, 255, 255)), ((432 - m.width) // 2, (432 - m.height) // 2), m)
+mono.save(NODPI / "ic_blizz_monochrome.png")
 
 # Games' own loading screens (branding/splash/<game>.png, and <game>-logo.png over it).
 for f in sorted(p for p in (B / "splash").iterdir() if p.suffix in (".png", ".jpg")):

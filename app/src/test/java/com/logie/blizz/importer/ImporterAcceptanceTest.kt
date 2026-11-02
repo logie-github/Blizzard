@@ -1,7 +1,7 @@
 package com.logie.blizz.importer
 
-import com.logie.blizz.controls.Profile
-import com.logie.blizz.game.LaunchProfile
+import com.logie.blizz.controls.Catalog
+import com.logie.blizz.controls.Trigger
 import com.logie.blizz.game.Offline
 import com.logie.blizz.ui.statusLabel
 import org.junit.Assert.assertEquals
@@ -104,7 +104,7 @@ class ImporterAcceptanceTest {
         assertEquals("Select your original StarCraft/Brood War installation folder, legacy installer, or disc image.", sc.missing.single().prompt)
 
         val sc2 = run(StarCraft2OfflineImporter()) as ImportPipeline.Result.Waiting
-        assertEquals("Select your StarCraft II 3.0.5 installation folder or game archive.", sc2.missing.single().prompt)
+        assertTrue(sc2.missing.single().prompt.startsWith("Select your StarCraft II installation"))
         assertEquals(Stage.WAITING_FOR_USER_FILE, sc2.record.stage)
     }
 
@@ -184,7 +184,7 @@ class ImporterAcceptanceTest {
 
         val sc2 = run(StarCraft2OfflineImporter(), mapOf(picked("install", Fixtures.starcraft2Install(tmp.newFolder("sc2"), build = "75689", version = "4.11.4.75689")))) as ImportPipeline.Result.Failed
         assertEquals(Problem.UNSUPPORTED_VERSION, sc2.error.problem)
-        assertEquals("This StarCraft II installation is not version 3.0.5.39117. Select a compatible installation.", sc2.error.message)
+        assertEquals("This StarCraft II installation is not version 3.0.5.39117 or 3.1.4.41219. Select a compatible installation.", sc2.error.message)
         assertNull(Library(paths).get("starcraft2"))
     }
 
@@ -295,16 +295,17 @@ class ImporterAcceptanceTest {
         Fixtures.starcraftInstall(paths.game("starcraft"))
         Fixtures.starcraft2Install(paths.game("starcraft2"))
         val expected = mapOf(
-            Diablo2ClassicImporter() to Triple("Game.exe", "diablo2", Profile.ARPG),
-            StarCraftClassicImporter() to Triple("StarCraft.exe", "starcraft", Profile.RTS),
-            StarCraft2OfflineImporter() to Triple("StarCraft II Offline.exe", "starcraft2", Profile.RTS),
+            Diablo2ClassicImporter() to Triple("Game.exe", "diablo2", "click"),
+            StarCraftClassicImporter() to Triple("StarCraft.exe", "starcraft", "rclick"),
+            StarCraft2OfflineImporter() to Triple("StarCraft II Offline.exe", "starcraft2", "rclick"),
         )
         for ((importer, want) in expected) {
             val entry = (run(importer) as ImportPipeline.Result.Done).entry
             assertEquals(want.first, entry.executable)
             assertEquals(LibraryEntry.RUNTIME_WINLATOR, entry.runtime)
             assertEquals(want.second, entry.controlProfile)
-            assertEquals(want.third, LaunchProfile.of(entry.controlProfile).gestures)
+            // The game's own controls (its tap does what the game's tap does).
+            assertEquals(want.third, Catalog.of(entry.controlProfile).rules.first { it.trigger == Trigger.TAP }.function)
             assertEquals(entry, Library(paths).get(importer.gameId))
         }
         // Diablo: DevilutionX, its data from its folder, its saves apart (drive S:).
@@ -312,7 +313,7 @@ class ImporterAcceptanceTest {
         val d1 = run(Diablo1DevilutionXImporter(), mapOf(picked("engine", engine), picked("data", Fixtures.mpq(tmp.newFile("DIABDAT.MPQ"))), "hellfire" to Supplied.Skipped("hellfire"))) as ImportPipeline.Result.Done
         assertEquals("devilutionx.exe", d1.entry.executable)
         assertEquals("--data-dir D:\\diablo --save-dir S:\\diablo --config-dir S:\\diablo", d1.entry.arguments)
-        assertEquals(Profile.ARPG, LaunchProfile.of(d1.entry.controlProfile).gestures)
+        assertEquals("click", Catalog.of(d1.entry.controlProfile).rules.first { it.trigger == Trigger.TAP }.function)
         assertTrue(File(paths.saves("diablo"), "diablo.ini").readText().contains("Auto Gold Pickup=0"))
     }
 
