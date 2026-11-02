@@ -130,6 +130,17 @@ object GameImportManager {
         )
     }
 
+    /** Back to not installed (not while it's importing): the game's files, entry and record go; saves and downloads stay. */
+    fun reset(context: Context, gameId: String) {
+        val app = context.applicationContext
+        val factory = importers[gameId] ?: return
+        if (synchronized(cancels) { cancels.containsKey(gameId) }) return
+        scope.launch {
+            GameReset.reset(paths(app), gameId, factory().keptInGame)
+            publish(WizardState(gameId, repo(app).load(gameId), entry = null))
+        }
+    }
+
     fun cancel(gameId: String) {
         synchronized(cancels) { cancels[gameId] }?.cancel()
     }

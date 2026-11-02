@@ -25,6 +25,11 @@ class StarCraftClassicImporter : GameImporter {
         const val BW_DISC = "BroodWar.mpq"
         /** The player's own files, kept through a repair. */
         val USER_DATA = listOf("characters", "save", "maps/replays")
+        /** What the data archives must hold: StarCraft stops with "unable to open a required file" if they don't. */
+        val CONTENTS = mapOf(
+            "StarDat.mpq" to listOf("font\\font.gid", "font\\font16.fnt", "rez\\glumain.bin", "arr\\units.dat"),
+            "BrooDat.mpq" to listOf("arr\\units.dat"),
+        )
         val SUPPORTED = listOf("1.15.2.", "1.15.3.", "1.16.0.", "1.16.1.")
         fun supported(version: String?): Boolean = version != null && SUPPORTED.any { version.startsWith(it) }
         const val SIZE = 1_300L shl 20
@@ -33,6 +38,9 @@ class StarCraftClassicImporter : GameImporter {
         const val PROMPT_BW_DISC = "Brood War data archive missing. Select BroodWar.mpq or the original Brood War disc image."
         const val MARK = ".from-blizzard"
     }
+
+    /** The player's own characters, saved games and replays live in the game's folder: a reset keeps them. */
+    override val keptInGame: List<String> = USER_DATA
 
     override fun detect(env: ImportEnv): Detection {
         env.progress(Progress(Stage.DETECTING, "Looking for StarCraft"))
@@ -82,7 +90,14 @@ class StarCraftClassicImporter : GameImporter {
         staging.deleteRecursively()
         staging.mkdirs()
         try {
-            legacy.install("STAR", staging, noBase = false, keys = null, cancel = env.cancel, onProgress = env.progress)
+            // StarCraft's install script stores a key and owner in StarDat.mpq (font\font.gid, font.clh), and the game
+            // reports "File not found" when they're missing. The game runs offline, so a placeholder key does.
+            val keys = LegacyDownloader.Keys(
+                classic = env.keys?.classic ?: "00000000000000000000000000",
+                expansion = null,
+                owner = env.keys?.owner ?: "Player",
+            )
+            legacy.install("STAR", staging, noBase = false, keys = keys, cancel = env.cancel, onProgress = env.progress)
             File(staging, MARK).writeText("STAR\n")
         } catch (e: Throwable) {
             staging.deleteRecursively()
@@ -236,6 +251,17 @@ class StarCraftClassicImporter : GameImporter {
         checks += Check("Version 1.15.2–1.16.1 (classic)", versionOk, pe?.version ?: "unknown")
         checks += FileValidator.requireFiles(dir, REQUIRED)
         checks += FileValidator.requireArchives(dir, ARCHIVES)
+        // The archives hold the files the game opens first, not just a header.
+        for ((archive, names) in CONTENTS) {
+            val f = FileValidator.find(dir, archive)?.takeIf { Mpq.isArchive(it) } ?: continue
+            val has = MpqContents.has(f, names)
+            val missing = has?.filterValues { !it }?.keys.orEmpty()
+            checks += Check("$archive holds ${names.first()}…", has != null && missing.isEmpty(), when {
+                has == null -> "can't be read: damaged, or cut short"
+                missing.isNotEmpty() -> "doesn't hold ${missing.joinToString()}: damaged, or not StarCraft's"
+                else -> "present"
+            })
+        }
         for (disc in listOf(SC_DISC, BW_DISC)) {
             val f = FileValidator.find(dir, disc)
             checks += Check(disc, f != null && Mpq.containsArchive(f), if (f == null) "missing" else "${f.length()} bytes")
@@ -244,6 +270,7 @@ class StarCraftClassicImporter : GameImporter {
         val problem = when {
             !checks[0].passed -> Problem.MISSING_SOURCE_DATA
             pe != null && !versionOk -> Problem.UNSUPPORTED_VERSION
+            failed.any { it.name.contains(" holds ") } -> Problem.CORRUPT_ARCHIVE
             failed.any { it.name == "BrooDat.mpq" } -> Problem.MISSING_EXPANSION
             failed.any { it.name == SC_DISC || it.name == BW_DISC } -> Problem.MISSING_SOURCE_DATA
             failed.isNotEmpty() -> Problem.MISSING_RUNTIME_DEPENDENCY
@@ -251,6 +278,7 @@ class StarCraftClassicImporter : GameImporter {
         }
         val message = when (problem) {
             Problem.UNSUPPORTED_VERSION -> "This StarCraft is version ${pe?.version}; the app plays the classic 1.15.2 to 1.16.1, never Remastered. Select a classic installation, or retry online to download it from Blizzard."
+            Problem.CORRUPT_ARCHIVE -> failed.filter { it.name.contains(" holds ") }.joinToString("; ") { "${it.name.substringBefore(" holds ")} ${it.detail}" } + ". Reset the installation and import it again."
             Problem.MISSING_EXPANSION -> "Brood War isn't installed in that folder (no BrooDat.mpq). Select an installation with Brood War, or retry online to download it from Blizzard."
             Problem.MISSING_SOURCE_DATA -> if (failed.any { it.name == BW_DISC }) PROMPT_BW_DISC else if (failed.any { it.name == SC_DISC }) PROMPT_SC_DISC else PROMPT_INSTALL
             Problem.MISSING_RUNTIME_DEPENDENCY -> "StarCraft's files are incomplete: ${failed.joinToString { it.name }}."

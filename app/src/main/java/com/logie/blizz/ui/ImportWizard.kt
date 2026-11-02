@@ -92,6 +92,7 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
     val state = states[game.id] ?: return
     val record = state.record
     var pickingFor by remember { mutableStateOf<String?>(null) }
+    var confirmReset by remember { mutableStateOf(false) }
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val id = pickingFor
         pickingFor = null
@@ -172,7 +173,18 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-                when {
+                // Reset, at any time but while it's working: the game's files go, its saves stay.
+                val resettable = !state.running && (state.entry != null || record.stage != Stage.NOT_INSTALLED || record.problem != null)
+                if (resettable) {
+                    if (confirmReset) {
+                        Text("Delete the installed game?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold, modifier = Modifier.weight(1f))
+                        FrameButton("No", primary = false) { confirmReset = false }
+                        FrameButton("Reset") { confirmReset = false; GameImportManager.reset(context, game.id) }
+                    } else {
+                        FrameButton("Reset", primary = false) { confirmReset = true }
+                    }
+                }
+                if (!confirmReset) when {
                     state.running -> FrameButton("Cancel", primary = false) { GameImportManager.cancel(game.id) }
                     state.missing.isNotEmpty() -> FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
                     record.stage == Stage.READY || record.stage == Stage.IMPORTED_UNTESTED -> {

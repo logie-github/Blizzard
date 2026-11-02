@@ -104,6 +104,7 @@ object WindowsRuntime {
         val (width, height) = size
         val container = container(context, width, height)
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
+        withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
 
         _state.value = State.Preparing(Step.STARTING)
         val intent = Intent(context, XServerDisplayActivity::class.java)
@@ -166,6 +167,26 @@ object WindowsRuntime {
             manager.createContainerAsync(data) { container -> done.resume(container) }
         }
         return created ?: throw IllegalStateException(context.getString(R.string.game_error_windows))
+    }
+
+    /**
+     * What the games' own installers write to the registry, which they read their data folder from:
+     * StarCraft's InstallPath (and its programs), in both views of HKLM a 32-bit program can have.
+     * Written every start, so a moved or reset installation is found again.
+     */
+    private fun registerInstall(context: Context, container: Container, entry: LibraryEntry) {
+        if (entry.gameId != "starcraft") return
+        val system = File(container.rootDir, ".wine/system.reg")
+        if (!system.isFile) return
+        val folder = File(entry.installPath)
+        val dos = "D:\\${folder.name}\\"
+        com.winlator.core.WineRegistryEditor(system).use { registry ->
+            for (key in listOf("Software\\Blizzard Entertainment\\Starcraft", "Software\\Wow6432Node\\Blizzard Entertainment\\Starcraft")) {
+                registry.setStringValue(key, "InstallPath", dos)
+                registry.setStringValue(key, "Program", dos + "StarCraft.exe")
+                registry.setStringValue(key, "StarEditPath", dos + "StarEdit.exe")
+            }
+        }
     }
 
     /**

@@ -45,6 +45,9 @@ interface GameImporter {
     val gameId: String
     val title: String
 
+    /** Folders in the game's own folder that are the player's (saved games kept beside the game): a reset leaves them. */
+    val keptInGame: List<String> get() = emptyList()
+
     fun detect(env: ImportEnv): Detection
     fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource>
     fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>)
@@ -118,3 +121,35 @@ fun copyInto(source: SourceNode, dir: File, name: String, cancel: CancelToken, o
 /** A local file for [source], copied into [scratch] when it isn't one already (programs need a path). */
 fun localCopy(source: SourceNode, scratch: File, cancel: CancelToken, onBytes: (Long) -> Unit = {}): File =
     source.localFile()?.takeIf { it.isFile } ?: copyInto(source, scratch, source.name, cancel, onBytes)
+
+
+/**
+ * Takes a game back to not installed: its folder (but what [GameImporter.keptInGame] names), its
+ * library entry, its import record and anything half-made. Saves and settings in `saves/` stay, and
+ * so do downloads (they're checked piece by piece, so importing again is quick). Plain Kotlin, unit-tested.
+ */
+object GameReset {
+    fun reset(paths: GamePaths, gameId: String, kept: List<String> = emptyList()) {
+        Library(paths).remove(gameId)
+        File(paths.state, "import-$gameId.json").delete()
+        paths.staging(gameId).deleteRecursively()
+        File(paths.staging, "$gameId-scratch").deleteRecursively()
+        File(paths.games, ".$gameId.old").deleteRecursively()
+        val game = paths.game(gameId)
+        if (!game.exists()) return
+        val keep = kept.map { it.replace('\\', '/').trim('/').lowercase() }
+        fun sweep(dir: File, prefix: String) {
+            for (child in dir.listFiles().orEmpty()) {
+                val path = (prefix + child.name).lowercase()
+                when {
+                    keep.any { it == path } -> {}
+                    child.isDirectory && keep.any { it.startsWith("$path/") } -> sweep(child, "${child.name}/".let { prefix + it })
+                    else -> child.deleteRecursively()
+                }
+            }
+        }
+        sweep(game, "")
+        // Nothing of the player's left in it: the folder goes too.
+        if (game.listFiles().isNullOrEmpty()) game.delete()
+    }
+}

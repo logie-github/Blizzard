@@ -45,12 +45,16 @@ class PartsTest {
         File(root, "d2/Game.exe").takeIf { it.isFile }?.let {
             assertEquals("1.14.1.68", PeInfo.read(it)!!.version)
             assertEquals(emptyList<String>(), Dependencies.missing(it))
-            assertTrue(Diablo2ClassicImporter().validateDir(it.parentFile!!).filesOk)
+            val v = Diablo2ClassicImporter().validateDir(it.parentFile!!)
+            assertTrue(v.checks.filter { c -> !c.passed }.toString(), v.filesOk)
         }
         File(root, "sc/StarCraft.exe").takeIf { it.isFile }?.let {
             assertEquals("1.15.2.1", PeInfo.read(it)!!.version)
             assertEquals(emptyList<String>(), Dependencies.missing(it))
-            assertTrue(StarCraftClassicImporter().validateDir(it.parentFile!!).filesOk)
+            val v = StarCraftClassicImporter().validateDir(it.parentFile!!)
+            assertTrue(v.checks.filter { c -> !c.passed }.toString(), v.filesOk)
+            // Blizzard's own StarDat.mpq holds the file StarCraft opens first.
+            assertEquals(true, MpqContents.has(File(it.parentFile, "StarDat.mpq"), listOf("font\\font.gid"))!!["font\\font.gid"])
         }
     }
 
