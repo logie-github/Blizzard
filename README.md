@@ -160,3 +160,15 @@ The shelf's **World of Warcraft** box (placeholder art until you send yours) bri
 - A stopped or failed import is **carried on**: files already copied and checked are kept in `staging/wow-work` with a journal; Retry continues. Reset removes it.
 - The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. Until then, **Play opens the WoW app** (the realms run there).
 - You need free space for the export plus this copy.
+
+## Tiles and settings
+
+**Hold the Blizzard logo** for the settings: the layout (**Classic shelf**, as it was, or **Tiles**), how many tiles across, vibration, and a reset for the tile layout.
+
+In **Tiles**:
+- **Pinch** the tiles to make them bigger or smaller (one more or fewer across), like the 3DS's grid; one finger still scrolls.
+- **Hold a tile** for its menu: **Change Art** (vertical or horizontal, your own picture for either, or the original), **Rearrange**, **Reinstall** (removes the imported files and starts the import again; saved games stay) and **Loading screen** (the art editor).
+- **Rearrange**: the tiles wiggle; hold one and drag it where it goes; Done keeps the order.
+- A horizontal tile is two across and uses the game's wide art (the World of Warcraft box has Wrath's header; the others use their loading-screen art or the box art cut to fit until you choose a picture).
+- Tapping a tile opens the game's page, as the shelf does.
+Classic shelf keeps its own hold (the loading-screen editor).

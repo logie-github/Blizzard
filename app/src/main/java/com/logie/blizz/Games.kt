@@ -13,6 +13,8 @@ data class Game(
     /** The game's own loading screen: its art, and its logo over it (the box art and Blizzard's otherwise). */
     @DrawableRes val splash: Int? = null,
     @DrawableRes val splashLogo: Int? = null,
+    /** Wide art for the tile layout (a horizontal tile); without it the loading screen's art or the box art is cut to fit. */
+    @DrawableRes val wide: Int? = null,
     /** Where the splash is held when it's cut to the screen: -1 its top edge, 0 its middle. */
     val splashTop: Float = -0.2f,
     /** Other installations of the game, each its own game (its own files, saves and controls): the Remastered StarCraft beside the classic one. */
@@ -35,7 +37,7 @@ object Games {
         Game("warcraft2", "Warcraft II", "Tides of Darkness", 1995, R.drawable.cover_warcraft2),
         Game("warcraft3_roc", "Warcraft III", "Reign of Chaos", 2002, R.drawable.cover_warcraft3_roc),
         Game("warcraft3_tft", "Warcraft III", "The Frozen Throne", 2003, R.drawable.cover_warcraft3_tft),
-        Game("wow", "World of Warcraft", null, 2004, R.drawable.cover_wow, suggestedPackage = "com.logie.warcraft"),
+        Game("wow", "World of Warcraft", null, 2004, R.drawable.cover_wow, suggestedPackage = "com.logie.warcraft", wide = R.drawable.wide_wow),
     ).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Game::title).thenBy(String.CASE_INSENSITIVE_ORDER) { it.subtitle.orEmpty() })
 
     /** A game or one of its variants, by id. */

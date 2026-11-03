@@ -1,0 +1,343 @@
+package com.logie.blizz.ui
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.OpenWith
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
+import com.logie.blizz.Game
+import com.logie.blizz.Games
+import com.logie.blizz.importer.GameImportManager
+
+/** Opens the settings (hold the Blizzard logo): set by [Launcher]. */
+internal val LocalOpenSettings = androidx.compose.runtime.staticCompositionLocalOf<() -> Unit> { {} }
+
+private val PAD = 18.dp
+private val GAP = 14.dp
+
+/**
+ * The tile layout: the header, then every game as a tile in the person's order, each vertical (box
+ * art) or horizontal (wide art, two across). Pinch to make the tiles bigger or smaller (the 3DS's
+ * grid); hold a tile for its menu (Change Art, Rearrange, Reinstall, Loading screen); in Rearrange,
+ * hold a tile and drag it where it goes.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TileScreen(onOpen: (Game) -> Unit) {
+    val context = LocalContext.current
+    val s by TileSettings.state.collectAsState()
+    val ids = remember { Games.all.map { it.id } }
+    var order by remember(s.order) { mutableStateOf(TileLayout.ordered(ids, s.order)) }
+    var rearranging by remember { mutableStateOf(false) }
+    var dragging by remember { mutableStateOf<String?>(null) }
+    var dragAt by remember { mutableStateOf(Offset.Zero) }
+    val bounds = remember { mutableStateMapOf<String, Rect>() }
+    var artFor by remember { mutableStateOf<Game?>(null) }
+    var reinstallFor by remember { mutableStateOf<Game?>(null) }
+    val openWizard = LocalOpenWizard.current
+    val openSplash = LocalOpenSplash.current
+
+    BoxWithConstraints(Modifier.fillMaxSize().background(Colors.Abyss)) {
+        val width = maxWidth
+        val height = maxHeight
+        val columns = if (s.columns > 0) s.columns else TileLayout.autoColumns(width.value)
+        val inner = (minOf(width, 1100.dp) - PAD * 2)
+        val cell = (inner - GAP * (columns - 1)) / columns
+        val tiles = order.map { id -> TileLayout.Tile(id, id in s.wide) }
+
+        Column(
+            Modifier
+                .fillMaxSize()
+                .pinchColumns(enabled = dragging == null) { step -> TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else columns) + step).coerceIn(TileLayout.MIN_COLUMNS, TileLayout.MAX_COLUMNS)) }
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Header(width, height)
+            Column(
+                Modifier
+                    .widthIn(max = 1100.dp)
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+                    .padding(horizontal = PAD)
+                    .padding(top = 8.dp, bottom = 40.dp),
+                verticalArrangement = Arrangement.spacedBy(GAP),
+            ) {
+                for (row in TileLayout.rows(tiles, columns)) {
+                    val rowHeight = TileLayout.rowHeight(row, columns, cell.value, GAP.value).dp
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GAP)) {
+                        for (tile in row) {
+                            val game = Games.all.first { it.id == tile.id }
+                            val units = TileLayout.units(tile.wide, columns)
+                            Tile(
+                                game = game, wide = tile.wide, rearranging = rearranging, isDragging = dragging == tile.id, artVersion = s.artVersion,
+                                modifier = Modifier
+                                    .weight(units.toFloat())
+                                    .height(rowHeight)
+                                    .onGloballyPositioned { bounds[tile.id] = it.boundsInRoot() }
+                                    // The drag is read before the tile is moved by it: a node that follows the finger would see no motion.
+                                    .then(
+                                        if (rearranging) Modifier.pointerInput(tile.id) {
+                                            detectDragGesturesAfterLongPress(
+                                                onDragStart = { local -> dragging = tile.id; dragAt = (bounds[tile.id]?.topLeft ?: Offset.Zero) + local },
+                                                onDrag = { change, amount ->
+                                                    change.consume()
+                                                    dragAt += amount
+                                                    val over = bounds.entries.firstOrNull { (id, r) -> id != tile.id && r.contains(dragAt) }?.key
+                                                    if (over != null) order = TileLayout.move(order, tile.id, over)
+                                                },
+                                                onDragEnd = { dragging = null; TileSettings.setOrder(context, order) },
+                                                onDragCancel = { dragging = null; TileSettings.setOrder(context, order) },
+                                            )
+                                        } else Modifier,
+                                    )
+                                    .then(
+                                        if (dragging == tile.id) {
+                                            Modifier.zIndex(5f).graphicsLayer {
+                                                val c = bounds[tile.id]?.center ?: dragAt
+                                                translationX = dragAt.x - c.x
+                                                translationY = dragAt.y - c.y
+                                                scaleX = 1.06f; scaleY = 1.06f
+                                            }
+                                        } else Modifier,
+                                    ),
+                                onClick = { if (!rearranging) onOpen(game) },
+                                onChangeArt = { artFor = game },
+                                onRearrange = { rearranging = true },
+                                onReinstall = { reinstallFor = game },
+                                onLoadingScreen = { openSplash(game) },
+                            )
+                        }
+                        val left = columns - TileLayout.used(row, columns)
+                        if (left > 0) Spacer(Modifier.weight(left.toFloat()))
+                    }
+                }
+            }
+        }
+
+        if (rearranging) {
+            Row(
+                Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(12.dp)
+                    .background(Colors.Deep.copy(alpha = 0.96f)).border(1.dp, Colors.Steel).padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Hold a tile, then drag it", style = MaterialTheme.typography.bodyMedium, color = Colors.Mist)
+                FrameButton("Done") { rearranging = false; TileSettings.setOrder(context, order) }
+            }
+        }
+    }
+
+    artFor?.let { TileArtDialog(it, onDismiss = { artFor = null }) }
+    reinstallFor?.let { game ->
+        val target = Variants.effective(game)
+        ConfirmDialog(
+            title = "Reinstall ${target.fullTitle}?",
+            text = "Its imported files are removed and the import starts again. Saved games stay.",
+            confirm = "Reinstall",
+            onDismiss = { reinstallFor = null },
+            onConfirm = { GameImportManager.reset(context, target.id); reinstallFor = null; openWizard(game) },
+        )
+    }
+}
+
+/** A tile: its art, lit when pressed, with the hold menu; wiggling while the tiles are being rearranged. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Tile(
+    game: Game, wide: Boolean, rearranging: Boolean, isDragging: Boolean, artVersion: Int, modifier: Modifier,
+    onClick: () -> Unit, onChangeArt: () -> Unit, onRearrange: () -> Unit, onReinstall: () -> Unit, onLoadingScreen: () -> Unit,
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    var menu by remember { mutableStateOf(false) }
+    val custom = remember(game.id, wide, artVersion) {
+        TileSettings.artFile(context, game.id, wide)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    }
+    val builtIn = if (wide) game.wide ?: game.splash ?: game.cover else game.cover
+    val wiggle by rememberInfiniteTransition(label = "wiggle").animateFloat(-1.1f, 1.1f, infiniteRepeatable(tween(150 + (game.id.hashCode() and 63), easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "wiggle")
+    val interaction = remember { MutableInteractionSource() }
+
+    Box(
+        modifier
+            .graphicsLayer { if (rearranging && !isDragging) rotationZ = wiggle }
+            .combinedClickable(
+                interactionSource = interaction, indication = null, enabled = !rearranging, onClick = onClick,
+                onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); menu = true },
+            ),
+    ) {
+        val frame = Modifier.fillMaxSize().drawWithContent {
+            drawContent()
+            drawFrame(corner = if (isDragging) Colors.Ice else Colors.Gold, alpha = 0.6f, line = Colors.Steel.copy(alpha = 0.9f))
+        }
+        if (custom != null) Image(custom, game.fullTitle, frame, contentScale = ContentScale.Crop)
+        else Image(painterResource(builtIn), game.fullTitle, frame, contentScale = ContentScale.Crop)
+
+        DropdownMenu(
+            expanded = menu, onDismissRequest = { menu = false },
+            shape = RectangleShape, containerColor = Colors.Deep, border = androidx.compose.foundation.BorderStroke(1.dp, Colors.Steel),
+        ) {
+            MenuItem(Icons.Default.Image, "Change Art") { menu = false; onChangeArt() }
+            MenuItem(Icons.Default.OpenWith, "Rearrange") { menu = false; onRearrange() }
+            if (GameImportManager.importable(Variants.effective(game).id)) MenuItem(Icons.Default.Refresh, "Reinstall") { menu = false; onReinstall() }
+            MenuItem(Icons.Default.Tune, "Loading screen") { menu = false; onLoadingScreen() }
+        }
+    }
+}
+
+@Composable
+private fun MenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = Colors.Text) },
+        leadingIcon = { Icon(icon, contentDescription = null, tint = Colors.Gold) },
+        onClick = onClick,
+    )
+}
+
+/** Change a tile's art: vertical or horizontal, and a picture of the person's own for either. */
+@Composable
+private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val s by TileSettings.state.collectAsState()
+    val wide = game.id in s.wide
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) TileSettings.setArt(context, game.id, wide, uri)
+    }
+    val custom = remember(game.id, wide, s.artVersion) {
+        TileSettings.artFile(context, game.id, wide)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    }
+    val builtIn = if (wide) game.wide ?: game.splash ?: game.cover else game.cover
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier.padding(18.dp).widthIn(max = 520.dp).fillMaxWidth()
+                .background(Colors.Deep).border(1.dp, Colors.Steel).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            FrameTitle("Change art")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+                FrameButton("Vertical", primary = !wide) { TileSettings.setWide(context, game.id, false) }
+                FrameButton("Horizontal", primary = wide) { TileSettings.setWide(context, game.id, true) }
+            }
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val shape = Modifier.height(if (wide) 150.dp else 240.dp).then(if (wide) Modifier.fillMaxWidth() else Modifier.size(width = 180.dp, height = 240.dp))
+                    .border(1.dp, Colors.Steel).clip(RectangleShape)
+                if (custom != null) Image(custom, null, shape, contentScale = ContentScale.Crop)
+                else Image(painterResource(builtIn), null, shape, contentScale = ContentScale.Crop)
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+                FrameButton("Choose picture") { pick.launch(arrayOf("image/*")) }
+                FrameButton("Original", primary = false) { TileSettings.clearArt(context, game.id, wide) }
+                FrameButton("Done", primary = false, onClick = onDismiss)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            Modifier.padding(24.dp).widthIn(max = 460.dp).fillMaxWidth().background(Colors.Deep).border(1.dp, Colors.Steel).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            FrameTitle(title, style = MaterialTheme.typography.titleLarge)
+            Text(text, style = MaterialTheme.typography.bodyLarge, color = Colors.Mist)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
+                FrameButton("No", primary = false, onClick = onDismiss)
+                FrameButton(confirm, onClick = onConfirm)
+            }
+        }
+    }
+}
+
+/**
+ * Two fingers spreading make the tiles bigger (one fewer across), pinching makes them smaller (one
+ * more); one finger scrolls as it always did, so nothing is taken until a second one is down.
+ */
+private fun Modifier.pinchColumns(enabled: Boolean, onStep: (Int) -> Unit): Modifier = pointerInput(enabled) {
+    if (!enabled) return@pointerInput
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        var scale = 1f
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.changes.count { it.pressed } >= 2) {
+                scale *= event.calculateZoom()
+                if (scale > 1.35f) { onStep(-1); scale = 1f } else if (scale < 0.74f) { onStep(1); scale = 1f }
+                event.changes.forEach { it.consume() }
+            }
+        } while (event.changes.any { it.pressed })
+    }
+}
