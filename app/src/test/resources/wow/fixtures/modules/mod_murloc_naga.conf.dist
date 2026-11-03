@@ -1,0 +1,25 @@
+[worldserver]
+
+########################################
+# The Murlocs and the Naga (mod-murloc-naga)
+########################################
+#
+#    MurlocNaga.Enable
+#        Description: The two races on this realm (ChromieCraft's: ctl.sh sets it, 0 on Wrath
+#                     Remix's). Off: their patch is set aside out of the game (Data/<locale>/
+#                     patch-<locale>-T.MPQ.aside), and the level 10 start and the class spells
+#                     they learn as they level are off.
+#        Default:     1
+
+MurlocNaga.Enable = 1
+
+#
+#    MurlocNaga.ClientPatch
+#        Description: Makes the game's patch for them (Data/<locale>/patch-<locale>-T.MPQ in the
+#                     client WOW_CLIENT_DIR names) as the world server starts, when the client or
+#                     the module changed: their tables, the murlocs' model and skins, the naga's
+#                     colours, the character creation screen, the intros. Off: the patch is taken
+#                     out, and the game doesn't know them.
+#        Default:     1
+
+MurlocNaga.ClientPatch = 1

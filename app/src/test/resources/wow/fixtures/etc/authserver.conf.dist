@@ -1,0 +1,9 @@
+[authserver]
+LogsDir = ""
+TempDir = ""
+SourceDirectory = ""
+MySQLExecutable = ""
+PidFile = ""
+RealmServerPort = 3724
+LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_auth"
+Updates.AutoSetup = 1

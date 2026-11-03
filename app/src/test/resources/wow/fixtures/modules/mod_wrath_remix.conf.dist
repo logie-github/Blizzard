@@ -1,0 +1,209 @@
+[worldserver]
+
+########################################
+# Wrath Remix (mod-wrath-remix)
+########################################
+#
+#    WrathRemix.Enable
+#        Description: Turns Wrath Remix on. It only runs on the realm WrathRemix.RealmID names
+#                     (the app's Wrath Remix realm), and does nothing anywhere else, whatever this
+#                     says. The app sets it: on in the Wrath Remix realm, off in ChromieCraft.
+#        Default:     0
+
+WrathRemix.Enable = 0
+
+#
+#    WrathRemix.RealmID
+#        Description: The only realm Wrath Remix runs on (worldserver.conf's RealmID).
+#        Default:     2
+
+WrathRemix.RealmID = 2
+
+#
+#    WrathRemix.LevelBands.Enable
+#        Description: Northrend's creatures at the levels of Wrath Remix's chapters (Borean
+#                     Tundra and Howling Fjord 10-20, Dragonblight 20-32, ... Icecrown 70-80), by
+#                     the zone or dungeon they're in (the table remix_level_band), with their
+#                     spells' damage and healing scaled to match.
+#        Default:     1
+
+WrathRemix.LevelBands.Enable = 1
+
+#
+#    WrathRemix.LevelBands.FollowPlayer
+#        Description: As in Legion Remix, enemies at the Timerunner's level: in the banded zones a
+#                     hostile or neutral creature takes the level (and that level's health and
+#                     damage, then the squish) of the real player nearest it, in Wrath's dungeons
+#                     and raids the level of the highest real player there; world bosses up to 3
+#                     above, a dungeon's or raid's bosses up to 2, never above a creature's own
+#                     level. Elites and rares are as strong as their rank makes them. A creature
+#                     changes level, every second and a half within 100 yards of a real player, as
+#                     they level or another comes, only while it's out of combat, alive and at full
+#                     health. Where no real player is near (the realm's bots), the bands. Town
+#                     people, critters, pets and companions keep the bands. Needs LevelBands.Enable.
+#        Default:     1
+
+WrathRemix.LevelBands.FollowPlayer = 1
+
+#
+#    WrathRemix.EternusDragon
+#        Description: Eternus in her own shape, the dragon of the newer games (tools/models.py: the
+#                     server package fetches her model and makes it one 3.3.5 draws), at the
+#                     Bazaar, in her scenes and at the last hour. Only when the package has all of
+#                     her files and the game's patch has them; otherwise, or at 0, she keeps the
+#                     infinite dragonspawn's shape.
+#        Default:     1
+
+WrathRemix.EternusDragon = 1
+
+#
+#    WrathRemix.Squish.Health
+#    WrathRemix.Squish.Damage
+#        Description: The stat squish: a banded creature's share, in percent, of the health and of
+#                     the damage (melee, spells, damage over time) its new level gives it. 100 is
+#                     a creature of that level as the game has it; less makes Northrend easier.
+#        Default:     75, 75
+
+WrathRemix.Squish.Health = 75
+WrathRemix.Squish.Damage = 75
+
+#
+#    WrathRemix.FreeRiding
+#        Description: All riding taught for free from a Timerunner's first login (Apprentice to
+#                     Artisan, and Cold Weather Flying): any mount, at any level.
+#        Default:     1
+
+WrathRemix.FreeRiding = 1
+
+#
+#    WrathRemix.SaveSeconds
+#        Description: How often each real player's character is saved, in seconds, on either realm
+#                     (the core saves every 15 minutes; the realm's bots keep that). 0 leaves it to
+#                     the core.
+#        Default:     30
+
+WrathRemix.SaveSeconds = 30
+
+#
+#    WrathRemix.Intro
+#        Description: A new Timerunner's first moments (death knights aside): the Broken Front in
+#                     Icecrown, at the war's end, beside Tirion against the Scourge until the Lich
+#                     King comes and time stops, then the Bazaar. Played once.
+#        Default:     1
+
+WrathRemix.Intro = 1
+
+#
+#    WrathRemix.Intro.SettleSeconds
+#        Description: How long the opening waits behind its curtain, at most, for the game to say
+#                     that the place it was just put in has finished loading (the app's add-on,
+#                     once its frames run smoothly again) before an act begins. A phone loads a
+#                     city choppily for a while; the curtain keeps that out of sight.
+#        Default:     25
+
+WrathRemix.Intro.SettleSeconds = 25
+
+#
+#    WrathRemix.HomeCharacterDatabase
+#        Description: ChromieCraft's characters database (on the same MariaDB), which a Timerunner
+#                     going home must have room in (ten characters an account) before they go.
+#        Default:     "acore_characters"
+
+WrathRemix.HomeCharacterDatabase = "acore_characters"
+
+#
+#    WrathRemix.Guide
+#        Description: Where to go next, always: a flag on the map and minimap at the Timerunner's
+#                     next step (the quest's next objective, who takes it back, or who has the next
+#                     quest), and a line in chat as the step changes.
+#        Default:     1
+
+WrathRemix.Guide = 1
+
+#
+#    WrathRemix.StarterKit
+#        Description: A Timerunner's first login (death knights aside) brings gear for their class:
+#                     heirloom shoulders, chest, weapons, trinket and ring, and greens for the other
+#                     slots (remix_starter_kit), put on in place of the starting clothes.
+#        Default:     1
+
+WrathRemix.StarterKit = 1
+
+#
+#    WrathRemix.AutoLearn
+#        Description: Every ability the class trainer teaches at a Timerunner's level, learned free
+#                     at login and at each level, with those their class quests teach
+#                     (remix_class_spell): a Timerunner starts at 10 without those quests.
+#        Default:     1
+
+WrathRemix.AutoLearn = 1
+
+#
+#    WrathRemix.MaxWeaponSkill
+#        Description: Weapon and defense skills kept at their level's maximum (a character made at
+#                     10 has them at 1 otherwise, and misses most of its swings).
+#        Default:     1
+
+WrathRemix.MaxWeaponSkill = 1
+
+#
+#    WrathRemix.Bronze.Quest
+#    WrathRemix.Bronze.Kill
+#    WrathRemix.Bronze.Elite
+#    WrathRemix.Bronze.Rare
+#    WrathRemix.Bronze.DungeonBoss
+#    WrathRemix.Bronze.RaidBoss
+#    WrathRemix.Bronze.Treasure
+#    WrathRemix.Bronze.AchievementPoint
+#        Description: Bronze earned for a quest turned in (a daily quest a fifth of it, one that
+#                     can be done again at will a tenth), a creature killed that gives
+#                     experience or honor (normal, elite, rare), a dungeon's or raid's boss, a
+#                     treasure chest opened out in the world (the first thing taken from it), and
+#                     each point of an achievement. A kill's goes to whoever the game rewards for
+#                     it (the one who tapped it, and their group near it), whoever struck the last
+#                     blow; never to the realm's bots. As in Legion Remix, a lot: by the end of the
+#                     story a Timerunner has had enough to buy everything the Bazaar sells their
+#                     class, once or twice over (about 1.3 to 2.2 million, depending on the class;
+#                     Remix's own quests give their own amounts, remix_quest_reward).
+#        Default:     4000, 75, 300, 3000, 6000, 30000, 1500, 100
+
+WrathRemix.Bronze.Quest = 4000
+WrathRemix.Bronze.Kill = 75
+WrathRemix.Bronze.Elite = 300
+WrathRemix.Bronze.Rare = 3000
+WrathRemix.Bronze.DungeonBoss = 6000
+WrathRemix.Bronze.RaidBoss = 30000
+WrathRemix.Bronze.Treasure = 1500
+WrathRemix.Bronze.AchievementPoint = 100
+
+#
+#    WrathRemix.Solo.Enable
+#        Description: Dungeons and raids for however many are there: below a full group (the
+#                     realm's bots count), the instance's creatures hit softer and its players
+#                     harder, its creatures' health as it was (a boss's phases still come at their
+#                     own health). One player in a five-player dungeon takes about two fifths of the
+#                     damage and deals about four times as much. In Icecrown Citadel, with less than
+#                     a third of a raid, the few things only a group can do are done for it.
+#        Default:     1
+#
+#    WrathRemix.Solo.DungeonDamage
+#    WrathRemix.Solo.RaidDamage
+#        Description: The least share of a full group's damage the creatures of a dungeon, or a
+#                     raid, still do to a player, in percent.
+#        Default:     35, 15
+#
+#    WrathRemix.Solo.MaxBoost
+#        Description: The most the players' blows and heals are multiplied by.
+#        Default:     15
+
+WrathRemix.Solo.Enable = 1
+WrathRemix.Solo.DungeonDamage = 35
+WrathRemix.Solo.RaidDamage = 15
+WrathRemix.Solo.MaxBoost = 15
+
+#
+#    WrathRemix.Announce
+#        Description: Greets a Timerunner at each login with their Bronze and chapter.
+#        Default:     1
+
+WrathRemix.Announce = 1

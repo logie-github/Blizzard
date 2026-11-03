@@ -20,7 +20,29 @@ import java.util.TimeZone
  * program (`MySQLExecutable`, which dbimport and the world server run to apply SQL) points at a
  * small wrapper script ([mariadbWrapper]), since the kernel can't run the program itself.
  * `ctl.sh` as imported is left alone. Everything else in it (configs, order, databases) is the WoW
- * app's own. NOT verified on a phone: only the text it produces is tested.
+ * app's own. NOT verified on a phone: only the text it produces, and what a shell does with it
+ * (WowRuntimeHarnessTest), is tested.
+ *
+ * What in the package names the old folder (scripts/compile-azerothcore.sh, package-azerothcore.sh),
+ * and why nothing needs the old folder to exist:
+ * - The ELF interpreter (`patchelf --set-interpreter <old>/server/lib/ld-musl-aarch64.so.1`): the
+ *   programs are never exec'd directly, the loader is, with the program as its argument.
+ * - The rpath (`$ORIGIN/../lib` on programs, `$ORIGIN` on libraries, `$ORIGIN/..` on legacy.so):
+ *   relative, resolved from the program's path as given, and `--library-path <server>/lib` goes first.
+ * - `CMAKE_INSTALL_PREFIX` (<old>/server) and `CONF_DIR` (<old>/etc), compiled into the core: only the
+ *   defaults for a config path and for the modules' config folder. `ctl.sh` always passes
+ *   `-c <config>` and exports `WOW_MODULES_CONF_DIR` (patches/azerothcore/0010), `ALE.ScriptPath`,
+ *   `LogsDir`, `DataDir`, `TempDir`, `SourceDirectory`, `PidFile` are written into the configs at every
+ *   start. AzerothCore's `AC_<KEY>` environment overrides are deliberately NOT used: they would beat
+ *   the `DataDir` that `ctl.sh modules` points at `data-modules`.
+ * - MariaDB: `--no-defaults`, and `--datadir --basedir --lc-messages-dir --character-sets-dir
+ *   --plugin-dir --tmpdir --socket --pid-file --log-error` are all given. Its compiled-in paths
+ *   (/usr/share/mariadb, /usr/lib/mariadb/plugin) are Alpine's, not the app's. The client programs
+ *   (`mariadb`, `mariadb-admin`) are run with `--no-defaults` and TCP to 127.0.0.1; their plugin
+ *   folder is Alpine's, which doesn't exist on the phone in the WoW app either (the acore user uses
+ *   mysql_native_password, which is built in).
+ * - `/proc/self/exe` is the loader, not the program, when run this way. Nothing in ctl.sh's
+ *   commands depends on it (every folder is given), but this can't be checked without the programs.
  */
 object WowCtl {
     /** The text of `ctl.blizz.sh`: ctl.sh with the programs started through the loader. */
@@ -64,19 +86,41 @@ object WowCtl {
     }
 
     /**
-     * Writes `ctl.blizz.sh` and `blizz/mariadb` and marks the programs executable (an import may
-     * not have kept the bits). Returns the loader. Throws if the server has none.
+     * Writes `ctl.blizz.sh` and `blizz/mariadb` and marks the programs executable
+     * ([restoreExecutableBits]: an import doesn't keep the bits). Returns the loader. Throws if
+     * the server has none.
      */
     fun prepare(layout: WowLayout): File {
         val loader = layout.loader() ?: throw java.io.IOException("The imported server has no musl loader (server/lib/ld-musl-ARCH.so.1)")
-        loader.setExecutable(true, false)
-        File(layout.server, "bin").listFiles()?.forEach { it.setExecutable(true, false) }
-        File(layout.server, "lib/libjemalloc.so.2").takeIf { it.isFile }?.setExecutable(true, false)
+        restoreExecutableBits(layout)
         write(layout.blizzCtl, transform(layout.ctl.readText()), executable = true)
         layout.blizzBin.mkdirs()
         write(File(layout.blizzBin, "mariadb"), mariadbWrapper(layout, loader), executable = true)
         for (dir in listOf(layout.run, File(layout.run, "tmp"), layout.logs, layout.realmLogs(Realm.REMIX), layout.data)) dir.mkdirs()
         return loader
+    }
+
+    /**
+     * The export has no mode bits and the importer writes plain files, so nothing is executable
+     * after an import. The WoW app marks an entry executable when the package says its owner can
+     * run it (ServerPackage.unpack: the programs in bin, the loader, the libraries, MariaDB's programs, ctl.sh);
+     * this does the same for every file under `server/bin` and `server/lib` (the loader is run by
+     * the kernel, so it needs the bit; the rest are mapped by the loader, which doesn't need it), and for `ctl.sh`. Idempotent;
+     * symlinks and everything else under `server` are left alone. Returns how many files it changed.
+     */
+    fun restoreExecutableBits(layout: WowLayout): Int {
+        var changed = 0
+        fun mark(file: File) {
+            if (file.canExecute()) return
+            if (file.setExecutable(true, false)) changed++
+        }
+        for (dir in listOf("bin", "lib")) {
+            File(layout.server, dir).walkTopDown()
+                .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) }
+                .forEach(::mark)
+        }
+        if (layout.ctl.isFile) mark(layout.ctl)
+        return changed
     }
 
     private fun write(file: File, text: String, executable: Boolean) {

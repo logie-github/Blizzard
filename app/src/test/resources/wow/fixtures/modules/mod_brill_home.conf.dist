@@ -1,0 +1,13 @@
+[worldserver]
+
+########################################
+# A home in Brill (mod-brill-home): ChromieCraft's realm
+########################################
+#
+#    BrillHome.Enable
+#        Description: The house by Brill's north road, Cedric Harrow's and Jamie Nore's quests, the
+#                     bed and the furniture Jamie Nore sells. The app's ctl.sh turns it on for
+#                     ChromieCraft and off for Wrath Remix (whose databases never get its SQL).
+#        Default:     1
+
+BrillHome.Enable = 1

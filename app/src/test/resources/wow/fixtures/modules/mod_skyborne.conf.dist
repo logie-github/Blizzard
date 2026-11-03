@@ -1,0 +1,14 @@
+[worldserver]
+
+########################################
+# The Skyborne (mod-skyborne)
+########################################
+#
+#    Skyborne.ClientPatch
+#        Description: Makes the game's patch for the Skyborne (Data/patch-Z.MPQ in the client
+#                     WOW_CLIENT_DIR names) as the world server starts, when the client or the
+#                     module changed: their tables, textures, character creation screen and
+#                     intro. Off: the patch is taken out, and the game doesn't know them.
+#        Default:     1
+
+Skyborne.ClientPatch = 1
