@@ -62,7 +62,7 @@
             android:name=".game.StratagusActivity"
             android:exported="false"
             android:process=":stratagus"
-            android:theme="@style/AppTheme"
+            android:theme="@style/StratagusTheme"
             android:screenOrientation="sensorLandscape"
             android:launchMode="singleTask"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode"
