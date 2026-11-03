@@ -13,6 +13,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Crashes and failures from now on go to GitHub as issues; ones waiting from before go now.
         com.logie.blizz.reports.BugReports.start(this)
+        // World of Warcraft: Play starts the realm through this.
+        com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
         setContent { Launcher() }
     }
 

@@ -158,7 +158,7 @@ The shelf's **World of Warcraft** box (placeholder art until you send yours) bri
 
 - It's a **copy**: the WoW app and its data are untouched. Every file is checked against the export's SHA-256 list while it's copied, and the finished copy replaces nothing until it's whole. A file that doesn't match is named and nothing is installed.
 - A stopped or failed import is **carried on**: files already copied and checked are kept in `staging/wow-work` with a journal; Retry continues. Reset removes it.
-- The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. Until then, **Play opens the WoW app** (the realms run there).
+- The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. **Play starts the realm and the game here** (the WoW app isn't needed).
 - Names that differ only in case (the client's `FlyByWorgen.m2` and a module's `flybyworgen.m2`) can't live side by side on shared storage, so the WoW app stores them under `<name>~<8 hex>` and lists them in `export.json` (`renames`); the import follows that. An export made before that fix is read too: a missing file is looked for in another case and as `name (1).ext`, and still checked against its SHA-256.
 - You need free space for the export plus this copy.
 
@@ -174,3 +174,10 @@ In **Tiles**:
 - Tiles glide to their places when the order, shape or size changes, press in when touched, and the grid follows a pinch a little before the columns change.
 - Tapping a tile opens the game's page, as the shelf does.
 Classic shelf keeps its own hold (the loading-screen editor).
+
+### World of Warcraft: Play from the imported files
+
+Play starts MariaDB, the auth server and the world server of the realm you last used in the WoW app (read from the imported settings: ChromieCraft or Wrath Remix) from `games/wow/files/server`, with the imported databases as they are (a realm whose `acore_*` folders are in `mysql/` is never rebuilt), then the imported 3.3.5a client on Blizzard's Winlator, with its `realmlist.wtf` and `WTF/Config.wtf` pointed at it (your add-ons, characters and other settings are kept; the account name is filled in, you type the password).
+- The server programs were built with the old app's folder as their loader path, so they're started through the musl loader (`server/ctl.blizz.sh`, made from `ctl.sh`, which is left as it was), and the old app's folder in the text configs and scripts is rewritten to this one (never in binaries or databases; `files/.blizz-paths` records it).
+- A realm that fails to start reports its log tail as an issue. The first start can take minutes.
+- Not verified on a phone: the programs running through the loader from this folder, MariaDB opening the imported InnoDB files, the world server reaching ready, and Wow.exe under DXVK/Box64.
