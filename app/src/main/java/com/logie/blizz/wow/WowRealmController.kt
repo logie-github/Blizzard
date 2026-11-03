@@ -53,6 +53,8 @@ internal class RealmController(
     private var watcher: Job? = null
     private lateinit var loader: File
 
+    private val TRACEABLE = setOf("configure", "modules", "races", "realmlist")
+
     private class StepFailed(message: String, val log: File? = null) : Exception(message)
 
     private fun update(change: WowRealm.Status.() -> WowRealm.Status) { _status.value = _status.value.change() }
@@ -282,7 +284,30 @@ internal class RealmController(
         lines()
         stepProcess = null
         val code = process.exitValue()
-        if (code != 0) throw StepFailed("Step ${args.first()} failed (code $code).", log)
+        if (code != 0) throw StepFailed(failureText(args, code, log), log)
+    }
+
+    /**
+     * What a failed step says: its code, the end of its output and, since a bare exit code doesn't say which
+     * command failed, the end of a run of the same step under `sh -x` (every command it ran, the last being
+     * the one that failed). The steps that fail are the idempotent set-up ones, so running one again is safe.
+     */
+    private fun failureText(args: List<String>, code: Int, log: File): String {
+        val out = WowLogs.tail(log, 12)
+        val trace = if (args.first() in TRACEABLE) runCatching {
+            val traceLog = File(layout.logs, "${log.name}.trace")
+            traceLog.delete()
+            val base = WowCtl.command(layout, loader, timeZone(), *args.toTypedArray())
+            val process = runner.start(base.copy(argv = listOf(base.argv[0], "-x") + base.argv.drop(1)), traceLog, false)
+            if (!process.waitFor(60_000)) process.destroyForcibly()
+            WowLogs.tail(traceLog, 14)
+        }.getOrDefault("") else ""
+        return buildString {
+            append("Step ${args.first()} failed (code $code).")
+            if (out.isNotBlank()) append("\n\nIts output:\n").append(out)
+            if (trace.isNotBlank()) append("\n\nThe last commands it ran (sh -x):\n").append(trace)
+            append("\n\nFull logs: games/wow/files/logs/${log.name}")
+        }
     }
 
     private suspend fun waitForPort(port: Int, seconds: Int, process: RealmProcess, log: File, message: String) {
