@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,9 +47,13 @@ import com.logie.blizz.game.Loading
 import com.logie.blizz.game.Splashes
 
 /** Hold a game's art: its loading screen as it is now, with a picture and a logo to pick from the phone. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val sliderColors = androidx.compose.material3.SliderDefaults.colors(
+        thumbColor = Colors.Ice, activeTrackColor = Colors.Ice, inactiveTrackColor = Colors.Frost, activeTickColor = Colors.Ice, inactiveTickColor = Colors.Steel,
+    )
     @Suppress("UNUSED_VARIABLE") val version by Splashes.version.collectAsState()
     val pickBackground = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) Splashes.set(context, game.id, Splashes.Kind.BACKGROUND, uri)
@@ -87,13 +92,13 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                 }
             }
             Text("Pinch to zoom the picture, drag to move it.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Background") { pickBackground.launch(arrayOf("image/*")) }
                 FrameButton("Logo") { pickLogo.launch(arrayOf("image/*")) }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Logo place", style = MaterialTheme.typography.labelMedium)
+                    Text("Logo place", style = MaterialTheme.typography.labelMedium, color = Colors.Mist)
                     for (row in 0..2) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         for (col in 0..2) {
                             val cell = row * 3 + col
@@ -106,16 +111,16 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                     }
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Logo size", style = MaterialTheme.typography.labelMedium)
-                    Slider(layout.logoScale, { layout = layout.copy(logoScale = it) }, valueRange = 0.3f..2.5f)
-                    Text("Picture zoom", style = MaterialTheme.typography.labelMedium)
+                    Text("Logo size", style = MaterialTheme.typography.labelMedium, color = Colors.Mist)
+                    Slider(layout.logoScale, { layout = layout.copy(logoScale = it) }, valueRange = 0.3f..2.5f, colors = sliderColors)
+                    Text("Picture zoom", style = MaterialTheme.typography.labelMedium, color = Colors.Mist)
                     Slider(layout.zoom, { z ->
                         val limit = (z - 1f) / 2f
                         layout = layout.copy(zoom = z, panX = layout.panX.coerceIn(-limit, limit), panY = layout.panY.coerceIn(-limit, limit))
-                    }, valueRange = 1f..4f)
+                    }, valueRange = 1f..4f, colors = sliderColors)
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton(if (grid) "Grid: on" else "Grid: off", primary = false) { grid = !grid }
                 FrameButton("Centre picture", primary = false) { layout = layout.copy(zoom = layout.zoom, panX = 0f, panY = 0f) }
                 FrameButton("Auto logo", primary = false) { layout = layout.copy(logoCell = -1, logoScale = 1f) }
