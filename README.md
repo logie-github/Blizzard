@@ -9,7 +9,7 @@ arm64 phones. Made for the Galaxy Z Fold.
 
 The ice field and the Blizzard logo over the games' box art (3:4), in alphabetical order:
 Diablo, Diablo II, StarCraft, StarCraft II, Warcraft: Orcs & Humans, Warcraft II, Warcraft III:
-Reign of Chaos, Warcraft III: The Frozen Throne.
+Reign of Chaos and The Frozen Throne (one Warcraft III tile with a version chooser).
 
 - **Cover screen:** two boxes across; a game's page opens over the shelf, Back returns.
 - **Inner screen:** every box in one row under the header, the chosen one lifted; its game below.
@@ -134,7 +134,7 @@ Each game that runs in Windows (not Warcraft I and II, which are native) has its
 - **Safe mode:** the slowest, safest of everything at once (cnc-ddraw's software GDI drawing, Box64 Stability, 30 frames a second, the default graphics driver and Direct3D layer); the other choices are ignored while it is on. Try it first when a game shows nothing.
 - **DirectDraw** (the classic games): Wine's own, cnc-ddraw GDI, OpenGL or Direct3D 9. **Frames a second** (30, 60, no limit), **vsync**, **Keep redrawing** (cnc-ddraw's `nonexclusive` and `minfps`, for videos, menus and loading screens that stay invisible) and **Pin to one CPU core** (`singlecpu`).
 - **Box64:** Stability, Compatible, Intermediate or Performance (Winlator's presets).
-- **Graphics driver:** Vortek or Turnip (Adreno phones). **Direct3D:** DXVK or WineD3D. **Game resolution** (600, 720 or 900 lines) for the games that follow the phone's shape.
+- The **graphics driver**, the **Direct3D layer** and the **resolution** have no setting: the app picks them (Turnip on an Adreno GPU such as the Fold's, Vortek elsewhere; DXVK; as many lines as the screen has, 1080 at most when the phone already reports being hot, taken from whichever screen is open when the game starts). A fold or unfold during play doesn't change the game's size: Wine's desktop is fixed when it starts, so the picture is scaled to the new screen. The classic games are drawn at 30 frames a second, which is all their logic uses, to keep the phone cooler.
 - **Defaults** (Diablo II, StarCraft, Warcraft II): cnc-ddraw with OpenGL, borderless fullscreen, 60 frames, redrawing on, **no** CPU pinning (the first release pinned the game to the phone's CPU0, a slow core, which fits the 3 frames a second and the sound that never started), Box64 Intermediate. Other games keep Winlator's defaults (Performance, Vortek, DXVK).
 - The games share one Windows, so every option is written at every start; changing the DirectDraw choice, the Box64 preset, the driver or the Direct3D layer also makes Winlator put its files in again. Diablo II has no switch to skip its videos, so there is none here. Untested on a phone.
 
@@ -174,9 +174,13 @@ The shelf's **World of Warcraft** box (placeholder art until you send yours) bri
 - Files the export lists that can't be found anywhere (by name, by their other likely names, or by size and checksum) are **left out with a note** (`.export/missing.txt`) instead of stopping the import, unless the game can't do without them: the databases (`mysql/`), the client (`client/`) and the server programs (`server/bin`, `server/lib`, `ctl.sh`) are always required.
 - You need free space for the export plus this copy.
 
+## Music
+
+A track for the shelf (Arthas, My Son) and one for each game plays from the moment the game is selected, looped, and stops while a game runs. Warcraft III is one tile: choose Reign of Chaos or The Frozen Throne on its page and the art, the music and the game follow, kept until you change it. The tracks aren't in the app: they are downloaded the first time it opens (the settings' **Music** section shows how many are on the phone and has **Download music** for any that failed), into the app's own folder. A song's address can be the file or the song's page on khinsider, which is read for the file. The settings also have music on/off and a volume. The World of Warcraft tile plays the Wrath of the Lich King main title; the original game's Legends of Azeroth is downloaded and kept for a Classic version. Untested on a phone.
+
 ## Tiles and settings
 
-**Hold the Blizzard logo** for the settings: the layout (**Classic shelf**, as it was, or **Tiles**), how many tiles across, vibration, and a reset for the tile layout.
+**Hold the Blizzard logo** for the settings: the layout (**Classic shelf**, as it was, or **Tiles**), how many tiles across, vibration, the music, and a reset for the tile layout.
 
 In **Tiles**:
 - **Pinch** the tiles to make them bigger or smaller (one more or fewer across), like the 3DS's grid; one finger still scrolls.

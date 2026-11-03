@@ -2,11 +2,8 @@ package com.logie.blizz.game
 
 import androidx.test.core.app.ApplicationProvider
 import com.logie.blizz.game.LaunchOptions.Box64
-import com.logie.blizz.game.LaunchOptions.D3D
 import com.logie.blizz.game.LaunchOptions.DDraw
-import com.logie.blizz.game.LaunchOptions.Driver
 import com.logie.blizz.game.LaunchOptions.Fps
-import com.logie.blizz.game.LaunchOptions.Resolution
 import com.logie.blizz.game.LaunchOptions.Tri
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -65,16 +62,18 @@ class LaunchOptionsTest {
         assertEquals(listOf("Default", "Stability", "Compatible", "Intermediate", "Performance"), Box64.Preset.entries.map { it.label })
     }
 
-    @Test fun driverAndDirect3dChoicesAreContainerValues() {
-        val r = LaunchOptions(driver = Driver.TURNIP, d3d = D3D.WINED3D).resolve("warcraft3")
-        assertEquals("turnip,gladio", r.graphicsDriver)
-        assertEquals("wined3d", r.dxwrapper)
+    @Test fun theAppChoosesTheDriverFromThePhone() {
+        val adreno = LaunchOptions.Hardware(adreno = true)
+        assertEquals("turnip,gladio", LaunchOptions().resolve("warcraft3", adreno).graphicsDriver)
+        assertEquals("vortek,gladio", LaunchOptions().resolve("warcraft3").graphicsDriver)
+        assertEquals("vortek,gladio", LaunchOptions(safeMode = true).resolve("warcraft3", adreno).graphicsDriver)
+        assertEquals("dxvk", LaunchOptions().resolve("warcraft3", adreno).dxwrapper)
     }
 
     @Test fun safeModeIsTheMostConservativeOfEverything() {
         val chosen = LaunchOptions(
-            safeMode = true, ddraw = DDraw.D3D9, box64 = Box64.Preset.PERFORMANCE, driver = Driver.TURNIP, d3d = D3D.WINED3D,
-            resolution = Resolution.LINES_900, fps = Fps.UNLIMITED, vsync = Tri.ON, singleCpu = Tri.ON, redraw = Tri.OFF,
+            safeMode = true, ddraw = DDraw.D3D9, box64 = Box64.Preset.PERFORMANCE,
+            fps = Fps.UNLIMITED, vsync = Tri.ON, singleCpu = Tri.ON, redraw = Tri.OFF,
         )
         val r = chosen.resolve("starcraft")
         assertEquals("gdi", r.renderer)
@@ -90,12 +89,19 @@ class LaunchOptionsTest {
         assertEquals("STABILITY", chosen.resolve("warcraft3").box64Preset)
     }
 
-    @Test fun resolutionOnlyAppliesToGamesWithoutAFixedSize() {
-        val o = LaunchOptions(resolution = Resolution.LINES_600)
-        assertEquals(600, o.resolve("warcraft3").lines)
+    @Test fun resolutionIsTheScreensMostAndOnlyForGamesWithoutAFixedSize() {
+        val o = LaunchOptions()
+        assertEquals(Screen.MOST, o.resolve("warcraft3").lines)
+        assertEquals(Screen.MOST, o.resolve("wow-client").lines)
         assertNull(o.resolve("diablo2").lines)
         assertNull(o.resolve("starcraft").lines)
-        assertEquals(600, o.resolve("wow-client").lines)
+        assertEquals(LaunchOptions.HOT_LINES, o.resolve("warcraft3", LaunchOptions.Hardware(hot = true)).lines)
+        assertNull(o.resolve("diablo2", LaunchOptions.Hardware(hot = true)).lines)
+    }
+
+    @Test fun classicGamesAreDrawnAtThirtyToStayCool() {
+        assertEquals(30, LaunchOptions().resolve("diablo2").maxFps)
+        assertEquals(60, LaunchOptions().resolve("warcraft3").maxFps)
     }
 
     @Test fun theIniCarriesTheChoices() {
@@ -119,7 +125,6 @@ class LaunchOptionsTest {
         val base = LaunchOptions().resolve("starcraft").cacheKey
         assertNotEquals(base, LaunchOptions(ddraw = DDraw.WINE).resolve("starcraft").cacheKey)
         assertNotEquals(base, LaunchOptions(box64 = Box64.Preset.STABILITY).resolve("starcraft").cacheKey)
-        assertNotEquals(base, LaunchOptions(driver = Driver.TURNIP).resolve("starcraft").cacheKey)
         assertEquals(base, LaunchOptions(fps = Fps.FPS_30).resolve("starcraft").cacheKey) // ini only
     }
 
@@ -137,11 +142,11 @@ class LaunchOptionsTest {
         store.set("starcraft", o)
         assertEquals(o, store.get("starcraft"))
         assertEquals(LaunchOptions(), store.get("diablo2"))
-        store.set("wow-client", LaunchOptions(d3d = D3D.WINED3D))
-        assertEquals(D3D.WINED3D, store.get("wow").d3d)
+        store.set("wow-client", LaunchOptions(box64 = Box64.Preset.STABILITY))
+        assertEquals(Box64.Preset.STABILITY, store.get("wow").box64)
         store.reset("starcraft")
         assertEquals(LaunchOptions(), store.get("starcraft"))
-        assertEquals(D3D.WINED3D, store.get("wow").d3d)
+        assertEquals(Box64.Preset.STABILITY, store.get("wow").box64)
         assertNull(store.lastApplied())
         store.setLastApplied("x")
         assertEquals("x", store.lastApplied())

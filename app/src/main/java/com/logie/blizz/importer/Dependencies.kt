@@ -26,7 +26,7 @@ object Dependencies {
         val name = dll.lowercase().removeSuffix(".dll")
         return name in SYSTEM || name.startsWith("api-ms-win-") || name.startsWith("ext-ms-") ||
             name.startsWith("msvcp") || name.startsWith("msvcr") || name.startsWith("vcruntime") ||
-            name.startsWith("d3dx9_") || name.startsWith("d3dx10") || name.startsWith("d3dx11") || name.startsWith("xinput")
+            name.startsWith("d3dcompiler_") || name.startsWith("d3dx9_") || name.startsWith("d3dx10") || name.startsWith("d3dx11") || name.startsWith("xinput")
     }
 
     /** The DLLs [program] imports that are neither Windows' own nor in its folder. */

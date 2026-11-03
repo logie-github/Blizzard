@@ -152,6 +152,11 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val tiles by TileSettings.state.collectAsState()
     val tileMode = tiles.mode == TileSettings.Mode.TILES
     LaunchedEffect(Unit) { Variants.load(context) }
+    // Music: the launcher's track on the shelf, a game's from the moment its page is open (the version chosen: Warcraft III's, StarCraft's).
+    val chosenVersions by Variants.selection.collectAsState()
+    val musicKey = com.logie.blizz.music.MusicCatalog.keyFor(open?.let { Variants.effective(it, chosenVersions).id })
+    LaunchedEffect(Unit) { com.logie.blizz.music.MusicDownloads.startIfMissing(context) }
+    LaunchedEffect(musicKey) { com.logie.blizz.music.MusicPlayer.select(context, musicKey) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
@@ -235,7 +240,7 @@ private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onP
         // The chosen game's art, blown up and dimmed, behind everything.
         Crossfade(game, animationSpec = tween(500), label = "backdrop") { shown ->
             Image(
-                painterResource(shown.cover), contentDescription = null, contentScale = ContentScale.Crop,
+                painterResource(effectiveGame(shown).cover), contentDescription = null, contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.4f; scaleX = 1.2f; scaleY = 1.2f }
                     .let { if (Build.VERSION.SDK_INT >= 31) it.blur(32.dp) else it },
             )
@@ -289,11 +294,12 @@ private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onP
                 modifier = Modifier.widthIn(max = 900.dp).fillMaxWidth().padding(horizontal = 32.dp, vertical = 24.dp),
             ) { shown ->
                 val linked = remember(linkKey, shown) { Links.packageFor(context, shown) }
+                val chosen = effectiveGame(shown)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(shown.title, style = DisplayStyle.copy(fontSize = 30.sp, lineHeight = 36.sp, shadow = IceGlow))
-                        shown.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow)) }
-                        Text(shown.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
+                        Text(chosen.title, style = DisplayStyle.copy(fontSize = 30.sp, lineHeight = 36.sp, shadow = IceGlow))
+                        chosen.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow)) }
+                        Text(chosen.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
                         VariantChooser(shown)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -455,8 +461,8 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
             ),
     ) {
         Image(
-            painterResource(game.cover),
-            contentDescription = game.fullTitle,
+            painterResource(effectiveGame(game).cover),
+            contentDescription = effectiveGame(game).fullTitle,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().drawWithContent {
                 drawContent()
@@ -480,7 +486,7 @@ private fun GamePage(game: Game, linkKey: Int, onBack: (() -> Unit)?, onPlay: ()
         val wide = maxWidth > maxHeight
         // The box art, blown up and dimmed, behind everything.
         Image(
-            painterResource(game.cover), contentDescription = null, contentScale = ContentScale.Crop,
+            painterResource(effectiveGame(game).cover), contentDescription = null, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.55f; scaleX = 1.15f; scaleY = 1.15f }
                 .let { if (Build.VERSION.SDK_INT >= 31) it.blur(28.dp) else it },
         )
@@ -516,7 +522,7 @@ private fun BigCover(game: Game, modifier: Modifier) {
     val float = rememberInfiniteTransition(label = "float")
     val y by float.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "y")
     Image(
-        painterResource(game.cover), contentDescription = game.fullTitle, contentScale = ContentScale.Crop,
+        painterResource(effectiveGame(game).cover), contentDescription = effectiveGame(game).fullTitle, contentScale = ContentScale.Crop,
         modifier = modifier
             .aspectRatio(COVER_RATIO)
             .graphicsLayer { translationY = -6.dp.toPx() * y }
@@ -531,10 +537,11 @@ private fun BigCover(game: Game, modifier: Modifier) {
 @Composable
 private fun Details(game: Game, linked: String?, onPlay: () -> Unit, onChooseApp: () -> Unit, modifier: Modifier, align: Alignment.Horizontal) {
     val textAlign = if (align == Alignment.Start) TextAlign.Start else TextAlign.Center
+    val chosen = effectiveGame(game)
     Column(modifier, horizontalAlignment = align, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(game.title, style = DisplayStyle.copy(fontSize = 28.sp, lineHeight = 34.sp, shadow = IceGlow), textAlign = textAlign)
-        game.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow), textAlign = textAlign) }
-        Text(game.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist), textAlign = textAlign)
+        Text(chosen.title, style = DisplayStyle.copy(fontSize = 28.sp, lineHeight = 34.sp, shadow = IceGlow), textAlign = textAlign)
+        chosen.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow), textAlign = textAlign) }
+        Text(chosen.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist), textAlign = textAlign)
         VariantChooser(game)
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -566,7 +573,7 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
     Box(Modifier.fillMaxSize().background(Colors.Abyss)) {
         Crossfade(game, animationSpec = tween(320), label = "backdrop") { shown ->
             Image(
-                painterResource(shown.cover), contentDescription = null, contentScale = ContentScale.Crop,
+                painterResource(effectiveGame(shown).cover), contentDescription = null, contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.5f; scaleX = 1.15f; scaleY = 1.15f }
                     .let { if (Build.VERSION.SDK_INT >= 31) it.blur(28.dp) else it },
             )
@@ -583,10 +590,11 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
                 Crossfade(game, animationSpec = tween(320), label = "cover", modifier = Modifier.fillMaxHeight()) { shown ->
                     BigCover(shown, Modifier.fillMaxHeight())
                 }
+                val chosen = effectiveGame(game)
                 Column(Modifier.widthIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(game.title, style = DisplayStyle.copy(fontSize = 28.sp, lineHeight = 34.sp, shadow = IceGlow))
-                    game.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow)) }
-                    Text(game.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
+                    Text(chosen.title, style = DisplayStyle.copy(fontSize = 28.sp, lineHeight = 34.sp, shadow = IceGlow))
+                    chosen.subtitle?.let { Text(it, style = DisplayStyle.copy(fontSize = 16.sp, color = Colors.Gold, shadow = GoldShadow)) }
+                    Text(chosen.year.toString(), style = MaterialTheme.typography.bodyMedium.copy(color = Colors.Mist))
                     VariantChooser(game)
                 }
             }

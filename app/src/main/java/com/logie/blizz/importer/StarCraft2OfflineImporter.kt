@@ -216,8 +216,17 @@ class StarCraft2OfflineImporter : GameImporter {
         val launcherOk = lpe != null && lpe.isWindowsX86Family
         checks += Check("Offline launcher", launcherOk, if (launcher == null) "not in the files: the game's own program starts instead" else if (lpe == null) "not a Windows program" else "present")
         if (exe != null) {
+            // Any build: its libraries (FMOD, ICU, ...) differ by version and sit in the build's folder or the game's Support folders.
+            // One found elsewhere in the files is fine (the game loads its own Support folders); one found nowhere is noted, not refused:
+            // the game's own loader decides, and a real failure shows in the game's log.
             val missing = Dependencies.missing(exe)
-            checks += Check("Game libraries", missing.isEmpty(), if (missing.isEmpty()) "present" else "missing ${missing.joinToString()}")
+            val all = dir.walkTopDown().filter { it.isFile }.map { it.name.lowercase() }.toSet()
+            val nowhere = missing.filter { it.lowercase() !in all }
+            checks += Check("Game libraries", true, when {
+                missing.isEmpty() -> "present"
+                nowhere.isEmpty() -> "found in the game's folders: ${missing.joinToString()}"
+                else -> "not in the files (the game may still start): ${nowhere.joinToString()}"
+            })
         }
         checks += Check("Executable started under Winlator", false, "not tested")
         checks += Check("Campaign menu accessible", false, "not tested")

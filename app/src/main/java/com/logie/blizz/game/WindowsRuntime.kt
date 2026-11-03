@@ -59,7 +59,7 @@ object WindowsRuntime {
         val app = context.applicationContext
         val profile = LaunchProfile.of(entry.controlProfile)
         // The person's launch options ([LaunchOptions]): the game's own screen, or a phone-shaped one at their lines.
-        val options = LaunchOptionsStore(app).get(entry.gameId).resolve(entry.gameId)
+        val options = LaunchOptionsStore(app).get(entry.gameId).resolve(entry.gameId, hardware(app))
         val size = options.lines?.let { lines ->
             val (w, h) = GameSettings.screenSize(context)
             Screen.resolutionFor(w, h, lines)
@@ -81,6 +81,16 @@ object WindowsRuntime {
                 )
             }
         }
+    }
+
+    /** The phone as the options see it: an Adreno GPU gets Turnip; a phone already hot gets fewer lines. */
+    private fun hardware(context: Context): LaunchOptions.Hardware {
+        val adreno = runCatching { com.winlator.core.GPUHelper.getAdrenoModelId(context) > 0 }.getOrDefault(false)
+        val hot = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q &&
+            (context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager)?.let {
+                it.currentThermalStatus >= android.os.PowerManager.THERMAL_STATUS_MODERATE
+            } == true
+        return LaunchOptions.Hardware(adreno = adreno, hot = hot)
     }
 
     fun dismiss() {

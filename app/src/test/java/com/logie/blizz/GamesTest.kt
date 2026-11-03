@@ -9,7 +9,7 @@ class GamesTest {
             listOf(
                 "Diablo", "Diablo II", "StarCraft", "StarCraft II",
                 "Warcraft: Orcs & Humans", "Warcraft II: Tides of Darkness",
-                "Warcraft III: Reign of Chaos", "Warcraft III: The Frozen Throne", "World of Warcraft",
+                "Warcraft III: Reign of Chaos", "World of Warcraft",
             ),
             Games.all.map { it.fullTitle },
         )
@@ -17,5 +17,11 @@ class GamesTest {
 
     @Test fun idsAreUnique() {
         assertEquals(Games.all.size, Games.all.map { it.id }.toSet().size)
+    }
+
+    @Test fun warcraftThreeIsOneTileWithBothVersions() {
+        val wc3 = Games.all.single { it.id == "warcraft3_roc" }
+        assertEquals(listOf("warcraft3_tft"), wc3.variants.map { it.id })
+        assertEquals("Warcraft III: The Frozen Throne", Games.find("warcraft3_tft")!!.fullTitle)
     }
 }
