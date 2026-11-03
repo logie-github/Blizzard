@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -669,10 +670,16 @@ private fun RuntimeOverlay() {
                 Text("The realm starts first; the first start can take a few minutes.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
             }
         }
-        is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }) {
-            Column(Modifier.drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(w.message, style = MaterialTheme.typography.bodyLarge)
-                FrameButton("OK", Modifier.align(Alignment.End)) { com.logie.blizz.game.WowPlay.dismiss() }
+        is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+            Column(Modifier.padding(16.dp).drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
+                    Text(w.message, style = if (w.message.length > 160) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge)
+                }
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FrameButton("Copy", primary = false) { clipboard.setText(androidx.compose.ui.text.AnnotatedString(w.message)) }
+                    FrameButton("OK") { com.logie.blizz.game.WowPlay.dismiss() }
+                }
             }
         }
         else -> {}

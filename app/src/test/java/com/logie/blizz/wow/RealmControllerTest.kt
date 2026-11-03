@@ -196,7 +196,10 @@ class RealmControllerTest {
         c.run(Realm.CHROMIE)
 
         assertEquals(WowRealm.Phase.FAILED, c.status.value.phase)
-        assertEquals("Step modules failed (code 3).", c.status.value.error)
+        // The message names the step and its code, then the end of its output (and, run again under sh -x, the commands).
+        assertTrue(c.status.value.error!!.startsWith("Step modules failed (code 3)."))
+        assertTrue(c.status.value.error!!.contains("cannot connect to the database"))
+        assertTrue(c.status.value.error!!.contains("Full logs: games/wow/files/logs/modules.log"))
         assertTrue(c.status.value.log!!.contains("cannot connect to the database"))
         assertEquals(1, failures.size)
         assertTrue(failures[0].second!!.contains("cannot connect"))
