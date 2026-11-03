@@ -52,6 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -119,6 +120,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
     var dragging by remember { mutableStateOf<String?>(null) }
     var dragAt by remember { mutableStateOf(Offset.Zero) }
     var artFor by remember { mutableStateOf<Game?>(null) }
+    var optionsFor by remember { mutableStateOf<Game?>(null) }
     var reinstallFor by remember { mutableStateOf<Game?>(null) }
     val openWizard = LocalOpenWizard.current
     val openSplash = LocalOpenSplash.current
@@ -214,6 +216,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
                             onRearrange = { rearranging = true },
                             onReinstall = { reinstallFor = game },
                             onLoadingScreen = { openSplash(game) },
+                            onLaunchOptions = { optionsFor = game },
                         )
                     }
                 }
@@ -237,6 +240,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
     }
 
     artFor?.let { TileArtDialog(it, onDismiss = { artFor = null }) }
+    optionsFor?.let { GameOptionsDialog(Variants.effective(it), onDismiss = { optionsFor = null }) }
     reinstallFor?.let { game ->
         val target = Variants.effective(game)
         ConfirmDialog(
@@ -254,7 +258,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
 @Composable
 private fun Tile(
     game: Game, index: Int, wide: Boolean, rearranging: Boolean, isDragging: Boolean, artVersion: Int, modifier: Modifier,
-    onClick: () -> Unit, onChangeArt: () -> Unit, onRearrange: () -> Unit, onReinstall: () -> Unit, onLoadingScreen: () -> Unit,
+    onClick: () -> Unit, onChangeArt: () -> Unit, onRearrange: () -> Unit, onReinstall: () -> Unit, onLoadingScreen: () -> Unit, onLaunchOptions: () -> Unit,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -307,6 +311,7 @@ private fun Tile(
             MenuItem(Icons.Default.OpenWith, "Rearrange") { menu = false; onRearrange() }
             if (GameImportManager.importable(Variants.effective(game).id)) MenuItem(Icons.Default.Refresh, "Reinstall") { menu = false; onReinstall() }
             MenuItem(Icons.Default.Tune, "Loading screen") { menu = false; onLoadingScreen() }
+            MenuItem(Icons.Default.Settings, "Launch options") { menu = false; onLaunchOptions() }
         }
     }
 }

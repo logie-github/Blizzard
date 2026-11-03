@@ -299,6 +299,7 @@ private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onP
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             PlayButton(shown, Modifier.widthIn(min = 220.dp)) { onPlay(shown) }
                             ControlsButton(shown)
+                            LaunchOptionsButton(shown)
                         }
                         ImportStatus(shown)
                         if (linked != null) {
@@ -538,6 +539,7 @@ private fun Details(game: Game, linked: String?, onPlay: () -> Unit, onChooseApp
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlayButton(game, Modifier.widthIn(min = 220.dp), onPlay)
             ControlsButton(game)
+            LaunchOptionsButton(game)
         }
         ImportStatus(game)
         if (linked != null) {
@@ -597,6 +599,7 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     PlayButton(game, Modifier.widthIn(min = 240.dp), onPlay)
                     ControlsButton(game)
+                    LaunchOptionsButton(game)
                     ImportStatus(game)
                     if (linked != null) AppIcon(linked, Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onChooseApp).padding(4.dp))
                 }
