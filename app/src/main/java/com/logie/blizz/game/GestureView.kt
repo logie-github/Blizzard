@@ -44,7 +44,7 @@ class GestureView(
     private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
-    init { GameLog.start() }
+    init { GameLog.start(); com.logie.blizz.selftest.RunningGame.attach(activity) }
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
     private val controlsStore = ControlsStore(java.io.File(activity.filesDir, "controls"))
     /** The controls file as it was when [gestures] were made: a game kept running in the background doesn't restart when the controls change. */

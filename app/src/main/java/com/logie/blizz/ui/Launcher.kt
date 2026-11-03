@@ -156,6 +156,8 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val chosenVersions by Variants.selection.collectAsState()
     val musicKey = com.logie.blizz.music.MusicCatalog.keyFor(open?.let { Variants.effective(it, chosenVersions).id })
     LaunchedEffect(Unit) { com.logie.blizz.music.MusicDownloads.startIfMissing(context) }
+    // The launch test: once after each update, a few seconds after the shelf is up.
+    LaunchedEffect(Unit) { delay(5_000); com.logie.blizz.selftest.SelfTest.autoStart(context) }
     LaunchedEffect(musicKey) { com.logie.blizz.music.MusicPlayer.select(context, musicKey) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {
@@ -212,6 +214,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
+        SelfTestDialog()
         picking?.let { game ->
             AppPicker(
                 game,

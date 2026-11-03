@@ -73,6 +73,15 @@ object BugReports {
         if (queue(dir(app), report)) sendSoon(app)
     }
 
+    /** A report that is sent whatever came before (the launch test's): kept on the phone until GitHub takes it. False when this build has no token. */
+    fun submit(context: Context, report: Report): Boolean {
+        val app = context.applicationContext
+        val d = dir(app).also { it.mkdirs() }
+        File(d, "${report.key}-${System.currentTimeMillis()}.json").writeText(report.toJson().toString())
+        sendSoon(app)
+        return configured(app)
+    }
+
     /** Writes [report] to [dir], unless the same failure went in the last day. Plain Kotlin, unit-tested. */
     fun queue(dir: File, report: Report, now: Long = System.currentTimeMillis()): Boolean {
         dir.mkdirs()
