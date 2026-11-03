@@ -25,6 +25,11 @@ class WowImporter : GameImporter {
         const val EXPORT_COPY = ".export"
         val isExportRoot: (Set<String>) -> Boolean = { WowExport.MANIFEST in it && "files/" in it && WowExport.CHECKSUMS in it }
         private const val JOURNAL = ".journal"
+        /** The files the export lists that weren't found and were left out (one path a line), in `.export/`. */
+        const val MISSING = "missing.txt"
+
+        /** What can't be left out: the databases, the client and the server programs. */
+        fun isCritical(path: String) = path.startsWith("mysql/") || path.startsWith("client/") || path.startsWith("server/bin/") || path.startsWith("server/lib/") || path == "server/ctl.sh"
     }
 
     private fun work(env: ImportEnv) = File(env.paths.staging, "$gameId-work")
@@ -50,9 +55,10 @@ class WowImporter : GameImporter {
         val root = if (isExportRoot(Packages.names(source.children()))) source
         else Packages.findRoot(source, 5, isExportRoot) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no finished export in that folder (export.json, checksums.tsv and files/). $PROMPT")
         val manifest = WowExport.parseManifest(root.child(WowExport.MANIFEST)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
-        val entries = WowExport.parseChecksums(root.child(WowExport.CHECKSUMS)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
-        if (entries.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "The export lists no files.")
-        entries.forEach { WowExport.safePath(it.path) }
+        val allEntries = WowExport.parseChecksums(root.child(WowExport.CHECKSUMS)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
+        if (allEntries.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "The export lists no files.")
+        allEntries.forEach { WowExport.safePath(it.path) }
+        var entries = allEntries
 
         env.progress(Progress(Stage.EXTRACTING, "Reading the export's folders"))
         val nodes = HashMap<String, SourceNode>()
@@ -101,14 +107,20 @@ class WowImporter : GameImporter {
                 used += found.display
             }
         }
+        // What can't be found anywhere. Data the realm and client rebuild or can do without is left out with a note
+        // (the person's own words: "those should be fine to leave out"); the databases, the client and the server
+        // programs are never skipped: without them it isn't their game.
         val missing = entries.filter { it.path !in located }
-        if (missing.isNotEmpty()) {
+        val critical = missing.filter { isCritical(it.path) }
+        if (critical.isNotEmpty()) {
             throw ImportException(
                 Problem.MISSING_SOURCE_DATA,
-                "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). They weren't found by name, by their other likely names, or by content (size and checksum, among $searched files; Search a folder with a bigger folder to look further). Update the World of Warcraft app (an export made before its fix loses files whose names differ only in capital letters from another's), run Export everything to Blizzard again (it only copies what changed), then import again.",
-                missing.take(20).joinToString("\n") { it.path },
+                "${critical.size} files the game can't do without aren't in the folder (the first: ${critical.first().path}). They weren't found by name, by their other likely names, or by content (size and checksum, among $searched files; Search a folder with a bigger folder to look further). Update the World of Warcraft app (an export made before its fix loses files whose names differ only in capital letters from another's), run Export everything to Blizzard again (it only copies what changed), then import again.",
+                critical.take(20).joinToString("\n") { it.path },
             )
         }
+        val skipped = missing
+        entries = entries.filter { it.path in located }
 
         val work = work(env).also { it.mkdirs() }
         val files = File(work, "files").also { it.mkdirs() }
@@ -153,6 +165,7 @@ class WowImporter : GameImporter {
 
         // The export's own manifest, checksums and settings, kept for what comes next.
         val keep = File(work, EXPORT_COPY).also { it.mkdirs() }
+        if (skipped.isNotEmpty()) File(keep, MISSING).writeText(skipped.joinToString("\n", postfix = "\n") { it.path })
         for (name in listOf(WowExport.MANIFEST, WowExport.CHECKSUMS)) root.child(name)?.let { copyInto(it, keep, name, env.cancel) }
         root.child("prefs")?.children()?.filter { !it.isDirectory }?.forEach { copyInto(it, File(keep, "prefs").also { d -> d.mkdirs() }, it.name, env.cancel) }
         File(work, "MANIFEST-FORMAT").writeText("${manifest.format}\n")
@@ -180,10 +193,13 @@ class WowImporter : GameImporter {
         val files = File(dir, "files")
         val checks = ArrayList<Check>()
         checks += Check("Export manifest", manifest != null, manifest?.let { "made by the World of Warcraft app ${it.appVersion} on ${it.createdAt}" } ?: "missing")
-        val missing = entries?.filter { e -> File(files, e.path).let { !it.isFile || it.length() != e.size } }?.size
-        checks += Check("Every file present at its size", entries != null && missing == 0, if (entries == null) "no checksums" else if (missing == 0) "${entries.size} files" else "$missing missing or the wrong size")
+        val left = runCatching { File(keep, MISSING).readLines().filter { it.isNotBlank() }.toSet() }.getOrDefault(emptySet())
+        val missing = entries?.filter { e -> e.path !in left }?.filter { e -> File(files, e.path).let { !it.isFile || it.length() != e.size } }?.size
+        checks += Check("Every file present at its size", entries != null && missing == 0,
+            if (entries == null) "no checksums" else if (missing == 0) "${entries.size - left.size} files" + (if (left.isNotEmpty()) ", ${left.size} left out (.export/$MISSING)" else "") else "$missing missing or the wrong size")
         val folders = manifest?.folders.orEmpty()
-        val absent = folders.filter { !File(files, it).isDirectory }
+        // (a folder all of whose files were left out isn't expected)
+        val absent = folders.filter { f -> !File(files, f).isDirectory && entries.orEmpty().any { it.path.startsWith("$f/") && it.path !in left } }
         checks += Check("Folders (${folders.joinToString().ifEmpty { "none" }})", manifest != null && absent.isEmpty() && folders.isNotEmpty(), if (absent.isEmpty()) "present" else "missing ${absent.joinToString()}")
         val ok = checks.all { it.passed }
         val problem = if (ok) null else Problem.MISSING_SOURCE_DATA

@@ -100,12 +100,25 @@ class WowImporterTest {
         assertTrue(result is ImportPipeline.Result.Failed || result is ImportPipeline.Result.Waiting)
     }
 
-    @Test fun aMissingFileIsNamed() {
+    @Test fun aMissingFileTheGameCantDoWithoutIsNamed() {
         val dir = export()
-        File(dir, "files/addons/Questie/Questie.lua").delete()
+        File(dir, "files/client/Data/common.MPQ").delete()
         val result = run(dir)
         assertEquals(Problem.MISSING_SOURCE_DATA, (result as ImportPipeline.Result.Failed).error.problem)
-        assertTrue(result.error.message!!.contains("Questie.lua"))
+        assertTrue(result.error.message!!.contains("common.MPQ"))
+    }
+
+    @Test fun otherMissingFilesAreLeftOutWithANoteAndTheRestComesOver() {
+        val dir = export()
+        File(dir, "files/addons/Questie/Questie.lua").delete()
+        File(dir, "files/turtle/WTF/Config.wtf").delete()
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        val game = paths.game("wow")
+        assertEquals(setOf("addons/Questie/Questie.lua", "turtle/WTF/Config.wtf"), File(game, ".export/missing.txt").readLines().toSet())
+        assertTrue(!File(game, "files/addons/Questie/Questie.lua").exists())
+        assertEquals(5000, File(game, "files/client/Data/common.MPQ").length())
+        assertTrue((result as ImportPipeline.Result.Done).validation.checks.first { it.name.startsWith("Every file") }.detail.contains("left out"))
     }
 
     @Test fun anotherAppsExportOrANewerFormatIsRefused() {
@@ -197,11 +210,11 @@ class WowImporterTest {
 
     @Test fun whatNothingMatchesIsNamedAndSaysWhatWasSearched() {
         val dir = export()
-        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) + WowExport.Entry("e".repeat(64), 9, "data/cameras/gone.m2")))
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) + WowExport.Entry("e".repeat(64), 9, "client/Data/gone.MPQ")))
         val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
         File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 1)))
         val result = run(dir) as ImportPipeline.Result.Failed
         assertTrue(result.error.message!!.contains("by content"))
-        assertTrue(result.error.detail!!.contains("data/cameras/gone.m2"))
+        assertTrue(result.error.detail!!.contains("client/Data/gone.MPQ"))
     }
 }
