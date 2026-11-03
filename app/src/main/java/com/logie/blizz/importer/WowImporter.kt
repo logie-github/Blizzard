@@ -69,12 +69,17 @@ class WowImporter : GameImporter {
         val located = HashMap<String, SourceNode>()
         for (e in entries) {
             val stored = manifest.renames[e.path] ?: e.path
-            (nodes[stored] ?: if (e.path !in manifest.renames) WowExport.likely(e.path, byLower) else null)?.let { located[e.path] = it }
+            val own = nodes[stored]
+            if (own != null) { located[e.path] = own; continue }
+            if (e.path in manifest.renames) continue
+            // An export from before the renames: the file that holds this entry's bytes, by checksum, among where it may be.
+            WowExport.candidates(e.path, byLower).firstOrNull { c -> runCatching { c.open().use { WowExport.sha256(it) } }.getOrNull() == e.sha256 }
+                ?.let { located[e.path] = it }
         }
         val missing = entries.filter { it.path !in located }
         if (missing.isNotEmpty()) {
             throw ImportException(
-                Problem.MISSING_SOURCE_DATA, "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). The export may have been stopped: run it again in the World of Warcraft app.",
+                Problem.MISSING_SOURCE_DATA, "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). Update the World of Warcraft app (an export made before its fix loses files whose names differ only in capital letters from another's), run Export everything to Blizzard again (it only copies what changed), then import again.",
                 missing.take(20).joinToString("\n") { it.path },
             )
         }

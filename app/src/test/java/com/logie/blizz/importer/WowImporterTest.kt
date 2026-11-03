@@ -157,4 +157,24 @@ class WowImporterTest {
         assertTrue(result.toString(), result is ImportPipeline.Result.Done)
         assertEquals("second", File(paths.game("wow"), "files/data/cameras/flybyworgen.m2").readText())
     }
+
+    @Test fun anOlderExportsCopyNamedWithTheNumberAfterTheWholeNameIsFoundByItsChecksum() {
+        val dir = export()
+        // Shared storage kept the second twin as "flybyworgen.m2 (1)"; the first twin, with other bytes, is there too.
+        File(dir, "files/data/cameras").mkdirs()
+        File(dir, "files/data/cameras/FlyByWorgen.m2").writeBytes("first".toByteArray())
+        val second = "second".toByteArray()
+        File(dir, "files/data/cameras/flybyworgen.m2 (1)").writeBytes(second)
+        val sha = java.security.MessageDigest.getInstance("SHA-256").digest(second).joinToString("") { "%02x".format(it) }
+        val first = java.security.MessageDigest.getInstance("SHA-256").digest("first".toByteArray()).joinToString("") { "%02x".format(it) }
+        val entries = WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) +
+            WowExport.Entry(first, 5, "data/cameras/FlyByWorgen.m2") + WowExport.Entry(sha, second.size.toLong(), "data/cameras/flybyworgen.m2")
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(entries))
+        val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
+        File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 2, folders = m.folders + "data")))
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("first", File(paths.game("wow"), "files/data/cameras/FlyByWorgen.m2").readText())
+        assertEquals("second", File(paths.game("wow"), "files/data/cameras/flybyworgen.m2").readText())
+    }
 }

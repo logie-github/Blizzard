@@ -66,20 +66,29 @@ object WowExport {
     fun checksumsText(entries: List<Entry>): String = entries.sortedBy { it.path }.joinToString("\n", postfix = "\n") { "${it.sha256}\t${it.size}\t${it.path}" }
 
     /**
-     * Where an export that was made without `renames` (before the WoW app kept names that differ only
-     * in case apart) may have put [path]: shared storage stores the second of two such names as
-     * "name (1).ext", so the likely spots are the path in another case and with " (1)" to " (3)"
-     * before its extension. The first of [nodes] (keyed by lower-case path) that exists.
+     * Where an export made without `renames` (before the WoW app kept names that differ only in case
+     * apart) may have put [path]. Shared storage keeps the second of two such names under a name it
+     * makes unique: "name.ext (1)" (the number after the whole name, which is what the file picker's
+     * unknown-type files get) or "name (1).ext", up to 3, and the first one under its own spelling:
+     * so, in lower case (the keys of [nodes]), the path itself, then those. Best guess first.
      */
-    fun <T> likely(path: String, nodes: Map<String, T>): T? {
+    fun <T> candidates(path: String, nodes: Map<String, T>): List<T> {
         val lower = path.lowercase()
-        nodes[lower]?.let { return it }
         val dot = lower.lastIndexOf('.').takeIf { it > lower.lastIndexOf('/') + 1 }
+        val names = ArrayList<String>()
         for (n in 1..3) {
-            val name = if (dot == null) "$lower ($n)" else lower.substring(0, dot) + " ($n)" + lower.substring(dot)
-            nodes[name]?.let { return it }
+            names += "$lower ($n)"
+            if (dot != null) names += lower.substring(0, dot) + " ($n)" + lower.substring(dot)
         }
-        return null
+        return (listOf(lower) + names).mapNotNull { nodes[it] }
+    }
+
+    /** SHA-256 of what [input] holds (lower-case hex), read to its end. */
+    fun sha256(input: InputStream): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(1 shl 16)
+        while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     /** A path from the manifest that stays inside the folder it's copied to. */
