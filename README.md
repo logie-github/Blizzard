@@ -125,7 +125,18 @@ of their respective owners.
 
 - **Reset installation:** every game's import screen has a Reset button (with a confirmation). It removes the game's imported files and state so the import runs again; saves are kept.
 - **StarCraft key:** the downloaded StarCraft is installed with a placeholder key and owner (the game runs offline), which avoids the `font\font.gid` "File not found" error.
-- **Classic 2D games** (Diablo II, StarCraft, Warcraft II) draw through cnc-ddraw (OpenGL) instead of Wine's DirectDraw, aimed at the low frame rate and missing videos. Untested on a phone.
+- **Classic 2D games** (Diablo II, StarCraft, Warcraft II) draw through cnc-ddraw (OpenGL by default, see Launch options) instead of Wine's DirectDraw, aimed at the low frame rate and missing videos. Untested on a phone.
+
+## Launch options
+
+Each game that runs in Windows (not Warcraft I and II, which are native) has its own **Launch options**, to fix a black screen, missing sound or videos, or a slow game on your phone without waiting for an update: hold the game's tile (or open the game's page) and choose Launch options. A choice is kept and used at the game's next start; **Reset** puts the game's choices back.
+
+- **Safe mode:** the slowest, safest of everything at once (cnc-ddraw's software GDI drawing, Box64 Stability, 30 frames a second, the default graphics driver and Direct3D layer); the other choices are ignored while it is on. Try it first when a game shows nothing.
+- **DirectDraw** (the classic games): Wine's own, cnc-ddraw GDI, OpenGL or Direct3D 9. **Frames a second** (30, 60, no limit), **vsync**, **Keep redrawing** (cnc-ddraw's `nonexclusive` and `minfps`, for videos, menus and loading screens that stay invisible) and **Pin to one CPU core** (`singlecpu`).
+- **Box64:** Stability, Compatible, Intermediate or Performance (Winlator's presets).
+- **Graphics driver:** Vortek or Turnip (Adreno phones). **Direct3D:** DXVK or WineD3D. **Game resolution** (600, 720 or 900 lines) for the games that follow the phone's shape.
+- **Defaults** (Diablo II, StarCraft, Warcraft II): cnc-ddraw with OpenGL, borderless fullscreen, 60 frames, redrawing on, **no** CPU pinning (the first release pinned the game to the phone's CPU0, a slow core, which fits the 3 frames a second and the sound that never started), Box64 Intermediate. Other games keep Winlator's defaults (Performance, Vortek, DXVK).
+- The games share one Windows, so every option is written at every start; changing the DirectDraw choice, the Box64 preset, the driver or the Direct3D layer also makes Winlator put its files in again. Diablo II has no switch to skip its videos, so there is none here. Untested on a phone.
 
 ## Art editor
 
@@ -134,7 +145,7 @@ Hold a game's art to open it. Pinch the preview to zoom the picture and drag to 
 ## StarCraft: Remastered folders and classic-game graphics
 
 - 1.23.x keeps its program in `x86/` and `x86_64/` (the folder's top has `StarCraft Launcher.exe`); the import accepts that layout and starts `x86/StarCraft.exe`.
-- Diablo II, StarCraft and Warcraft II use cnc-ddraw's GDI renderer (no OpenGL or Direct3D needed), written to its `ddraw.ini` at every start. Untested on a phone.
+- Diablo II, StarCraft and Warcraft II use cnc-ddraw, its `ddraw.ini` written at every start from the game's Launch options (below; GDI is Safe mode's renderer). Untested on a phone.
 
 ## Game log
 
