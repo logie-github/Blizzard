@@ -460,6 +460,8 @@ private object NoOutput : GestureOutput {
 @Composable
 fun LaunchOptionsButton(shown: Game) {
     val game = effectiveGame(shown)
+    // Resurrected is played in its own app, with its own controls and settings.
+    if (game.id == com.logie.blizz.d2r.D2r.GAME_ID) return
     var open by remember { mutableStateOf(false) }
     Icon(Icons.Default.Tune, contentDescription = "Launch options", tint = Colors.Mist,
         modifier = Modifier.clip(RoundedCornerShape(50)).clickable { open = true }.padding(10.dp).size(26.dp))
@@ -470,6 +472,7 @@ fun LaunchOptionsButton(shown: Game) {
 @Composable
 fun ControlsButton(shown: Game) {
     val game = effectiveGame(shown)
+    if (game.id == com.logie.blizz.d2r.D2r.GAME_ID) return
     var open by remember { mutableStateOf(false) }
     Icon(Icons.Default.Mouse, contentDescription = "Controls", tint = Colors.Mist,
         modifier = Modifier.clip(RoundedCornerShape(50)).clickable { open = true }.padding(10.dp).size(26.dp))

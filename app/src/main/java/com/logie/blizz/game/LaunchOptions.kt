@@ -156,7 +156,7 @@ data class LaunchOptions(
         val CLASSIC = setOf("diablo2", "starcraft", "warcraft2")
 
         /** Warcraft I and II are played natively (Stratagus), not in Windows: no options. */
-        val NATIVE = setOf("warcraft", "warcraft2")
+        val NATIVE = setOf("warcraft", "warcraft2", "diablo2_resurrected")
 
         /** The WoW client's library entry ("wow-client") is the shelf's World of Warcraft. */
         fun key(gameId: String) = gameId.removeSuffix("-client")

@@ -55,7 +55,7 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
 
             if (!LaunchOptions.hasOptions(game.id)) {
                 Text(
-                    "This game is played natively, not in Windows, so it has no launch options.",
+                    "This game isn't played in the app's Windows, so it has no launch options.",
                     style = MaterialTheme.typography.bodyMedium, color = Colors.Mist,
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { FrameButton("Done", onClick = onDismiss) }
