@@ -63,6 +63,10 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
             }
 
             Text(
+                "The graphics driver, Direct3D layer and resolution are chosen by the app for this phone and screen; they have no setting.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+            Text(
                 "For a black screen, no sound, no videos or a slow game: change one thing, start the game, and come back. Used at the game's next start.",
                 style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
             )
@@ -98,17 +102,6 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
 
                 Section("Box64 (the speed of the emulation)", "Stability and Compatible are slower and safer; Performance is the fastest.") {
                     LaunchOptions.Box64.Preset.entries.forEach { c -> Chip(c.label, o.box64 == c) { change(o.copy(box64 = c)) } }
-                }
-                Section("Graphics driver", "Turnip is for Adreno (Snapdragon) phones only.") {
-                    LaunchOptions.Driver.entries.forEach { c -> Chip(c.label, o.driver == c) { change(o.copy(driver = c)) } }
-                }
-                Section("Direct3D", "What draws 3D games. If one fails, try the other.") {
-                    LaunchOptions.D3D.entries.forEach { c -> Chip(c.label, o.d3d == c) { change(o.copy(d3d = c)) } }
-                }
-                if (!LaunchOptions.resolutionLocked(game.id)) {
-                    Section("Game resolution", "The picture's height at the phone's shape; fewer lines run faster.") {
-                        LaunchOptions.Resolution.entries.forEach { c -> Chip(c.label, o.resolution == c) { change(o.copy(resolution = c)) } }
-                    }
                 }
             }
 

@@ -15,6 +15,7 @@ class MainActivity : ComponentActivity() {
         com.logie.blizz.reports.BugReports.start(this)
         // World of Warcraft: Play starts the realm through this.
         com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
+        com.logie.blizz.music.MusicPlayer.load(this)
         setContent { Launcher() }
     }
 
@@ -23,10 +24,13 @@ class MainActivity : ComponentActivity() {
         visible = true
         // A game prepared while the app was in the background starts now.
         WindowsRuntime.onLauncherShown(this)
+        com.logie.blizz.music.MusicPlayer.foreground(this, true)
     }
 
     override fun onPause() {
         visible = false
+        // A running game has its own sound.
+        com.logie.blizz.music.MusicPlayer.foreground(this, false)
         super.onPause()
     }
 

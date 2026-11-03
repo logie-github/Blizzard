@@ -264,10 +264,11 @@ private fun Tile(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var menu by remember { mutableStateOf(false) }
-    val custom = remember(game.id, wide, artVersion) {
-        TileSettings.artFile(context, game.id, wide)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    val shown = effectiveGame(game)
+    val custom = remember(shown.id, wide, artVersion) {
+        TileSettings.artFile(context, shown.id, wide)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
     }
-    val builtIn = if (wide) game.wide ?: game.splash ?: game.cover else game.cover
+    val builtIn = if (wide) shown.wide ?: shown.splash ?: shown.cover else shown.cover
     val wiggle by rememberInfiniteTransition(label = "wiggle").animateFloat(-1.1f, 1.1f, infiniteRepeatable(tween(150 + (game.id.hashCode() and 63), easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "wiggle")
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -333,13 +334,14 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val s by TileSettings.state.collectAsState()
     val wide = game.id in s.wide
+    val shown = effectiveGame(game)
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) TileSettings.setArt(context, game.id, wide, uri)
+        if (uri != null) TileSettings.setArt(context, shown.id, wide, uri)
     }
-    val custom = remember(game.id, wide, s.artVersion) {
-        TileSettings.artFile(context, game.id, wide)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    val custom = remember(shown.id, wide, s.artVersion) {
+        TileSettings.artFile(context, shown.id, wide)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
     }
-    val builtIn = if (wide) game.wide ?: game.splash ?: game.cover else game.cover
+    val builtIn = if (wide) shown.wide ?: shown.splash ?: shown.cover else shown.cover
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(18.dp).widthIn(max = 520.dp).fillMaxWidth()
@@ -359,7 +361,7 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
             }
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Choose picture") { pick.launch(arrayOf("image/*")) }
-                FrameButton("Original", primary = false) { TileSettings.clearArt(context, game.id, wide) }
+                FrameButton("Original", primary = false) { TileSettings.clearArt(context, shown.id, wide) }
                 FrameButton("Done", primary = false, onClick = onDismiss)
             }
         }

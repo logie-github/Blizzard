@@ -20,9 +20,6 @@ data class LaunchOptions(
     val safeMode: Boolean = false,
     val ddraw: DDraw = DDraw.DEFAULT,
     val box64: Box64.Preset = Box64.Preset.DEFAULT,
-    val driver: Driver = Driver.DEFAULT,
-    val d3d: D3D = D3D.DEFAULT,
-    val resolution: Resolution = Resolution.DEFAULT,
     val fps: Fps = Fps.DEFAULT,
     val vsync: Tri = Tri.DEFAULT,
     val singleCpu: Tri = Tri.DEFAULT,
@@ -48,28 +45,6 @@ data class LaunchOptions(
         }
     }
 
-    /** The Vulkan driver the phone's GPU is driven through (the container's `graphicsDriver`, "vulkan,opengl"). */
-    enum class Driver(val label: String, val value: String?) {
-        DEFAULT("Default", null),
-        VORTEK("Vortek", "vortek,gladio"),
-        TURNIP("Turnip (Adreno phones)", "turnip,gladio");
-    }
-
-    /** What turns Direct3D into something the phone draws (the container's `dxwrapper`). */
-    enum class D3D(val label: String, val id: String?) {
-        DEFAULT("Default", null),
-        DXVK("DXVK (Vulkan)", "dxvk"),
-        WINED3D("WineD3D (OpenGL)", "wined3d");
-    }
-
-    /** The game's screen: its own size, or the phone's shape at this many lines (only for games that have no fixed size). */
-    enum class Resolution(val label: String, val lines: Int?) {
-        DEFAULT("Default", null),
-        LINES_600("600 lines", 600),
-        LINES_720("720 lines", 720),
-        LINES_900("900 lines", 900);
-    }
-
     /** cnc-ddraw's `maxfps`: how often the picture is drawn (the game's own speed is not changed). */
     enum class Fps(val label: String, val value: Int?) {
         DEFAULT("Default", null),
@@ -82,6 +57,9 @@ data class LaunchOptions(
         /** The choice, or [default] when it is [DEFAULT]. */
         fun or(default: Boolean) = when (this) { DEFAULT -> default; ON -> true; OFF -> false }
     }
+
+    /** What the phone is: its GPU makes the driver, its heat the resolution (read at the start, see [com.logie.blizz.game.WindowsRuntime]). */
+    data class Hardware(val adreno: Boolean = false, val hot: Boolean = false)
 
     /** Every value the options come to for a game, nothing left to a default. */
     data class Resolved(
@@ -111,7 +89,7 @@ data class LaunchOptions(
     }
 
     /** The options as they apply to [gameId]: defaults filled in, [safeMode] and what the game can't use applied. */
-    fun resolve(gameId: String): Resolved {
+    fun resolve(gameId: String, hardware: Hardware = Hardware()): Resolved {
         val key = key(gameId)
         val classic = isClassic(key)
         val s = safeMode
@@ -152,10 +130,14 @@ data class LaunchOptions(
             ddrawWrapper = wrapper,
             renderer = renderer,
             box64Preset = preset,
-            graphicsDriver = if (s) DEFAULT_DRIVER else driver.value ?: DEFAULT_DRIVER,
-            dxwrapper = if (s) DEFAULT_D3D else d3d.id ?: DEFAULT_D3D,
-            lines = if (s || resolutionLocked(key)) null else resolution.lines,
-            maxFps = if (s) 30 else fps.value ?: 60,
+            // Chosen by the app, never per game: Turnip on an Adreno GPU (Snapdragon, the Fold's), Vortek
+            // elsewhere; DXVK for Direct3D. Safe mode keeps Winlator's own defaults.
+            graphicsDriver = if (!s && hardware.adreno) TURNIP_DRIVER else DEFAULT_DRIVER,
+            dxwrapper = DEFAULT_D3D,
+            // The most lines the screen has; when the phone is already hot, no more than HOT_LINES.
+            lines = if (s || resolutionLocked(key)) null else if (hardware.hot) HOT_LINES else Screen.MOST,
+            // The classic games' own logic runs at 30 or less: drawing more only makes the phone hot.
+            maxFps = if (s) 30 else fps.value ?: if (classic) 30 else 60,
             vsync = if (s) false else vsync.or(false),
             singleCpu = if (s) false else singleCpu.or(false),
             redraw = if (s) true else redraw.or(true),
@@ -169,6 +151,9 @@ data class LaunchOptions(
         /** Winlator's defaults for a new container (Container(0)): Vortek and Gladio, DXVK. */
         const val DEFAULT_DRIVER = "vortek,gladio"
         const val DEFAULT_D3D = "dxvk"
+        const val TURNIP_DRIVER = "turnip,gladio"
+        /** The most lines asked of the phone while it is already hot. */
+        const val HOT_LINES = 1080
 
         /** The classic 2D games, which draw with DirectDraw. */
         val CLASSIC = setOf("diablo2", "starcraft", "warcraft2")
@@ -227,9 +212,6 @@ class LaunchOptionsStore(private val prefs: SharedPreferences) {
             safeMode = prefs.getBoolean("$g.safe", false),
             ddraw = read("ddraw", LaunchOptions.DDraw.entries.toTypedArray(), LaunchOptions.DDraw.DEFAULT),
             box64 = read("box64", LaunchOptions.Box64.Preset.entries.toTypedArray(), LaunchOptions.Box64.Preset.DEFAULT),
-            driver = read("driver", LaunchOptions.Driver.entries.toTypedArray(), LaunchOptions.Driver.DEFAULT),
-            d3d = read("d3d", LaunchOptions.D3D.entries.toTypedArray(), LaunchOptions.D3D.DEFAULT),
-            resolution = read("resolution", LaunchOptions.Resolution.entries.toTypedArray(), LaunchOptions.Resolution.DEFAULT),
             fps = read("fps", LaunchOptions.Fps.entries.toTypedArray(), LaunchOptions.Fps.DEFAULT),
             vsync = read("vsync", LaunchOptions.Tri.entries.toTypedArray(), LaunchOptions.Tri.DEFAULT),
             singleCpu = read("singlecpu", LaunchOptions.Tri.entries.toTypedArray(), LaunchOptions.Tri.DEFAULT),
@@ -243,9 +225,6 @@ class LaunchOptionsStore(private val prefs: SharedPreferences) {
             .putBoolean("$g.safe", o.safeMode)
             .putString("$g.ddraw", o.ddraw.name)
             .putString("$g.box64", o.box64.name)
-            .putString("$g.driver", o.driver.name)
-            .putString("$g.d3d", o.d3d.name)
-            .putString("$g.resolution", o.resolution.name)
             .putString("$g.fps", o.fps.name)
             .putString("$g.vsync", o.vsync.name)
             .putString("$g.singlecpu", o.singleCpu.name)

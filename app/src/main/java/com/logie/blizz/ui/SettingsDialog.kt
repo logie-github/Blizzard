@@ -71,6 +71,37 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 GameSettings.setVibration(context, vibration)
             }
 
+            Text("Music", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
+            val musicOn by com.logie.blizz.music.MusicPlayer.enabled.collectAsState()
+            val musicVolume by com.logie.blizz.music.MusicPlayer.volume.collectAsState()
+            val download by com.logie.blizz.music.MusicDownloads.state.collectAsState()
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FrameButton(if (musicOn) "Music: on" else "Music: off", primary = false) { com.logie.blizz.music.MusicPlayer.setEnabled(context, !musicOn) }
+                listOf("Low" to 0.3f, "Medium" to 0.6f, "High" to 1f).forEach { (label, v) ->
+                    FrameButton(label, primary = kotlin.math.abs(musicVolume - v) < 0.05f) { com.logie.blizz.music.MusicPlayer.setVolume(context, v) }
+                }
+            }
+            val store = remember(download) { com.logie.blizz.music.MusicDownloads.store(context) }
+            val have = com.logie.blizz.music.MusicCatalog.tracks.count { store.has(it.key) }
+            val total = com.logie.blizz.music.MusicCatalog.tracks.size
+            Text(
+                when (val d = download) {
+                    is com.logie.blizz.music.MusicDownloads.State.Running -> "Downloading ${d.done + 1} of ${d.total}: ${d.current}"
+                    is com.logie.blizz.music.MusicDownloads.State.Finished ->
+                        if (d.failed.isEmpty()) "$have of $total tracks on the phone."
+                        else "$have of $total tracks on the phone. Not downloaded: ${d.failed.joinToString("; ")}"
+                    else -> "$have of $total tracks on the phone."
+                },
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+            if (download !is com.logie.blizz.music.MusicDownloads.State.Running && have < total) {
+                FrameButton("Download music", primary = false) { com.logie.blizz.music.MusicDownloads.start(context) }
+            }
+            Text(
+                "Each game's music plays from the moment it is selected; the shelf has its own. The tracks are downloaded on first start and kept on the phone.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+
             if (confirmReset) {
                 Text("Put the tiles back as they were (order, shapes, size, pictures)?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

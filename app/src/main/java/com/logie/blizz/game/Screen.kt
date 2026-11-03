@@ -3,6 +3,9 @@ package com.logie.blizz.game
 
 /** The games' resolution for the phone's screen. Plain Kotlin, unit-tested. */
 object Screen {
+    /** "As many lines as the screen has" ([resolutionFor]'s null). */
+    const val MOST = Int.MAX_VALUE
+
     /**
      * In landscape, [lines] high and as wide as the screen's shape, even, but never narrower than
      * 4:3, the games' own shape: on the Fold's inside screen (4:3) they fill it exactly; on a
