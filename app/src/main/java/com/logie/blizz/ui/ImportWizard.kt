@@ -48,9 +48,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.delay
 import com.logie.blizz.Game
 import com.logie.blizz.importer.FileValidator
 import com.logie.blizz.importer.GameImportManager
+import com.logie.blizz.importer.InstallerRun
 import com.logie.blizz.importer.LaunchTest
 import com.logie.blizz.importer.MissingInput
 import com.logie.blizz.importer.Outcome
@@ -90,10 +94,21 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
     val context = LocalContext.current
     val states by GameImportManager.states.collectAsState()
     LaunchedEffect(game.id) { GameImportManager.refresh(context, game.id) }
+    // Back from the game's screen (where the installer ran): look at what it has made.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { GameImportManager.refresh(context, game.id) }
     val state = states[game.id] ?: return
+    // While the installer is going, look again now and then: Retry becomes "Import what it installed" when it has finished.
+    val watching = state.installer is InstallerRun.Status.Waiting || state.installer is InstallerRun.Status.Installing
+    LaunchedEffect(game.id, watching, state.running) {
+        while (watching && !state.running) {
+            delay(15_000)
+            GameImportManager.refresh(context, game.id)
+        }
+    }
     val record = state.record
     var pickingFor by remember { mutableStateOf<String?>(null) }
     var confirmReset by remember { mutableStateOf(false) }
+    var confirmRemoveCopy by remember { mutableStateOf(false) }
     val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val id = pickingFor
         pickingFor = null
@@ -170,6 +185,27 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     }
                     Details(record.detail, state.validation?.checks?.map { Triple(it.name, it.passed, it.detail) })
                 }
+                // The game's own installer: where it stands, and taking its copy away.
+                val installer = state.installer
+                if (installer != null && !state.running) {
+                    val (headline, more) = InstallerRun.describe(installer)
+                    if (headline.isNotEmpty()) {
+                        Column(Modifier.fillMaxWidth().drawBehind { drawFrame(corner = Colors.Ice, arm = 6.dp.toPx()) }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(headline, style = MaterialTheme.typography.bodyLarge)
+                            more?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Colors.Mist) }
+                            if (installer is InstallerRun.Status.Waiting && installer.log.isNotBlank()) Details(installer.log, null)
+                            if (!confirmRemoveCopy) {
+                                Text("Remove the installer's copy", style = MaterialTheme.typography.bodySmall.copy(color = Colors.Ice), modifier = Modifier.clickable { confirmRemoveCopy = true }.padding(vertical = 4.dp))
+                            } else {
+                                Text("Delete the installer's copied files and what it made?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    FrameButton("No", primary = false) { confirmRemoveCopy = false }
+                                    FrameButton("Remove") { confirmRemoveCopy = false; GameImportManager.removeInstallerCopy(context, game.id) }
+                                }
+                            }
+                        }
+                    }
+                }
                 if (game.id == "diablo2" && !state.running && state.entry == null) CdKeys(game.id)
                 // Warcraft III asks for CD keys at its first start: the ones the person has, kept apart from the game.
                 if (game.id.startsWith("warcraft3") && !state.running) Wc3Keys()
@@ -177,10 +213,10 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
                 // Reset, at any time but while it's working: the game's files go, its saves stay.
-                val resettable = !state.running && (state.entry != null || record.stage != Stage.NOT_INSTALLED || record.problem != null)
+                val resettable = !state.running && (state.entry != null || record.stage != Stage.NOT_INSTALLED || record.problem != null || state.installer != null)
                 if (resettable) {
                     if (confirmReset) {
-                        Text("Delete the installed game?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold, modifier = Modifier.weight(1f))
+                        Text(if (state.installer != null) "Delete the installed game and the installer's copy?" else "Delete the installed game?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold, modifier = Modifier.weight(1f))
                         FrameButton("No", primary = false) { confirmReset = false }
                         FrameButton("Reset") { confirmReset = false; GameImportManager.reset(context, game.id) }
                     } else {
@@ -195,10 +231,14 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                         FrameButton("Play") { onDismiss(); onPlay() }
                     }
                     record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton("Auto Import") { GameImportManager.start(context, game.id) }
-                    record.problem == Problem.INSTALLER_MUST_RUN -> {
+                    record.problem == Problem.INSTALLER_MUST_RUN || state.installer != null -> {
+                        val ended = state.installer is InstallerRun.Status.Finished
+                        val partial = state.installer is InstallerRun.Status.PartialCopy
+                        val again = state.installer is InstallerRun.Status.Waiting
                         FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
-                        FrameButton("Retry", primary = false) { GameImportManager.start(context, game.id) }
-                        FrameButton("Run the installer") { GameImportManager.runInstaller(context, game.id) }
+                        FrameButton(if (ended) "Run again" else "Retry", primary = false) { if (ended) GameImportManager.runInstaller(context, game.id) else GameImportManager.start(context, game.id) }
+                        if (ended) FrameButton("Import what it installed") { GameImportManager.start(context, game.id) }
+                        else FrameButton(if (partial) "Go on copying" else if (again) "Run again" else "Run the installer") { GameImportManager.runInstaller(context, game.id) }
                     }
                     else -> {
                         FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
