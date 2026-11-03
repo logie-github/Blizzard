@@ -18,6 +18,13 @@ for f in sorted((B / "covers").iterdir()):
     im = im.crop((0, top, 600, top + 800))
     im.save(NODPI / f"cover_{f.stem}.webp", quality=90)
 
+# Wide art for the tile layout (branding/wide/<game>.*), 2:1 or wider, kept whole (1200 wide at most).
+if (B / "wide").is_dir():
+    for f in sorted((B / "wide").iterdir()):
+        im = Image.open(f).convert("RGB")
+        im.thumbnail((1200, 1200), Image.LANCZOS)
+        im.save(NODPI / f"wide_{f.stem}.webp", quality=90)
+
 # The header: the ice field.
 im = Image.open(B / "header.png").convert("RGB")
 im.save(NODPI / "blizz_header.webp", quality=88)

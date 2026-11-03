@@ -146,6 +146,10 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val open = Games.all.firstOrNull { it.id == openId }
     var wizardFor by remember { mutableStateOf<Game?>(null) }
     var splashFor by remember { mutableStateOf<Game?>(null) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    remember { TileSettings.load(context) }
+    val tiles by TileSettings.state.collectAsState()
+    val tileMode = tiles.mode == TileSettings.Mode.TILES
     LaunchedEffect(Unit) { Variants.load(context) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {
@@ -171,17 +175,18 @@ fun Launcher(fold: Fold? = rememberFold()) {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalOpenWizard provides { g: Game -> wizardFor = g },
             LocalOpenSplash provides { g: Game -> splashFor = Variants.effective(g) },
+            LocalOpenSettings provides { settingsOpen = true },
         ) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight * 0.75f
             when {
-                fold?.tabletop == true && maxHeight >= 480.dp -> {
+                !tileMode && fold?.tabletop == true && maxHeight >= 480.dp -> {
                     val game = open ?: Games.all.first()
                     TabletopPage(game, fold, linkKey, onSelect = { openId = it.id }, onPlay = { play(game) }, onChooseApp = { chooseApp(game) })
                 }
-                wide -> WideLauncher(open ?: Games.all.first(), linkKey, onSelect = { openId = it.id }, onPlay = ::play, onChooseApp = ::chooseApp)
+                !tileMode && wide -> WideLauncher(open ?: Games.all.first(), linkKey, onSelect = { openId = it.id }, onPlay = ::play, onChooseApp = ::chooseApp)
                 else -> {
-                    Shelf(linkKey, selectedId = null, onOpen = { openId = it.id })
+                    if (tileMode) TileScreen(onOpen = { openId = it.id }) else Shelf(linkKey, selectedId = null, onOpen = { openId = it.id })
                     AnimatedContent(
                         targetState = open,
                         transitionSpec = { (fadeIn(tween(260)) + scaleIn(tween(260), initialScale = 0.96f)) togetherWith fadeOut(tween(200)) },
@@ -198,6 +203,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
         }
         UpdateBanner()
         splashFor?.let { SplashDialog(it, onDismiss = { splashFor = null }) }
+        if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
         picking?.let { game ->
@@ -342,8 +348,11 @@ private fun Shelf(linkKey: Int, selectedId: String?, onOpen: (Game) -> Unit) {
 }
 
 /** The ice field, snow over it, slowly closing in; the logo over its lower edge. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Header(screenWidth: Dp, screenHeight: Dp) {
+internal fun Header(screenWidth: Dp, screenHeight: Dp) {
+    val openSettings = LocalOpenSettings.current
+    val hapticLogo = LocalHapticFeedback.current
     val headerHeight = min((screenWidth * 0.62f).coerceIn(200.dp, 420.dp), screenHeight * 0.42f)
     val logoWidth = min(min(screenWidth * 0.52f, headerHeight * 1.05f), 340.dp)
     val logoHeight = logoWidth * (1041f / 2000f)
@@ -382,6 +391,8 @@ private fun Header(screenWidth: Dp, screenHeight: Dp) {
                 .offset(y = headerHeight - logoHeight * 0.55f)
                 .width(logoWidth)
                 .height(logoHeight)
+                // Hold the logo: the settings.
+                .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}, onLongClick = { hapticLogo.performHapticFeedback(HapticFeedbackType.LongPress); openSettings() })
                 .graphicsLayer {
                     val v = reveal.value
                     alpha = ((v - 0.2f) / 0.8f).coerceIn(0f, 1f)
