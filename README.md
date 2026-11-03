@@ -169,6 +169,7 @@ In **Tiles**:
 - **Pinch** the tiles to make them bigger or smaller (one more or fewer across), like the 3DS's grid; one finger still scrolls.
 - **Hold a tile** for its menu: **Change Art** (vertical or horizontal, your own picture for either, or the original), **Rearrange**, **Reinstall** (removes the imported files and starts the import again; saved games stay) and **Loading screen** (the art editor).
 - **Rearrange**: the tiles wiggle; hold one and drag it where it goes; Done keeps the order.
-- A horizontal tile is two across and uses the game's wide art (the World of Warcraft box has Wrath's header; the others use their loading-screen art or the box art cut to fit until you choose a picture).
+- A horizontal tile spreads across the whole row (at least two columns; the tall tiles beside it take its height) and shows its wide art whole; it uses the game's wide art (the World of Warcraft box has Wrath's header; the others use their loading-screen art or the box art cut to fit until you choose a picture).
+- Tiles glide to their places when the order, shape or size changes, press in when touched, and the grid follows a pinch a little before the columns change.
 - Tapping a tile opens the game's page, as the shelf does.
 Classic shelf keeps its own hold (the loading-screen editor).

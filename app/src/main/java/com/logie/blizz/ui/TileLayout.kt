@@ -33,6 +33,21 @@ object TileLayout {
     /** Units a row uses (what's left over is blank). */
     fun used(row: List<Tile>, columns: Int) = row.sumOf { units(it.wide, columns) }
 
+    /**
+     * How many columns each tile of [row] covers: a vertical tile one, a wide tile two at least and
+     * then everything the row has left over, so wide art spreads across the full width (shared out
+     * evenly where a row has several). A row without wide art leaves its end blank.
+     */
+    fun spans(row: List<Tile>, columns: Int): List<Int> {
+        val base = row.map { units(it.wide, columns) }
+        val wides = row.indices.filter { row[it].wide }
+        if (wides.isEmpty()) return base
+        val spare = (columns - base.sum()).coerceAtLeast(0)
+        return base.toMutableList().also { out ->
+            wides.forEachIndexed { n, i -> out[i] += spare / wides.size + if (n < spare % wides.size) 1 else 0 }
+        }
+    }
+
     /** The saved order first (ids that still exist), then every other id in its usual place. */
     fun ordered(all: List<String>, saved: List<String>): List<String> =
         saved.filter { it in all }.distinct().let { kept -> kept + all.filter { it !in kept } }
@@ -50,10 +65,34 @@ object TileLayout {
     /** As many across as fit at 150 dp each, between 2 and [MAX_COLUMNS]. */
     fun autoColumns(widthDp: Float): Int = ((widthDp - 36f) / 150f).toInt().coerceIn(2, MAX_COLUMNS)
 
-    /** A row's height (dp) for a column width [cell] and a [gap]: the box art's height if it has any, else the wide art's. */
+    /**
+     * A row's height (dp) for a column width [cell] and a [gap]: where it has wide art, the height
+     * that shows that art whole across its (full) width, and the tall tiles beside it take that
+     * height; else the box art's.
+     */
     fun rowHeight(row: List<Tile>, columns: Int, cell: Float, gap: Float): Float {
-        if (row.any { !it.wide }) return cell / TALL_RATIO
-        val u = row.maxOf { units(it.wide, columns) }
-        return (u * cell + (u - 1) * gap) / WIDE_RATIO
+        val spans = spans(row, columns)
+        val w = row.indices.firstOrNull { row[it].wide } ?: return cell / TALL_RATIO
+        return (spans[w] * cell + (spans[w] - 1) * gap) / WIDE_RATIO
+    }
+
+    /** A tile's place in the grid, in dp from its top left corner. */
+    data class Placed(val id: String, val x: Float, val y: Float, val width: Float, val height: Float)
+
+    /** Every tile's place, and the grid's height. */
+    fun place(tiles: List<Tile>, columns: Int, cell: Float, gap: Float): Pair<List<Placed>, Float> {
+        val out = ArrayList<Placed>()
+        var y = 0f
+        for ((r, row) in rows(tiles, columns).withIndex()) {
+            val height = rowHeight(row, columns, cell, gap)
+            val spans = spans(row, columns)
+            var col = 0
+            row.forEachIndexed { i, tile ->
+                out.add(Placed(tile.id, col * (cell + gap), y, spans[i] * cell + (spans[i] - 1) * gap, height))
+                col += spans[i]
+            }
+            y += height + gap
+        }
+        return out to (y - gap).coerceAtLeast(0f)
     }
 }
