@@ -52,6 +52,14 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         const val TFT_ID = "warcraft3_tft"
         /** Programs found, in the order their version is read. */
         val PROGRAMS = listOf("Warcraft III.exe", "war3.exe", "Frozen Throne.exe")
+        /**
+         * Where the version is read, best first. In 1.2x, war3.exe is the game (1.27.0.52240) and "Warcraft III.exe" and
+         * "Frozen Throne.exe" are small launchers with their own version resources (1.0.0.1 and 1.5.0.0 as Blizzard serves
+         * them); 1.30 has only "Warcraft III.exe", which is the game.
+         */
+        val VERSION_ORDER = listOf("war3.exe", "Warcraft III.exe", "Frozen Throne.exe")
+        /** The 1.2x game's own libraries, checked besides the launcher's: war3.exe and Game.dll import Storm, Miles (mss32), the C++ runtime and ijl15. */
+        val GAME_BINARIES = listOf("war3.exe", "Game.dll")
         const val MARK = ".from-blizzard"
         /** Inside the games' Windows: where 1.28 and later keep saved games and replays. */
         const val DOCUMENTS = "C:\\users\\xuser\\Documents\\Warcraft III"
@@ -244,7 +252,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
 
     /** The program version found in [dir]: the first readable of the programs, best first. */
     fun versionOf(dir: File): String? =
-        PROGRAMS.firstNotNullOfOrNull { name -> FileValidator.find(dir, name)?.let { PeInfo.read(it)?.version } }
+        VERSION_ORDER.firstNotNullOfOrNull { name -> FileValidator.find(dir, name)?.let { PeInfo.read(it)?.version } }
 
     fun validateDir(dir: File, product: Product = this.product): Validation {
         val checks = ArrayList<Check>()
@@ -259,7 +267,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         })
         val versionOk = programOk && (version == null || supported(version))
         checks += Check("Supported version (1.0 to 1.31, the original game)", versionOk, version ?: "unknown")
-        val missingLibs = if (programOk) Dependencies.missing(program!!) else emptyList()
+        val missingLibs = if (programOk) (listOf(program!!) + GAME_BINARIES.mapNotNull { FileValidator.find(dir, it) }).flatMap { Dependencies.missing(it) }.distinct() else emptyList()
         checks += Check("Program libraries", programOk && missingLibs.isEmpty(), if (!programOk) "not checked" else if (missingLibs.isEmpty()) "all present" else "missing ${missingLibs.joinToString()}")
 
         // The data: 1.30's CASC store (it holds both games), or 1.2x's archives.

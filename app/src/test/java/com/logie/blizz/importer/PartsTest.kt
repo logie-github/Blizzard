@@ -48,7 +48,7 @@ class PartsTest {
             val v = Diablo2ClassicImporter().validateDir(it.parentFile!!)
             assertTrue(v.checks.filter { c -> !c.passed }.toString(), v.filesOk)
         }
-        File(root, "sc/StarCraft.exe").takeIf { it.isFile }?.let {
+        File(root, "sc3/StarCraft.exe").takeIf { it.isFile }?.let {
             assertEquals("1.15.2.1", PeInfo.read(it)!!.version)
             assertEquals(emptyList<String>(), Dependencies.missing(it))
             val v = StarCraftClassicImporter().validateDir(it.parentFile!!)
