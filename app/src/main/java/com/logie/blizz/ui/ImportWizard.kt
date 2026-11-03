@@ -89,6 +89,7 @@ fun statusLabel(stage: Stage, outcome: Outcome?, launchTest: LaunchTest, gameId:
 }
 
 /** The installation wizard over the game's page: steps, progress, the files it asks for, the result. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
     val context = LocalContext.current
@@ -211,7 +212,10 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                 if (game.id.startsWith("warcraft3") && !state.running) Wc3Keys()
             }
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
+            // The buttons wrap onto a second line where they don't fit (Retry was pushed off a phone's width).
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 // Reset, at any time but while it's working: the game's files go, its saves stay.
                 val resettable = !state.running && (state.entry != null || record.stage != Stage.NOT_INSTALLED || record.problem != null || state.installer != null)
                 if (resettable) {
