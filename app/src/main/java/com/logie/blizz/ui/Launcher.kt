@@ -171,12 +171,16 @@ fun Launcher(fold: Fold? = rememberFold()) {
                 com.logie.blizz.game.WowPlay.play(context, entry)
             } else if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) {
                 // Warcraft I and II run natively (Stratagus); the rest on the app's Winlator.
-                if (entry.runtime == com.logie.blizz.game.StratagusRuntime.RUNTIME) com.logie.blizz.game.StratagusRuntime.play(context, entry) else WindowsRuntime.play(context, entry)
+                when (entry.runtime) {
+                    com.logie.blizz.game.StratagusRuntime.RUNTIME -> com.logie.blizz.game.StratagusRuntime.play(context, entry)
+                    // Diablo II: Resurrected: its files are imported; the native host isn't in the app yet ([com.logie.blizz.d2r.D2r]).
+                    com.logie.blizz.importer.LibraryEntry.RUNTIME_D2R ->
+                        android.widget.Toast.makeText(context, "Diablo II: Resurrected's files are imported. Running it in the app isn't built yet.", android.widget.Toast.LENGTH_LONG).show()
+                    else -> WindowsRuntime.play(context, entry)
+                }
             } else wizardFor = game
             return
         }
-        // Diablo II: Resurrected is played in D2R Mobile: not installed, its setup opens instead of the app chooser.
-        if (game.id == com.logie.blizz.d2r.D2r.GAME_ID && !Links.launch(context, game)) { com.logie.blizz.d2r.D2r.requestSetup(); return }
         if (!Links.launch(context, game)) { launchAfterPick = true; picking = game }
     }
     fun chooseApp(game: Game) { launchAfterPick = false; picking = game }
@@ -217,8 +221,6 @@ fun Launcher(fold: Fold? = rememberFold()) {
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
         SelfTestDialog()
-        val d2rSetup by com.logie.blizz.d2r.D2r.setupRequested.collectAsState()
-        if (d2rSetup) D2rSetupDialog(onDismiss = { com.logie.blizz.d2r.D2r.requestSetup(false) })
         picking?.let { game ->
             AppPicker(
                 game,
@@ -316,7 +318,6 @@ private fun WideLauncher(game: Game, linkKey: Int, onSelect: (Game) -> Unit, onP
                             LaunchOptionsButton(shown)
                         }
                         ImportStatus(shown)
-                        D2rStatus(shown)
                         if (linked != null) {
                             Row(
                                 Modifier.clip(CircleShape).clickable { onChooseApp(shown) }.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -558,7 +559,6 @@ private fun Details(game: Game, linked: String?, onPlay: () -> Unit, onChooseApp
             LaunchOptionsButton(game)
         }
         ImportStatus(game)
-        D2rStatus(game)
         if (linked != null) {
             Spacer(Modifier.height(6.dp))
             Row(

@@ -1,87 +1,51 @@
 package com.logie.blizz.d2r
 
-import android.content.Context
 import com.logie.blizz.importer.CancelToken
-import com.logie.blizz.importer.DownloadManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.withContext
+import com.logie.blizz.importer.GamePaths
+import com.logie.blizz.importer.ZipExtractor
+import org.json.JSONObject
 import java.io.File
 
 /**
- * Diablo II: Resurrected, as the second version of the Diablo II tile: played in D2R Mobile
- * (github.com/jhaizhou-ops/d2r-mobile, MIT), an open-source Android port that runs the game's own
- * ARM64 program from the Nintendo Switch release, on Vulkan. It is an app of its own, not part of
- * Blizzard: Play opens it, and Blizzard installs it and says what it needs. The game's files are the
- * player's own Switch files, turned into an import pack on a computer (the port's tool needs Python,
- * the .NET SDK and the Vulkan SDK's shader tools, which a phone doesn't have) and copied to the
- * phone's `Download/S2X/D2R Mobile/`.
+ * Diablo II: Resurrected, the second version of the Diablo II tile, played in Blizzard itself through
+ * D2R Mobile's open-source (MIT) native host (github.com/jhaizhou-ops/d2r-mobile): it runs the Nintendo
+ * Switch release's own ARM64 program on the phone, on Vulkan. None of it is packaged with Blizzard:
+ * the **module** is downloaded first, from the project's own release (its native libraries and the
+ * rest of what the release APK carries, never run as an app of its own), and kept in `modules/d2r`.
+ * The game's files are the player's own Switch packages, imported by
+ * [com.logie.blizz.importer.Diablo2ResurrectedImporter].
  */
 object D2r {
     const val GAME_ID = "diablo2_resurrected"
-    const val PACKAGE = "com.xiaoboluo.d2r"
-
-    /** The newest release's APK (GitHub answers with a redirect to the current release's file). */
-    const val APK_URL = "https://github.com/jhaizhou-ops/d2r-mobile/releases/latest/download/D2RMobile-android.apk"
+    const val REPO = "jhaizhou-ops/d2r-mobile"
+    const val APK = "D2RMobile-android.apk"
     const val PROJECT_URL = "https://github.com/jhaizhou-ops/d2r-mobile"
 
-    const val COMPUTER_COMMAND = "python3 dm/tools/d2rm_android.py <Update directory of your game files> <output directory>"
+    fun moduleDir(paths: GamePaths) = File(paths.root, "modules/d2r")
 
-    /** The steps the port's own guide gives, in the order to do them. */
-    val STEPS: List<String> = listOf(
-        "Own the Switch release of Diablo II: Resurrected with Reign of the Warlock, updated to 1.0.34.0 (PC 3.3.94012). Dump its ExeFS and RomFS from your own console (nxdumptool).",
-        "On a computer, get the port's source from the same release as the app (github.com/jhaizhou-ops/d2r-mobile) and run: $COMPUTER_COMMAND. It makes an `android` folder (about 670 MB).",
-        "Copy that `android` folder, and the 18 .data archives with .build.config from RomFS/data as a folder named `data`, to Download/S2X/D2R Mobile/ on the phone (about 6 GB).",
-        "Install D2R Mobile with the button here, open it, allow All files access, and let it import the pack. After that, Play on this tile opens it.",
-    )
+    /** The release the downloaded module is from (its tag), or null when there is none. */
+    fun moduleTag(paths: GamePaths): String? = runCatching {
+        JSONObject(File(moduleDir(paths), "module.json").readText()).getString("tag")
+    }.getOrNull()?.takeIf { libraries(paths).isNotEmpty() }
 
-    fun installed(context: Context): Boolean = context.packageManager.getLaunchIntentForPackage(PACKAGE) != null
+    /** The module's native libraries (the .so files in lib/arm64-v8a). */
+    fun libraries(paths: GamePaths): List<File> =
+        File(moduleDir(paths), "lib/arm64-v8a").listFiles { f -> f.isFile && f.name.endsWith(".so") }?.sortedBy { it.name } ?: emptyList()
 
-    fun installedVersion(context: Context): String? =
-        runCatching { context.packageManager.getPackageInfo(PACKAGE, 0).versionName }.getOrNull()
+    fun hasModule(paths: GamePaths) = moduleTag(paths) != null && libraries(paths).any { it.name == "libdm.so" }
 
-    sealed interface State {
-        data object Idle : State
-        data class Downloading(val done: Long, val total: Long) : State
-        data class Ready(val apk: File) : State
-        data class Failed(val message: String) : State
-    }
+    /** What of the release APK the module keeps: its native libraries, its code and its assets. */
+    fun wanted(entry: String): Boolean =
+        entry.startsWith("lib/arm64-v8a/") && entry.endsWith(".so") || entry.matches(Regex("classes\\d*\\.dex")) || entry.startsWith("assets/")
 
-    private val _state = MutableStateFlow<State>(State.Idle)
-    val state: StateFlow<State> = _state
-
-    /** Asks for the setup dialog (a page's pill, or Play with the app not installed). */
-    private val _setupRequested = MutableStateFlow(false)
-    val setupRequested: StateFlow<Boolean> = _setupRequested
-
-    fun requestSetup(on: Boolean = true) {
-        _setupRequested.value = on
-    }
-
-    fun dismissState() {
-        _state.value = State.Idle
-    }
-
-    /** Downloads the newest D2R Mobile APK and checks it is that app; [State.Ready] when it can be installed. */
-    suspend fun download(context: Context) {
-        if (_state.value is State.Downloading) return
-        _state.value = State.Downloading(0, 0)
-        val dir = File(context.cacheDir, "updates").also { it.mkdirs() }
-        val target = File(dir, "D2RMobile-android.apk")
-        target.delete()
-        File(dir, "D2RMobile-android.apk.part").delete()
-        try {
-            withContext(Dispatchers.IO) {
-                DownloadManager().download(APK_URL, target, CancelToken(), onProgress = { done, total -> _state.value = State.Downloading(done, total) })
-            }
-            val info = context.packageManager.getPackageArchiveInfo(target.path, 0)
-            if (info?.packageName != PACKAGE) {
-                target.delete()
-                _state.value = State.Failed("What came down isn't D2R Mobile's app. Try again later.")
-            } else _state.value = State.Ready(target)
-        } catch (e: Exception) {
-            _state.value = State.Failed(e.message ?: e.javaClass.simpleName)
-        }
+    /** Unpacks [apk], the release [tag]'s, into the module folder, replacing what was there. */
+    fun installModule(apk: File, paths: GamePaths, tag: String, cancel: CancelToken) {
+        val dir = moduleDir(paths)
+        val next = File(dir.parentFile, "d2r.new")
+        next.deleteRecursively()
+        apk.inputStream().use { ZipExtractor.extract(it, next, cancel, filter = ::wanted) }
+        File(next, "module.json").writeText(JSONObject().put("tag", tag).put("apk", APK).toString())
+        dir.deleteRecursively()
+        if (!next.renameTo(dir)) throw java.io.IOException("The module couldn't be put in place.")
     }
 }

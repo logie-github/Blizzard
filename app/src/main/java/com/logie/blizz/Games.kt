@@ -29,10 +29,10 @@ object Games {
     /** The shelf, in alphabetical order. */
     val all: List<Game> = listOf(
         Game("diablo", "Diablo", null, 1996, R.drawable.cover_diablo, splash = R.drawable.splash_diablo, splashLogo = R.drawable.splash_logo_diablo),
-        // Resurrected is played in D2R Mobile (its own app: [com.logie.blizz.d2r.D2r]); the art is the original's until you change it.
+        // Resurrected: the Switch release's own program through D2R Mobile's host ([com.logie.blizz.d2r.D2r]); the art is the original's until you change it.
         Game("diablo2", "Diablo II", null, 2000, R.drawable.cover_diablo2, splash = R.drawable.splash_diablo2, splashLogo = R.drawable.splash_logo_diablo2, splashTop = -1f,
             variantLabel = "Original",
-            variants = listOf(Game("diablo2_resurrected", "Diablo II", "Resurrected", 2021, R.drawable.cover_diablo2, suggestedPackage = "com.xiaoboluo.d2r", variantLabel = "Resurrected"))),
+            variants = listOf(Game("diablo2_resurrected", "Diablo II", "Resurrected", 2021, R.drawable.cover_diablo2, variantLabel = "Resurrected"))),
         Game("starcraft", "StarCraft", null, 1998, R.drawable.cover_starcraft, variantLabel = "Classic",
             variants = listOf(Game("starcraft_remastered", "StarCraft", "Remastered", 2017, R.drawable.cover_starcraft, variantLabel = "Remastered"))),
         Game("starcraft2", "StarCraft II", null, 2010, R.drawable.cover_starcraft2),

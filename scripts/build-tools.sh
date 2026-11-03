@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the programs the importers run on the phone (tools.env) into app/tools/jniLibs/arm64-v8a
-# (git-ignored): libbldl.so (blizzard-legacy-dl) and libinnoextract.so. Android runs programs from
+# (git-ignored): libbldl.so (blizzard-legacy-dl), libinnoextract.so and libhactool.so. Android runs programs from
 # the app's native library folder, named like libraries.
 #
 # TOOLS_WORK is where to keep sources and builds (default build/tools).
@@ -105,8 +105,19 @@ android "$WORK/innoextract" "$WORK/innoextract-build" \
 make -C "$WORK/innoextract-build" -j"$JOBS" innoextract > "$WORK/innoextract.make.log" || { tail -40 "$WORK/innoextract.make.log"; exit 1; }
 "$TOOLCHAIN/llvm-strip" -o "$OUT/libinnoextract.so" "$WORK/innoextract-build/innoextract"
 
+# hactool ---------------------------------------------------------------------------------------
+fetch "$HACTOOL_REPO" "$HACTOOL_COMMIT" "$WORK/hactool"
+(
+	cd "$WORK/hactool"
+	# Its Makefile builds the vendored mbedtls and then its own sources; the same files, in one command.
+	"$CC" -O2 -w -fPIE -pie -D_BSD_SOURCE -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200112L -D_DEFAULT_SOURCE -D_FILE_OFFSET_BITS=64 \
+		-I mbedtls/include ./*.c mbedtls/library/*.c -o hactool > "$WORK/hactool.log" 2>&1
+) || { tail -40 "$WORK/hactool.log"; exit 1; }
+"$TOOLCHAIN/llvm-strip" -o "$OUT/libhactool.so" "$WORK/hactool/hactool"
+
 {
 	echo "blizzard-legacy-dl $BLDL_COMMIT"
 	echo "innoextract $INNOEXTRACT_COMMIT"
+	echo "hactool $HACTOOL_COMMIT"
 } > "$ROOT/app/tools/VERSION"
 ls -la "$OUT"

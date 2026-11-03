@@ -36,6 +36,8 @@ data class LibraryEntry(
         const val RUNTIME_WINLATOR = "winlator"
         /** Played in another app (the World of Warcraft app) until its runtime is brought over. */
         const val RUNTIME_EXTERNAL = "external-app"
+        /** Diablo II: Resurrected: the game's own program on the phone, through D2R Mobile's native host ([com.logie.blizz.d2r.D2r]). */
+        const val RUNTIME_D2R = "d2r-native"
 
         fun fromJson(o: JSONObject) = LibraryEntry(
             gameId = o.getString("gameId"),

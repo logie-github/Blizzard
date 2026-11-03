@@ -99,6 +99,8 @@ object GameImportManager {
         "warcraft3_tft" to { Warcraft3Importer(Warcraft3Importer.Product.TFT) },
         // World of Warcraft: the WoW app's verified export, copied over (its realms still run in that app).
         "wow" to { WowImporter() },
+        // Diablo II: Resurrected: the player's own Switch packages (a 7z of the .nsp files, base game and update), unpacked with hactool.
+        "diablo2_resurrected" to { Diablo2ResurrectedImporter() },
     )
 
     fun importable(gameId: String) = gameId in importers
@@ -346,6 +348,7 @@ object GameImportManager {
         val paths = paths(context)
         val bldl = Tools.file(context, "libbldl.so")
         val inno = Tools.file(context, "libinnoextract.so")
+        val hactool = Tools.file(context, "libhactool.so")
         ConversionTools.installed = DeviceConversionTools(context.applicationContext)
         return ImportEnv(
             paths = paths,
@@ -358,6 +361,7 @@ object GameImportManager {
             cancel = cancel,
             progress = progress,
             keys = keys[gameId],
+            hactool = if (hactool.isFile) Hactool(hactool) else null,
         )
     }
 
