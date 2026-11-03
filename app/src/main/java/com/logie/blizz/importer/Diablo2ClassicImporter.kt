@@ -17,6 +17,13 @@ class Diablo2ClassicImporter : GameImporter {
         const val EXE = "Game.exe"
         val BASE = listOf("d2data.mpq", "d2char.mpq", "d2sfx.mpq", "d2music.mpq", "d2speech.mpq", "d2video.mpq", "patch_d2.mpq")
         val EXPANSION = listOf("d2exp.mpq", "d2xmusic.mpq", "d2xtalk.mpq", "d2xvideo.mpq")
+        /** The movie archives: the intro, the act cinematics and the expansion's. Without them the game plays no movies. */
+        val MOVIES = listOf("d2video.mpq", "d2xvideo.mpq")
+        /**
+         * The libraries 1.14b's Game.exe imports besides Windows' own (binkw32 and smackw32 play the movies, ijl11 reads
+         * the JPEGs), and the language file; 1.14 folded the older D2*.dll files into Game.exe.
+         */
+        val NATIVE = listOf("binkw32.dll", "smackw32.dll", "ijl11.dll", "D2.LNG")
         /** 1.14 (1.14b is what Blizzard serves, 1.14.1.68; 1.14d is 1.14.3.71). */
         fun supported(version: String?): Boolean = version != null && version.startsWith("1.14.")
         const val SIZE = 2_150L shl 20
@@ -161,19 +168,27 @@ class Diablo2ClassicImporter : GameImporter {
         val base = FileValidator.requireArchives(dir, BASE)
         val expansion = FileValidator.requireArchives(dir, EXPANSION)
         checks += base + expansion
+        val movies = (base + expansion).filter { c -> MOVIES.any { it.equals(c.name, true) } }
+        val moviesOk = movies.size == MOVIES.size && movies.all { it.passed }
+        checks += Check("Movies", moviesOk, if (moviesOk) "${MOVIES.joinToString(" and ")} present" else "missing or damaged: ${MOVIES.filter { m -> movies.none { it.name == m && it.passed } }.joinToString()}")
+        val native = FileValidator.requireFiles(dir, NATIVE)
+        checks += native
         val problem = when {
             !checks[0].passed -> Problem.MISSING_SOURCE_DATA
             pe != null && !versionOk -> Problem.UNSUPPORTED_VERSION
             checks.getOrNull(1)?.passed == false -> Problem.MISSING_RUNTIME_DEPENDENCY
             base.any { !it.passed } -> if (base.all { it.detail == "missing" }) Problem.MISSING_SOURCE_DATA else Problem.CORRUPT_ARCHIVE
             expansion.any { !it.passed } -> Problem.MISSING_EXPANSION
+            native.any { !it.passed } -> Problem.MISSING_RUNTIME_DEPENDENCY
             else -> null
         }
         val message = when (problem) {
             Problem.UNSUPPORTED_VERSION -> "This Diablo II is version ${pe?.version}; the app plays 1.14 (1.14b is what Blizzard serves). Select a 1.14 installation, or retry online to download it from Blizzard."
             Problem.MISSING_EXPANSION -> PROMPT_EXPANSION
             Problem.CORRUPT_ARCHIVE -> "Some of Diablo II's archives are damaged: ${base.filter { !it.passed }.joinToString { it.name }}. Repair to download or copy them again."
-            Problem.MISSING_RUNTIME_DEPENDENCY -> "Diablo II's libraries are missing: ${checks[1].detail}."
+            Problem.MISSING_RUNTIME_DEPENDENCY ->
+                if (checks[1].passed) "Diablo II's files are missing: ${native.filter { !it.passed }.joinToString { it.name }} (the movies and the game's text need them)."
+                else "Diablo II's libraries are missing: ${checks[1].detail}."
             Problem.MISSING_SOURCE_DATA -> "Diablo II game data is missing. $PROMPT_INSTALL"
             else -> null
         }

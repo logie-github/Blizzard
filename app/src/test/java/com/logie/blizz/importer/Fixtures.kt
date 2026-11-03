@@ -192,7 +192,7 @@ object Fixtures {
 
     fun diablo2Install(dir: File, version: String = "1.14.1.68", expansion: Boolean = true): File {
         pe(File(dir, "Game.exe"), version, imports = listOf("KERNEL32.dll", "USER32.dll", "binkw32.dll", "SmackW32.dll", "ijl11.dll"))
-        for (dll in listOf("binkw32.dll", "SmackW32.dll", "ijl11.dll")) File(dir, dll).writeBytes(ByteArray(64))
+        for (dll in listOf("binkw32.dll", "SmackW32.dll", "ijl11.dll", "D2.LNG")) File(dir, dll).writeBytes(ByteArray(64))
         Diablo2ClassicImporter.BASE.forEach { mpq(File(dir, it)) }
         if (expansion) Diablo2ClassicImporter.EXPANSION.forEach { mpq(File(dir, it)) }
         return dir

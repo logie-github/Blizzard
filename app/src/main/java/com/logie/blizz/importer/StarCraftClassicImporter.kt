@@ -27,7 +27,7 @@ class StarCraftClassicImporter : GameImporter {
         val USER_DATA = listOf("characters", "save", "maps/replays")
         /** What the data archives must hold: StarCraft stops with "unable to open a required file" if they don't. */
         val CONTENTS = mapOf(
-            "StarDat.mpq" to listOf("font\\font.gid", "font\\font16.fnt", "rez\\glumain.bin", "arr\\units.dat"),
+            "StarDat.mpq" to listOf("font\\font.gid", "font\\font.clh", "font\\font16.fnt", "rez\\glumain.bin", "arr\\units.dat"),
             "BrooDat.mpq" to listOf("arr\\units.dat"),
         )
         val SUPPORTED = listOf("1.15.2.", "1.15.3.", "1.16.0.", "1.16.1.")
