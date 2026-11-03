@@ -126,4 +126,35 @@ class WowImporterTest {
         assertEquals(e.sortedBy { it.path }, WowExport.parseChecksums(WowExport.checksumsText(e)))
         try { WowExport.parseChecksums("short\t1\tp"); fail() } catch (x: ImportException) { assertEquals(Problem.CORRUPT_ARCHIVE, x.problem) }
     }
+
+    @Test fun twinsKeptApartByTheExportsRenamesAreFound() {
+        val dir = export()
+        // The export stored the real path data/cameras/FlyByWorgen.m2 as ...~1a2b3c4d (renames in export.json).
+        val bytes = "camera".toByteArray()
+        File(dir, "files/data/cameras").mkdirs()
+        File(dir, "files/data/cameras/FlyByWorgen.m2~1a2b3c4d").writeBytes(bytes)
+        val sha = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        val entries = WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) + WowExport.Entry(sha, bytes.size.toLong(), "data/cameras/FlyByWorgen.m2")
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(entries))
+        val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
+        File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 1, folders = m.folders + "data", renames = mapOf("data/cameras/FlyByWorgen.m2" to "data/cameras/FlyByWorgen.m2~1a2b3c4d"))))
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("camera", File(paths.game("wow"), "files/data/cameras/FlyByWorgen.m2").readText())
+    }
+
+    @Test fun anOlderExportsParenthesisedCopyOfACaseTwinIsFound() {
+        val dir = export()
+        // Before the fix, shared storage kept the second twin as "flybyworgen (1).m2".
+        val bytes = "second".toByteArray()
+        File(dir, "files/data/cameras").mkdirs()
+        File(dir, "files/data/cameras/flybyworgen (1).m2").writeBytes(bytes)
+        val sha = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) + WowExport.Entry(sha, bytes.size.toLong(), "data/cameras/flybyworgen.m2")))
+        val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
+        File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 1, folders = m.folders + "data")))
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("second", File(paths.game("wow"), "files/data/cameras/flybyworgen.m2").readText())
+    }
 }
