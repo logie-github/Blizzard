@@ -170,6 +170,8 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     Details(record.detail, state.validation?.checks?.map { Triple(it.name, it.passed, it.detail) })
                 }
                 if (game.id == "diablo2" && !state.running && state.entry == null) CdKeys(game.id)
+                // Warcraft III asks for CD keys at its first start: the ones the person has, kept apart from the game.
+                if (game.id.startsWith("warcraft3") && !state.running) Wc3Keys()
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
@@ -192,6 +194,11 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                         FrameButton("Play") { onDismiss(); onPlay() }
                     }
                     record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton("Auto Import") { GameImportManager.start(context, game.id) }
+                    record.problem == Problem.INSTALLER_MUST_RUN -> {
+                        FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
+                        FrameButton("Retry", primary = false) { GameImportManager.start(context, game.id) }
+                        FrameButton("Run the installer") { GameImportManager.runInstaller(context, game.id) }
+                    }
                     else -> {
                         FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
                         FrameButton("Retry") { GameImportManager.start(context, game.id) }

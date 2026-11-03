@@ -20,6 +20,8 @@ class GamePaths(val root: File) {
 
     fun game(id: String) = File(games, id)
     fun staging(id: String) = File(staging, id)
+    /** A game's installer, copied here and run in the games' Windows (drive T: is [staging]); it installs into `out/`. */
+    fun installer(id: String) = File(staging, "$id-installer")
     fun saves(id: String) = File(saves, id)
     /** blizzard-legacy-dl's cache of payload pieces: a stopped download resumes from it. */
     val legacyCache = File(downloads, "legacy")

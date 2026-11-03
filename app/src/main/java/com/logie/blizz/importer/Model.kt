@@ -25,6 +25,8 @@ enum class LaunchTest {
 enum class Problem {
     MISSING_SOURCE_DATA, CORRUPT_ARCHIVE, UNSUPPORTED_INSTALLER, UNSUPPORTED_VERSION, MISSING_EXPANSION, DOWNLOAD_FAILED,
     INSUFFICIENT_STORAGE, PERMISSION_DENIED, MISSING_RUNTIME_DEPENDENCY, LAUNCH_FAILED, PROFILE_INIT_FAILED, CANCELLED,
+    /** The installer has to be run (in the app's Windows) to make the game's files. */
+    INSTALLER_MUST_RUN,
 }
 
 class ImportException(val problem: Problem, message: String, val detail: String? = null, cause: Throwable? = null) : Exception(message, cause)

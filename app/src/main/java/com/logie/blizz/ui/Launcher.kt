@@ -154,7 +154,10 @@ fun Launcher(fold: Fold? = rememberFold()) {
         // Diablo, Diablo II, StarCraft and StarCraft II: imported into the app and played on its Winlator.
         if (GameImportManager.importable(game.id)) {
             val entry = GameImportManager.library(context).get(game.id)
-            if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) WindowsRuntime.play(context, entry) else wizardFor = game
+            if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) {
+                // Warcraft I and II run natively (Stratagus); the rest on the app's Winlator.
+                if (entry.runtime == com.logie.blizz.game.StratagusRuntime.RUNTIME) com.logie.blizz.game.StratagusRuntime.play(context, entry) else WindowsRuntime.play(context, entry)
+            } else wizardFor = game
             return
         }
         if (!Links.launch(context, game)) { launchAfterPick = true; picking = game }

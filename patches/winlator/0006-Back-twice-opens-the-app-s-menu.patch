@@ -1,0 +1,26 @@
+From 553011e5a8228c771cf34df0599f69625c49db49 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Mon, 2 Nov 2026 19:32:01 +0000
+Subject: [PATCH] Back twice opens the app's menu (a way in when four fingers
+ don't)
+
+---
+ app/src/main/java/com/winlator/XServerDisplayActivity.java | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index e5fb2c7..8e75393 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -351,7 +351,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     public void onBackPressed() {
+         // With the gestures, Back is the game's Escape; four fingers open the app's menu.
+         if (gestureView != null && environment != null && !drawerLayout.isDrawerOpen(GravityCompat.START)) {
+-            gestureView.escape();
++            gestureView.backPressed();
+             return;
+         }
+         if (environment != null) {
+-- 
+2.43.0
+

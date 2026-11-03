@@ -139,3 +139,15 @@ Hold a game's art to open it. Pinch the preview to zoom the picture and drag to 
 ## Game log
 
 While a game runs, the app keeps the last 400 lines Wine printed (errors and the libraries it loaded). The game menu (four fingers) has **Send a report (with the game's log)**, which files it as a GitHub issue, for black screens that leave no crash behind.
+
+- **Back twice** (within a second) opens the app's menu, for when four fingers don't.
+- A game that shows no window for 90 seconds, and every game one minute in, send their Wine log as an issue (once a day per game), so a black screen is reported without anyone reaching the menu.
+- **Repack installers** (Setup.exe with `Data01.dxn`-style files: ISDone, unarc, xtool, lolz) make the game's files only when they run. The import says so and offers **Run the installer**: the installer and its data files are copied into the app (about the game's size again is needed free, twice over with the install), run silently in the app's Windows (`/SILENT /DIR=T:\<game>-installer\out`), and when it has finished, **Retry** imports what it installed and deletes the copy. Under emulation this can take hours. Untested on a phone.
+
+## Warcraft I, II and III
+
+All four Warcraft games are imported and played in this app (no other app is needed).
+
+- **Warcraft I and II** run natively on the Stratagus engine (War1gus and Wargus), from your GOG offline installers (Setup.exe and its .bin files, picked as a folder or file) or an installed GOG folder, also as zip, 7z, tar or disc image. The app unpacks the installer with innoextract and converts the data with war1tool or wartool (case-fixed first), then plays it with your Controls rules; a game that stops is reported with its output and log. Reset keeps the engine's preferences and saves.
+- **Warcraft III: Reign of Chaos and The Frozen Throne** run on the app's Winlator, offline. Both share one install (1.30 is one program): import either and the other uses the same folder. Files from you in any form, or Blizzard's legacy servers for the original game where they offer it (unverified). The screen size and install path are written to Wine's registry at each start. CD keys: paste the ones you have in the keys box on the game's import screen (kept in `cdkeys.txt` apart from the game); the app never generates keys.
+- Nothing here has run on a phone. The first CI build also compiles the Stratagus engine and tools (cached afterwards).

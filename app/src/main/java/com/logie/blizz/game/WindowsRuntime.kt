@@ -106,6 +106,12 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId) }
+        // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
+        if (entry.gameId.startsWith("warcraft3")) {
+            withContext(Dispatchers.IO) {
+                runCatching { Wc3Setup.apply(container.rootDir, size.first, size.second, "D:\\" + File(entry.installPath).name + "\\") }
+            }
+        }
         // Wine's errors and the libraries it loads, kept for the game menu's report ([GameLog]).
         android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
             .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,loaddll").apply()
@@ -138,7 +144,9 @@ object WindowsRuntime {
         val paths = GameImportManager.paths(context)
         paths.games.mkdirs()
         paths.saves.mkdirs()
-        return "D:" + paths.games.path + "S:" + paths.saves.path
+        paths.staging.mkdirs()
+        // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
+        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
     }
 
     /**

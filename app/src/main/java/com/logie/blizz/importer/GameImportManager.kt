@@ -43,6 +43,12 @@ object GameImportManager {
         "starcraft" to { StarCraftClassicImporter() },
         "starcraft_remastered" to { StarCraftRemasteredImporter() },
         "starcraft2" to { StarCraft2OfflineImporter() },
+        // Warcraft I and II: native Stratagus from the GOG files (the conversion tools are set in [env]).
+        "warcraft" to { Warcraft1Importer() },
+        "warcraft2" to { Warcraft2Importer() },
+        // Warcraft III, one install for both ("warcraft3_tft" uses RoC's when it's there), on the app's Winlator.
+        "warcraft3_roc" to { Warcraft3Importer(Warcraft3Importer.Product.ROC) },
+        "warcraft3_tft" to { Warcraft3Importer(Warcraft3Importer.Product.TFT) },
     )
 
     fun importable(gameId: String) = gameId in importers
@@ -130,6 +136,49 @@ object GameImportManager {
         )
     }
 
+    /**
+     * Run the game's own installer in the app's Windows ([InstallerRun]): its files are copied into the
+     * app, then it's started silently; when it has finished, Retry imports what it installed.
+     */
+    fun runInstaller(context: Context, gameId: String) {
+        val app = context.applicationContext
+        if (importers[gameId] == null) return
+        synchronized(cancels) {
+            if (cancels.containsKey(gameId)) return
+            cancels[gameId] = CancelToken()
+        }
+        val cancel = cancels[gameId]!!
+        ImportService.start(app)
+        scope.launch {
+            val repo = repo(app)
+            var state = WizardState(gameId, repo.load(gameId), running = true, entry = library(app).get(gameId))
+            publish(state)
+            try {
+                val env = env(app, gameId, cancel) { p ->
+                    state = state.copy(progress = p, record = state.record.copy(stage = p.stage))
+                    publish(state)
+                    ImportService.update(app, p)
+                }
+                val source = (supplied(app, repo.load(gameId))["install"] as? Supplied.Picked)?.source
+                    ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "Pick the folder that holds the installer (Setup.exe) and its data files first.")
+                val setup = InstallerRun.prepare(env, gameId, source)
+                val title = com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId
+                repo.update(gameId) { it.copy(stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = Problem.INSTALLER_MUST_RUN, message = "The installer is running in the app's Windows. When it has finished, tap Retry to import what it installed.", detail = null) }
+                kotlinx.coroutines.withContext(Dispatchers.Main) { com.logie.blizz.game.WindowsRuntime.play(app, InstallerRun.entry(gameId, title, setup)) }
+            } catch (e: Throwable) {
+                val problem = (e as? ImportException)?.problem ?: Problem.MISSING_SOURCE_DATA
+                if (problem != Problem.CANCELLED) {
+                    repo.update(gameId) { it.copy(stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = problem, message = e.message, detail = (e as? ImportException)?.detail) }
+                    com.logie.blizz.reports.BugReports.report(app, "$gameId installer copy ($problem)", e.message ?: problem.name, listOf("Game" to gameId), log = e.stackTraceToString())
+                }
+            } finally {
+                synchronized(cancels) { cancels.remove(gameId) }
+                publish(WizardState(gameId, repo.load(gameId), running = false, entry = library(app).get(gameId)))
+                if (synchronized(cancels) { cancels.isEmpty() }) ImportService.stop(app)
+            }
+        }
+    }
+
     /** Back to not installed (not while it's importing): the game's files, entry and record go; saves and downloads stay. */
     fun reset(context: Context, gameId: String) {
         val app = context.applicationContext
@@ -207,6 +256,7 @@ object GameImportManager {
         val paths = paths(context)
         val bldl = Tools.file(context, "libbldl.so")
         val inno = Tools.file(context, "libinnoextract.so")
+        ConversionTools.installed = DeviceConversionTools(context.applicationContext)
         return ImportEnv(
             paths = paths,
             searchRoots = { searchRoots(context) },

@@ -72,7 +72,7 @@ class StarCraft2OfflineImporter : GameImporter {
     override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
         val game = env.paths.game(gameId)
         val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
-        val haveGame = File(game, "Versions").isDirectory || install != null
+        val haveGame = File(game, "Versions").isDirectory || install != null || InstallerRun.out(env.paths, gameId).isDirectory
         if (!haveGame) return listOf(MissingInput("install", PROMPT_INSTALL, PickKind.FILE_OR_FOLDER))
         // An installed game's folder shows whether it holds the launcher; an archive, a disc image or an
         // installer (and its data files) can't be looked into before it's unpacked, so it's asked about after, if at all.
@@ -91,7 +91,16 @@ class StarCraft2OfflineImporter : GameImporter {
             val staging = asm.begin()
             asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { true }
             val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
-            if (install != null) {
+            val installed = InstallerRun.finishedRoot(env.paths, gameId, isGameRoot, ::looseGameRoot)
+            if (installed != null) {
+                // What the game's own installer made in the app's Windows.
+                precheckVersion(installed)
+                for (f in installed.listFiles().orEmpty()) {
+                    val target = File(staging, f.name)
+                    target.deleteRecursively()
+                    if (!f.renameTo(target)) f.copyRecursively(target, true)
+                }
+            } else if (install != null) {
                 val root = Packages.materialize(install, env, staging, scratch, "StarCraft II", PROMPT_INSTALL, isGameRoot, ::precheckVersion, ::precheckVersion, looseRoot = ::looseGameRoot)
                 // Moved, not copied: it was just unpacked beside staging.
                 for (f in root.listFiles().orEmpty()) {
@@ -116,6 +125,7 @@ class StarCraft2OfflineImporter : GameImporter {
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "StarCraft II's files didn't check out.")
             asm.commit()
+            env.paths.installer(gameId).deleteRecursively()
         } catch (e: Throwable) {
             asm.abandon()
             throw e
