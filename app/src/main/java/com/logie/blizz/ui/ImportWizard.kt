@@ -74,7 +74,7 @@ fun statusLabel(stage: Stage, outcome: Outcome?, launchTest: LaunchTest, gameId:
     stage == Stage.READY && launchTest == LaunchTest.FAILED -> "Launch Test Failed"
     stage == Stage.READY -> "Ready to Play"
     stage == Stage.IMPORTED_UNTESTED && launchTest == LaunchTest.WINDOW_SHOWN && (gameId == "starcraft2" || gameId == "starcraft_remastered") -> "Started under Winlator — campaign untested"
-    stage == Stage.IMPORTED_UNTESTED && gameId == "wow" -> "Copied and verified — plays in the WoW app for now"
+    stage == Stage.IMPORTED_UNTESTED && gameId == "wow" -> "Copied and verified — Play starts the realm and the game here"
     stage == Stage.IMPORTED_UNTESTED -> "Imported — Launch Untested"
     outcome == Outcome.MISSING_REQUIRED_FILE -> "Missing Required File"
     outcome == Outcome.UNSUPPORTED_CLIENT_VERSION -> "Unsupported Client Version"

@@ -69,12 +69,43 @@ class WowImporter : GameImporter {
         val located = HashMap<String, SourceNode>()
         for (e in entries) {
             val stored = manifest.renames[e.path] ?: e.path
-            (nodes[stored] ?: if (e.path !in manifest.renames) WowExport.likely(e.path, byLower) else null)?.let { located[e.path] = it }
+            val own = nodes[stored]
+            if (own != null) { located[e.path] = own; continue }
+            if (e.path in manifest.renames) continue
+            // An export from before the renames: the file that holds this entry's bytes, by checksum, among where it may be.
+            WowExport.candidates(e.path, byLower).firstOrNull { c -> runCatching { c.open().use { WowExport.sha256(it) } }.getOrNull() == e.sha256 }
+                ?.let { located[e.path] = it }
+        }
+        // Then by content: what's still missing is looked for by its size and SHA-256 among every file in the folder that
+        // was picked, whatever it's called and wherever it is (a copy renamed by the storage, put in the wrong folder...).
+        var searched = 0
+        val stillMissing = entries.filter { it.path !in located }
+        if (stillMissing.isNotEmpty()) {
+            env.progress(Progress(Stage.EXTRACTING, "Looking for ${stillMissing.size} missing files by size and checksum"))
+            val bySize = HashMap<Long, MutableList<SourceNode>>()
+            val used = located.values.map { it.display }.toHashSet()
+            fun index(node: SourceNode, depth: Int) {
+                if (depth > 12 || searched > 400_000) return
+                for (child in node.children()) {
+                    env.cancel.check()
+                    if (child.isDirectory) index(child, depth + 1)
+                    else { searched++; if (child.display !in used) bySize.getOrPut(child.size) { ArrayList() }.add(child) }
+                }
+            }
+            // The folder that was picked, then every folder the person added with Search a folder.
+            for (start in listOf(source) + env.searchRoots()) runCatching { index(start, 0) }.onFailure { if (it is ImportException) throw it }
+            for (e in stillMissing) {
+                if (e.size < 1) continue
+                val found = bySize[e.size].orEmpty().take(60).firstOrNull { c -> runCatching { c.open().use { WowExport.sha256(it) } }.getOrNull() == e.sha256 } ?: continue
+                located[e.path] = found
+                used += found.display
+            }
         }
         val missing = entries.filter { it.path !in located }
         if (missing.isNotEmpty()) {
             throw ImportException(
-                Problem.MISSING_SOURCE_DATA, "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). The export may have been stopped: run it again in the World of Warcraft app.",
+                Problem.MISSING_SOURCE_DATA,
+                "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). They weren't found by name, by their other likely names, or by content (size and checksum, among $searched files; Search a folder with a bigger folder to look further). Update the World of Warcraft app (an export made before its fix loses files whose names differ only in capital letters from another's), run Export everything to Blizzard again (it only copies what changed), then import again.",
                 missing.take(20).joinToString("\n") { it.path },
             )
         }

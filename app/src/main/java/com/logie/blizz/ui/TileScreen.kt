@@ -60,6 +60,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -140,6 +141,12 @@ fun TileScreen(onOpen: (Game) -> Unit) {
             with(density) { placed.associate { it.id to Rect(it.x.dp.toPx(), it.y.dp.toPx(), (it.x + it.width).dp.toPx(), (it.y + it.height).dp.toPx()) } }
         }
 
+        // The pointer handlers below keep running across recompositions, so what they read is read through
+        // these (a plain value would stay as it was when the handler started).
+        val rectsNow by rememberUpdatedState(rects)
+        val stepNow by rememberUpdatedState<(Int) -> Unit> { step ->
+            TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else columns) + step).coerceIn(TileLayout.MIN_COLUMNS, TileLayout.MAX_COLUMNS))
+        }
         Column(
             Modifier
                 .fillMaxSize()
@@ -147,7 +154,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
                     enabled = dragging == null,
                     onScale = { pinch = it.coerceIn(0.85f, 1.2f) },
                     onEnd = { pinch = 1f },
-                    onStep = { step -> TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else columns) + step).coerceIn(TileLayout.MIN_COLUMNS, TileLayout.MAX_COLUMNS)) },
+                    onStep = { step -> stepNow(step) },
                 )
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -182,11 +189,11 @@ fun TileScreen(onOpen: (Game) -> Unit) {
                                 .then(
                                     if (rearranging) Modifier.pointerInput(p.id) {
                                         detectDragGesturesAfterLongPress(
-                                            onDragStart = { local -> dragging = p.id; dragAt = (rects[p.id]?.topLeft ?: Offset.Zero) + local },
+                                            onDragStart = { local -> dragging = p.id; dragAt = (rectsNow[p.id]?.topLeft ?: Offset.Zero) + local },
                                             onDrag = { change, amount ->
                                                 change.consume()
                                                 dragAt += amount
-                                                val over = rects.entries.firstOrNull { (id, r) -> id != p.id && r.contains(dragAt) }?.key
+                                                val over = rectsNow.entries.firstOrNull { (id, r) -> id != p.id && r.contains(dragAt) }?.key
                                                 if (over != null) order = TileLayout.move(order, p.id, over)
                                             },
                                             onDragEnd = { dragging = null; TileSettings.setOrder(context, order) },

@@ -157,4 +157,51 @@ class WowImporterTest {
         assertTrue(result.toString(), result is ImportPipeline.Result.Done)
         assertEquals("second", File(paths.game("wow"), "files/data/cameras/flybyworgen.m2").readText())
     }
+
+    @Test fun anOlderExportsCopyNamedWithTheNumberAfterTheWholeNameIsFoundByItsChecksum() {
+        val dir = export()
+        // Shared storage kept the second twin as "flybyworgen.m2 (1)"; the first twin, with other bytes, is there too.
+        File(dir, "files/data/cameras").mkdirs()
+        File(dir, "files/data/cameras/FlyByWorgen.m2").writeBytes("first".toByteArray())
+        val second = "second".toByteArray()
+        File(dir, "files/data/cameras/flybyworgen.m2 (1)").writeBytes(second)
+        val sha = java.security.MessageDigest.getInstance("SHA-256").digest(second).joinToString("") { "%02x".format(it) }
+        val first = java.security.MessageDigest.getInstance("SHA-256").digest("first".toByteArray()).joinToString("") { "%02x".format(it) }
+        val entries = WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) +
+            WowExport.Entry(first, 5, "data/cameras/FlyByWorgen.m2") + WowExport.Entry(sha, second.size.toLong(), "data/cameras/flybyworgen.m2")
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(entries))
+        val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
+        File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 2, folders = m.folders + "data")))
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("first", File(paths.game("wow"), "files/data/cameras/FlyByWorgen.m2").readText())
+        assertEquals("second", File(paths.game("wow"), "files/data/cameras/flybyworgen.m2").readText())
+    }
+
+    @Test fun aMissingFileIsFoundByItsContentWhateverItIsCalledAndWhereverItIs() {
+        val dir = export()
+        val bytes = "lost camera".toByteArray()
+        val sha = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        // Listed as data/cameras/flybygoblin.m2, but the only copy is somewhere else under another name.
+        File(dir, "files/stray").mkdirs()
+        File(dir, "files/stray/unnamed 3.bin").writeBytes(bytes)
+        // A decoy of the same size with other bytes.
+        File(dir, "files/stray/decoy.bin").writeBytes("LOST CAMERA".toByteArray())
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) + WowExport.Entry(sha, bytes.size.toLong(), "data/cameras/flybygoblin.m2")))
+        val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
+        File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 1, folders = m.folders + "data")))
+        val result = run(dir)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("lost camera", File(paths.game("wow"), "files/data/cameras/flybygoblin.m2").readText())
+    }
+
+    @Test fun whatNothingMatchesIsNamedAndSaysWhatWasSearched() {
+        val dir = export()
+        File(dir, WowExport.CHECKSUMS).writeText(WowExport.checksumsText(WowExport.parseChecksums(File(dir, WowExport.CHECKSUMS).readText()) + WowExport.Entry("e".repeat(64), 9, "data/cameras/gone.m2")))
+        val m = WowExport.parseManifest(File(dir, WowExport.MANIFEST).readText())
+        File(dir, WowExport.MANIFEST).writeText(WowExport.manifestJson(m.copy(files = m.files + 1)))
+        val result = run(dir) as ImportPipeline.Result.Failed
+        assertTrue(result.error.message!!.contains("by content"))
+        assertTrue(result.error.detail!!.contains("data/cameras/gone.m2"))
+    }
 }

@@ -159,8 +159,8 @@ fun Launcher(fold: Fold? = rememberFold()) {
         if (GameImportManager.importable(game.id)) {
             val entry = GameImportManager.library(context).get(game.id)
             if (entry != null && entry.runtime == com.logie.blizz.importer.LibraryEntry.RUNTIME_EXTERNAL && java.io.File(entry.installPath, entry.executable).isFile) {
-                // Played in its own app for now (World of Warcraft's realms run in the WoW app).
-                if (!Links.launch(context, game)) { launchAfterPick = true; picking = game }
+                // World of Warcraft: the realm and the client, from the imported files (the WoW app isn't needed).
+                com.logie.blizz.game.WowPlay.play(context, entry)
             } else if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) {
                 // Warcraft I and II run natively (Stratagus); the rest on the app's Winlator.
                 if (entry.runtime == com.logie.blizz.game.StratagusRuntime.RUNTIME) com.logie.blizz.game.StratagusRuntime.play(context, entry) else WindowsRuntime.play(context, entry)
@@ -657,6 +657,23 @@ private fun ImportStatus(shown: Game) {
 /** Starting an imported game: the runtime's install and Windows' first start, or what went wrong. */
 @Composable
 private fun RuntimeOverlay() {
+    val wow by com.logie.blizz.game.WowPlay.state.collectAsState()
+    when (val w = wow) {
+        is com.logie.blizz.game.WowPlay.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Column(Modifier.fillMaxSize().background(Colors.Abyss.copy(alpha = 0.92f)).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
+                Spinner(44.dp)
+                Text(w.message + (w.progress?.let { " ${(it * 100).toInt()}%" } ?: ""), style = MaterialTheme.typography.titleMedium, color = Colors.Mist)
+                Text("The realm starts first; the first start can take a few minutes.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+            }
+        }
+        is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }) {
+            Column(Modifier.drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(w.message, style = MaterialTheme.typography.bodyLarge)
+                FrameButton("OK", Modifier.align(Alignment.End)) { com.logie.blizz.game.WowPlay.dismiss() }
+            }
+        }
+        else -> {}
+    }
     val state by WindowsRuntime.state.collectAsState()
     when (val s = state) {
         is WindowsRuntime.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
