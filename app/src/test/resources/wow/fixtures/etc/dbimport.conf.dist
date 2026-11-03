@@ -1,0 +1,10 @@
+[dbimport]
+LogsDir = ""
+TempDir = ""
+SourceDirectory = ""
+MySQLExecutable = ""
+LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
+Updates.EnableDatabases = 0
+Updates.AutoSetup = 1

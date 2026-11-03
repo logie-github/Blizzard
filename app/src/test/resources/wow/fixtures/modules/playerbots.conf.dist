@@ -1,0 +1,5 @@
+[worldserver]
+PlayerbotsDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_playerbots"
+Playerbots.MinRandomBots = 500
+Playerbots.MaxRandomBots = 500
+Playerbots.DisabledWithoutRealPlayer = 0

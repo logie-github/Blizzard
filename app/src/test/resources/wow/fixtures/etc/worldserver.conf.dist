@@ -1,0 +1,21 @@
+[worldserver]
+RealmID = 1
+DataDir = "."
+LogsDir = ""
+TempDir = ""
+SourceDirectory = ""
+MySQLExecutable = ""
+PidFile = ""
+LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
+Updates.AutoSetup = 1
+WorldServerPort = 8085
+vmap.enableLOS = 1
+vmap.enableHeight = 1
+vmap.enableIndoorCheck = 1
+MoveMaps.Enable = 1
+StartPlayerLevel = 1
+Rate.XP.Quest = 1
+Rate.XP.Kill = 1
+SkipCinematics = 0

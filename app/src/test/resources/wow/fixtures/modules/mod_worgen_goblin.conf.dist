@@ -1,0 +1,35 @@
+[worldserver]
+
+########################################
+# The Worgen and Goblins (mod-worgen-goblin, from mod-worgoblin)
+########################################
+#
+#    WorgenGoblin.Enable
+#        Description: Whether this realm has the races. ChromieCraft's has them, Wrath Remix's
+#                     doesn't: the app's ctl.sh sets this for each realm as it starts. Off: the
+#                     game's patch is set aside (whatever WorgenGoblin.ClientPatch says), their
+#                     rows aren't put in the world's tables, and the realm's world database has
+#                     none of mod-worgoblin's SQL (ctl.sh puts it in ChromieCraft's alone).
+#        Default:     1
+#
+#    WorgenGoblin.ClientPatch
+#        Description: Makes the game's patch for the races (Data/patch-U.MPQ in the client
+#                     WOW_CLIENT_DIR names) as the world server starts, when the client, the
+#                     module or mod-worgoblin's files changed: their tables, models, textures,
+#                     sounds, icons and character creation screen. Off: the patch is taken out,
+#                     and the game doesn't know them.
+#        Default:     1
+
+WorgenGoblin.Enable = 1
+WorgenGoblin.ClientPatch = 1
+
+#
+#    WorgenGoblin.StartingAreas
+#        Description: The Worgen's and Goblins' starting areas from Cataclysm (Gilneas, Kezan and the
+#                     Lost Isles: data/zones, the README), when their package is installed
+#                     (WOW_ZONES_DIR): their maps, models, music and pictures in the game's patch
+#                     (only files the game hasn't), their rows in the world's tables, and the two
+#                     races' new characters started there. Off (or no package): they start with the
+#                     Night Elves and the Orcs, and the areas' rows are taken out.
+#        Default:     1
+WorgenGoblin.StartingAreas = 1

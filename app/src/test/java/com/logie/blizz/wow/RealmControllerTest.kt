@@ -256,6 +256,32 @@ class RealmControllerTest {
         assertEquals(WowRealm.Phase.STOPPED, c.status.value.phase)
     }
 
+    @Test fun customRacesOfEarlierVersionsAreTakenOutBeforeTheModulesStepLikeTheWowApp() = runBlocking {
+        val l = layout()
+        File(l.root, "data-races").mkdirs()
+        val r = FakeRunner()
+        val c = controller(l, r)
+
+        c.run(Realm.CHROMIE)
+
+        assertEquals(WowRealm.Phase.RUNNING, c.status.value.phase)
+        assertEquals(listOf("races", "modules", "realmlist", "auth", "world"), r.order().dropWhile { it != "races" }.filter { it != "db-ping" })
+        c.shutDown()
+    }
+
+    @Test fun settingsAreAppliedAfterConfigure() = runBlocking {
+        val l = layout()
+        File(l.etc, "worldserver.conf").writeText("MoveMaps.Enable = 1\nvmap.enableLOS = 1\n")
+        val r = FakeRunner()
+        val c = controller(l, r)
+
+        c.run(Realm.CHROMIE)
+
+        // (no mmaps or vmaps in the data)
+        assertEquals("MoveMaps.Enable = 0\nvmap.enableLOS = 0\nvmap.enableHeight = 0\nvmap.enableIndoorCheck = 0", File(l.etc, "worldserver.conf").readText().trim())
+        c.shutDown()
+    }
+
     @Test fun staleFilesAreClearedAndPathsMovedBeforeStarting() = runBlocking {
         val l = layout()
         File(l.run, "mysqld.pid").apply { parentFile!!.mkdirs(); writeText("123") }
@@ -266,7 +292,8 @@ class RealmControllerTest {
         c.run(Realm.CHROMIE)
 
         assertFalse(File(l.run, "mysqld.pid").exists())
-        assertEquals("LogsDir = \"${l.root.path}/logs\"\n", File(l.etc, "worldserver.conf").readText())
+        // (then the settings of WowSettings: the data here has no vmaps or mmaps)
+        assertTrue(File(l.etc, "worldserver.conf").readText().startsWith("LogsDir = \"${l.root.path}/logs\"\n"))
         assertEquals("${l.root.path}\n", l.rewriteMarker.readText())
         assertNotNull(l.blizzCtl.takeIf { it.isFile })
         c.shutDown()
