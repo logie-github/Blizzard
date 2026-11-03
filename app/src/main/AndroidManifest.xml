@@ -50,6 +50,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- The Wrath realm (ChromieCraft, Wrath Remix) imported from the WoW app, kept alive while it
+             runs; no foreground service type, as the WoW app's ServerService. -->
+        <service
+            android:name=".wow.WowRealmService"
+            android:exported="false" />
+
         <!-- Warcraft I and II, native: Stratagus on SDL's screen, in a process of its own that ends
              with the game (the engine keeps its state in the process). -->
         <activity
