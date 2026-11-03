@@ -98,6 +98,8 @@ internal class RealmController(
 
         step(WowRealm.Step.CONFIGURING, "Writing the realm's settings")
         runToEnd(listOf("configure"), "configure.log")
+        // Configs from an older package lack settings a newer program needs (dbimport's Updates.ExceptionShutdownDelay).
+        runCatching { WowConfMerge.mergeAll(layout) }
         WowSettings.apply(layout)
 
         step(WowRealm.Step.DATABASE, "Starting the database")
@@ -126,7 +128,7 @@ internal class RealmController(
         }
 
         step(WowRealm.Step.MODULES, "Matching the world to the realm's modules")
-        runToEnd(listOf("modules", realm.key), "modules.log", timeoutMinutes = 60)
+        runToEnd(listOf("modules", realm.key), "modules.log", timeoutMinutes = 60, onLine = { step(WowRealm.Step.MODULES, it) })
         runToEnd(listOf("realmlist", lanAddress() ?: "127.0.0.1"), "realmlist.log")
 
         step(WowRealm.Step.AUTH, "Starting the login server")
@@ -294,6 +296,7 @@ internal class RealmController(
      */
     private fun failureText(args: List<String>, code: Int, log: File): String {
         val out = WowLogs.tail(log, 12)
+        val head = runCatching { log.useLines { it.filter { l -> l.isNotBlank() }.take(8).joinToString("\n") } }.getOrDefault("")
         val trace = if (args.first() in TRACEABLE) runCatching {
             val traceLog = File(layout.logs, "${log.name}.trace")
             traceLog.delete()
@@ -304,7 +307,8 @@ internal class RealmController(
         }.getOrDefault("") else ""
         return buildString {
             append("Step ${args.first()} failed (code $code).")
-            if (out.isNotBlank()) append("\n\nIts output:\n").append(out)
+            if (head.isNotBlank() && head != out) append("\n\nIts output began:\n").append(head)
+            if (out.isNotBlank()) append("\n\nIts output ended:\n").append(out)
             if (trace.isNotBlank()) append("\n\nThe last commands it ran (sh -x):\n").append(trace)
             append("\n\nFull logs: games/wow/files/logs/${log.name}")
         }
