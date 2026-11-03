@@ -83,15 +83,9 @@ object WindowsRuntime {
         }
     }
 
-    /** The phone as the options see it: an Adreno GPU gets Turnip; a phone already hot gets fewer lines. */
-    private fun hardware(context: Context): LaunchOptions.Hardware {
-        val adreno = runCatching { com.winlator.core.GPUHelper.getAdrenoModelId(context) > 0 }.getOrDefault(false)
-        val hot = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q &&
-            (context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager)?.let {
-                it.currentThermalStatus >= android.os.PowerManager.THERMAL_STATUS_MODERATE
-            } == true
-        return LaunchOptions.Hardware(adreno = adreno, hot = hot)
-    }
+    /** The phone as the options see it: an Adreno GPU gets Turnip. */
+    private fun hardware(context: Context): LaunchOptions.Hardware =
+        LaunchOptions.Hardware(adreno = runCatching { com.winlator.core.GPUHelper.getAdrenoModelId(context) > 0 }.getOrDefault(false))
 
     fun dismiss() {
         if (_state.value is State.Failed) _state.value = State.Idle

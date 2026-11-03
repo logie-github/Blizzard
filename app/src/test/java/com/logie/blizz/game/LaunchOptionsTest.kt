@@ -95,12 +95,10 @@ class LaunchOptionsTest {
         assertEquals(Screen.MOST, o.resolve("wow-client").lines)
         assertNull(o.resolve("diablo2").lines)
         assertNull(o.resolve("starcraft").lines)
-        assertEquals(LaunchOptions.HOT_LINES, o.resolve("warcraft3", LaunchOptions.Hardware(hot = true)).lines)
-        assertNull(o.resolve("diablo2", LaunchOptions.Hardware(hot = true)).lines)
     }
 
-    @Test fun classicGamesAreDrawnAtThirtyToStayCool() {
-        assertEquals(30, LaunchOptions().resolve("diablo2").maxFps)
+    @Test fun everyGameIsDrawnAtSixtyByDefault() {
+        assertEquals(60, LaunchOptions().resolve("diablo2").maxFps)
         assertEquals(60, LaunchOptions().resolve("warcraft3").maxFps)
     }
 
