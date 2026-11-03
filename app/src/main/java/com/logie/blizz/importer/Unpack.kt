@@ -137,6 +137,14 @@ class Unpacker(private val innoextract: Innoextract?) {
     private fun installer(setup: SourceNode, siblings: List<SourceNode>, dest: File, scratch: File, cancel: CancelToken, progress: (Progress) -> Unit) {
         val tool = innoextract ?: throw ImportException(Problem.MISSING_RUNTIME_DEPENDENCY, "innoextract is missing from this build of the app.")
         val parts = Installers.parts(setup, siblings)
+        // A shell with no data files beside it can't hold a game: said before any work is done.
+        if (parts.isEmpty() && setup.size < InstallerRun.SHELL_MAX) {
+            throw ImportException(
+                Problem.UNSUPPORTED_INSTALLER,
+                "${setup.name} needs its data files: select the folder that holds it and them (such as Data01.dxn), not the installer alone.",
+                "${setup.name} is ${setup.size shr 10} KB and no data files were visible beside it (a file from the document picker has no neighbours; a folder does).",
+            )
+        }
         val base = setup.name.substringBeforeLast('.')
         val dir = File(scratch, "installer").also { it.deleteRecursively(); it.mkdirs() }
         val exe = File(dir, "$base.exe")
@@ -159,8 +167,7 @@ class Unpacker(private val innoextract: Innoextract?) {
             if (e.problem != Problem.UNSUPPORTED_INSTALLER) throw e
             throw ImportException(
                 Problem.UNSUPPORTED_INSTALLER,
-                if (parts.isEmpty()) "${setup.name} needs its data files: select the folder that holds it and them, not the installer alone."
-                else "${setup.name} isn't an installer this app can unpack (it reads Inno Setup). Unpack it on another device, or give a zip, 7z or folder of the installed game.",
+                "${setup.name} isn't an installer this app can unpack (it reads Inno Setup). Unpack it on another device, or give a zip, 7z or folder of the installed game.",
                 e.detail, e,
             )
         } finally {

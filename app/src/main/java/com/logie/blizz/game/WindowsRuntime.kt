@@ -58,11 +58,16 @@ object WindowsRuntime {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val profile = LaunchProfile.of(entry.controlProfile)
-        val size = GameSettings.gameSize(context, profile)
+        // The person's launch options ([LaunchOptions]): the game's own screen, or a phone-shaped one at their lines.
+        val options = LaunchOptionsStore(app).get(entry.gameId).resolve(entry.gameId)
+        val size = options.lines?.let { lines ->
+            val (w, h) = GameSettings.screenSize(context)
+            Screen.resolutionFor(w, h, lines)
+        } ?: GameSettings.gameSize(context, profile)
         _state.value = State.Preparing(Step.RUNTIME)
         scope.launch {
             try {
-                run(app, entry, profile, size)
+                run(app, entry, profile, size, options)
                 _state.value = State.Idle
             } catch (e: kotlinx.coroutines.CancellationException) {
                 _state.value = State.Idle
@@ -88,7 +93,7 @@ object WindowsRuntime {
         context.startActivity(intent)
     }
 
-    private suspend fun run(context: Context, entry: LibraryEntry, profile: LaunchProfile, size: Pair<Int, Int>) {
+    private suspend fun run(context: Context, entry: LibraryEntry, profile: LaunchProfile, size: Pair<Int, Int>, options: LaunchOptions.Resolved) {
         val folder = File(entry.installPath)
         val program = File(folder, entry.executable)
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
@@ -102,10 +107,10 @@ object WindowsRuntime {
 
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = size
-        val container = container(context, width, height, entry.gameId)
+        val container = container(context, width, height, options)
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
-        withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId) }
+        withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId, options) }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
@@ -150,29 +155,20 @@ object WindowsRuntime {
     }
 
     /**
-     * The classic 2D games (Diablo II, StarCraft, Warcraft II) draw with DirectDraw, which Wine's own
-     * version runs at a few frames a second and plays no videos through; cnc-ddraw draws them with OpenGL.
+     * cnc-ddraw's settings for the classic games (Diablo II, StarCraft, Warcraft II), which draw with
+     * DirectDraw: [LaunchOptions.ddrawIni] (the renderer, frame limit, CPU pinning and the rest the
+     * person chose, and why the defaults are what they are). Written at every start, so a changed
+     * option takes effect on the next one; nothing when the game is not drawn through cnc-ddraw.
      */
-    private fun dxwrapperConfig(gameId: String): String =
-        if (gameId in setOf("diablo2", "starcraft", "warcraft2")) "ddrawWrapper=cnc-ddraw" else ""
-
-    /**
-     * cnc-ddraw's settings for the classic games: its GDI renderer (a window of the game's own size
-     * stretched to the screen, no OpenGL or Direct3D needed, which a phone's Wine may not have), the
-     * game's size kept in proportion, one CPU thread for the old programs. Written every start.
-     */
-    private fun writeDDrawConfig(container: Container, gameId: String) {
-        if (dxwrapperConfig(gameId).isEmpty()) return
+    private fun writeDDrawConfig(container: Container, gameId: String, options: LaunchOptions.Resolved) {
+        val text = LaunchOptions.ddrawIni(options, gameId) ?: return
         val ini = File(container.rootDir, ".wine/drive_c/ProgramData/cnc-ddraw/ddraw.ini")
         ini.parentFile?.mkdirs()
-        ini.writeText(
-            "[ddraw]\nrenderer=gdi\nfullscreen=true\nwindowed=false\nmaintas=true\nboxing=false\nadjmouse=true\n" +
-                "vsync=false\nmaxfps=60\nsinglecpu=true\nnoactivateapp=false\nhook_peekmessage=false\n",
-        )
+        ini.writeText(text)
     }
 
-    /** The games' Windows: made the first time, its screen and drives set every time. */
-    private suspend fun container(context: Context, width: Int, height: Int, gameId: String): Container {
+    /** The games' Windows: made the first time, its screen, drives and launch options set every time. */
+    private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved): Container {
         val manager = ContainerManager(context)
         val drives = drives(context)
         val screenSize = "${width}x$height"
@@ -180,7 +176,20 @@ object WindowsRuntime {
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
-            existing.setDXWrapperConfig(dxwrapperConfig(gameId))
+            // The container is shared by all the games, so every value is written at every start,
+            // the defaults too, never leaving the last game's behind. Winlator re-extracts its
+            // Direct3D/DirectDraw files by itself when the wrapper, its config (the DirectDraw choice)
+            // or its version differ from the cached id (XServerDisplayActivity.extractDXWrapperFiles);
+            // when anything it caches differs from the last start's, the cached id is dropped as well.
+            existing.setDXWrapper(options.dxwrapper)
+            existing.setDXWrapperConfig(options.dxwrapperConfig)
+            existing.setGraphicsDriver(options.graphicsDriver)
+            existing.setBox64Preset(options.box64Preset)
+            val store = LaunchOptionsStore(context)
+            if (store.lastApplied() != options.cacheKey) {
+                existing.putExtra("dxwrapper", null)
+                store.setLastApplied(options.cacheKey)
+            }
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
@@ -189,16 +198,17 @@ object WindowsRuntime {
             .put("name", CONTAINER_NAME)
             .put("screenSize", screenSize)
             .put("envVars", defaults.getEnvVars())
-            .put("graphicsDriver", defaults.getGraphicsDriver())
-            .put("dxwrapper", defaults.getDXWrapper())
-            .put("dxwrapperConfig", dxwrapperConfig(gameId))
+            .put("graphicsDriver", options.graphicsDriver)
+            .put("dxwrapper", options.dxwrapper)
+            .put("dxwrapperConfig", options.dxwrapperConfig)
             .put("audioDriver", defaults.getAudioDriver())
             .put("wincomponents", defaults.getWinComponents())
             .put("drives", drives)
             .put("hudMode", defaults.getHUDMode().toInt())
             .put("startupSelection", defaults.getStartupSelection().toInt())
-            .put("box64Preset", defaults.getBox64Preset())
+            .put("box64Preset", options.box64Preset)
             .put("desktopTheme", defaults.getDesktopTheme())
+        LaunchOptionsStore(context).setLastApplied(options.cacheKey)
         val created = suspendCancellableCoroutine { done ->
             manager.createContainerAsync(data) { container -> done.resume(container) }
         }

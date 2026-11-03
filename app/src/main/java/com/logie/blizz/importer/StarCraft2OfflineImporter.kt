@@ -44,7 +44,7 @@ class StarCraft2OfflineImporter : GameImporter {
         return Detection(v.filesOk, found)
     }
 
-    private val isGameRoot: (Set<String>) -> Boolean = { "versions/" in it && "sc2data/" in it }
+    val isGameRoot: (Set<String>) -> Boolean = { "versions/" in it && "sc2data/" in it }
 
     /**
      * The game's folder wherever its own markers are in what was unpacked, whatever the folders around
@@ -63,6 +63,10 @@ class StarCraft2OfflineImporter : GameImporter {
         return null
     }
 
+    /** What was picked is an installer (the program, or a folder holding one and no game) rather than a game, archive or disc image. */
+    private fun isInstaller(source: SourceNode): Boolean =
+        if (source.isDirectory) findInstall(source, 6) == null && InstallerRun.find(source) != null else Format.of(source) == Format.PROGRAM
+
     private fun findInstall(node: SourceNode, depth: Int): SourceNode? = Packages.findRoot(node, depth, isGameRoot)
 
     override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> = emptyList()
@@ -71,9 +75,16 @@ class StarCraft2OfflineImporter : GameImporter {
 
     override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
         val game = env.paths.game(gameId)
-        val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
-        val haveGame = File(game, "Versions").isDirectory || install != null || InstallerRun.out(env.paths, gameId).isDirectory
+        val install = InstallerRun.sourceOf(supplied, detection.found["install"])
+        val madeByInstaller = InstallerRun.finishedRoot(env.paths, gameId, isGameRoot, ::looseGameRoot) != null
+        val haveGame = File(game, "Versions").isDirectory || install != null || madeByInstaller
         if (!haveGame) return listOf(MissingInput("install", PROMPT_INSTALL, PickKind.FILE_OR_FOLDER))
+        // The installer program alone, picked as a file: its data files can't be seen beside it. Ask for the folder.
+        if (!madeByInstaller && install != null && !install.isDirectory && !InstallerRun.copyComplete(env.paths, gameId) &&
+            Format.of(install) == Format.PROGRAM && InstallerRun.needsFolder(install)
+        ) {
+            return listOf(InstallerRun.folderQuestion(install.name))
+        }
         // An installed game's folder shows whether it holds the launcher; an archive, a disc image or an
         // installer (and its data files) can't be looked into before it's unpacked, so it's asked about after, if at all.
         val launcherHere = FileValidator.find(game, LAUNCHER) != null || install == null || !install.isDirectory ||
@@ -90,7 +101,7 @@ class StarCraft2OfflineImporter : GameImporter {
         try {
             val staging = asm.begin()
             asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { true }
-            val install = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
+            val install = InstallerRun.sourceOf(supplied, detection.found["install"])
             val installed = InstallerRun.finishedRoot(env.paths, gameId, isGameRoot, ::looseGameRoot)
             if (installed != null) {
                 // What the game's own installer made in the app's Windows.
@@ -100,6 +111,14 @@ class StarCraft2OfflineImporter : GameImporter {
                     target.deleteRecursively()
                     if (!f.renameTo(target)) f.copyRecursively(target, true)
                 }
+            } else if (InstallerRun.readRun(env.paths, gameId) != null && (install == null || isInstaller(install))) {
+                // The installer was run in the app's Windows and has made no game (yet): said so, not its shell unpacked again.
+                throw ImportException(
+                    Problem.INSTALLER_MUST_RUN,
+                    "The installer was run, but no StarCraft II has appeared in its folder or in the app's Windows. If it is still running, wait for it to end and tap Retry. " +
+                        "If it ended, tap Run the installer to try it with other switches (${InstallerRun.VARIANT_COUNT} sets are tried in turn).",
+                    "Installer folder:${Packages.outline(env.paths.installer(gameId))}",
+                )
             } else if (install != null) {
                 val root = Packages.materialize(install, env, staging, scratch, "StarCraft II", PROMPT_INSTALL, isGameRoot, ::precheckVersion, ::precheckVersion, looseRoot = ::looseGameRoot)
                 // Moved, not copied: it was just unpacked beside staging.

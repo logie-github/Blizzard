@@ -35,7 +35,55 @@ object GameImportManager {
         val autoSources: List<AutoSource> = emptyList(),
         val validation: Validation? = null,
         val entry: LibraryEntry? = null,
+        /** How far the game's own installer has got (copied, running, finished), when there is a copy of one. */
+        val installer: InstallerRun.Status? = null,
     )
+
+    /** How a game's folder is recognised in what its installer made ([InstallerRun]). */
+    private class InstallerKit(val isRoot: (Set<String>) -> Boolean, val loose: (File) -> File?)
+
+    private fun kit(gameId: String): InstallerKit? = when (gameId) {
+        "starcraft2" -> StarCraft2OfflineImporter().let { InstallerKit(it.isGameRoot, it::looseGameRoot) }
+        else -> null
+    }
+
+    /** The games' Windows as the installer sees it (its C: drive, Wine's last output). */
+    private fun host(context: Context): InstallerHost = object : InstallerHost {
+        // "Blizzard" is the container [com.logie.blizz.game.WindowsRuntime] makes.
+        override fun wineDriveC(): File? = runCatching {
+            com.winlator.container.ContainerManager(context).containers.firstOrNull { it.name == "Blizzard" }
+                ?.rootDir?.let { File(it, ".wine/drive_c") }?.takeIf { it.isDirectory }
+        }.getOrNull()
+
+        override fun logTail(): String = runCatching {
+            com.logie.blizz.game.GameLog.snapshot().lines().takeLast(40).joinToString("\n")
+        }.getOrDefault("")
+    }
+
+    private fun installerStatus(context: Context, gameId: String): InstallerRun.Status? {
+        val kit = kit(gameId) ?: return null
+        return runCatching { InstallerRun.status(paths(context), gameId, kit.isRoot, kit.loose, host(context)) }.getOrNull()?.takeIf { it != InstallerRun.Status.None }
+    }
+
+    /** Looks at the installer's folders in the background and adds what it finds to the state the wizard shows. */
+    private fun refreshInstaller(app: Context, gameId: String) {
+        scope.launch {
+            val status = installerStatus(app, gameId)
+            if (synchronized(cancels) { cancels.containsKey(gameId) }) return@launch
+            _states.value[gameId]?.let { publish(it.copy(installer = status)) }
+        }
+    }
+
+    /** Takes away the installer's copy and what it made (the installed game and the saves stay). */
+    fun removeInstallerCopy(context: Context, gameId: String) {
+        val app = context.applicationContext
+        if (synchronized(cancels) { cancels.containsKey(gameId) }) return
+        scope.launch {
+            InstallerRun.removeCopy(paths(app), gameId)
+            repo(app).update(gameId) { if (it.problem == Problem.INSTALLER_MUST_RUN) it.copy(message = "The installer's copy was removed. Tap Run the installer to copy it again.", detail = null) else it }
+            publish(WizardState(gameId, repo(app).load(gameId), entry = library(app).get(gameId)))
+        }
+    }
 
     private val importers: Map<String, () -> GameImporter> = mapOf(
         "diablo" to { Diablo1DevilutionXImporter() },
@@ -71,7 +119,9 @@ object GameImportManager {
     fun refresh(context: Context, gameId: String) {
         if (cancels.containsKey(gameId)) return
         val record = repo(context).load(gameId)
-        publish(WizardState(gameId, record, entry = library(context).get(gameId), missing = _states.value[gameId]?.missing ?: emptyList()))
+        val before = _states.value[gameId]
+        publish(WizardState(gameId, record, entry = library(context).get(gameId), missing = before?.missing ?: emptyList(), installer = before?.installer))
+        refreshInstaller(context.applicationContext, gameId)
     }
 
     private fun publish(state: WizardState) {
@@ -103,6 +153,8 @@ object GameImportManager {
                     publish(state)
                     ImportService.update(app, p)
                 }
+                // A game the installer put in the app's Windows (it ignored the folder it was given) is brought to the folder the import reads.
+                kit(gameId)?.let { k -> runCatching { InstallerRun.collect(env.paths, gameId, k.isRoot, k.loose, host(app)) } }
                 val supplied = supplied(app, repo.load(gameId))
                 val result = ImportPipeline(repo, library).run(factory(), env, supplied, repair)
                 state = when (result) {
@@ -110,13 +162,22 @@ object GameImportManager {
                     is ImportPipeline.Result.Done -> state.copy(record = result.record, validation = result.validation, entry = result.entry, missing = emptyList())
                     is ImportPipeline.Result.Failed -> {
                         reportFailure(app, gameId, repair, result)
-                        state.copy(record = result.record, validation = result.validation, missing = emptyList())
+                        var record = result.record
+                        if (result.error.problem == Problem.INSTALLER_MUST_RUN) {
+                            // The installer ran and made nothing: what Wine printed is the evidence.
+                            val tail = host(app).logTail()
+                            if (tail.isNotBlank() && InstallerRun.readRun(env.paths, gameId) != null) {
+                                record = repo.update(gameId) { it.copy(detail = (it.detail ?: "") + "\n\nWine's last output:\n" + tail) }
+                            }
+                        }
+                        state.copy(record = record, validation = result.validation, missing = emptyList())
                     }
                 }
             } finally {
                 synchronized(cancels) { cancels.remove(gameId) }
                 publish(state.copy(running = false, progress = null, entry = library.get(gameId)))
                 if (synchronized(cancels) { cancels.isEmpty() }) ImportService.stop(app)
+                refreshInstaller(app, gameId)
             }
         }
     }
@@ -154,6 +215,7 @@ object GameImportManager {
         scope.launch {
             val repo = repo(app)
             var state = WizardState(gameId, repo.load(gameId), running = true, entry = library(app).get(gameId))
+            var missing: List<MissingInput> = emptyList()
             publish(state)
             try {
                 val env = env(app, gameId, cancel) { p ->
@@ -161,22 +223,48 @@ object GameImportManager {
                     publish(state)
                     ImportService.update(app, p)
                 }
-                val source = (supplied(app, repo.load(gameId))["install"] as? Supplied.Picked)?.source
-                    ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "Pick the folder that holds the installer (Setup.exe) and its data files first.")
-                val setup = InstallerRun.prepare(env, gameId, source)
+                val paths = env.paths
+                val setup: File
+                if (InstallerRun.copyComplete(paths, gameId)) {
+                    // Copied before (or just finished): nothing is copied again.
+                    setup = File(paths.installer(gameId), InstallerRun.readManifest(paths, gameId)!!.setup)
+                } else {
+                    val source = InstallerRun.sourceOf(supplied(app, repo.load(gameId)), null)
+                        ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "Pick the folder that holds the installer (Setup.exe) and its data files first.")
+                    if (InstallerRun.needsFolder(source)) {
+                        // A lone file from the picker: its data files can't be seen. Ask for the folder; the import goes on from there.
+                        val question = InstallerRun.folderQuestion(InstallerRun.find(source)?.first?.name ?: source.name)
+                        repo.update(gameId) { it.copy(stage = Stage.WAITING_FOR_USER_FILE, outcome = null, problem = null, message = question.prompt, detail = null) }
+                        missing = listOf(question)
+                        return@launch
+                    }
+                    setup = InstallerRun.prepare(env, gameId, source)
+                }
                 val title = com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId
-                repo.update(gameId) { it.copy(stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = Problem.INSTALLER_MUST_RUN, message = "The installer is running in the app's Windows. When it has finished, tap Retry to import what it installed.", detail = null) }
-                kotlinx.coroutines.withContext(Dispatchers.Main) { com.logie.blizz.game.WindowsRuntime.play(app, InstallerRun.entry(gameId, title, setup)) }
+                val run = InstallerRun.beginRun(paths, gameId)
+                repo.update(gameId) {
+                    it.copy(
+                        stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = Problem.INSTALLER_MUST_RUN,
+                        message = "The installer is running in the app's Windows (it shows nothing on screen and takes a long while). When it has ended, come back here and tap Retry.",
+                        detail = "Run ${run.attempt + 1} of ${InstallerRun.VARIANT_COUNT}: ${setup.name} ${InstallerRun.arguments(gameId, run.attempt)}",
+                    )
+                }
+                kotlinx.coroutines.withContext(Dispatchers.Main) { com.logie.blizz.game.WindowsRuntime.play(app, InstallerRun.entry(gameId, title, setup, run.attempt)) }
             } catch (e: Throwable) {
-                val problem = (e as? ImportException)?.problem ?: Problem.MISSING_SOURCE_DATA
-                if (problem != Problem.CANCELLED) {
-                    repo.update(gameId) { it.copy(stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = problem, message = e.message, detail = (e as? ImportException)?.detail) }
-                    com.logie.blizz.reports.BugReports.report(app, "$gameId installer copy ($problem)", e.message ?: problem.name, listOf("Game" to gameId), log = e.stackTraceToString())
+                val problem = (e as? ImportException)?.problem
+                    ?: if (e.message?.contains("ENOSPC") == true || e.message?.contains("No space", true) == true) Problem.INSUFFICIENT_STORAGE else Problem.MISSING_SOURCE_DATA
+                if (problem == Problem.CANCELLED) {
+                    repo.update(gameId) { it.copy(stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = Problem.INSTALLER_MUST_RUN, message = "Cancelled. What was copied is kept: tap Run the installer to go on from there, or remove the copy.", detail = null) }
+                } else {
+                    val message = if (problem == Problem.INSUFFICIENT_STORAGE && e !is ImportException) "The phone ran out of space while copying the installer's files. Free some and tap Run the installer: the copy goes on from where it stopped." else e.message
+                    repo.update(gameId) { it.copy(stage = Stage.FAILED, outcome = Outcome.IMPORT_INCOMPLETE, problem = problem, message = message, detail = (e as? ImportException)?.detail ?: e.toString()) }
+                    if (problem != Problem.INSUFFICIENT_STORAGE) com.logie.blizz.reports.BugReports.report(app, "$gameId installer copy ($problem)", e.message ?: problem.name, listOf("Game" to gameId), log = e.stackTraceToString())
                 }
             } finally {
                 synchronized(cancels) { cancels.remove(gameId) }
-                publish(WizardState(gameId, repo.load(gameId), running = false, entry = library(app).get(gameId)))
+                publish(WizardState(gameId, repo.load(gameId), running = false, missing = missing, entry = library(app).get(gameId)))
                 if (synchronized(cancels) { cancels.isEmpty() }) ImportService.stop(app)
+                refreshInstaller(app, gameId)
             }
         }
     }

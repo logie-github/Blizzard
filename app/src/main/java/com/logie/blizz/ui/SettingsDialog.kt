@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.logie.blizz.game.GameSettings
 
 /** The launcher's settings, opened by holding the Blizzard logo: the layout, the tile size, vibration. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SettingsDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -42,7 +44,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
             FrameTitle("Settings")
 
             Text("Layout", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Classic shelf", primary = s.mode == TileSettings.Mode.SHELF) { TileSettings.setMode(context, TileSettings.Mode.SHELF) }
                 FrameButton("Tiles", primary = s.mode == TileSettings.Mode.TILES) { TileSettings.setMode(context, TileSettings.Mode.TILES) }
             }
@@ -55,9 +57,10 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 Text("Tiles across", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
                 val shown = if (s.columns > 0) "${s.columns}" else "auto"
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FrameButton("−", primary = false) { TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else TileLayout.autoColumns(360f)) + 1)) }
-                    Text(shown, style = MaterialTheme.typography.titleMedium, modifier = Modifier.widthIn(min = 48.dp))
-                    FrameButton("+", primary = false) { TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else TileLayout.autoColumns(360f)) - 1).coerceAtLeast(1)) }
+                    // The number is how many tiles are across: "−" is fewer (bigger tiles), "+" more.
+                    FrameButton("−", primary = false) { TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else TileLayout.autoColumns(360f)) - 1).coerceAtLeast(TileLayout.MIN_COLUMNS)) }
+                    Text(shown, style = MaterialTheme.typography.titleMedium, modifier = Modifier.widthIn(min = 40.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    FrameButton("+", primary = false) { TileSettings.setColumns(context, ((if (s.columns > 0) s.columns else TileLayout.autoColumns(360f)) + 1).coerceAtMost(TileLayout.MAX_COLUMNS)) }
                     FrameButton("Auto", primary = s.columns == 0) { TileSettings.setColumns(context, 0) }
                 }
             }
@@ -70,7 +73,7 @@ fun SettingsDialog(onDismiss: () -> Unit) {
 
             if (confirmReset) {
                 Text("Put the tiles back as they were (order, shapes, size, pictures)?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     FrameButton("No", primary = false) { confirmReset = false }
                     FrameButton("Reset tiles") { TileSettings.reset(context); confirmReset = false }
                 }

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -453,6 +454,16 @@ private object NoOutput : GestureOutput {
     override fun openKeyboard() {}
     override fun showMenu() {}
     override fun feedback() {}
+}
+
+/** The Launch options button on a game's page (graphics, speed, safe mode: [GameOptionsDialog]). */
+@Composable
+fun LaunchOptionsButton(shown: Game) {
+    val game = effectiveGame(shown)
+    var open by remember { mutableStateOf(false) }
+    Icon(Icons.Default.Tune, contentDescription = "Launch options", tint = Colors.Mist,
+        modifier = Modifier.clip(RoundedCornerShape(50)).clickable { open = true }.padding(10.dp).size(26.dp))
+    if (open) GameOptionsDialog(game, onDismiss = { open = false })
 }
 
 /** The Controls button on a game's page. */

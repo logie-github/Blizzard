@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -52,6 +53,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -119,6 +121,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
     var dragging by remember { mutableStateOf<String?>(null) }
     var dragAt by remember { mutableStateOf(Offset.Zero) }
     var artFor by remember { mutableStateOf<Game?>(null) }
+    var optionsFor by remember { mutableStateOf<Game?>(null) }
     var reinstallFor by remember { mutableStateOf<Game?>(null) }
     val openWizard = LocalOpenWizard.current
     val openSplash = LocalOpenSplash.current
@@ -214,6 +217,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
                             onRearrange = { rearranging = true },
                             onReinstall = { reinstallFor = game },
                             onLoadingScreen = { openSplash(game) },
+                            onLaunchOptions = { optionsFor = game },
                         )
                     }
                 }
@@ -237,6 +241,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
     }
 
     artFor?.let { TileArtDialog(it, onDismiss = { artFor = null }) }
+    optionsFor?.let { GameOptionsDialog(Variants.effective(it), onDismiss = { optionsFor = null }) }
     reinstallFor?.let { game ->
         val target = Variants.effective(game)
         ConfirmDialog(
@@ -254,7 +259,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
 @Composable
 private fun Tile(
     game: Game, index: Int, wide: Boolean, rearranging: Boolean, isDragging: Boolean, artVersion: Int, modifier: Modifier,
-    onClick: () -> Unit, onChangeArt: () -> Unit, onRearrange: () -> Unit, onReinstall: () -> Unit, onLoadingScreen: () -> Unit,
+    onClick: () -> Unit, onChangeArt: () -> Unit, onRearrange: () -> Unit, onReinstall: () -> Unit, onLoadingScreen: () -> Unit, onLaunchOptions: () -> Unit,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -307,6 +312,7 @@ private fun Tile(
             MenuItem(Icons.Default.OpenWith, "Rearrange") { menu = false; onRearrange() }
             if (GameImportManager.importable(Variants.effective(game).id)) MenuItem(Icons.Default.Refresh, "Reinstall") { menu = false; onReinstall() }
             MenuItem(Icons.Default.Tune, "Loading screen") { menu = false; onLoadingScreen() }
+            MenuItem(Icons.Default.Settings, "Launch options") { menu = false; onLaunchOptions() }
         }
     }
 }
@@ -321,6 +327,7 @@ private fun MenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 }
 
 /** Change a tile's art: vertical or horizontal, and a picture of the person's own for either. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -340,7 +347,7 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FrameTitle("Change art")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Vertical", primary = !wide) { TileSettings.setWide(context, game.id, false) }
                 FrameButton("Horizontal", primary = wide) { TileSettings.setWide(context, game.id, true) }
             }
@@ -350,7 +357,7 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
                 if (custom != null) Image(custom, null, shape, contentScale = ContentScale.Crop)
                 else Image(painterResource(builtIn), null, shape, contentScale = ContentScale.Crop)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Choose picture") { pick.launch(arrayOf("image/*")) }
                 FrameButton("Original", primary = false) { TileSettings.clearArt(context, game.id, wide) }
                 FrameButton("Done", primary = false, onClick = onDismiss)

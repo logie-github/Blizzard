@@ -96,6 +96,7 @@ internal class RealmController(
 
         step(WowRealm.Step.CONFIGURING, "Writing the realm's settings")
         runToEnd(listOf("configure"), "configure.log")
+        WowSettings.apply(layout)
 
         step(WowRealm.Step.DATABASE, "Starting the database")
         startDatabase()
@@ -113,6 +114,13 @@ internal class RealmController(
             step(WowRealm.Step.IMPORT, "Setting up the ${imported.displayName} databases")
             runToEnd(listOf("dbimport", imported.key), "dbimport.log", timeoutMinutes = 60, onLine = { step(WowRealm.Step.IMPORT, it) })
             marker.writeText("${clock()}\n")
+        }
+
+        // Custom races of the WoW app's versions 1.0.44 to 1.0.48 (a Races switch it no longer has):
+        // their folders still there mean the app hadn't taken them out yet (ctl.sh races, as Server.kt).
+        if (File(layout.root, "races").exists() || File(layout.root, "data-races").exists()) {
+            step(WowRealm.Step.MODULES, "Taking out the custom races of earlier versions")
+            runToEnd(listOf("races"), "races.log", timeoutMinutes = 60)
         }
 
         step(WowRealm.Step.MODULES, "Matching the world to the realm's modules")

@@ -158,10 +158,20 @@ class UnpackTest {
         val setup = Fixtures.pe(tmp.newFile("Setup.exe"), "1.0.0.0")
         val failing = File(tmp.root, "inno-fail.sh").apply { writeText("#!/bin/sh\necho 'not an Inno Setup file' >&2\nexit 1\n"); setExecutable(true) }
         innoextract = Innoextract(failing)
-        val result = run(setup) as ImportPipeline.Result.Failed
-        assertEquals(Problem.UNSUPPORTED_INSTALLER, result.error.problem)
-        assertTrue(result.error.message!!.contains("data files"))
+        // The installer picked alone: its data files can't be seen, so the folder is asked for (innoextract is never run).
+        val result = run(setup) as ImportPipeline.Result.Waiting
+        assertEquals(InstallerRun.FOLDER_INPUT, result.missing.single().id)
+        assertEquals(PickKind.FOLDER, result.missing.single().kind)
+        assertTrue(result.missing.single().prompt.contains("data files"))
         assertTrue(!File(paths.game("starcraft2"), "Versions").exists())
+        // Unpacked directly, it is a clear error before any work.
+        try {
+            Unpacker(innoextract).unpack(FileNode(setup), emptyList(), tmp.newFolder("dest"), tmp.newFolder("scr"), CancelToken()) {}
+            fail("expected an error")
+        } catch (e: ImportException) {
+            assertEquals(Problem.UNSUPPORTED_INSTALLER, e.problem)
+            assertTrue(e.message!!.contains("data files"))
+        }
     }
 
     @Test fun otherBuildsAreStillRefused() {
