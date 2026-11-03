@@ -305,13 +305,41 @@ internal class RealmController(
             if (!process.waitFor(60_000)) process.destroyForcibly()
             WowLogs.tail(traceLog, 14)
         }.getOrDefault("") else ""
+        val checks = runCatching { diagnostics() }.getOrDefault("")
         return buildString {
             append("Step ${args.first()} failed (code $code).")
             if (head.isNotBlank() && head != out) append("\n\nIts output began:\n").append(head)
             if (out.isNotBlank()) append("\n\nIts output ended:\n").append(out)
             if (trace.isNotBlank()) append("\n\nThe last commands it ran (sh -x):\n").append(trace)
+            if (checks.isNotBlank()) append("\n\nChecks:\n").append(checks)
             append("\n\nFull logs: games/wow/files/logs/${log.name}")
         }
+    }
+
+    /**
+     * What the programs a failed step ran depend on, looked at directly (the step's own output says "could
+     * not populate the database" without why): the mariadb client wrapper dbimport runs for each SQL file
+     * (its mode, and whether it starts), the settings dbimport reads for it, the SQL it applies, and the ends
+     * of the logs the servers keep.
+     */
+    private fun diagnostics(): String {
+        val files = layout.root.path
+        val script = """
+            cd "$files" || exit 0
+            echo "wrapper: $(ls -l server/blizz/mariadb 2>&1)"
+            echo "client:  $(server/blizz/mariadb --version 2>&1 | head -2) [exit ${'$'}?]"
+            grep -hE '^(MySQLExecutable|SourceDirectory|TempDir|WorldDatabaseInfo|Updates\.)' etc/dbimport.conf 2>&1 | head -12
+            echo "base sql: $(ls server/src/data/sql/base/db_world 2>&1 | head -3 | tr '
+' ' ')"
+            for f in logs/DBErrors.log logs/Server.log logs/mariadb.log; do
+              [ -f "${'$'}f" ] && { echo "--- ${'$'}f"; tail -n 8 "${'$'}f"; }
+            done
+        """.trimIndent()
+        val log = File(layout.logs, "diagnostics.out")
+        log.delete()
+        val process = runner.start(WowCtl.Command(listOf("/system/bin/sh", "-c", script), mapOf("HOME" to files), layout.run), log, false)
+        if (!process.waitFor(30_000)) process.destroyForcibly()
+        return WowLogs.tail(log, 40)
     }
 
     private suspend fun waitForPort(port: Int, seconds: Int, process: RealmProcess, log: File, message: String) {
