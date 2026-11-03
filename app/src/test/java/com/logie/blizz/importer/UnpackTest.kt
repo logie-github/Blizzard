@@ -174,9 +174,9 @@ class UnpackTest {
         }
     }
 
-    @Test fun otherBuildsAreStillRefused() {
-        val result = run(Fixtures.zip(tmp.newFile("new.zip"), game("75689", "4.11.4.75689"))) as ImportPipeline.Result.Failed
-        assertEquals(Problem.UNSUPPORTED_VERSION, result.error.problem)
+    @Test fun anyBuildIsTaken() {
+        val result = run(Fixtures.zip(tmp.newFile("new.zip"), game("75689", "4.11.4.75689")))
+        assertTrue(result is ImportPipeline.Result.Done)
     }
 
     @Test fun anUnsafePathInAnArchiveIsRefused() {

@@ -331,6 +331,12 @@ internal class RealmController(
             grep -hE '^(MySQLExecutable|SourceDirectory|TempDir|WorldDatabaseInfo|Updates\.)' etc/dbimport.conf 2>&1 | head -12
             echo "base sql: $(ls server/src/data/sql/base/db_world 2>&1 | head -3 | tr '
 ' ' ')"
+            # The very command dbimport runs for its first SQL file, run by hand: its error is what dbimport doesn't print.
+            server/blizz/mariadb -h127.0.0.1 -P3310 -uacore -pacore -D acore_world --default-character-set=utf8mb4 \
+              < server/src/data/sql/base/db_world/achievement_category_dbc.sql > run/tmp/probe.out 2>&1
+            echo "apply by hand: exit ${'$'}? $(head -c 600 run/tmp/probe.out)"
+            server/blizz/mariadb -h127.0.0.1 -P3310 -uacore -pacore -e 'SELECT CURRENT_USER(); SHOW GRANTS; SHOW DATABASES; SELECT COUNT(*) FROM information_schema.tables WHERE table_schema="acore_world"' > run/tmp/probe2.out 2>&1
+            echo "as acore: $(head -c 900 run/tmp/probe2.out)"
             for f in logs/DBErrors.log logs/Server.log logs/mariadb.log; do
               [ -f "${'$'}f" ] && { echo "--- ${'$'}f"; tail -n 8 "${'$'}f"; }
             done
