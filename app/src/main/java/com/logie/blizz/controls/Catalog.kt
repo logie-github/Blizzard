@@ -19,6 +19,7 @@ object Catalog {
         "warcraft" -> WARCRAFT
         "warcraft2" -> WARCRAFT2
         "warcraft3_roc", "warcraft3_tft" -> WARCRAFT3
+        "wow", "wow-client" -> WOW
         else -> STARCRAFT
     }
 
@@ -180,5 +181,47 @@ object Catalog {
         functions = common(RTS_LABELS) + RTS_COMMANDS.filter { it.id != "alert" && it.id != "advanced" } + groups(),
         areas = Area.STANDARD + listOf(Area("panel", "Side panel", 0f, 0f, 0.22f, 1f), Area("minimap", "Minimap", 0f, 0f, 0.22f, 0.3f)),
         rules = rtsRules("gamemenu", listOf("panel")),
+    )
+
+    // World of Warcraft (3.3.5a, mouse and keyboard on a touch screen) --------------------------------
+
+    /**
+     * Ported from the World of Warcraft app's touch controls: tap clicks (talks, loots, targets), hold
+     * right-clicks, a drag walks and turns (the arrow keys: up forward, left and right turn), flicks
+     * jump, target and step sideways, a rest finger with a hold keeps walking forward, two fingers tap
+     * to target the nearest enemy and pinch to zoom, three fingers open the keyboard, four the menu.
+     */
+    val WOW = Game(
+        functions = common(mapOf(
+            "click" to "Click · target · talk", "rclick" to "Right click · interact", "drag" to "Move the mouse (left button down)",
+            "pan" to "Walk · turn (arrow keys)", "wheelup" to "Zoom in", "wheeldown" to "Zoom out", "enter" to "Chat",
+        )) + listOf(
+            key("forward", "Walk forward", "W"), key("backward", "Walk backward", "S"),
+            key("turnleft", "Turn left", "A"), key("turnright", "Turn right", "D"),
+            key("strafeleft", "Step left", "Q"), key("straferight", "Step right", "E"),
+            f("walkforward", "Walk forward (held)", Kind.KEY_HOLD, "W"),
+            key("jump", "Jump", "Space"), key("target", "Target nearest enemy", "Tab"),
+            key("sit", "Sit · stand", "X"), key("sheathe", "Sheathe weapon", "Z"),
+            key("bags", "Bags", "B"), key("character", "Character", "C"), key("spellbook", "Spellbook", "P"),
+            key("talents", "Talents", "N"), key("quests", "Quest log", "L"), key("map", "World map", "M"),
+            key("social", "Social", "O"), key("achievements", "Achievements", "Y"), key("finder", "Dungeon finder", "I"),
+            key("guild", "Guild", "J"), key("reply", "Reply to whisper", "R"), key("screenshot", "Screenshot", "PrtSc"),
+        ) + (1..9).map { key("bar$it", "Action $it", "$it") } + listOf(key("bar0", "Action 10", "0"), key("bar11", "Action 11", "-"), key("bar12", "Action 12", "=")),
+        areas = Area.STANDARD + listOf(
+            Area("actionbars", "Action bars", 0.2f, 0.82f, 0.8f, 1f), Area("minimap", "Minimap", 0.82f, 0f, 1f, 0.28f),
+        ),
+        rules = listOf(
+            rule(Trigger.TAP, "click"),
+            rule(Trigger.HOLD, "rclick"),
+            rule(Trigger.DOUBLE_TAP, "jump"),
+            rule(Trigger.DRAG, "pan"),
+            rule(Trigger.FLICK_UP, "jump"), rule(Trigger.FLICK_DOWN, "target"),
+            rule(Trigger.FLICK_LEFT, "strafeleft"), rule(Trigger.FLICK_RIGHT, "straferight"),
+            rule(Trigger.REST_TAP, "shiftclick"), rule(Trigger.REST_HOLD, "walkforward"),
+            rule(Trigger.TWO_FINGER_TAP, "target"),
+            rule(Trigger.TWO_THEN_ONE_TAP, "enter"),
+            rule(Trigger.PINCH_OUT, "wheelup"), rule(Trigger.PINCH_IN, "wheeldown"),
+            rule(Trigger.THREE_FINGER_TAP, "keyboard"), rule(Trigger.FOUR_FINGER_TAP, "menu"),
+        ),
     )
 }

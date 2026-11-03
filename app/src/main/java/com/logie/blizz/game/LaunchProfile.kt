@@ -13,7 +13,9 @@ enum class LaunchProfile(val id: String, val fixedSize: Pair<Int, Int>?, val lin
     STARCRAFT2("starcraft2", null),
     /** The remastered game draws at the phone's shape. */
     STARCRAFT_REMASTERED("starcraft_remastered", null),
-    WARCRAFT3("warcraft3", null);
+    WARCRAFT3("warcraft3", null),
+    /** World of Warcraft's 3.3.5a client at the phone's shape, 720 lines like the World of Warcraft app's Balanced. */
+    WOW("wow", null);
 
     companion object {
         fun of(id: String?): LaunchProfile = entries.firstOrNull { it.id == id } ?: STARCRAFT
