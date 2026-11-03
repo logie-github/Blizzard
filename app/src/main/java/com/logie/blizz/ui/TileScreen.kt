@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -326,6 +327,7 @@ private fun MenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 }
 
 /** Change a tile's art: vertical or horizontal, and a picture of the person's own for either. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -345,7 +347,7 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FrameTitle("Change art")
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Vertical", primary = !wide) { TileSettings.setWide(context, game.id, false) }
                 FrameButton("Horizontal", primary = wide) { TileSettings.setWide(context, game.id, true) }
             }
@@ -355,7 +357,7 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
                 if (custom != null) Image(custom, null, shape, contentScale = ContentScale.Crop)
                 else Image(painterResource(builtIn), null, shape, contentScale = ContentScale.Crop)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 FrameButton("Choose picture") { pick.launch(arrayOf("image/*")) }
                 FrameButton("Original", primary = false) { TileSettings.clearArt(context, game.id, wide) }
                 FrameButton("Done", primary = false, onClick = onDismiss)
