@@ -151,3 +151,12 @@ All four Warcraft games are imported and played in this app (no other app is nee
 - **Warcraft I and II** run natively on the Stratagus engine (War1gus and Wargus), from your GOG offline installers (Setup.exe and its .bin files, picked as a folder or file) or an installed GOG folder, also as zip, 7z, tar or disc image. The app unpacks the installer with innoextract and converts the data with war1tool or wartool (case-fixed first), then plays it with your Controls rules; a game that stops is reported with its output and log. Reset keeps the engine's preferences and saves.
 - **Warcraft III: Reign of Chaos and The Frozen Throne** run on the app's Winlator, offline. Both share one install (1.30 is one program): import either and the other uses the same folder. Files from you in any form, or Blizzard's legacy servers for the original game where they offer it (unverified). The screen size and install path are written to Wine's registry at each start. CD keys: paste the ones you have in the keys box on the game's import screen (kept in `cdkeys.txt` apart from the game); the app never generates keys.
 - Nothing here has run on a phone. The first CI build also compiles the Stratagus engine and tools (cached afterwards).
+
+## World of Warcraft (from the WoW app, nothing rebuilt)
+
+The shelf's **World of Warcraft** box (placeholder art until you send yours) brings over what the World of Warcraft app (`com.logie.warcraft`) holds: its client, realm databases with their characters, add-ons, modules, settings and the other environments' data. In the WoW app tap **Export everything to Blizzard** and pick a folder; it writes `WoW-export/` (`files/`, `prefs/`, `checksums.tsv`, and `export.json` last). Here, open the box and pick that folder (or the one holding it).
+
+- It's a **copy**: the WoW app and its data are untouched. Every file is checked against the export's SHA-256 list while it's copied, and the finished copy replaces nothing until it's whole. A file that doesn't match is named and nothing is installed.
+- A stopped or failed import is **carried on**: files already copied and checked are kept in `staging/wow-work` with a journal; Retry continues. Reset removes it.
+- The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. Until then, **Play opens the WoW app** (the realms run there).
+- You need free space for the export plus this copy.
