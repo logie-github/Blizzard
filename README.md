@@ -159,6 +159,7 @@ The shelf's **World of Warcraft** box (placeholder art until you send yours) bri
 - It's a **copy**: the WoW app and its data are untouched. Every file is checked against the export's SHA-256 list while it's copied, and the finished copy replaces nothing until it's whole. A file that doesn't match is named and nothing is installed.
 - A stopped or failed import is **carried on**: files already copied and checked are kept in `staging/wow-work` with a journal; Retry continues. Reset removes it.
 - The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. Until then, **Play opens the WoW app** (the realms run there).
+- Names that differ only in case (the client's `FlyByWorgen.m2` and a module's `flybyworgen.m2`) can't live side by side on shared storage, so the WoW app stores them under `<name>~<8 hex>` and lists them in `export.json` (`renames`); the import follows that. An export made before that fix is read too: a missing file is looked for in another case and as `name (1).ext`, and still checked against its SHA-256.
 - You need free space for the export plus this copy.
 
 ## Tiles and settings

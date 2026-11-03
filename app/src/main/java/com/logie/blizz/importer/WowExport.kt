@@ -28,6 +28,8 @@ object WowExport {
         val folders: List<String>,
         val excluded: List<String>,
         val prefs: List<String>,
+        /** Files stored under another name than their real one (names that differ only in case, which shared storage can't keep apart): real path to stored path, under `files/`. */
+        val renames: Map<String, String> = emptyMap(),
     )
 
     data class Entry(val sha256: String, val size: Long, val path: String)
@@ -39,6 +41,7 @@ object WowExport {
             format = o.optInt("format"), app = o.optString("app"), appVersion = o.optString("appVersion"), createdAt = o.optString("createdAt"),
             sourceFilesDir = o.optString("sourceFilesDir"), files = o.optLong("files"), bytes = o.optLong("bytes"),
             folders = strings("folders"), excluded = strings("excluded"), prefs = strings("prefs"),
+            renames = o.optJSONObject("renames")?.let { r -> r.keys().asSequence().associateWith { r.getString(it) } } ?: emptyMap(),
         )
         if (m.format != 1) throw ImportException(Problem.UNSUPPORTED_VERSION, "This export is format ${m.format}; this app reads format 1. Update both apps.")
         if (m.app != APP) throw ImportException(Problem.MISSING_SOURCE_DATA, "That export wasn't made by the World of Warcraft app (${m.app.ifEmpty { "unknown" }}).")
@@ -49,6 +52,7 @@ object WowExport {
         .put("format", m.format).put("app", m.app).put("appVersion", m.appVersion).put("createdAt", m.createdAt)
         .put("sourceFilesDir", m.sourceFilesDir).put("files", m.files).put("bytes", m.bytes)
         .put("folders", JSONArray(m.folders)).put("excluded", JSONArray(m.excluded)).put("prefs", JSONArray(m.prefs))
+        .put("renames", JSONObject(m.renames))
         .put("checksums", CHECKSUMS).toString(2)
 
     /** `<sha256>\t<size>\t<path>` lines; a malformed line is an error, not skipped. */
@@ -60,6 +64,23 @@ object WowExport {
     }.toList()
 
     fun checksumsText(entries: List<Entry>): String = entries.sortedBy { it.path }.joinToString("\n", postfix = "\n") { "${it.sha256}\t${it.size}\t${it.path}" }
+
+    /**
+     * Where an export that was made without `renames` (before the WoW app kept names that differ only
+     * in case apart) may have put [path]: shared storage stores the second of two such names as
+     * "name (1).ext", so the likely spots are the path in another case and with " (1)" to " (3)"
+     * before its extension. The first of [nodes] (keyed by lower-case path) that exists.
+     */
+    fun <T> likely(path: String, nodes: Map<String, T>): T? {
+        val lower = path.lowercase()
+        nodes[lower]?.let { return it }
+        val dot = lower.lastIndexOf('.').takeIf { it > lower.lastIndexOf('/') + 1 }
+        for (n in 1..3) {
+            val name = if (dot == null) "$lower ($n)" else lower.substring(0, dot) + " ($n)" + lower.substring(dot)
+            nodes[name]?.let { return it }
+        }
+        return null
+    }
 
     /** A path from the manifest that stays inside the folder it's copied to. */
     fun safePath(path: String): String {

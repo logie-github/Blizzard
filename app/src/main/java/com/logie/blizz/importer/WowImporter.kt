@@ -63,7 +63,15 @@ class WowImporter : GameImporter {
             }
         }
         walk(root.child("files") ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "The export has no files/ folder."), "")
-        val missing = entries.filter { it.path !in nodes }
+        // Where each file is: the stored name the export's manifest gives, else its own, else (an export made before
+        // names that differ only in case were kept apart) the likely spots for the twin ("name (1).ext", another case).
+        val byLower = HashMap<String, SourceNode>().also { m -> nodes.forEach { (p, n) -> m.putIfAbsent(p.lowercase(), n) } }
+        val located = HashMap<String, SourceNode>()
+        for (e in entries) {
+            val stored = manifest.renames[e.path] ?: e.path
+            (nodes[stored] ?: if (e.path !in manifest.renames) WowExport.likely(e.path, byLower) else null)?.let { located[e.path] = it }
+        }
+        val missing = entries.filter { it.path !in located }
         if (missing.isNotEmpty()) {
             throw ImportException(
                 Problem.MISSING_SOURCE_DATA, "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). The export may have been stopped: run it again in the World of Warcraft app.",
@@ -93,7 +101,7 @@ class WowImporter : GameImporter {
                 val target = File(files, e.path)
                 target.parentFile?.mkdirs()
                 val temp = File(target.parentFile, ".${target.name}.part")
-                val (sha, bytes) = nodes.getValue(e.path).open().use { input ->
+                val (sha, bytes) = located.getValue(e.path).open().use { input ->
                     temp.outputStream().buffered(1 shl 20).use { o -> WowExport.copyHashed(input, o, env.cancel) { n -> copied += n; } }
                 }
                 if (bytes != e.size || sha != e.sha256) {
