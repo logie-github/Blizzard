@@ -25,7 +25,9 @@ class StarCraft2OfflineImporter : GameImporter {
         val GAME_EXES = listOf("SC2_x64.exe", "SC2.exe")
         const val PROMPT_INSTALL = "Select your StarCraft II installation: its folder, a zip, 7z, tar or disc image of it, or its installer (Setup.exe, with its data files in the same folder)."
         const val PROMPT_LAUNCHER = "The supported offline launcher was not found. Select the matching StarCraft II Offline.exe and associated files."
-        val PROMPT_VERSION = "This StarCraft II installation is not version ${BUILDS.values.joinToString(" or ")}. Select a compatible installation."
+        /** Any build is taken; these are the ones it was made for and known to start. */
+        val PROMPT_VERSION = "That StarCraft II folder has no Versions\\Base<build> folder with the game's program in it (SC2_x64.exe or SC2.exe). Select the installed game's folder."
+        private val BASE = Regex("(?i)base(\\d+)")
         /** Inside the games' Windows: where the game keeps profiles and saves. */
         const val DOCUMENTS = "C:\\users\\xuser\\Documents\\StarCraft II"
     }
@@ -153,21 +155,25 @@ class StarCraft2OfflineImporter : GameImporter {
         }
     }
 
-    /** The unpacked game's build is one this plays, before it's moved in. */
+    /** The unpacked game has a build folder to play (any build), before it's moved in. */
     private fun precheckVersion(root: File) {
-        val versions = File(root, "Versions").list()?.toList() ?: emptyList()
-        if (BUILDS.keys.none { build -> versions.any { it.equals("Base$build", true) } }) {
+        if (baseFolders(root).isEmpty()) {
+            throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "Versions: ${File(root, "Versions").list()?.joinToString().orEmpty().ifEmpty { "none" }}")
+        }
+    }
+
+    /** Before copying gigabytes: the folder has a build folder to play (any build). */
+    private fun precheckVersion(root: SourceNode) {
+        val versions = root.child("Versions")?.children()?.filter { it.isDirectory }?.map { it.name } ?: emptyList()
+        if (versions.none { BASE.matches(it) }) {
             throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "Versions: ${versions.joinToString().ifEmpty { "none" }}")
         }
     }
 
-    /** Before copying gigabytes: the folder's build is one this plays. */
-    private fun precheckVersion(root: SourceNode) {
-        val versions = root.child("Versions")?.children()?.filter { it.isDirectory }?.map { it.name } ?: emptyList()
-        if (BUILDS.keys.none { build -> versions.any { it.equals("Base$build", true) } }) {
-            throw ImportException(Problem.UNSUPPORTED_VERSION, PROMPT_VERSION, "Versions: ${versions.joinToString().ifEmpty { "none" }}")
-        }
-    }
+    /** The game's `Versions/Base<build>` folders, the newest build first: any build. */
+    fun baseFolders(dir: File): List<File> =
+        File(dir, "Versions").listFiles { f -> f.isDirectory && BASE.matches(f.name) }.orEmpty()
+            .sortedByDescending { BASE.matchEntire(it.name)?.groupValues?.get(1)?.toLongOrNull() ?: 0L }
 
     /**
      * The ordinary writable folders the game uses, in the app's saves folder (copied into the games'
@@ -193,17 +199,17 @@ class StarCraft2OfflineImporter : GameImporter {
     fun validateDir(dir: File): Validation {
         val checks = ArrayList<Check>()
         val versions = File(dir, "Versions").list()?.toList() ?: emptyList()
-        // The build that's there (the newest this plays, if more than one).
-        val build = BUILDS.keys.lastOrNull { File(File(dir, "Versions"), "Base$it").isDirectory } ?: BUILDS.keys.first()
-        val VERSION = BUILDS.getValue(build)
-        val base = File(File(dir, "Versions"), "Base$build")
+        // The newest build folder that has the game's program in it (any build is taken).
+        val bases = baseFolders(dir)
+        val base = bases.firstOrNull { b -> GAME_EXES.any { FileValidator.find(b, it) != null } } ?: bases.firstOrNull() ?: File(File(dir, "Versions"), "Base")
         checks += Check("Game assets (SC2Data)", File(dir, "SC2Data").isDirectory && (File(dir, "SC2Data").list()?.isNotEmpty() == true), if (File(dir, "SC2Data").isDirectory) "present" else "missing")
         val exe = GAME_EXES.firstNotNullOfOrNull { FileValidator.find(base, it) }
         val pe = exe?.let { PeInfo.read(it) }
-        checks += Check("Supported version (${BUILDS.values.joinToString(" or ")})", base.isDirectory && pe?.version == VERSION, when {
+        checks += Check("StarCraft II program (any version)", base.isDirectory && pe != null && pe.isWindowsX86Family, when {
             !base.isDirectory -> "Versions: ${versions.joinToString().ifEmpty { "none" }}"
-            pe == null -> "no SC2 program in Base$build"
-            else -> "${exe.name} ${pe.version}"
+            pe == null -> "no SC2 program in ${base.name}"
+            else -> "${exe.name} ${pe.version ?: "(no version)"} in ${base.name}" +
+                if (pe.version in BUILDS.values) "" else " (not one of ${BUILDS.values.joinToString(" or ")}, which it was made for: taken as it is)"
         })
         val launcher = FileValidator.find(dir, LAUNCHER)
         val lpe = launcher?.let { PeInfo.read(it) }
@@ -232,7 +238,7 @@ class StarCraft2OfflineImporter : GameImporter {
             Problem.MISSING_RUNTIME_DEPENDENCY -> "StarCraft II's libraries are missing: ${checks.getOrNull(3)?.detail}."
             else -> null
         }
-        return Validation(checks, if (pe?.version == VERSION) "StarCraft II $VERSION (offline)" else null, filesOk, problem, message)
+        return Validation(checks, pe?.version?.let { "StarCraft II $it (offline)" } ?: if (pe != null) "StarCraft II (offline)" else null, filesOk, problem, message)
     }
 
     override fun readyStage(validation: Validation) = Stage.IMPORTED_UNTESTED
@@ -240,8 +246,7 @@ class StarCraft2OfflineImporter : GameImporter {
     /** The offline launcher, else the game's own program (relative to its folder). */
     fun launchProgram(dir: File): String {
         FileValidator.find(dir, LAUNCHER)?.let { return it.name }
-        for (build in BUILDS.keys.reversed()) {
-            val base = File(File(dir, "Versions"), "Base$build")
+        for (base in baseFolders(dir)) {
             GAME_EXES.firstNotNullOfOrNull { FileValidator.find(base, it) }?.let { return "Versions/${base.name}/${it.name}" }
         }
         return LAUNCHER

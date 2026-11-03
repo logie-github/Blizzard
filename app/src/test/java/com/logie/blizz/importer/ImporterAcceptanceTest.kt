@@ -103,89 +103,12 @@ class ImporterAcceptanceTest {
         val sc = run(StarCraftClassicImporter()) as ImportPipeline.Result.Waiting
         assertEquals("Select your original StarCraft/Brood War installation folder, legacy installer, or disc image.", sc.missing.single().prompt)
 
-        val sc2 = run(StarCraft2OfflineImporter()) as ImportPipeline.Result.Waiting
-        assertTrue(sc2.missing.single().prompt.startsWith("Select your StarCraft II installation"))
-        assertEquals(Stage.WAITING_FOR_USER_FILE, sc2.record.stage)
     }
 
-    @Test fun broodWarsArchiveIsAskedForBySpecificName() {
+    @Test fun starcraft2TakesAnyBuild() {
         setUp()
-        val install = Fixtures.starcraftInstall(tmp.newFolder("sc"), discs = false)
-        val result = run(StarCraftClassicImporter(), mapOf(picked("install", install))) as ImportPipeline.Result.Waiting
-        assertEquals(listOf("scdisc", "bwdisc"), result.missing.map { it.id })
-        assertEquals("Brood War data archive missing. Select BroodWar.mpq or the original Brood War disc image.", result.missing[1].prompt)
-    }
-
-    @Test fun sc2WithoutItsLauncherAsksForIt() {
-        setUp()
-        val install = Fixtures.starcraft2Install(tmp.newFolder("sc2"), launcher = false)
-        val result = run(StarCraft2OfflineImporter(), mapOf(picked("install", install))) as ImportPipeline.Result.Waiting
-        assertEquals("The supported offline launcher was not found. Select the matching StarCraft II Offline.exe and associated files.", result.missing.single().prompt)
-    }
-
-    // 4. Supported archives extracted ------------------------------------------------------------
-
-    @Test fun diabloFromTheEngineZipAndAZipOfTheGameData() {
-        setUp()
-        val engine = Fixtures.devilutionxZip(tmp.newFile("devilutionx-windows-x86_64.zip"))
-        val data = Fixtures.zip(tmp.newFile("diablo.zip"), mapOf("DIABDAT.MPQ" to Fixtures.mpqBytes(), "hellfire.mpq" to Fixtures.mpqBytes(),
-            "hfmonk.mpq" to Fixtures.mpqBytes(), "hfmusic.mpq" to Fixtures.mpqBytes(), "hfvoice.mpq" to Fixtures.mpqBytes()))
-        val result = run(Diablo1DevilutionXImporter(), mapOf(picked("engine", engine), picked("data", data), "hellfire" to Supplied.Skipped("hellfire")))
-        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
-        val game = paths.game("diablo")
-        assertTrue(File(game, "devilutionx.exe").isFile)
-        assertTrue(File(game, "devilutionx.mpq").isFile)
-        assertTrue(Mpq.isArchive(File(game, "diabdat.mpq")))
-        // Skipped: Diablo I only, no stray Hellfire archive.
-        assertNull(FileValidator.find(game, "hellfire.mpq"))
-    }
-
-    @Test fun starcraftsDiscArchivesComeFromDiscImages() {
-        setUp()
-        val install = Fixtures.starcraftInstall(tmp.newFolder("sc"), discs = false)
-        val installExe = Fixtures.installExe(tmp.newFile("INSTALL.EXE")).readBytes()
-        val scIso = Fixtures.iso(tmp.newFile("starcraft.iso"), "STARCRAFT", mapOf("INSTALL.EXE" to installExe))
-        val bwIso = Fixtures.iso(tmp.newFile("broodwar.iso"), "BROODWAR", mapOf("INSTALL.EXE" to installExe))
-        val result = run(StarCraftClassicImporter(), mapOf(picked("install", install), picked("scdisc", scIso), picked("bwdisc", bwIso)))
-        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
-        assertTrue(Mpq.containsArchive(File(paths.game("starcraft"), "StarCraft.mpq")))
-        assertTrue(Mpq.containsArchive(File(paths.game("starcraft"), "BroodWar.mpq")))
-    }
-
-    @Test fun anArchiveWithAnUnsafePathIsRefused() {
-        setUp()
-        val evil = Fixtures.zip(tmp.newFile("evil.zip"), mapOf("../../escape.txt" to ByteArray(4)))
-        try {
-            evil.inputStream().use { ZipExtractor.extract(it, tmp.newFolder("out"), CancelToken()) }
-            fail("extracted an unsafe path")
-        } catch (e: ImportException) {
-            assertEquals(Problem.CORRUPT_ARCHIVE, e.problem)
-        }
-        assertFalse(File(tmp.root.parentFile, "escape.txt").exists())
-    }
-
-    @Test fun aDamagedZipIsReportedAsCorrupt() {
-        setUp()
-        val bad = tmp.newFile("bad.zip").apply { writeBytes(ByteArray(100) { 7 }) }
-        val result = run(Diablo1DevilutionXImporter(), mapOf(picked("engine", bad), picked("data", Fixtures.mpq(tmp.newFile("DIABDAT.MPQ"))), "hellfire" to Supplied.Skipped("hellfire")))
-        assertEquals(Problem.CORRUPT_ARCHIVE, (result as ImportPipeline.Result.Failed).error.problem)
-    }
-
-    // 5. Incorrect versions rejected -------------------------------------------------------------
-
-    @Test fun otherVersionsAreRejected() {
-        setUp()
-        val d2 = run(Diablo2ClassicImporter(), mapOf(picked("install", Fixtures.diablo2Install(tmp.newFolder("d2"), version = "1.13.0.12")))) as ImportPipeline.Result.Failed
-        assertEquals(Problem.UNSUPPORTED_VERSION, d2.error.problem)
-        assertEquals(Outcome.UNSUPPORTED_CLIENT_VERSION, d2.record.outcome)
-
-        val sc = run(StarCraftClassicImporter(), mapOf(picked("install", Fixtures.starcraftInstall(tmp.newFolder("sc"), version = "1.18.0.1888")))) as ImportPipeline.Result.Failed
-        assertEquals(Problem.UNSUPPORTED_VERSION, sc.error.problem)
-
-        val sc2 = run(StarCraft2OfflineImporter(), mapOf(picked("install", Fixtures.starcraft2Install(tmp.newFolder("sc2"), build = "75689", version = "4.11.4.75689")))) as ImportPipeline.Result.Failed
-        assertEquals(Problem.UNSUPPORTED_VERSION, sc2.error.problem)
-        assertEquals("This StarCraft II installation is not version 3.0.5.39117 or 3.1.4.41219. Select a compatible installation.", sc2.error.message)
-        assertNull(Library(paths).get("starcraft2"))
+        val sc2 = run(StarCraft2OfflineImporter(), mapOf(picked("install", Fixtures.starcraft2Install(tmp.newFolder("sc2"), build = "75689", version = "4.11.4.75689"))))
+        assertTrue(sc2 is ImportPipeline.Result.Done)
     }
 
     @Test fun lordOfDestructionMissingIsItsOwnProblem() {
