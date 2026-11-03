@@ -49,6 +49,8 @@ object GameImportManager {
         // Warcraft III, one install for both ("warcraft3_tft" uses RoC's when it's there), on the app's Winlator.
         "warcraft3_roc" to { Warcraft3Importer(Warcraft3Importer.Product.ROC) },
         "warcraft3_tft" to { Warcraft3Importer(Warcraft3Importer.Product.TFT) },
+        // World of Warcraft: the WoW app's verified export, copied over (its realms still run in that app).
+        "wow" to { WowImporter() },
     )
 
     fun importable(gameId: String) = gameId in importers

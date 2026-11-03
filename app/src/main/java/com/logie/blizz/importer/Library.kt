@@ -34,6 +34,8 @@ data class LibraryEntry(
 
     companion object {
         const val RUNTIME_WINLATOR = "winlator"
+        /** Played in another app (the World of Warcraft app) until its runtime is brought over. */
+        const val RUNTIME_EXTERNAL = "external-app"
 
         fun fromJson(o: JSONObject) = LibraryEntry(
             gameId = o.getString("gameId"),

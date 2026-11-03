@@ -1,0 +1,169 @@
+package com.logie.blizz.importer
+
+import java.io.File
+
+/**
+ * World of Warcraft, from the World of Warcraft app's export (see [WowExport]): its client, realms
+ * (databases with their characters), add-ons, modules and settings, copied over with every file
+ * checked against the export's SHA-256 list. Nothing is rebuilt: the files are the ones the other
+ * app had. A copy, never a move: the original stays where it was.
+ *
+ * The big copy can be stopped and carried on: files already copied and checked are listed in a
+ * journal beside the half-made copy, which isn't thrown away when an import fails or is cancelled
+ * (Reset removes it). The finished copy is moved into place whole.
+ *
+ * Playing: the realms still run in the World of Warcraft app (the entry's runtime is
+ * [LibraryEntry.RUNTIME_EXTERNAL]); porting their runtime is the next step, and the copy keeps the
+ * export's manifest (which paths the data was made under) for it.
+ */
+class WowImporter : GameImporter {
+    override val gameId = "wow"
+    override val title = "World of Warcraft"
+
+    companion object {
+        const val PROMPT = "Pick the WoW-export folder the World of Warcraft app made (its button: Export everything to Blizzard), or the folder that holds it."
+        const val EXPORT_COPY = ".export"
+        val isExportRoot: (Set<String>) -> Boolean = { WowExport.MANIFEST in it && "files/" in it && WowExport.CHECKSUMS in it }
+        private const val JOURNAL = ".journal"
+    }
+
+    private fun work(env: ImportEnv) = File(env.paths.staging, "$gameId-work")
+
+    override fun detect(env: ImportEnv): Detection {
+        env.progress(Progress(Stage.DETECTING, "Looking for the World of Warcraft export"))
+        val found = LinkedHashMap<String, SourceNode>()
+        env.searchRoots().firstNotNullOfOrNull { Packages.findRoot(it, 5, isExportRoot) }?.let { found["install"] = it }
+        return Detection(validateDir(env.paths.game(gameId)).filesOk, found)
+    }
+
+    override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> = emptyList()
+    override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) = Unit
+
+    override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
+        val have = File(env.paths.game(gameId), EXPORT_COPY).isDirectory || detection.found["install"] != null || supplied["install"] is Supplied.Picked
+        return if (have) emptyList() else listOf(MissingInput("install", PROMPT, PickKind.FOLDER))
+    }
+
+    override fun importFiles(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>) {
+        val source = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
+            ?: throw ImportException(Problem.MISSING_SOURCE_DATA, PROMPT)
+        val root = if (isExportRoot(Packages.names(source.children()))) source
+        else Packages.findRoot(source, 5, isExportRoot) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no finished export in that folder (export.json, checksums.tsv and files/). $PROMPT")
+        val manifest = WowExport.parseManifest(root.child(WowExport.MANIFEST)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
+        val entries = WowExport.parseChecksums(root.child(WowExport.CHECKSUMS)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
+        if (entries.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "The export lists no files.")
+        entries.forEach { WowExport.safePath(it.path) }
+
+        env.progress(Progress(Stage.EXTRACTING, "Reading the export's folders"))
+        val nodes = HashMap<String, SourceNode>()
+        fun walk(node: SourceNode, prefix: String) {
+            for (child in node.children()) {
+                env.cancel.check()
+                if (child.isDirectory) walk(child, "$prefix${child.name}/") else nodes[prefix + child.name] = child
+            }
+        }
+        walk(root.child("files") ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "The export has no files/ folder."), "")
+        val missing = entries.filter { it.path !in nodes }
+        if (missing.isNotEmpty()) {
+            throw ImportException(
+                Problem.MISSING_SOURCE_DATA, "${missing.size} of the export's files aren't in the folder (the first: ${missing.first().path}). The export may have been stopped: run it again in the World of Warcraft app.",
+                missing.take(20).joinToString("\n") { it.path },
+            )
+        }
+
+        val work = work(env).also { it.mkdirs() }
+        val files = File(work, "files").also { it.mkdirs() }
+        val journal = File(work, JOURNAL)
+        val done = HashSet<String>()
+        if (journal.isFile) journal.forEachLine { line -> line.split('\t', limit = 3).takeIf { it.size == 3 }?.let { done += line } }
+        val total = entries.sumOf { it.size }
+        var copied = 0L
+        fun alreadyDone(e: WowExport.Entry): Boolean = "${e.sha256}\t${e.size}\t${e.path}" in done && File(files, e.path).let { it.isFile && it.length() == e.size }
+        val remaining = entries.filter { !alreadyDone(it) }
+        copied = total - remaining.sumOf { it.size }
+        FileValidator.requireSpace(env.paths.games, remaining.sumOf { it.size })
+
+        journal.parentFile?.mkdirs()
+        journal.appendText("")
+        val out = java.io.FileWriter(journal, true)
+        try {
+            for (e in remaining) {
+                env.cancel.check()
+                env.progress(Progress(Stage.EXTRACTING, "Copying ${e.path.substringAfterLast('/')} (${e.path.substringBefore('/')})", copied, total))
+                val target = File(files, e.path)
+                target.parentFile?.mkdirs()
+                val temp = File(target.parentFile, ".${target.name}.part")
+                val (sha, bytes) = nodes.getValue(e.path).open().use { input ->
+                    temp.outputStream().buffered(1 shl 20).use { o -> WowExport.copyHashed(input, o, env.cancel) { n -> copied += n; } }
+                }
+                if (bytes != e.size || sha != e.sha256) {
+                    temp.delete()
+                    throw ImportException(
+                        Problem.CORRUPT_ARCHIVE,
+                        "${e.path} doesn't match the export (it was ${if (bytes != e.size) "$bytes bytes, not ${e.size}" else "changed"}). Run the export again, or use Verify in the World of Warcraft app.",
+                        "expected ${e.sha256}, got $sha",
+                    )
+                }
+                target.delete()
+                if (!temp.renameTo(target)) throw ImportException(Problem.PERMISSION_DENIED, "${e.path} couldn't be put in place.")
+                out.write("${e.sha256}\t${e.size}\t${e.path}\n"); out.flush()
+            }
+        } finally {
+            out.close()
+        }
+
+        // The export's own manifest, checksums and settings, kept for what comes next.
+        val keep = File(work, EXPORT_COPY).also { it.mkdirs() }
+        for (name in listOf(WowExport.MANIFEST, WowExport.CHECKSUMS)) root.child(name)?.let { copyInto(it, keep, name, env.cancel) }
+        root.child("prefs")?.children()?.filter { !it.isDirectory }?.forEach { copyInto(it, File(keep, "prefs").also { d -> d.mkdirs() }, it.name, env.cancel) }
+        File(work, "MANIFEST-FORMAT").writeText("${manifest.format}\n")
+
+        env.progress(Progress(Stage.VALIDATING, "Checking the copy"))
+        val check = validateDir(work)
+        if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "The copy didn't check out.")
+
+        // Whole: the finished copy becomes the installation.
+        journal.delete()
+        val asm = Assembler(env.paths, gameId)
+        asm.staging.deleteRecursively()
+        asm.staging.parentFile?.mkdirs()
+        if (!work.renameTo(asm.staging)) throw ImportException(Problem.PERMISSION_DENIED, "The copy couldn't be put in place.")
+        asm.commit()
+    }
+
+    override fun validate(env: ImportEnv): Validation = validateDir(env.paths.game(gameId))
+
+    fun validateDir(dir: File): Validation {
+        val keep = File(dir, EXPORT_COPY)
+        val manifestFile = File(keep, WowExport.MANIFEST)
+        val manifest = runCatching { WowExport.parseManifest(manifestFile.readText()) }.getOrNull()
+        val entries = runCatching { WowExport.parseChecksums(File(keep, WowExport.CHECKSUMS).readText()) }.getOrNull()
+        val files = File(dir, "files")
+        val checks = ArrayList<Check>()
+        checks += Check("Export manifest", manifest != null, manifest?.let { "made by the World of Warcraft app ${it.appVersion} on ${it.createdAt}" } ?: "missing")
+        val missing = entries?.filter { e -> File(files, e.path).let { !it.isFile || it.length() != e.size } }?.size
+        checks += Check("Every file present at its size", entries != null && missing == 0, if (entries == null) "no checksums" else if (missing == 0) "${entries.size} files" else "$missing missing or the wrong size")
+        val folders = manifest?.folders.orEmpty()
+        val absent = folders.filter { !File(files, it).isDirectory }
+        checks += Check("Folders (${folders.joinToString().ifEmpty { "none" }})", manifest != null && absent.isEmpty() && folders.isNotEmpty(), if (absent.isEmpty()) "present" else "missing ${absent.joinToString()}")
+        val ok = checks.all { it.passed }
+        val problem = if (ok) null else Problem.MISSING_SOURCE_DATA
+        return Validation(checks, manifest?.let { "World of Warcraft app ${it.appVersion} export (${it.files} files)" }, ok, problem, if (ok) null else PROMPT)
+    }
+
+    override fun readyStage(validation: Validation) = Stage.IMPORTED_UNTESTED
+
+    override fun registerLaunchEntry(env: ImportEnv, validation: Validation) = LibraryEntry(
+        gameId = gameId,
+        title = title,
+        products = listOf("WOW"),
+        clientVersion = validation.clientVersion ?: "",
+        installPath = env.paths.game(gameId).path,
+        executable = "$EXPORT_COPY/${WowExport.MANIFEST}",
+        runtime = LibraryEntry.RUNTIME_EXTERNAL,
+        arguments = "",
+        stage = Stage.IMPORTED_UNTESTED,
+        saveLocation = null,
+        controlProfile = "",
+    )
+}
