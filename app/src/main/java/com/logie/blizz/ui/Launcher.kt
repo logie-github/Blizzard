@@ -156,8 +156,9 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val chosenVersions by Variants.selection.collectAsState()
     val musicKey = com.logie.blizz.music.MusicCatalog.keyFor(open?.let { Variants.effective(it, chosenVersions).id })
     LaunchedEffect(Unit) { com.logie.blizz.music.MusicDownloads.startIfMissing(context) }
-    // The launch test: once after each update, a few seconds after the shelf is up.
-    LaunchedEffect(Unit) { delay(5_000); com.logie.blizz.selftest.SelfTest.autoStart(context) }
+    // The launch test no longer runs by itself (the user: "turn off the launch test"); the settings' button starts it.
+    // A test the app died in is still reported at start.
+    LaunchedEffect(Unit) { com.logie.blizz.selftest.SelfTest.reportInterruptedOnly(context) }
     LaunchedEffect(musicKey) { com.logie.blizz.music.MusicPlayer.select(context, musicKey) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {

@@ -119,8 +119,9 @@ fetch "$HACTOOL_REPO" "$HACTOOL_COMMIT" "$WORK/hactool"
 ) || { tail -40 "$WORK/hactool.log"; exit 1; }
 "$TOOLCHAIN/llvm-strip" -o "$OUT/libhactool.so" "$WORK/hactool/hactool"
 
-# blizzmaria: the mariadb client dbimport and the world server start, a static program (see its source) -----
-"$CC" -O2 -static -o "$WORK/blizzmaria" "$ROOT/tools/blizzmaria.c" || { echo "blizzmaria.c didn't build" >&2; exit 1; }
+# blizzmaria: the mariadb client dbimport and the world server start, a freestanding program with no libc (see its source) -----
+"$CC" -O2 -static -nostdlib -ffreestanding -fno-stack-protector -fno-pic -fno-pie -Wl,--build-id=none \
+	-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384 -o "$WORK/blizzmaria" "$ROOT/tools/blizzmaria.c" || { echo "blizzmaria.c didn't build" >&2; exit 1; }
 "$TOOLCHAIN/llvm-strip" -o "$OUT/libblizzmaria.so" "$WORK/blizzmaria"
 
 {

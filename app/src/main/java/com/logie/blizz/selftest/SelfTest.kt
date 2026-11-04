@@ -61,14 +61,8 @@ object SelfTest {
     fun targets(): List<Target> = Games.all.flatMap { listOf(it) + it.variants }
         .filter { GameImportManager.importable(it.id) }.map { Target(it.id, it.fullTitle) }
 
-    /** At app start: once per app version, and a test the app died in is reported first. */
-    fun autoStart(context: Context) {
-        val app = context.applicationContext
-        reportInterrupted(app)
-        val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getInt("version", 0) == BuildConfig.VERSION_CODE) return
-        start(app)
-    }
+    /** At app start: a test the app died in (while the person ran it) is reported; nothing is started. */
+    fun reportInterruptedOnly(context: Context) = reportInterrupted(context.applicationContext)
 
     /** Runs the test now (the settings' button too); does nothing while one runs. */
     fun start(context: Context) {
