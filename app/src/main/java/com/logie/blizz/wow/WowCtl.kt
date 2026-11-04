@@ -82,6 +82,8 @@ object WowCtl {
             "TZ" to timeZone,
             "BLIZZ_LDSO" to loader.path,
             "BLIZZ_SERVER" to layout.server.path,
+            // The static client wrapper's own log (what it was asked to do, the client's messages, how it ended).
+            "BLIZZ_LOG" to File(layout.logs, "blizzmaria.log").path,
         ) + (nativeWrapper?.takeIf { it.canExecute() }?.let { mapOf("BLIZZ_MARIA" to it.path) } ?: emptyMap()),
         directory = layout.run,
     )

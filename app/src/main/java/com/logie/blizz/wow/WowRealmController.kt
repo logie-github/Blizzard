@@ -331,8 +331,13 @@ internal class RealmController(
             grep -hE '^(MySQLExecutable|SourceDirectory|TempDir|WorldDatabaseInfo|Updates\.)' etc/dbimport.conf 2>&1 | head -12
             echo "base sql: $(ls server/src/data/sql/base/db_world 2>&1 | head -3 | tr '
 ' ' ')"
-            # The static client wrapper dbimport runs (libblizzmaria.so), started from a process with the musl preload set, as dbimport has.
-            echo "static client: ${'$'}{BLIZZ_MARIA:-none} $(LD_PRELOAD="${'$'}BLIZZ_SERVER/lib/libandroidcompat.so" "${'$'}{BLIZZ_MARIA:-/nonexistent}" --version 2>&1 | head -c 200)"
+            # The static client wrapper dbimport runs (libblizzmaria.so), with dbimport's own arguments and the musl preload it has set.
+            echo "static client: ${'$'}{BLIZZ_MARIA:-none}"
+            rm -f logs/blizzmaria.log
+            LD_PRELOAD="${'$'}BLIZZ_SERVER/lib/libandroidcompat.so" "${'$'}{BLIZZ_MARIA:-/nonexistent}" -h127.0.0.1 -uacore -pacore -P3310 --default-character-set=utf8mb4 --max-allowed-packet=1GB acore_world \
+              < server/src/data/sql/base/db_world/achievement_category_dbc.sql > run/tmp/probe3.out 2>&1
+            echo "static client with dbimport's arguments: exit ${'$'}? $(head -c 300 run/tmp/probe3.out)"
+            echo "wrapper log: $(tail -n 12 logs/blizzmaria.log 2>&1)"
             # The very command dbimport runs for its first SQL file, run by hand: its error is what dbimport doesn't print.
             server/blizz/mariadb -h127.0.0.1 -P3310 -uacore -pacore -D acore_world --default-character-set=utf8mb4 \
               < server/src/data/sql/base/db_world/achievement_category_dbc.sql > run/tmp/probe.out 2>&1
@@ -345,7 +350,8 @@ internal class RealmController(
         """.trimIndent()
         val log = File(layout.logs, "diagnostics.out")
         log.delete()
-        val process = runner.start(WowCtl.Command(listOf("/system/bin/sh", "-c", script), mapOf("HOME" to files), layout.run), log, false)
+        val env = WowCtl.command(layout, loader, timeZone()).env
+        val process = runner.start(WowCtl.Command(listOf("/system/bin/sh", "-c", script), env + mapOf("HOME" to files), layout.run), log, false)
         if (!process.waitFor(30_000)) process.destroyForcibly()
         return WowLogs.tail(log, 40)
     }

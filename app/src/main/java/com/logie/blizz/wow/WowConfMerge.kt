@@ -42,6 +42,8 @@ object WowConfMerge {
     fun mergeAll(layout: WowLayout): Int {
         var added = 0
         for (etc in listOf(layout.etc, layout.etcRemix)) {
+            // dbimport asks for this one by name (its .dist has it commented out), and says so on every run.
+            added += ensure(File(etc, "dbimport.conf"), "Updates.ExceptionShutdownDelay", "10000")
             for (name in listOf("worldserver", "dbimport", "authserver")) {
                 added += merge(File(etc, "$name.conf"), File(layout.server, "etc/$name.conf.dist"))
             }
@@ -50,5 +52,14 @@ object WowConfMerge {
             }
         }
         return added
+    }
+
+    /** [key] = [value] in [conf] when the file has no active line for it; 1 when added. */
+    fun ensure(conf: File, key: String, value: String): Int {
+        if (!conf.isFile) return 0
+        val text = conf.readText()
+        if (Regex("^\\s*" + Regex.escape(key) + "\\s*=", RegexOption.MULTILINE).containsMatchIn(text)) return 0
+        conf.writeText(text.trimEnd('\n') + "\n\n$key = $value\n")
+        return 1
     }
 }
