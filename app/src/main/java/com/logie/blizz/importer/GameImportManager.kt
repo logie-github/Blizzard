@@ -198,7 +198,23 @@ object GameImportManager {
             e.message ?: e.problem.name,
             listOf("Game" to gameId, "Problem" to e.problem.name, "Online" to online(context).toString(), "Checks" to checks),
             log = listOfNotNull(e.detail, e.cause?.stackTraceToString()).joinToString("\n\n").ifEmpty { null },
+            files = runCatching { installFiles(context, gameId) }.getOrNull(),
         )
+    }
+
+    /** What the failed install had to work with and left behind ([InstallManifest]): sent with the report, so the files needn't be. */
+    private fun installFiles(context: Context, gameId: String): String {
+        val paths = paths(context)
+        val record = repo(context).load(gameId)
+        return buildString {
+            for ((id, supplied) in supplied(context, record)) (supplied as? Supplied.Picked)?.let { append(InstallManifest.describe(it.source, "Picked for $id")) }
+            append(InstallManifest.describe(paths.game(gameId), "Installed folder games/$gameId"))
+            append(InstallManifest.describe(paths.staging(gameId), "Staging staging/$gameId"))
+            for (suffix in listOf("work", "scratch", "installer")) {
+                val dir = File(paths.staging, "$gameId-$suffix")
+                if (dir.exists()) append(InstallManifest.describe(dir, "Left in staging/$gameId-$suffix", limit = 300))
+            }
+        }
     }
 
     /**

@@ -67,9 +67,9 @@ object BugReports {
     }
 
     /** A failure the app met: queued, then sent. */
-    fun report(context: Context, what: String, message: String, details: List<Pair<String, String?>> = emptyList(), log: String? = null) {
+    fun report(context: Context, what: String, message: String, details: List<Pair<String, String?>> = emptyList(), log: String? = null, files: String? = null) {
         val app = context.applicationContext
-        val report = Report("$what: ${message.lineSequence().first().take(140)}", body(what, message, details, log))
+        val report = Report("$what: ${message.lineSequence().first().take(140)}", body(what, message, details, log, files))
         if (queue(dir(app), report)) sendSoon(app)
     }
 
@@ -97,7 +97,7 @@ object BugReports {
     }
 
     /** The issue's text: what failed, what the app said, its details, the device, the end of the log. */
-    fun body(what: String, message: String, details: List<Pair<String, String?>>, log: String?): String = buildString {
+    fun body(what: String, message: String, details: List<Pair<String, String?>>, log: String?, files: String? = null): String = buildString {
         append("**$what**\n\n")
         append(message.trim()).append("\n\n")
         append("| | |\n| --- | --- |\n")
@@ -108,6 +108,11 @@ object BugReports {
         if (!log.isNullOrBlank()) {
             append("\n<details><summary>Log</summary>\n\n```\n")
             append(redact(log).takeLast(12_000))
+            append("\n```\n</details>\n")
+        }
+        if (!files.isNullOrBlank()) {
+            append("\n<details><summary>Files (paths, sizes, hashes; never their content)</summary>\n\n```\n")
+            append(redact(files).take(40_000))
             append("\n```\n</details>\n")
         }
         append("\n_Sent by the app by itself._\n")

@@ -49,7 +49,8 @@ object WowCtl {
     fun transform(ctl: String): String {
         var text = ctl
         // dbimport and the world server run the mariadb client by this setting; a script they can exec.
-        text = text.replace("MySQLExecutable \"\\\"\$SERVER/bin/mariadb\\\"\"", "MySQLExecutable \"\\\"\$SERVER/blizz/mariadb\\\"\"")
+        // The static client wrapper when the app has one (BLIZZ_MARIA), else the script.
+        text = text.replace("MySQLExecutable \"\\\"\$SERVER/bin/mariadb\\\"\"", "MySQLExecutable \"\\\"\${BLIZZ_MARIA:-\$SERVER/blizz/mariadb}\\\"\"")
         text = Regex("\"\\\$SERVER/bin/([A-Za-z0-9_.-]+)\"").replace(text) { m ->
             "\"\$BLIZZ_LDSO\" --library-path \"\$SERVER/lib\" \"\$SERVER/bin/${m.groupValues[1]}\""
         }
@@ -63,6 +64,13 @@ object WowCtl {
         append("exec \"${loader.path}\" --library-path \"${layout.server.path}/lib\" \"${layout.server.path}/bin/mariadb\" \"\$@\"\n")
     }
 
+    /**
+     * The static mariadb client wrapper (libblizzmaria.so in the app's native library folder, set once by the app):
+     * dbimport and the world server run it by their MySQLExecutable setting. The script wrapper's shell is Android's,
+     * which can't load the musl compatibility library that dbimport hands down in LD_PRELOAD; this program is static.
+     */
+    @Volatile var nativeWrapper: File? = null
+
     /** What to run for `ctl.sh <args>`: the shell, the script, and the environment it needs. */
     data class Command(val argv: List<String>, val env: Map<String, String>, val directory: File)
 
@@ -73,7 +81,8 @@ object WowCtl {
             "FILES" to layout.root.path,
             "TZ" to timeZone,
             "BLIZZ_LDSO" to loader.path,
-        ),
+            "BLIZZ_SERVER" to layout.server.path,
+        ) + (nativeWrapper?.takeIf { it.canExecute() }?.let { mapOf("BLIZZ_MARIA" to it.path) } ?: emptyMap()),
         directory = layout.run,
     )
 

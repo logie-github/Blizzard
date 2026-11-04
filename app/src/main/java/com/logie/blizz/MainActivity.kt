@@ -15,6 +15,7 @@ class MainActivity : ComponentActivity() {
         com.logie.blizz.reports.BugReports.start(this)
         // World of Warcraft: Play starts the realm through this.
         com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
+        com.logie.blizz.wow.WowCtl.nativeWrapper = java.io.File(applicationInfo.nativeLibraryDir, "libblizzmaria.so")
         com.logie.blizz.music.MusicPlayer.load(this)
         setContent { Launcher() }
     }

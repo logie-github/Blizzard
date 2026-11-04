@@ -51,7 +51,7 @@ class WowCtlTest {
 
     @Test fun theProgramsStartedByProgramsAreAScript() {
         val out = WowCtl.transform(ctl)
-        assertTrue("MySQLExecutable \"\\\"\$SERVER/blizz/mariadb\\\"\"" in out)
+        assertTrue("MySQLExecutable \"\\\"\${BLIZZ_MARIA:-\$SERVER/blizz/mariadb}\\\"\"" in out)
         assertFalse("MySQLExecutable \"\\\"\$SERVER/bin/mariadb\\\"\"" in out)
     }
 
@@ -68,7 +68,15 @@ class WowCtlTest {
         assertEquals(listOf("/system/bin/sh", File(l.server, "ctl.blizz.sh").path, "world", "remix"), c.argv)
         assertEquals(l.root.path, c.env["FILES"])
         assertEquals(loader.path, c.env["BLIZZ_LDSO"])
+        assertEquals(l.server.path, c.env["BLIZZ_SERVER"])
+        assertFalse("BLIZZ_MARIA" in c.env)
         assertEquals("<+0100>-01:00", c.env["TZ"])
+        // With the app's static wrapper (executable), the client setting uses it.
+        val wrapper = File(l.root, "libblizzmaria.so").apply { writeText("x"); setExecutable(true) }
+        WowCtl.nativeWrapper = wrapper
+        try {
+            assertEquals(wrapper.path, WowCtl.command(l, loader, "tz", "world").env["BLIZZ_MARIA"])
+        } finally { WowCtl.nativeWrapper = null }
         assertEquals(l.run, c.directory)
     }
 
