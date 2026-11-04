@@ -102,6 +102,13 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
             )
 
+            Text("Launch test", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
+            Text(
+                "Runs by itself the first time the app opens after an update: every game is checked and each installed one is started, watched and closed, and a report is sent to GitHub.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+            FrameButton("Run the launch test now", primary = false) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
+
             if (confirmReset) {
                 Text("Put the tiles back as they were (order, shapes, size, pictures)?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

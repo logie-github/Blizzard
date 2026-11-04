@@ -74,3 +74,21 @@ class Innoextract(private val program: File) {
         }
     }
 }
+
+/**
+ * hactool, which unpacks Nintendo Switch packages with the player's own keys ([SwitchPackages]).
+ * Run with a HOME of its own that holds `.switch/prod.keys` and `.switch/title.keys`, which is where it
+ * looks for them; that folder is made for one import and deleted after it.
+ */
+class Hactool(private val program: File) {
+    /** Runs hactool with [args] under [home]; its whole output, and its exit code. */
+    fun run(keys: File, home: File, args: List<String>, directory: File, cancel: CancelToken, onLine: (String) -> Unit = {}): Pair<Int, String> {
+        if (!program.canExecute()) throw ImportException(Problem.MISSING_RUNTIME_DEPENDENCY, "hactool is missing from this build of the app.")
+        val output = StringBuilder()
+        val result = Tools.run(
+            listOf(program.path, "-k", keys.path, "--disablekeywarns", "--suppresskeys") + args, directory, cancel,
+            environment = mapOf("HOME" to home.path),
+        ) { line -> synchronized(output) { output.appendLine(line) }; onLine(line) }
+        return result.code to output.toString()
+    }
+}

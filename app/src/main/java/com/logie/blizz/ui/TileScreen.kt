@@ -313,7 +313,7 @@ private fun Tile(
             MenuItem(Icons.Default.OpenWith, "Rearrange") { menu = false; onRearrange() }
             if (GameImportManager.importable(Variants.effective(game).id)) MenuItem(Icons.Default.Refresh, "Reinstall") { menu = false; onReinstall() }
             MenuItem(Icons.Default.Tune, "Loading screen") { menu = false; onLoadingScreen() }
-            MenuItem(Icons.Default.Settings, "Launch options") { menu = false; onLaunchOptions() }
+            if (Variants.effective(game).id != com.logie.blizz.d2r.D2r.GAME_ID) MenuItem(Icons.Default.Settings, "Launch options") { menu = false; onLaunchOptions() }
         }
     }
 }

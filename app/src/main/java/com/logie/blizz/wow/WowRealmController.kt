@@ -331,6 +331,8 @@ internal class RealmController(
             grep -hE '^(MySQLExecutable|SourceDirectory|TempDir|WorldDatabaseInfo|Updates\.)' etc/dbimport.conf 2>&1 | head -12
             echo "base sql: $(ls server/src/data/sql/base/db_world 2>&1 | head -3 | tr '
 ' ' ')"
+            # The static client wrapper dbimport runs (libblizzmaria.so), started from a process with the musl preload set, as dbimport has.
+            echo "static client: ${'$'}{BLIZZ_MARIA:-none} $(LD_PRELOAD="${'$'}BLIZZ_SERVER/lib/libandroidcompat.so" "${'$'}{BLIZZ_MARIA:-/nonexistent}" --version 2>&1 | head -c 200)"
             # The very command dbimport runs for its first SQL file, run by hand: its error is what dbimport doesn't print.
             server/blizz/mariadb -h127.0.0.1 -P3310 -uacore -pacore -D acore_world --default-character-set=utf8mb4 \
               < server/src/data/sql/base/db_world/achievement_category_dbc.sql > run/tmp/probe.out 2>&1

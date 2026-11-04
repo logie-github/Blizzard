@@ -20,6 +20,8 @@ class ImportEnv(
     val progress: (Progress) -> Unit,
     /** The original CD keys the person chose to enter (Diablo II only), never logged. */
     val keys: LegacyDownloader.Keys? = null,
+    /** Unpacks Switch packages (Diablo II: Resurrected); null in builds or tests without it. */
+    val hactool: Hactool? = null,
 )
 
 /** What [GameImporter.detect] found. */

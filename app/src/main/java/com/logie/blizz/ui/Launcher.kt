@@ -156,6 +156,8 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val chosenVersions by Variants.selection.collectAsState()
     val musicKey = com.logie.blizz.music.MusicCatalog.keyFor(open?.let { Variants.effective(it, chosenVersions).id })
     LaunchedEffect(Unit) { com.logie.blizz.music.MusicDownloads.startIfMissing(context) }
+    // The launch test: once after each update, a few seconds after the shelf is up.
+    LaunchedEffect(Unit) { delay(5_000); com.logie.blizz.selftest.SelfTest.autoStart(context) }
     LaunchedEffect(musicKey) { com.logie.blizz.music.MusicPlayer.select(context, musicKey) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {
@@ -169,7 +171,13 @@ fun Launcher(fold: Fold? = rememberFold()) {
                 com.logie.blizz.game.WowPlay.play(context, entry)
             } else if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) {
                 // Warcraft I and II run natively (Stratagus); the rest on the app's Winlator.
-                if (entry.runtime == com.logie.blizz.game.StratagusRuntime.RUNTIME) com.logie.blizz.game.StratagusRuntime.play(context, entry) else WindowsRuntime.play(context, entry)
+                when (entry.runtime) {
+                    com.logie.blizz.game.StratagusRuntime.RUNTIME -> com.logie.blizz.game.StratagusRuntime.play(context, entry)
+                    // Diablo II: Resurrected: its files are imported; the native host isn't in the app yet ([com.logie.blizz.d2r.D2r]).
+                    com.logie.blizz.importer.LibraryEntry.RUNTIME_D2R ->
+                        android.widget.Toast.makeText(context, "Diablo II: Resurrected's files are imported. Running it in the app isn't built yet.", android.widget.Toast.LENGTH_LONG).show()
+                    else -> WindowsRuntime.play(context, entry)
+                }
             } else wizardFor = game
             return
         }
@@ -212,6 +220,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
+        SelfTestDialog()
         picking?.let { game ->
             AppPicker(
                 game,

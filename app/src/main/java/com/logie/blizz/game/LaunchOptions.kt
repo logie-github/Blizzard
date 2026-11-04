@@ -58,8 +58,8 @@ data class LaunchOptions(
         fun or(default: Boolean) = when (this) { DEFAULT -> default; ON -> true; OFF -> false }
     }
 
-    /** What the phone is: its GPU makes the driver, its heat the resolution (read at the start, see [com.logie.blizz.game.WindowsRuntime]). */
-    data class Hardware(val adreno: Boolean = false, val hot: Boolean = false)
+    /** What the phone is: its GPU makes the driver (read at the start, see [com.logie.blizz.game.WindowsRuntime]). */
+    data class Hardware(val adreno: Boolean = false)
 
     /** Every value the options come to for a game, nothing left to a default. */
     data class Resolved(
@@ -134,10 +134,9 @@ data class LaunchOptions(
             // elsewhere; DXVK for Direct3D. Safe mode keeps Winlator's own defaults.
             graphicsDriver = if (!s && hardware.adreno) TURNIP_DRIVER else DEFAULT_DRIVER,
             dxwrapper = DEFAULT_D3D,
-            // The most lines the screen has; when the phone is already hot, no more than HOT_LINES.
-            lines = if (s || resolutionLocked(key)) null else if (hardware.hot) HOT_LINES else Screen.MOST,
-            // The classic games' own logic runs at 30 or less: drawing more only makes the phone hot.
-            maxFps = if (s) 30 else fps.value ?: if (classic) 30 else 60,
+            // As many lines as the screen has, always.
+            lines = if (s || resolutionLocked(key)) null else Screen.MOST,
+            maxFps = if (s) 30 else fps.value ?: 60,
             vsync = if (s) false else vsync.or(false),
             singleCpu = if (s) false else singleCpu.or(false),
             redraw = if (s) true else redraw.or(true),
@@ -152,14 +151,12 @@ data class LaunchOptions(
         const val DEFAULT_DRIVER = "vortek,gladio"
         const val DEFAULT_D3D = "dxvk"
         const val TURNIP_DRIVER = "turnip,gladio"
-        /** The most lines asked of the phone while it is already hot. */
-        const val HOT_LINES = 1080
 
         /** The classic 2D games, which draw with DirectDraw. */
         val CLASSIC = setOf("diablo2", "starcraft", "warcraft2")
 
         /** Warcraft I and II are played natively (Stratagus), not in Windows: no options. */
-        val NATIVE = setOf("warcraft", "warcraft2")
+        val NATIVE = setOf("warcraft", "warcraft2", "diablo2_resurrected")
 
         /** The WoW client's library entry ("wow-client") is the shelf's World of Warcraft. */
         fun key(gameId: String) = gameId.removeSuffix("-client")

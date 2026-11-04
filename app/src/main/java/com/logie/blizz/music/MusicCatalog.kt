@@ -28,9 +28,9 @@ object MusicCatalog {
         Track("wow_classic", "World of Warcraft: Legends of Azeroth", "https://nu.vgmtreasurechest.com/soundtracks/world-of-warcraft-soundtrack/olngrskz/01.%20Main%20Title%20-%20Legends%20of%20Azeroth.mp3"),
     )
 
-    /** The track that plays for [gameId] (the installation the page shows: StarCraft's Remastered shares the original's), the launcher's when there's no game or no track. */
+    /** The track that plays for [gameId] (the installation the page shows: StarCraft's Remastered and Diablo II's Resurrected share the original's), the launcher's when there's no game or no track. */
     fun keyFor(gameId: String?): String {
-        val key = if (gameId == "starcraft_remastered") "starcraft" else gameId
+        val key = when (gameId) { "starcraft_remastered" -> "starcraft"; "diablo2_resurrected" -> "diablo2"; else -> gameId }
         return if (key != null && tracks.any { it.key == key }) key else LAUNCHER
     }
 
