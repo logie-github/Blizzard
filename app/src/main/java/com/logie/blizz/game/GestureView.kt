@@ -366,7 +366,6 @@ class GestureView(
 
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"
-        /** How long the WoW client takes to show its cursor for where the pointer went. */
         private const val CLICK_MS = 40L
         private const val TICK_MS = 30L
         private const val KEY_MS = 50L

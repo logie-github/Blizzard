@@ -472,7 +472,8 @@ fun LaunchOptionsButton(shown: Game) {
 @Composable
 fun ControlsButton(shown: Game) {
     val game = effectiveGame(shown)
-    if (game.id == com.logie.blizz.d2r.D2r.GAME_ID) return
+    // Resurrected has its own app's controls; World of Warcraft has the World of Warcraft app's own (wowinput), not these rules.
+    if (game.id == com.logie.blizz.d2r.D2r.GAME_ID || game.id == "wow" || game.id.startsWith("wow_")) return
     var open by remember { mutableStateOf(false) }
     Icon(Icons.Default.Mouse, contentDescription = "Controls", tint = Colors.Mist,
         modifier = Modifier.clip(RoundedCornerShape(50)).clickable { open = true }.padding(10.dp).size(26.dp))

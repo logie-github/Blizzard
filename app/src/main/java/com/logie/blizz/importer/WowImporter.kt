@@ -91,7 +91,8 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         if (!source.isDirectory) return importZip(env, source)
         val root = if (isExportRoot(Packages.names(source.children()))) source
         else Packages.findRoot(source, 5, isExportRoot) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no finished export in that folder (export.json, checksums.tsv and files/). $PROMPT")
-        deletable = root
+        // Never the folder the person picked when the export's files are straight in it (Download, say): only the export's own folder.
+        deletable = root.takeIf { it !== source && it.name.startsWith("WoW-export", ignoreCase = true) }
         val manifest = WowExport.parseManifest(root.child(WowExport.MANIFEST)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
         checkMode(manifest)
         val allEntries = WowExport.parseChecksums(root.child(WowExport.CHECKSUMS)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })

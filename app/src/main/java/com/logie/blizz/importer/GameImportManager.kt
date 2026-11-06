@@ -307,8 +307,14 @@ object GameImportManager {
 
     /** The person picked a file ([tree] false) or a folder for [inputId]; the import goes on. */
     /** The export this game was imported from, as a document the app may delete (once the copy is verified and in place); null when there is none. */
-    fun exportSource(context: Context, gameId: String): Uri? =
-        runCatching { Uri.parse(File(paths(context).state, "export-source-$gameId.txt").readText().trim()) }.getOrNull()
+    fun exportSource(context: Context, gameId: String): Uri? {
+        val uri = runCatching { Uri.parse(File(paths(context).state, "export-source-$gameId.txt").readText().trim()) }.getOrNull() ?: return null
+        // Only where the picker gave the app write access (a folder added with Search a folder is read-only).
+        val writable = context.contentResolver.persistedUriPermissions.any { p ->
+            p.isWritePermission && (p.uri == uri || uri.toString().startsWith(p.uri.toString()))
+        }
+        return uri.takeIf { writable }
+    }
 
     /** Deletes the export the import read from; whether it went (the app needs the picker's write access for that). */
     fun deleteExport(context: Context, gameId: String): Boolean {

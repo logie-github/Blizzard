@@ -44,10 +44,10 @@ import java.lang.ref.WeakReference
  * so: [EXTRA_NEW_ACCOUNT]), and the chat (two fingers swiped up press Enter, which opens it).
  * What's sent is typed into the game; the game's screen itself never moves or changes size.
  */
-@SuppressLint("ViewConstructor")
 /** The prompt's kinds: the password at the login, a chat line, a name at character creation, any other text. */
 enum class PromptKind { PASSWORD, CHAT, NAME, TEXT }
 
+@SuppressLint("ViewConstructor")
 class WowGestureView(
     private val activity: AppCompatActivity,
     private val xServer: XServer,
@@ -250,7 +250,8 @@ class WowGestureView(
         } else if (legion) {
             whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
         } else {
-            postDelayed({ ask(PromptKind.PASSWORD) }, LOGIN_KEYBOARD_DELAY_MS)
+            // Asked once the login screen is up (its cursor seen), not while the game is still loading: what's typed before then is lost.
+            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
         }
         // The login screen only has the plain arrow: what the cursor looks like when it means a click.
         for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
@@ -568,7 +569,8 @@ class WowGestureView(
     override fun showMenu() = com.logie.blizz.game.GameMenu.show(
         activity, "wow-client",
         onKeyboard = { ask(PromptKind.TEXT) },
-        onChat = { ask(PromptKind.CHAT) },
+        // Enter first opens the game's chat box, as the two-finger swipe does.
+        onChat = { openChat() },
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { onLeave.run() },
         onReport = {
