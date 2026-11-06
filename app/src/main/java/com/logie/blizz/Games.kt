@@ -42,7 +42,7 @@ object Games {
         Game("warcraft3_roc", "Warcraft III", "Reign of Chaos", 2002, R.drawable.cover_warcraft3_roc, variantLabel = "Reign of Chaos",
             variants = listOf(Game("warcraft3_tft", "Warcraft III", "The Frozen Throne", 2003, R.drawable.cover_warcraft3_tft, variantLabel = "The Frozen Throne"))),
         // One tile, each game mode its own version (and its own zip from the WoW app): Wrath+ plays; the others are imported and kept.
-        Game("wow", "World of Warcraft", null, 2004, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Wrath+",
+        Game("wow", "World of Warcraft", "Wrath+", 2008, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Wrath+",
             variants = listOf(
                 Game("wow_legion", "World of Warcraft", "Legion", 2016, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Legion"),
                 Game("wow_octowow", "World of Warcraft", "OctoWoW", 2004, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "OctoWoW"),

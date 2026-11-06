@@ -56,14 +56,14 @@ class PreviewTest {
     @Test fun coverShelfBottom() {
         compose.setContent { Launcher(fold = null) }
         compose.mainClock.advanceTimeBy(3000)
-        compose.onAllNodesWithContentDescription("World of Warcraft").onFirst().performScrollTo()
+        compose.onAllNodesWithContentDescription("World of Warcraft: Wrath+").onFirst().performScrollTo()
         screenshot("cover-shelf-bottom")
     }
 
     @Config(qualifiers = "w411dp-h960dp-xxhdpi")
     @Test fun coverGame() {
         compose.setContent { Launcher(fold = null) }
-        open("World of Warcraft")
+        open("World of Warcraft: Wrath+")
         screenshot("cover-game")
     }
 

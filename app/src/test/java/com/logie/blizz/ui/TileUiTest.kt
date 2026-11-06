@@ -116,7 +116,7 @@ class TileUiTest {
     @Test fun changeArtDialog() {
         TileSettings.setColumns(context, 2); TileSettings.setWide(context, "wow", true)
         show()
-        rule.onNodeWithContentDescription("World of Warcraft").performTouchInput { longClick() }
+        rule.onNodeWithContentDescription("World of Warcraft: Wrath+").performTouchInput { longClick() }
         settle(500)
         rule.onNodeWithText("Change Art").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
         settle(800)
