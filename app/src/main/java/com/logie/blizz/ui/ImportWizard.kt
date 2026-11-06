@@ -110,12 +110,15 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
     var pickingFor by remember { mutableStateOf<String?>(null) }
     var confirmReset by remember { mutableStateOf(false) }
     var confirmRemoveCopy by remember { mutableStateOf(false) }
-    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    var confirmDeleteExport by remember { mutableStateOf(false) }
+    // The export an import read from, offered for deletion once the copy is verified and in place.
+    val exportToDelete = remember(state.record.stage, state.running, confirmDeleteExport) { GameImportManager.exportSource(context, game.id) }
+    val pickFile = rememberLauncherForActivityResult(OpenDocumentWithWrite()) { uri ->
         val id = pickingFor
         pickingFor = null
         if (uri != null && id != null) GameImportManager.supply(context, game.id, id, uri, tree = false)
     }
-    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+    val pickFolder = rememberLauncherForActivityResult(OpenDocumentTreeWithWrite()) { uri ->
         val id = pickingFor
         pickingFor = null
         if (uri != null && id != null) GameImportManager.supply(context, game.id, id, uri, tree = true)
@@ -232,6 +235,16 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     state.missing.isNotEmpty() -> FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
                     record.stage == Stage.READY || record.stage == Stage.IMPORTED_UNTESTED -> {
                         FrameButton("Repair", primary = false) { GameImportManager.start(context, game.id, repair = true) }
+                        if (exportToDelete != null) {
+                            if (confirmDeleteExport) {
+                                FrameButton("No", primary = false) { confirmDeleteExport = false }
+                                FrameButton("Delete it") {
+                                    confirmDeleteExport = false
+                                    val ok = GameImportManager.deleteExport(context, game.id)
+                                    android.widget.Toast.makeText(context, if (ok) "The export is deleted." else "It couldn't be deleted from here: delete it in the Files app.", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            } else FrameButton("Delete the export", primary = false) { confirmDeleteExport = true }
+                        }
                         FrameButton("Play") { onDismiss(); onPlay() }
                     }
                     record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton("Auto Import") { GameImportManager.start(context, game.id) }
@@ -328,4 +341,17 @@ private fun CdKeys(gameId: String) {
     }
     field(classic, "Diablo II key (16 or 26 characters)") { classic = it; GameImportManager.setKeys(gameId, classic.takeIf { k -> k.length == 16 || k.length == 26 }, expansion.takeIf { k -> k.length == 26 }, null) }
     field(expansion, "Lord of Destruction key (26 characters)") { expansion = it; GameImportManager.setKeys(gameId, classic.takeIf { k -> k.length == 16 || k.length == 26 }, expansion.takeIf { k -> k.length == 26 }, null) }
+}
+
+/** The picker, asking for write access too (and keeping it): so the export can be deleted once it is copied and verified. */
+private class OpenDocumentWithWrite : ActivityResultContracts.OpenDocument() {
+    override fun createIntent(context: android.content.Context, input: Array<String>) = super.createIntent(context, input).addFlags(
+        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+    )
+}
+
+private class OpenDocumentTreeWithWrite : ActivityResultContracts.OpenDocumentTree() {
+    override fun createIntent(context: android.content.Context, input: android.net.Uri?) = super.createIntent(context, input).addFlags(
+        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+    )
 }

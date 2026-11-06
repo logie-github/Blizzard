@@ -26,7 +26,6 @@ import com.logie.blizz.controls.xKeyName
 import com.winlator.core.AppUtils
 import com.winlator.math.XForm
 import com.winlator.renderer.ViewTransformation
-import com.winlator.xserver.Cursor
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XKeycode
 import com.winlator.xserver.XServer
@@ -47,12 +46,12 @@ class GestureView(
     private val density = resources.displayMetrics.density
     init { GameLog.start(); com.logie.blizz.selftest.RunningGame.attach(activity) }
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
-    /** World of Warcraft's client: it takes its mouse position a frame after the pointer moves, and logs in by itself. */
+    /**
+     * World of Warcraft's client has the World of Warcraft app's own controls ([WowGestureView]: its touch gestures, cursor reading,
+     * text prompt and login), over this view; this one only hands them what Winlator tells it.
+     */
     private val wow = gameId == "wow-client"
-    private val loginName = activity.intent.getStringExtra(EXTRA_LOGIN_NAME)
-    private val loginPassword = activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD)
-    private var loginStarted = false
-    private val fingerprints = HashMap<Cursor, Long>()
+    private var wowView: com.logie.blizz.wowinput.WowGestureView? = null
     private val controlsStore = ControlsStore(java.io.File(activity.filesDir, "controls"))
     /** The controls file as it was when [gestures] were made: a game kept running in the background doesn't restart when the controls change. */
     private var controlsStamp = controlsStore.stamp(gameId ?: "")
@@ -189,6 +188,11 @@ class GestureView(
     /** Back: the game's Escape; twice in a second, the app's menu (a way in when four fingers don't open it). */
     fun backPressed() {
         val now = SystemClock.uptimeMillis()
+        if (wow) {
+            // Back is the game's Escape; twice, the app's menu.
+            if (now - lastBack < 1000) { lastBack = 0; wowView?.showMenu() } else { lastBack = now; wowView?.escape() }
+            return
+        }
         if (now - lastBack < 1000) { lastBack = 0; showMenu() } else { lastBack = now; escape() }
     }
 
@@ -212,6 +216,12 @@ class GestureView(
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         postDelayed(noWindowReport, 90_000)
+        // The World of Warcraft client's own controls go over this view.
+        if (wow && wowView == null) {
+            val view = com.logie.blizz.wowinput.WowGestureView(activity, xServer, onLeave)
+            wowView = view
+            (parent as? ViewGroup)?.addView(view)
+        }
     }
 
     /** Back in the game: Escape (cancels an order, closes a menu). */
@@ -219,7 +229,7 @@ class GestureView(
 
     /** The game's first window is up: on a touch screen the finger is the pointer, never drawn. */
     fun onGameWindowShown() {
-        if (wow) startLogin()
+        if (wow) wowView?.onGameWindowShown()
         xServer.renderer.isCursorVisible = false
         windowShown = true
         removeCallbacks(noWindowReport)
@@ -231,60 +241,6 @@ class GestureView(
         }
     }
 
-    // Logging in (World of Warcraft) ----------------------------------------------------------
-
-    /**
-     * The login screen is up once the game has shown its cursor a few times running; then, after a moment for its
-     * boxes, the saved password is typed and Enter pressed (the account's name is in its box already, from Config.wtf);
-     * with no saved password, or after [LOGIN_WAIT_MS] in any case, the keyboard's prompt asks for it.
-     */
-    private fun startLogin() {
-        if (loginStarted) return
-        loginStarted = true
-        val since = SystemClock.uptimeMillis()
-        fun poll(seen: Int) {
-            val now = if (cursorHere() != null) seen + 1 else 0
-            when {
-                now >= LOGIN_CURSOR_SEEN -> postDelayed({ loginNow() }, LOGIN_SETTLE_MS)
-                SystemClock.uptimeMillis() - since >= LOGIN_WAIT_MS -> postDelayed({ loginNow() }, LOGIN_SETTLE_MS)
-                else -> postDelayed({ poll(now) }, LOGIN_POLL_MS)
-            }
-        }
-        poll(0)
-    }
-
-    private fun loginNow() {
-        val password = loginPassword
-        if (!password.isNullOrEmpty()) type(password, enter = true) else askText(chat = false)
-    }
-
-    /** A fingerprint of the game's cursor where the pointer is, or null when there's none to see. */
-    private fun cursorHere(): Long? = runCatching {
-        xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER, XServer.Lockable.INPUT_DEVICE).use {
-            var window = xServer.inputDeviceManager.pointWindow
-            var cursor: Cursor? = null
-            while (window != null && cursor == null) {
-                cursor = window.attributes.cursor
-                window = window.parent
-            }
-            cursor?.let { fingerprints.getOrPut(it) { fingerprint(it) } }
-        }
-    }.getOrNull()
-
-    private fun fingerprint(cursor: Cursor): Long {
-        var hash = 1469598103934665603L
-        fun add(value: Int) { hash = (hash xor value.toLong()) * 1099511628211L }
-        add(cursor.hotSpotX)
-        add(cursor.hotSpotY)
-        val image = cursor.cursorImage ?: return hash
-        add(image.width.toInt())
-        add(image.height.toInt())
-        val data = image.data?.duplicate() ?: return hash
-        data.rewind()
-        while (data.remaining() >= 4) add(data.int)
-        return hash
-    }
-
     // Gestures ---------------------------------------------------------------------------------
 
     override fun pointerTo(x: Float, y: Float) {
@@ -292,19 +248,16 @@ class GestureView(
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
     }
 
-    // The WoW client reads where the pointer is once a frame: a click in the same instant as the move lands on the old spot.
-    private val settle: Long get() = if (wow) CURSOR_SETTLE_MS else 0L
-
     override fun click(button: Button) {
-        postDelayed({ xServer.injectPointerButtonPress(button.x) }, settle)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, settle + CLICK_MS)
+        xServer.injectPointerButtonPress(button.x)
+        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
     }
 
     override fun doubleClick(button: Button) {
-        postDelayed({ xServer.injectPointerButtonPress(button.x) }, settle)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, settle + CLICK_MS)
-        postDelayed({ xServer.injectPointerButtonPress(button.x) }, settle + CLICK_MS * 2)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, settle + CLICK_MS * 3)
+        xServer.injectPointerButtonPress(button.x)
+        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
+        postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS * 2)
+        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS * 3)
     }
 
     override fun buttonDown(button: Button) = xServer.injectPointerButtonPress(button.x)
@@ -414,11 +367,6 @@ class GestureView(
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"
         /** How long the WoW client takes to show its cursor for where the pointer went. */
-        private const val CURSOR_SETTLE_MS = 90L
-        private const val LOGIN_POLL_MS = 250L
-        private const val LOGIN_CURSOR_SEEN = 3
-        private const val LOGIN_WAIT_MS = 20_000L
-        private const val LOGIN_SETTLE_MS = 1500L
         private const val CLICK_MS = 40L
         private const val TICK_MS = 30L
         private const val KEY_MS = 50L

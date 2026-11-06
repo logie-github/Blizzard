@@ -313,4 +313,10 @@ class WowImporterTest {
         assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.WRATH_PLUS) is ImportPipeline.Result.Done)
         assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.FOREVER) is ImportPipeline.Result.Failed)
     }
+
+    @Test fun aFolderNodeDeletesWithWhatIsInIt() {
+        val dir = export(tmp.newFolder())
+        assertTrue(FileNode(dir).delete())
+        assertTrue(!dir.exists())
+    }
 }

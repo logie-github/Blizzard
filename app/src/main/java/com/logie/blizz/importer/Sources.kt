@@ -22,6 +22,9 @@ interface SourceNode {
     /** A file on this phone that can be handed to a program (innoextract), when it already is one. */
     fun localFile(): File? = null
 
+    /** Deletes it (a folder with what is in it); whether it did. For the export a verified import no longer needs. */
+    fun delete(): Boolean = false
+
     fun child(name: String): SourceNode? = children().firstOrNull { it.name.equals(name, ignoreCase = true) }
 
     /** Every file under this node, to [depth] folders down. */
@@ -45,6 +48,7 @@ class FileNode(val file: File) : SourceNode {
     override fun children(): List<SourceNode> = file.listFiles()?.sortedBy { it.name }?.map { FileNode(it) } ?: emptyList()
     override fun open(): InputStream = file.inputStream()
     override fun localFile(): File = file
+    override fun delete(): Boolean = file.deleteRecursively()
 }
 
 /** A document or folder from the picker ([Uri] from ACTION_OPEN_DOCUMENT or ACTION_OPEN_DOCUMENT_TREE). */
@@ -82,6 +86,8 @@ class DocumentNode(
 
     override fun open(): InputStream = resolver.openInputStream(uri)
         ?: throw ImportException(Problem.PERMISSION_DENIED, "$name can't be opened: pick it again so the app may read it.")
+
+    override fun delete(): Boolean = runCatching { DocumentsContract.deleteDocument(resolver, uri) }.getOrDefault(false)
 
     companion object {
         /** A folder picked with ACTION_OPEN_DOCUMENT_TREE. */

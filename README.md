@@ -173,6 +173,7 @@ The shelf's **World of Warcraft** box (placeholder art until you send yours) bri
 - The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. **Play starts the realm and the game here** (the WoW app isn't needed).
 - Names that differ only in case (the client's `FlyByWorgen.m2` and a module's `flybyworgen.m2`) can't live side by side on shared storage, so the WoW app stores them under `<name>~<8 hex>` and lists them in `export.json` (`renames`); the import follows that. An export made before that fix is read too: a missing file is looked for in another case and as `name (1).ext`, and still checked against its SHA-256.
 - Files the export lists that can't be found anywhere (by name, by their other likely names, or by size and checksum) are **left out with a note** (`.export/missing.txt`) instead of stopping the import, unless the game can't do without them: the databases (`mysql/`), the client (`client/`) and the server programs (`server/bin`, `server/lib`, `ctl.sh`) are always required.
+- Once the copy is verified and in place, the wizard offers **Delete the export** (the zip, or the folder) to free the space; the picker is asked for write access for that. If a file manager won't allow it from here, it says so and you delete it in Files.
 - You need free space for the zip plus this copy (about twice the zip's size while it imports).
 
 ## Music
@@ -193,6 +194,10 @@ Diablo II's tile has a second version, **Resurrected** (the chooser on its page;
 ## When an install fails
 
 A failed import (the first failure of its kind each day) is sent to this repository as an issue, with what the app knows: the problem, the checks that failed, the log, and **a listing of the files involved** (what you picked, the installed folder and what the import left in staging): each file's path, size and a hash of its size and its first and last 64 KB, never its content, so the files themselves needn't be sent. Sending needs the `BLIZZ_REPORT_TOKEN` secret built into the release (see Launch test).
+
+## World of Warcraft controls
+
+The Wrath+ client has the World of Warcraft app's own touch controls, ported as they are (`wowinput/`, with the app's tests): its gestures, tap-to-click that waits for the game's cursor and reads it to talk, loot and attack, camera and movement, the action bars, character creation turning, cutscenes, and the text prompt. At the login screen the saved password (from the export's `prefs/login.json`) is typed by itself, or the prompt asks for it. Back is Escape; twice opens the app's menu. The other games keep the app's own controls.
 
 ## Launch test
 

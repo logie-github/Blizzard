@@ -144,6 +144,8 @@ dependencies {
 	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
 	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
 	testImplementation 'junit:junit:4.13.2'
+	// The World of Warcraft app's controls tests, as they were written there.
+	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:2.3.21'
 	testImplementation 'org.robolectric:robolectric:4.16'
 	testImplementation 'androidx.compose.ui:ui-test-junit4'
 	testImplementation 'androidx.test:core:1.6.1'

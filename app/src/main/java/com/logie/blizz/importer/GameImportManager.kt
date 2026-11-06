@@ -306,9 +306,23 @@ object GameImportManager {
     }
 
     /** The person picked a file ([tree] false) or a folder for [inputId]; the import goes on. */
+    /** The export this game was imported from, as a document the app may delete (once the copy is verified and in place); null when there is none. */
+    fun exportSource(context: Context, gameId: String): Uri? =
+        runCatching { Uri.parse(File(paths(context).state, "export-source-$gameId.txt").readText().trim()) }.getOrNull()
+
+    /** Deletes the export the import read from; whether it went (the app needs the picker's write access for that). */
+    fun deleteExport(context: Context, gameId: String): Boolean {
+        val uri = exportSource(context, gameId) ?: return false
+        val gone = runCatching { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) }.getOrDefault(false)
+        if (gone) File(paths(context).state, "export-source-$gameId.txt").delete()
+        return gone
+    }
+
     fun supply(context: Context, gameId: String, inputId: String, uri: Uri, tree: Boolean) {
         val app = context.applicationContext
-        runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        // Write access too, so the export can be deleted once it is copied and verified.
+        runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+            .onFailure { runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
         repo(app).update(gameId) { it.copy(supplied = it.supplied + (inputId to (if (tree) "tree:" else "doc:") + uri)) }
         publish((_states.value[gameId] ?: WizardState(gameId, repo(app).load(gameId))).copy(missing = emptyList()))
         start(app, gameId)

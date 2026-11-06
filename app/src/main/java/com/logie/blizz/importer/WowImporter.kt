@@ -55,6 +55,15 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
             (path.startsWith("mysql/") || path.startsWith("client/") || path.startsWith("server/bin/") || path.startsWith("server/lib/") || path == "server/ctl.sh")
     }
 
+    /** What the import read the export from: remembered for the person to delete once the copy is verified and in place. */
+    private var deletable: SourceNode? = null
+
+    /** Written once the copy is in place: which document the export is, so the app can offer to delete it. */
+    private fun rememberExport(env: ImportEnv) {
+        val doc = (deletable as? DocumentNode)?.uri?.toString() ?: return
+        File(env.paths.state, "export-source-$gameId.txt").also { it.parentFile?.mkdirs() }.writeText(doc)
+    }
+
     private fun work(env: ImportEnv) = File(env.paths.staging, "$gameId-work")
 
     override fun detect(env: ImportEnv): Detection {
@@ -78,9 +87,11 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         val source = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
             ?: throw ImportException(Problem.MISSING_SOURCE_DATA, PROMPT)
         // The zip the World of Warcraft app makes now: read in one pass.
+        deletable = source
         if (!source.isDirectory) return importZip(env, source)
         val root = if (isExportRoot(Packages.names(source.children()))) source
         else Packages.findRoot(source, 5, isExportRoot) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no finished export in that folder (export.json, checksums.tsv and files/). $PROMPT")
+        deletable = root
         val manifest = WowExport.parseManifest(root.child(WowExport.MANIFEST)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
         checkMode(manifest)
         val allEntries = WowExport.parseChecksums(root.child(WowExport.CHECKSUMS)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
@@ -209,6 +220,7 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         asm.staging.parentFile?.mkdirs()
         if (!work.renameTo(asm.staging)) throw ImportException(Problem.PERMISSION_DENIED, "The copy couldn't be put in place.")
         asm.commit()
+        rememberExport(env)
     }
 
     /**
@@ -307,6 +319,7 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         asm.staging.parentFile?.mkdirs()
         if (!work.renameTo(asm.staging)) throw ImportException(Problem.PERMISSION_DENIED, "The copy couldn't be put in place.")
         asm.commit()
+        rememberExport(env)
     }
 
     override fun validate(env: ImportEnv): Validation = validateDir(env.paths.game(gameId))

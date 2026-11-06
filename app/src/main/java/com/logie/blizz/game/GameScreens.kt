@@ -277,7 +277,7 @@ object GameMenu {
 
 /** The text prompt: a box at the top with the phone's keyboard, typed into the game when sent. */
 object GamePrompt {
-    fun show(activity: Activity, gameId: String?, chat: Boolean, onSend: (String) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit): ComponentDialog {
+    fun show(activity: Activity, gameId: String?, chat: Boolean, onSend: (String) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit, password: Boolean = false): ComponentDialog {
         var dialog: ComponentDialog? = null
         var finished = false
         fun finish(text: String?) {
@@ -287,7 +287,7 @@ object GamePrompt {
             if (text != null) onSend(text) else onCancel()
         }
         dialog = fullScreenDialog(activity, dim = false) {
-            Prompt(chat, onSend = { finish(it) }, onCancel = { finish(null) }, onBackspace = onBackspace)
+            Prompt(chat, onSend = { finish(it) }, onCancel = { finish(null) }, onBackspace = onBackspace, password = password)
         }
         dialog.setOnCancelListener { finish(null) }
         dialog.window?.setSoftInputMode(
@@ -299,7 +299,7 @@ object GamePrompt {
 }
 
 @Composable
-private fun Prompt(chat: Boolean, onSend: (String) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit) {
+private fun Prompt(chat: Boolean, onSend: (String) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit, password: Boolean = false) {
     var text by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -320,8 +320,9 @@ private fun Prompt(chat: Boolean, onSend: (String) -> Unit, onCancel: () -> Unit
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge,
                         cursorBrush = SolidColor(Colors.Ice),
+                        visualTransformation = if (password) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Ascii,
+                            keyboardType = if (password) KeyboardType.Password else KeyboardType.Ascii,
                             autoCorrectEnabled = false,
                             imeAction = if (chat) ImeAction.Send else ImeAction.Done,
                         ),
