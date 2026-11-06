@@ -65,4 +65,17 @@ class D2rTest {
         assertFalse(SwitchPackages.keep("06-00000001.data"))
         assertEquals(18, SwitchPackages.ARCHIVES.size)
     }
+
+    @Test fun keysHactoolRefusesAreLeftOutByNameNotValue() {
+        val text = "header_key = " + "a".repeat(64) + "\nmaster_key_00 = " + "b".repeat(32) + "\nnew_key_xx = " + "c".repeat(34) + "\n# comment\n"
+        val (clean, dropped) = SwitchPackages.cleanKeys(text)
+        assertTrue(clean.contains("header_key = " + "a".repeat(64)) && clean.contains("master_key_00 = " + "b".repeat(32)))
+        assertFalse(clean.contains("new_key_xx"))
+        assertEquals(listOf("new_key_xx"), dropped)
+    }
+
+    @Test fun anUpdateNamedByItsPatchIdIsStillTheUpdate() {
+        val update = "Content Type:                       Program\nTitle ID:                           0100726014352800\nSection 1:\n    Type: Patch RomFS\n"
+        assertEquals(SwitchPackages.Content.UPDATE, SwitchPackages.classify(update))
+    }
 }

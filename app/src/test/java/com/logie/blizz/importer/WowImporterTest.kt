@@ -219,7 +219,7 @@ class WowImporterTest {
     }
 
     /** The export as the WoW app now writes it: one zip (Zip64, stored, data descriptors), `checksums.tsv` and `export.json` last. */
-    private fun zipOf(dir: File, withManifest: Boolean = true): File {
+    private fun zipOf(dir: File, withManifest: Boolean = true, mode: String? = null): File {
         val zipFile = File(tmp.newFolder(), "WoW-export.zip")
         org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream(zipFile).use { zip ->
             zip.setUseZip64(org.apache.commons.compress.archivers.zip.Zip64Mode.Always)
@@ -230,6 +230,7 @@ class WowImporterTest {
                 zip.write(bytes)
                 zip.closeArchiveEntry()
             }
+            if (mode != null) put(WowImporter.MODE_ENTRY, mode.toByteArray())
             File(dir, "files").walkTopDown().filter { it.isFile }.sortedBy { it.path }.forEach { put("files/" + it.relativeTo(File(dir, "files")).path, it.readBytes()) }
             File(dir, "prefs").listFiles()?.forEach { put("prefs/${it.name}", it.readBytes()) }
             put(WowExport.CHECKSUMS, File(dir, WowExport.CHECKSUMS).readBytes())
@@ -283,7 +284,7 @@ class WowImporterTest {
             val manifest = File(dir, WowExport.MANIFEST)
             manifest.writeText(org.json.JSONObject(manifest.readText()).put("mode", mode).toString())
         }
-        return zipOf(dir)
+        return zipOf(dir, mode = mode)
     }
 
     private fun runMode(zip: File, mode: WowImporter.WowMode): ImportPipeline.Result {

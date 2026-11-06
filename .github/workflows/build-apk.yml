@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: app/tools
-          key: blizz-tools-v1-${{ hashFiles('tools.env', 'patches/blizzard-legacy-dl/**', 'scripts/build-tools.sh') }}
+          key: blizz-tools-v1-${{ hashFiles('tools.env', 'patches/blizzard-legacy-dl/**', 'scripts/build-tools.sh', 'tools/**') }}
       - name: Build the importers' programs
         if: steps.tools.outputs.cache-hit != 'true'
         run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-tools.sh

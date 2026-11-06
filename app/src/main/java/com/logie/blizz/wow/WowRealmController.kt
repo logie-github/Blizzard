@@ -333,6 +333,7 @@ internal class RealmController(
 ' ' ')"
             # The static client wrapper dbimport runs (libblizzmaria.so), with dbimport's own arguments and the musl preload it has set.
             echo "static client: ${'$'}{BLIZZ_MARIA:-none}"
+            echo "wrapper log of the failed run: $(tail -n 12 logs/blizzmaria.log 2>&1)"
             rm -f logs/blizzmaria.log
             LD_PRELOAD="${'$'}BLIZZ_SERVER/lib/libandroidcompat.so" "${'$'}{BLIZZ_MARIA:-/nonexistent}" -h127.0.0.1 -uacore -pacore -P3310 --default-character-set=utf8mb4 --max-allowed-packet=1GB acore_world \
               < server/src/data/sql/base/db_world/achievement_category_dbc.sql > run/tmp/probe3.out 2>&1

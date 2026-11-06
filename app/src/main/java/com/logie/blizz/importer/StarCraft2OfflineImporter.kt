@@ -220,7 +220,7 @@ class StarCraft2OfflineImporter : GameImporter {
             // One found elsewhere in the files is fine (the game loads its own Support folders); one found nowhere is noted, not refused:
             // the game's own loader decides, and a real failure shows in the game's log.
             val missing = Dependencies.missing(exe)
-            val all = dir.walkTopDown().filter { it.isFile }.map { it.name.lowercase() }.toSet()
+            val all = if (missing.isEmpty()) emptySet() else dir.walkTopDown().filter { it.isFile }.map { it.name.lowercase() }.toSet()
             val nowhere = missing.filter { it.lowercase() !in all }
             checks += Check("Game libraries", true, when {
                 missing.isEmpty() -> "present"

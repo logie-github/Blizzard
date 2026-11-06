@@ -83,9 +83,11 @@ object SelfTest {
         }
     }
 
-    fun cancel() {
+    fun cancel(context: Context? = null) {
         job?.cancel()
         RunningGame.finish()
+        // Stopped by the person: not a test the app died in.
+        context?.let { File(dir(it), "partial.json").delete() }
         _state.value = State.Idle
     }
 
@@ -168,6 +170,8 @@ object SelfTest {
     /** The probes on a phone. */
     private class AndroidProbe(private val context: Context) : Probe {
         override suspend fun launch(entry: LibraryEntry): LaunchOutcome = when {
+            entry.runtime == LibraryEntry.RUNTIME_D2R || entry.runtime == LibraryEntry.RUNTIME_PENDING ->
+                LaunchOutcome(Launch.NOT_TESTED, "Imported; running it in the app isn't built yet.")
             entry.runtime == StratagusRuntime.RUNTIME -> stratagus(entry)
             entry.runtime == LibraryEntry.RUNTIME_EXTERNAL -> wow(entry)
             else -> windows(entry)

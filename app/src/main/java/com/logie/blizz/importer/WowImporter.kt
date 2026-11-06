@@ -32,16 +32,23 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
     }
 
     /** The zip is this mode's: a zip of another mode is refused by name; one with no mode (everything in one, from before) is Wrath+'s. */
-    private fun checkMode(manifest: WowExport.Manifest) {
-        val theirs = manifest.mode
+    private var modeChecked = false
+
+    private fun checkMode(manifest: WowExport.Manifest) = checkMode(manifest.mode)
+
+    private fun checkMode(theirs: String?) {
+        modeChecked = true
         if (theirs == mode.exportKey || theirs == null && mode == WowMode.WRATH_PLUS) return
-        val named = WowMode.entries.firstOrNull { it.exportKey == theirs }?.title ?: theirs ?: "an older export"
+        if (theirs == null) throw ImportException(Problem.MISSING_SOURCE_DATA, "That zip holds everything, which is Wrath+'s. Export ${mode.title} on its own in the World of Warcraft app and pick that zip here.")
+        val named = WowMode.entries.firstOrNull { it.exportKey == theirs }?.title ?: theirs
         throw ImportException(Problem.MISSING_SOURCE_DATA, "That zip is $named's, not ${mode.title}'s. Open $named on this tile and import it there.")
     }
 
     companion object {
         const val PROMPT = "Pick the zip the World of Warcraft app made for this game (its button: Export everything to Blizzard), or, from an older export, the WoW-export folder or the folder that holds it."
         const val EXPORT_COPY = ".export"
+        /** The zip's first entry in a per-mode export: the mode's key (`wrath-plus`, `legion`...). */
+        const val MODE_ENTRY = "mode.txt"
         val isExportRoot: (Set<String>) -> Boolean = { WowExport.MANIFEST in it && "files/" in it && WowExport.CHECKSUMS in it }
         private const val JOURNAL = ".journal"
         /** The files the export lists that weren't found and were left out (one path a line), in `.export/`. */
@@ -71,7 +78,9 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         val found = LinkedHashMap<String, SourceNode>()
         env.searchRoots().firstNotNullOfOrNull { Packages.findRoot(it, 5, isExportRoot) }?.let { found["install"] = it }
         // The zip the app makes now.
-        if (found["install"] == null) Scan(env.searchRoots()).matching(Regex("wow-export.*\\.zip")).firstOrNull()?.let { found["install"] = it }
+        // Each mode its own zip: WoW-export*.zip (the zip of everything, and Wrath+'s), WoW-Legion*.zip and so on.
+        val zipName = if (mode == WowMode.WRATH_PLUS) Regex("wow-(export|wrath).*\\.zip") else Regex("wow-(export-)?${mode.exportKey}.*\\.zip")
+        if (found["install"] == null) Scan(env.searchRoots()).matching(zipName).firstOrNull()?.let { found["install"] = it }
         return Detection(validateDir(env.paths.game(gameId)).filesOk, found)
     }
 
@@ -261,12 +270,17 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
                     when {
                         name == WowExport.CHECKSUMS -> checksumsText = zip.readBytes().toString(Charsets.UTF_8)
                         name == WowExport.MANIFEST -> manifestText = zip.readBytes().toString(Charsets.UTF_8)
+                        // The mode, first in a zip the World of Warcraft app makes per mode: checked before the gigabytes are copied.
+                        name == MODE_ENTRY -> checkMode(zip.readBytes().toString(Charsets.UTF_8).trim().ifEmpty { null })
                         name.startsWith("prefs/") -> {
+                            WowExport.safePath(name)
                             val target = File(keep, name)
                             target.parentFile?.mkdirs()
                             target.writeBytes(zip.readBytes())
                         }
                         name.startsWith("files/") -> {
+                            // A zip without its mode first is a zip of everything (Wrath+'s): refused at once for another mode.
+                            if (got.isEmpty() && !modeChecked && mode != WowMode.WRATH_PLUS) checkMode(null)
                             val path = name.removePrefix("files/")
                             WowExport.safePath(path)
                             env.progress(Progress(Stage.EXTRACTING, "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})", read, total))

@@ -15,6 +15,7 @@ import java.security.MessageDigest
 object SwitchPackages {
     /** Diablo II: Resurrected's title id, as hactool prints it. */
     const val TITLE_ID = "0100726014352000"
+    const val PATCH_ID = "0100726014352800"
 
     /** The version the port is made for: the SHA-256 of each ExeFS program file (3.3.94012). */
     val EXEFS_SHA256 = mapOf(
@@ -36,6 +37,24 @@ object SwitchPackages {
     fun keep(name: String): Boolean {
         val n = name.lowercase()
         return ARCHIVES.any { n == it || n == "$it.holes" } || n == BUILD_CONFIG || n == "build.config" || n == MANIFEST
+    }
+
+    private val KEY_LINE = Regex("^\\s*([A-Za-z0-9_]+)\\s*=\\s*([0-9A-Fa-f]+)\\s*$")
+
+    /**
+     * [text] (a prod.keys) with only the lines hactool takes: `name = <32 or 64 hex digits>`. Newer dumps hold keys of
+     * other lengths, and hactool stops at the first ("Key (...) must be 32 hex digits!"). Returns the lines kept and the
+     * names of the ones left out (never their values).
+     */
+    fun cleanKeys(text: String): Pair<String, List<String>> {
+        val kept = StringBuilder()
+        val dropped = ArrayList<String>()
+        for (line in text.lines()) {
+            val m = KEY_LINE.matchEntire(line) ?: continue
+            val (name, value) = m.destructured
+            if (value.length == 32 || value.length == 64) kept.append(name).append(" = ").append(value).append('\n') else dropped += name
+        }
+        return kept.toString() to dropped
     }
 
     data class TitleKey(val rightsId: String, val key: String)
@@ -76,8 +95,9 @@ object SwitchPackages {
     /** Whether the content file [hactool] described (`-t nca`) is this game's base program or its update's (a BKTR patch). */
     fun classify(hactoolOutput: String): Content {
         if (!Regex("Content Type:\\s*Program").containsMatchIn(hactoolOutput)) return Content.OTHER
-        if (!Regex("^Title ID:\\s*$TITLE_ID", RegexOption.MULTILINE).containsMatchIn(hactoolOutput)) return Content.OTHER
-        return if (hactoolOutput.contains("BKTR")) Content.UPDATE else Content.BASE
+        // The game's own id; an update's program content may name the patch's (the same with 800 at its end).
+        if (!Regex("^Title ID:\\s*(?:$TITLE_ID|$PATCH_ID)", setOf(RegexOption.MULTILINE, RegexOption.IGNORE_CASE)).containsMatchIn(hactoolOutput)) return Content.OTHER
+        return if (hactoolOutput.contains("BKTR") || hactoolOutput.contains("Patch RomFS", ignoreCase = true)) Content.UPDATE else Content.BASE
     }
 
     fun sha256(file: File): String {

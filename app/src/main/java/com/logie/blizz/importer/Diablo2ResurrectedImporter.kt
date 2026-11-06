@@ -86,7 +86,10 @@ class Diablo2ResurrectedImporter : GameImporter {
 
             // The keys: a private copy where hactool looks for them, plus the title keys the tickets hold.
             val keys = File(home, ".switch/prod.keys")
-            copyInto(keysSource, keys.parentFile!!, "prod.keys", env.cancel)
+            // Only the lines hactool takes (it refuses the whole file over one key of another length).
+            val (cleanKeys, droppedKeys) = SwitchPackages.cleanKeys(keysSource.open().use { it.readBytes().toString(Charsets.UTF_8) })
+            keys.writeText(cleanKeys)
+            if (droppedKeys.isNotEmpty()) env.progress(Progress(Stage.EXTRACTING, "Left out ${droppedKeys.size} keys hactool doesn't take"))
             val titleKeys = File(home, ".switch/title.keys")
             titleKeys.writeText("")
 

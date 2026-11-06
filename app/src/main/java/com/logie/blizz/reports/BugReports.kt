@@ -123,6 +123,8 @@ object BugReports {
         .replace(Regex("--cdkey(-expansion)?\\s+\\S+"), "--cdkey$1 [removed]")
         .replace(Regex("\\b[A-Z0-9]{26}\\b"), "[removed]")
         .replace(Regex("\\b(ghp|github_pat)_[A-Za-z0-9_]+"), "[removed]")
+        // Console keys and title keys (hex of 32 digits or more), as hactool prints them in its errors.
+        .replace(Regex("\\b[0-9A-Fa-f]{32,}\\b"), "[removed]")
 
     private fun sendSoon(context: Context) {
         if (looping || !configured(context)) return

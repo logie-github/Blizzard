@@ -47,7 +47,7 @@ fun SelfTestDialog() {
                 is SelfTest.State.Running -> {
                     Text("Testing ${minOf(s.index + 1, s.total)} of ${s.total}: ${s.current}", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
                     s.done.forEach { Line(it) }
-                    FrameButton("Stop the test", primary = false) { SelfTest.cancel() }
+                    FrameButton("Stop the test", primary = false) { SelfTest.cancel(context) }
                 }
                 is SelfTest.State.Finished -> {
                     s.results.forEach { Line(it) }
