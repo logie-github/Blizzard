@@ -30,6 +30,8 @@ object WowExport {
         val prefs: List<String>,
         /** Files stored under another name than their real one (names that differ only in case, which shared storage can't keep apart): real path to stored path, under `files/`. */
         val renames: Map<String, String> = emptyMap(),
+        /** Which game mode the zip holds ("wrath-plus", "legion", "octowow", "forever"); null in an export of everything, made before modes had a zip of their own. */
+        val mode: String? = null,
     )
 
     data class Entry(val sha256: String, val size: Long, val path: String)
@@ -42,6 +44,7 @@ object WowExport {
             sourceFilesDir = o.optString("sourceFilesDir"), files = o.optLong("files"), bytes = o.optLong("bytes"),
             folders = strings("folders"), excluded = strings("excluded"), prefs = strings("prefs"),
             renames = o.optJSONObject("renames")?.let { r -> r.keys().asSequence().associateWith { r.getString(it) } } ?: emptyMap(),
+            mode = o.optString("mode").takeIf { it.isNotEmpty() },
         )
         if (m.format != 1) throw ImportException(Problem.UNSUPPORTED_VERSION, "This export is format ${m.format}; this app reads format 1. Update both apps.")
         if (m.app != APP) throw ImportException(Problem.MISSING_SOURCE_DATA, "That export wasn't made by the World of Warcraft app (${m.app.ifEmpty { "unknown" }}).")
@@ -53,6 +56,7 @@ object WowExport {
         .put("sourceFilesDir", m.sourceFilesDir).put("files", m.files).put("bytes", m.bytes)
         .put("folders", JSONArray(m.folders)).put("excluded", JSONArray(m.excluded)).put("prefs", JSONArray(m.prefs))
         .put("renames", JSONObject(m.renames))
+        .apply { m.mode?.let { put("mode", it) } }
         .put("checksums", CHECKSUMS).toString(2)
 
     /** `<sha256>\t<size>\t<path>` lines; a malformed line is an error, not skipped. */

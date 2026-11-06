@@ -276,4 +276,41 @@ class WowImporterTest {
         assertEquals(Problem.CORRUPT_ARCHIVE, (result as ImportPipeline.Result.Failed).error.problem)
         assertTrue(result.error.message!!.contains("export.json"))
     }
+
+    private fun zipWithMode(mode: String?): File {
+        val dir = export(tmp.newFolder())
+        if (mode != null) {
+            val manifest = File(dir, WowExport.MANIFEST)
+            manifest.writeText(org.json.JSONObject(manifest.readText()).put("mode", mode).toString())
+        }
+        return zipOf(dir)
+    }
+
+    private fun runMode(zip: File, mode: WowImporter.WowMode): ImportPipeline.Result {
+        paths = if (::paths.isInitialized) paths else GamePaths(tmp.newFolder())
+        return ImportPipeline(ImportStateRepository(paths), Library(paths)).run(WowImporter(mode), env(), mapOf("install" to Supplied.Picked("install", FileNode(zip))))
+    }
+
+    @Test fun eachModeTakesItsOwnZipAndKeepsItsOwnFolder() {
+        val legion = runMode(zipWithMode("legion"), WowImporter.WowMode.LEGION)
+        assertTrue(legion.toString(), legion is ImportPipeline.Result.Done)
+        assertEquals(LibraryEntry.RUNTIME_PENDING, (legion as ImportPipeline.Result.Done).entry.runtime)
+        assertEquals("wow_legion", legion.entry.gameId)
+        assertTrue(File(paths.game("wow_legion"), "files/client/Data/common.MPQ").isFile)
+        assertTrue(!paths.game("wow").exists())
+        val wrath = runMode(zipWithMode("wrath-plus"), WowImporter.WowMode.WRATH_PLUS)
+        assertEquals(LibraryEntry.RUNTIME_EXTERNAL, (wrath as ImportPipeline.Result.Done).entry.runtime)
+    }
+
+    @Test fun aZipOfAnotherModeIsRefusedByName() {
+        val result = runMode(zipWithMode("octowow"), WowImporter.WowMode.LEGION)
+        assertEquals(Problem.MISSING_SOURCE_DATA, (result as ImportPipeline.Result.Failed).error.problem)
+        assertTrue(result.error.message!!.contains("OctoWoW"))
+        assertTrue(!paths.game("wow_legion").exists())
+    }
+
+    @Test fun anExportMadeBeforeModesIsWrathPlusOnly() {
+        assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.WRATH_PLUS) is ImportPipeline.Result.Done)
+        assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.FOREVER) is ImportPipeline.Result.Failed)
+    }
 }

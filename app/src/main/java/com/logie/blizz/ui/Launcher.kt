@@ -175,8 +175,8 @@ fun Launcher(fold: Fold? = rememberFold()) {
                 when (entry.runtime) {
                     com.logie.blizz.game.StratagusRuntime.RUNTIME -> com.logie.blizz.game.StratagusRuntime.play(context, entry)
                     // Diablo II: Resurrected: its files are imported; the native host isn't in the app yet ([com.logie.blizz.d2r.D2r]).
-                    com.logie.blizz.importer.LibraryEntry.RUNTIME_D2R ->
-                        android.widget.Toast.makeText(context, "Diablo II: Resurrected's files are imported. Running it in the app isn't built yet.", android.widget.Toast.LENGTH_LONG).show()
+                    com.logie.blizz.importer.LibraryEntry.RUNTIME_D2R, com.logie.blizz.importer.LibraryEntry.RUNTIME_PENDING ->
+                        android.widget.Toast.makeText(context, "${entry.title}'s files are imported. Running it in the app isn't built yet.", android.widget.Toast.LENGTH_LONG).show()
                     else -> WindowsRuntime.play(context, entry)
                 }
             } else wizardFor = game

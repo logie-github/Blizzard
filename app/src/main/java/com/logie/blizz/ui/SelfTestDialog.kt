@@ -46,10 +46,6 @@ fun SelfTestDialog() {
             when (val s = state) {
                 is SelfTest.State.Running -> {
                     Text("Testing ${minOf(s.index + 1, s.total)} of ${s.total}: ${s.current}", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
-                    Text(
-                        "Each installed game is started, watched until its window is up, and closed. A game that was never imported is noted, not started. The first start of a game can take minutes.",
-                        style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-                    )
                     s.done.forEach { Line(it) }
                     FrameButton("Stop the test", primary = false) { SelfTest.cancel() }
                 }

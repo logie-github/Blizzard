@@ -99,6 +99,9 @@ object GameImportManager {
         "warcraft3_tft" to { Warcraft3Importer(Warcraft3Importer.Product.TFT) },
         // World of Warcraft: the WoW app's verified export, copied over (its realms still run in that app).
         "wow" to { WowImporter() },
+        "wow_legion" to { WowImporter(WowImporter.WowMode.LEGION) },
+        "wow_octowow" to { WowImporter(WowImporter.WowMode.OCTOWOW) },
+        "wow_forever" to { WowImporter(WowImporter.WowMode.FOREVER) },
         // Diablo II: Resurrected: the player's own Switch packages (a 7z of the .nsp files, base game and update), unpacked with hactool.
         "diablo2_resurrected" to { Diablo2ResurrectedImporter() },
     )

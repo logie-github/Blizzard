@@ -48,10 +48,6 @@ fun SettingsDialog(onDismiss: () -> Unit) {
                 FrameButton("Classic shelf", primary = s.mode == TileSettings.Mode.SHELF) { TileSettings.setMode(context, TileSettings.Mode.SHELF) }
                 FrameButton("Tiles", primary = s.mode == TileSettings.Mode.TILES) { TileSettings.setMode(context, TileSettings.Mode.TILES) }
             }
-            Text(
-                "Tiles: hold one for Change Art, Rearrange or Reinstall; pinch to make them bigger or smaller; each can be vertical or horizontal.",
-                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-            )
 
             if (s.mode == TileSettings.Mode.TILES) {
                 Text("Tiles across", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
@@ -97,16 +93,8 @@ fun SettingsDialog(onDismiss: () -> Unit) {
             if (download !is com.logie.blizz.music.MusicDownloads.State.Running && have < total) {
                 FrameButton("Download music", primary = false) { com.logie.blizz.music.MusicDownloads.start(context) }
             }
-            Text(
-                "Each game's music plays from the moment it is selected; the shelf has its own. The tracks are downloaded on first start and kept on the phone.",
-                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-            )
 
             Text("Launch test", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
-            Text(
-                "Runs by itself the first time the app opens after an update: every game is checked and each installed one is started, watched and closed, and a report is sent to GitHub.",
-                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-            )
             FrameButton("Run the launch test now", primary = false) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
 
             if (confirmReset) {

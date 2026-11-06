@@ -62,24 +62,12 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
                 return@Column
             }
 
-            Text(
-                "The graphics driver, Direct3D layer and resolution are chosen by the app for this phone and screen; they have no setting.",
-                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-            )
-            Text(
-                "For a black screen, no sound, no videos or a slow game: change one thing, start the game, and come back. Used at the game's next start.",
-                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-            )
 
             Text("Safe mode", style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FrameButton("Off", primary = !o.safeMode) { change(o.copy(safeMode = false)) }
                 FrameButton("On", primary = o.safeMode) { change(o.copy(safeMode = true)) }
             }
-            Text(
-                "On: the slowest, safest of everything (software drawing, Stability, 30 frames a second) and the settings below are ignored. Try it first when the game shows nothing.",
-                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-            )
 
             if (!o.safeMode) {
                 if (LaunchOptions.isClassic(game.id)) {
@@ -119,7 +107,6 @@ private fun Section(title: String, note: String, chips: @Composable () -> Unit) 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(title, style = MaterialTheme.typography.titleMedium, color = Colors.Gold)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { chips() }
-        Text(note, style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
     }
 }
 

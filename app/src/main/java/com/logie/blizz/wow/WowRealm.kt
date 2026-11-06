@@ -62,7 +62,8 @@ object WowRealm {
     fun isRunning(): Boolean = _status.value.phase.let { it == Phase.STARTING || it == Phase.RUNNING }
 
     /** The realm the user last chose in the WoW app (its `realms` preference in the export), ChromieCraft if none. */
-    fun chosenRealm(context: Context): Realm = WowExportInfo.chosenRealm(WowLayout.of(context))
+    // Wrath Remix is gone from the app: Wrath+ (internally ChromieCraft) is the one realm.
+    fun chosenRealm(@Suppress("UNUSED_PARAMETER") context: Context): Realm = Realm.CHROMIE
 
     /** Starts [realm] (and the service that keeps it alive). Does nothing while a realm is starting or running. */
     @Synchronized

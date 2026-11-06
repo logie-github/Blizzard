@@ -31,7 +31,7 @@ object WowClientSetup {
     /** The realms' names as the client's realm list shows them (the app's two realms, by key). */
     fun realmName(key: String): String = when (key) {
         "remix" -> "Wrath Remix"
-        else -> "ChromieCraft"
+        else -> "Wrath+"
     }
 
     fun realmlist(host: String = HOST) = "set realmlist $host\r\n"

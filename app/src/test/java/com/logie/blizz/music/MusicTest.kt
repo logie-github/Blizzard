@@ -35,7 +35,7 @@ class MusicTest {
         assertEquals(keys.size, keys.toSet().size)
         assertTrue(MusicCatalog.LAUNCHER in keys)
         for (game in Games.all.flatMap { listOf(it) + it.variants }) {
-            if (game.id == "starcraft_remastered" || game.id == "diablo2_resurrected") continue // they share the original game's track
+            if (game.id == "starcraft_remastered" || game.id == "diablo2_resurrected" || game.id.startsWith("wow_")) continue // they share the original game's track
             assertTrue("no track for ${game.id}", MusicCatalog.keyFor(game.id) == game.id)
         }
         assertTrue(MusicCatalog.tracks.all { it.url.startsWith("https://") && "%25" !in it.url })

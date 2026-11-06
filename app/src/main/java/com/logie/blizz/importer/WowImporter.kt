@@ -16,12 +16,31 @@ import java.io.File
  * [LibraryEntry.RUNTIME_EXTERNAL]); porting their runtime is the next step, and the copy keeps the
  * export's manifest (which paths the data was made under) for it.
  */
-class WowImporter : GameImporter {
-    override val gameId = "wow"
-    override val title = "World of Warcraft"
+class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WRATH_PLUS) : GameImporter {
+    override val gameId = mode.gameId
+    override val title = mode.title
+
+    /**
+     * The game modes the WoW app exports, each as a zip of its own: [exportKey] is the zip's `mode`.
+     * Only Wrath+ (ChromieCraft inside) runs in this app so far; the others are imported and kept.
+     */
+    enum class WowMode(val exportKey: String, val gameId: String, val title: String, val playable: Boolean) {
+        WRATH_PLUS("wrath-plus", "wow", "Wrath+", true),
+        LEGION("legion", "wow_legion", "Legion", false),
+        OCTOWOW("octowow", "wow_octowow", "OctoWoW", false),
+        FOREVER("forever", "wow_forever", "Forever", false),
+    }
+
+    /** The zip is this mode's: a zip of another mode is refused by name; one with no mode (everything in one, from before) is Wrath+'s. */
+    private fun checkMode(manifest: WowExport.Manifest) {
+        val theirs = manifest.mode
+        if (theirs == mode.exportKey || theirs == null && mode == WowMode.WRATH_PLUS) return
+        val named = WowMode.entries.firstOrNull { it.exportKey == theirs }?.title ?: theirs ?: "an older export"
+        throw ImportException(Problem.MISSING_SOURCE_DATA, "That zip is $named's, not ${mode.title}'s. Open $named on this tile and import it there.")
+    }
 
     companion object {
-        const val PROMPT = "Pick the WoW-export.zip the World of Warcraft app made (its button: Export everything to Blizzard), or, from an older export, the WoW-export folder or the folder that holds it."
+        const val PROMPT = "Pick the zip the World of Warcraft app made for this game (its button: Export everything to Blizzard), or, from an older export, the WoW-export folder or the folder that holds it."
         const val EXPORT_COPY = ".export"
         val isExportRoot: (Set<String>) -> Boolean = { WowExport.MANIFEST in it && "files/" in it && WowExport.CHECKSUMS in it }
         private const val JOURNAL = ".journal"
@@ -29,7 +48,11 @@ class WowImporter : GameImporter {
         const val MISSING = "missing.txt"
 
         /** What can't be left out: the databases, the client and the server programs. */
-        fun isCritical(path: String) = path.startsWith("mysql/") || path.startsWith("client/") || path.startsWith("server/bin/") || path.startsWith("server/lib/") || path == "server/ctl.sh"
+        fun isCritical(path: String) = isCritical(path, WowMode.WRATH_PLUS)
+
+        /** Only Wrath+'s layout is known well enough to require parts of it; the other modes' files are kept as they come. */
+        fun isCritical(path: String, mode: WowMode) = mode == WowMode.WRATH_PLUS &&
+            (path.startsWith("mysql/") || path.startsWith("client/") || path.startsWith("server/bin/") || path.startsWith("server/lib/") || path == "server/ctl.sh")
     }
 
     private fun work(env: ImportEnv) = File(env.paths.staging, "$gameId-work")
@@ -59,6 +82,7 @@ class WowImporter : GameImporter {
         val root = if (isExportRoot(Packages.names(source.children()))) source
         else Packages.findRoot(source, 5, isExportRoot) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no finished export in that folder (export.json, checksums.tsv and files/). $PROMPT")
         val manifest = WowExport.parseManifest(root.child(WowExport.MANIFEST)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
+        checkMode(manifest)
         val allEntries = WowExport.parseChecksums(root.child(WowExport.CHECKSUMS)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
         if (allEntries.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "The export lists no files.")
         allEntries.forEach { WowExport.safePath(it.path) }
@@ -115,7 +139,7 @@ class WowImporter : GameImporter {
         // (the person's own words: "those should be fine to leave out"); the databases, the client and the server
         // programs are never skipped: without them it isn't their game.
         val missing = entries.filter { it.path !in located }
-        val critical = missing.filter { isCritical(it.path) }
+        val critical = missing.filter { isCritical(it.path, mode) }
         if (critical.isNotEmpty()) {
             throw ImportException(
                 Problem.MISSING_SOURCE_DATA,
@@ -248,10 +272,11 @@ class WowImporter : GameImporter {
             throw ImportException(Problem.CORRUPT_ARCHIVE, "That isn't a zip this app can read, or it is damaged (${e.message}).", e.toString(), e)
         }
         val manifest = WowExport.parseManifest(manifestText ?: throw ImportException(Problem.CORRUPT_ARCHIVE, "The zip has no export.json: the export didn't finish. Export again."))
+        checkMode(manifest)
         val entries = WowExport.parseChecksums(checksumsText ?: throw ImportException(Problem.CORRUPT_ARCHIVE, "The zip has no checksums.tsv: the export didn't finish. Export again."))
         if (entries.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "The export lists no files.")
         val missing = entries.filter { it.path !in got }
-        val critical = missing.filter { isCritical(it.path) }
+        val critical = missing.filter { isCritical(it.path, mode) }
         if (critical.isNotEmpty()) {
             throw ImportException(
                 Problem.MISSING_SOURCE_DATA, "${critical.size} files the game can't do without aren't in the zip (the first: ${critical.first().path}). Export again.",
@@ -316,7 +341,7 @@ class WowImporter : GameImporter {
         clientVersion = validation.clientVersion ?: "",
         installPath = env.paths.game(gameId).path,
         executable = "$EXPORT_COPY/${WowExport.MANIFEST}",
-        runtime = LibraryEntry.RUNTIME_EXTERNAL,
+        runtime = if (mode.playable) LibraryEntry.RUNTIME_EXTERNAL else LibraryEntry.RUNTIME_PENDING,
         arguments = "",
         stage = Stage.IMPORTED_UNTESTED,
         saveLocation = null,
