@@ -194,7 +194,11 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
                 target.parentFile?.mkdirs()
                 val temp = File(target.parentFile, ".${target.name}.part")
                 val (sha, bytes) = located.getValue(e.path).open().use { input ->
-                    temp.outputStream().buffered(1 shl 20).use { o -> WowExport.copyHashed(input, o, env.cancel) { n -> copied += n; } }
+                    temp.outputStream().buffered(1 shl 20).use { o ->
+                        // A game archive is gigabytes: the progress moves inside it too (the screen takes it a few times a second).
+                        val label = "Copying ${e.path.substringAfterLast('/')} (${e.path.substringBefore('/')})"
+                        WowExport.copyHashed(input, o, env.cancel) { n -> copied += n; env.progress(Progress(Stage.EXTRACTING, label, copied, total)) }
+                    }
                 }
                 if (bytes != e.size || sha != e.sha256) {
                     temp.delete()
@@ -286,7 +290,11 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
                             env.progress(Progress(Stage.EXTRACTING, "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})", read, total))
                             val target = File(files, path)
                             target.parentFile?.mkdirs()
-                            val (sha, bytes) = target.outputStream().buffered(1 shl 20).use { o -> WowExport.copyHashed(zip, o, env.cancel) { n -> read += n } }
+                            val label = "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})"
+                            val (sha, bytes) = target.outputStream().buffered(1 shl 20).use { o ->
+                                // A game archive is gigabytes: the progress moves inside it too (the screen takes it a few times a second).
+                                WowExport.copyHashed(zip, o, env.cancel) { n -> read += n; env.progress(Progress(Stage.EXTRACTING, label, read, total)) }
+                            }
                             got[path] = sha to bytes
                         }
                         else -> {}
