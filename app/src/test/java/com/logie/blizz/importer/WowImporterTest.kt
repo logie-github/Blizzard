@@ -217,4 +217,63 @@ class WowImporterTest {
         assertTrue(result.error.message!!.contains("by content"))
         assertTrue(result.error.detail!!.contains("client/Data/gone.MPQ"))
     }
+
+    /** The export as the WoW app now writes it: one zip (Zip64, stored, data descriptors), `checksums.tsv` and `export.json` last. */
+    private fun zipOf(dir: File, withManifest: Boolean = true): File {
+        val zipFile = File(tmp.newFolder(), "WoW-export.zip")
+        org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream(zipFile).use { zip ->
+            zip.setUseZip64(org.apache.commons.compress.archivers.zip.Zip64Mode.Always)
+            zip.setMethod(java.util.zip.ZipEntry.DEFLATED)
+            zip.setLevel(java.util.zip.Deflater.NO_COMPRESSION)
+            fun put(name: String, bytes: ByteArray) {
+                zip.putArchiveEntry(org.apache.commons.compress.archivers.zip.ZipArchiveEntry(name))
+                zip.write(bytes)
+                zip.closeArchiveEntry()
+            }
+            File(dir, "files").walkTopDown().filter { it.isFile }.sortedBy { it.path }.forEach { put("files/" + it.relativeTo(File(dir, "files")).path, it.readBytes()) }
+            File(dir, "prefs").listFiles()?.forEach { put("prefs/${it.name}", it.readBytes()) }
+            put(WowExport.CHECKSUMS, File(dir, WowExport.CHECKSUMS).readBytes())
+            if (withManifest) put(WowExport.MANIFEST, File(dir, WowExport.MANIFEST).readBytes())
+        }
+        return zipFile
+    }
+
+    @Test fun anExportZipIsReadInOnePassAndKeptWhole() {
+        val result = run(zipOf(export()))
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        val game = paths.game("wow")
+        assertEquals("print('hi')", File(game, "files/addons/Questie/Questie.lua").readText())
+        assertEquals(5000, File(game, "files/client/Data/common.MPQ").length())
+        assertTrue(File(game, ".export/export.json").isFile && File(game, ".export/checksums.tsv").isFile)
+        assertTrue(File(game, ".export/prefs/environments.json").isFile)
+        assertTrue(!File(paths.staging, "wow-work").exists())
+    }
+
+    @Test fun aZipThatWasCutOffIsRefusedAndNothingIsLeftHalfMade() {
+        val zip = zipOf(export())
+        val bytes = zip.readBytes()
+        zip.writeBytes(bytes.copyOf(bytes.size / 2))
+        val result = run(zip)
+        assertTrue(result.toString(), result is ImportPipeline.Result.Failed)
+        assertTrue(!paths.game("wow").exists())
+        assertTrue(!File(paths.staging, "wow-work").exists())
+    }
+
+    @Test fun aZipWithADamagedFileIsRefusedByItsChecksum() {
+        val zip = zipOf(export())
+        val bytes = zip.readBytes()
+        val marker = "print('hi')".toByteArray()
+        val at = (0..bytes.size - marker.size).first { i -> marker.indices.all { bytes[i + it] == marker[it] } }
+        bytes[at] = 'X'.code.toByte()
+        zip.writeBytes(bytes)
+        val result = run(zip)
+        assertEquals(Problem.CORRUPT_ARCHIVE, (result as ImportPipeline.Result.Failed).error.problem)
+        assertTrue(result.error.message!!.contains("Questie.lua"))
+    }
+
+    @Test fun aZipWithoutItsManifestDidntFinish() {
+        val result = run(zipOf(export(), withManifest = false))
+        assertEquals(Problem.CORRUPT_ARCHIVE, (result as ImportPipeline.Result.Failed).error.problem)
+        assertTrue(result.error.message!!.contains("export.json"))
+    }
 }

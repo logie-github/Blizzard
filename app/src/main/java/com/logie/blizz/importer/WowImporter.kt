@@ -21,7 +21,7 @@ class WowImporter : GameImporter {
     override val title = "World of Warcraft"
 
     companion object {
-        const val PROMPT = "Pick the WoW-export folder the World of Warcraft app made (its button: Export everything to Blizzard), or the folder that holds it."
+        const val PROMPT = "Pick the WoW-export.zip the World of Warcraft app made (its button: Export everything to Blizzard), or, from an older export, the WoW-export folder or the folder that holds it."
         const val EXPORT_COPY = ".export"
         val isExportRoot: (Set<String>) -> Boolean = { WowExport.MANIFEST in it && "files/" in it && WowExport.CHECKSUMS in it }
         private const val JOURNAL = ".journal"
@@ -38,6 +38,8 @@ class WowImporter : GameImporter {
         env.progress(Progress(Stage.DETECTING, "Looking for the World of Warcraft export"))
         val found = LinkedHashMap<String, SourceNode>()
         env.searchRoots().firstNotNullOfOrNull { Packages.findRoot(it, 5, isExportRoot) }?.let { found["install"] = it }
+        // The zip the app makes now.
+        if (found["install"] == null) Scan(env.searchRoots()).matching(Regex("wow-export.*\\.zip")).firstOrNull()?.let { found["install"] = it }
         return Detection(validateDir(env.paths.game(gameId)).filesOk, found)
     }
 
@@ -46,12 +48,14 @@ class WowImporter : GameImporter {
 
     override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
         val have = File(env.paths.game(gameId), EXPORT_COPY).isDirectory || detection.found["install"] != null || supplied["install"] is Supplied.Picked
-        return if (have) emptyList() else listOf(MissingInput("install", PROMPT, PickKind.FOLDER))
+        return if (have) emptyList() else listOf(MissingInput("install", PROMPT, PickKind.FILE_OR_FOLDER))
     }
 
     override fun importFiles(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>) {
         val source = (supplied["install"] as? Supplied.Picked)?.source ?: detection.found["install"]
             ?: throw ImportException(Problem.MISSING_SOURCE_DATA, PROMPT)
+        // The zip the World of Warcraft app makes now: read in one pass.
+        if (!source.isDirectory) return importZip(env, source)
         val root = if (isExportRoot(Packages.names(source.children()))) source
         else Packages.findRoot(source, 5, isExportRoot) ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no finished export in that folder (export.json, checksums.tsv and files/). $PROMPT")
         val manifest = WowExport.parseManifest(root.child(WowExport.MANIFEST)!!.open().use { it.readBytes().toString(Charsets.UTF_8) })
@@ -176,6 +180,103 @@ class WowImporter : GameImporter {
 
         // Whole: the finished copy becomes the installation.
         journal.delete()
+        val asm = Assembler(env.paths, gameId)
+        asm.staging.deleteRecursively()
+        asm.staging.parentFile?.mkdirs()
+        if (!work.renameTo(asm.staging)) throw ImportException(Problem.PERMISSION_DENIED, "The copy couldn't be put in place.")
+        asm.commit()
+    }
+
+    /**
+     * The export as one zip ([source]): streamed once, every file written to the half-made copy and hashed as it
+     * goes; `checksums.tsv` and `export.json` are the archive's last entries, and the hashes are compared with them
+     * at the end. A zip without `export.json` didn't finish. Not resumable (a stopped import starts over); no file
+     * is looked for elsewhere, because nothing can be lost to shared storage's names inside one file.
+     */
+    private fun importZip(env: ImportEnv, source: SourceNode) {
+        try {
+            readZip(env, source)
+        } catch (e: Throwable) {
+            // A zip isn't resumable: what was written is of no use.
+            work(env).deleteRecursively()
+            throw e
+        }
+    }
+
+    private fun readZip(env: ImportEnv, source: SourceNode) {
+        val work = work(env)
+        work.deleteRecursively()
+        val files = File(work, "files").also { it.mkdirs() }
+        val keep = File(work, EXPORT_COPY).also { it.mkdirs() }
+        FileValidator.requireSpace(env.paths.games, source.size + (64L shl 20))
+        val total = source.size.coerceAtLeast(1)
+        var read = 0L
+        val got = HashMap<String, Pair<String, Long>>()
+        var checksumsText: String? = null
+        var manifestText: String? = null
+        try {
+            org.apache.commons.compress.archivers.zip.ZipArchiveInputStream(source.open().buffered(1 shl 20), "UTF-8", true, true).use { zip ->
+                while (true) {
+                    env.cancel.check()
+                    val entry = zip.nextEntry ?: break
+                    if (entry.isDirectory) continue
+                    val name = entry.name
+                    when {
+                        name == WowExport.CHECKSUMS -> checksumsText = zip.readBytes().toString(Charsets.UTF_8)
+                        name == WowExport.MANIFEST -> manifestText = zip.readBytes().toString(Charsets.UTF_8)
+                        name.startsWith("prefs/") -> {
+                            val target = File(keep, name)
+                            target.parentFile?.mkdirs()
+                            target.writeBytes(zip.readBytes())
+                        }
+                        name.startsWith("files/") -> {
+                            val path = name.removePrefix("files/")
+                            WowExport.safePath(path)
+                            env.progress(Progress(Stage.EXTRACTING, "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})", read, total))
+                            val target = File(files, path)
+                            target.parentFile?.mkdirs()
+                            val (sha, bytes) = target.outputStream().buffered(1 shl 20).use { o -> WowExport.copyHashed(zip, o, env.cancel) { n -> read += n } }
+                            got[path] = sha to bytes
+                        }
+                        else -> {}
+                    }
+                }
+            }
+        } catch (e: java.io.EOFException) {
+            throw ImportException(Problem.CORRUPT_ARCHIVE, "The zip stops before its end: the export didn't finish, or the file was cut off in copying. Export again.", e.toString(), e)
+        } catch (e: java.util.zip.ZipException) {
+            throw ImportException(Problem.CORRUPT_ARCHIVE, "That isn't a zip this app can read, or it is damaged (${e.message}).", e.toString(), e)
+        }
+        val manifest = WowExport.parseManifest(manifestText ?: throw ImportException(Problem.CORRUPT_ARCHIVE, "The zip has no export.json: the export didn't finish. Export again."))
+        val entries = WowExport.parseChecksums(checksumsText ?: throw ImportException(Problem.CORRUPT_ARCHIVE, "The zip has no checksums.tsv: the export didn't finish. Export again."))
+        if (entries.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "The export lists no files.")
+        val missing = entries.filter { it.path !in got }
+        val critical = missing.filter { isCritical(it.path) }
+        if (critical.isNotEmpty()) {
+            throw ImportException(
+                Problem.MISSING_SOURCE_DATA, "${critical.size} files the game can't do without aren't in the zip (the first: ${critical.first().path}). Export again.",
+                critical.take(20).joinToString("\n") { it.path },
+            )
+        }
+        val bad = entries.filter { e -> got[e.path]?.let { (sha, bytes) -> bytes != e.size || sha != e.sha256 } == true }
+        if (bad.isNotEmpty()) {
+            throw ImportException(
+                Problem.CORRUPT_ARCHIVE, "${bad.size} files in the zip don't match their checksums (the first: ${bad.first().path}). The zip was damaged in copying: export again.",
+                bad.take(20).joinToString("\n") { it.path },
+            )
+        }
+        // Files in the zip that its list doesn't name are not part of the export: they go.
+        val listed = entries.map { it.path }.toHashSet()
+        for (path in got.keys) if (path !in listed) File(files, path).delete()
+
+        if (missing.isNotEmpty()) File(keep, MISSING).writeText(missing.joinToString("\n", postfix = "\n") { it.path })
+        File(keep, WowExport.MANIFEST).writeText(manifestText!!)
+        File(keep, WowExport.CHECKSUMS).writeText(checksumsText!!)
+        File(work, "MANIFEST-FORMAT").writeText("${manifest.format}\n")
+
+        env.progress(Progress(Stage.VALIDATING, "Checking the copy"))
+        val check = validateDir(work)
+        if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "The copy didn't check out.")
         val asm = Assembler(env.paths, gameId)
         asm.staging.deleteRecursively()
         asm.staging.parentFile?.mkdirs()

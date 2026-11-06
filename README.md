@@ -165,14 +165,15 @@ All four Warcraft games are imported and played in this app (no other app is nee
 
 ## World of Warcraft (from the WoW app, nothing rebuilt)
 
-The shelf's **World of Warcraft** box (placeholder art until you send yours) brings over what the World of Warcraft app (`com.logie.warcraft`) holds: its client, realm databases with their characters, add-ons, modules, settings and the other environments' data. In the WoW app tap **Export everything to Blizzard** and pick a folder; it writes `WoW-export/` (`files/`, `prefs/`, `checksums.tsv`, and `export.json` last). Here, open the box and pick that folder (or the one holding it).
+The shelf's **World of Warcraft** box (placeholder art until you send yours) brings over what the World of Warcraft app (`com.logie.warcraft`) holds: its client, realm databases with their characters, add-ons, modules, settings and the other environments' data. In the WoW app tap **Export everything to Blizzard**, choose where to save, and it writes **one zip file** (`WoW-export.zip`: `files/`, `prefs/`, `checksums.tsv`, and `export.json` as its last entries). In Blizzard, tap the World of Warcraft box, **Auto Import**, and pick that zip. (An export folder made by older versions of the WoW app is still read.) Here, open the box and pick that folder (or the one holding it).
 
+- **The zip is read in one pass**, each file hashed as it is written and compared with `checksums.tsv` at the end; a zip without `export.json` (cut off, or the export didn't finish) is refused, and a zip isn't resumable (a stopped import starts over, and what it wrote is removed). Nothing is renamed inside a zip, so capital-letter twins arrive as they were.
 - It's a **copy**: the WoW app and its data are untouched. Every file is checked against the export's SHA-256 list while it's copied, and the finished copy replaces nothing until it's whole. A file that doesn't match is named and nothing is installed.
 - A stopped or failed import is **carried on**: files already copied and checked are kept in `staging/wow-work` with a journal; Retry continues. Reset removes it.
 - The copy keeps the export's manifest and settings (`.export/`), including the paths the data was made under, for the next step: running the realms here. **Play starts the realm and the game here** (the WoW app isn't needed).
 - Names that differ only in case (the client's `FlyByWorgen.m2` and a module's `flybyworgen.m2`) can't live side by side on shared storage, so the WoW app stores them under `<name>~<8 hex>` and lists them in `export.json` (`renames`); the import follows that. An export made before that fix is read too: a missing file is looked for in another case and as `name (1).ext`, and still checked against its SHA-256.
 - Files the export lists that can't be found anywhere (by name, by their other likely names, or by size and checksum) are **left out with a note** (`.export/missing.txt`) instead of stopping the import, unless the game can't do without them: the databases (`mysql/`), the client (`client/`) and the server programs (`server/bin`, `server/lib`, `ctl.sh`) are always required.
-- You need free space for the export plus this copy.
+- You need free space for the zip plus this copy (about twice the zip's size while it imports).
 
 ## Music
 
