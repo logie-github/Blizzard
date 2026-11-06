@@ -137,6 +137,12 @@ object WindowsRuntime {
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
             .putExtra(GestureView.EXTRA_PROFILE, profile.id)
+            .apply {
+                // World of Warcraft: the account the other app logged in with by itself, typed at the login screen.
+                if (entry.gameId == WowPlay.GAME_ID) com.logie.blizz.wow.WowLogin.get(context)?.let {
+                    putExtra(GestureView.EXTRA_LOGIN_NAME, it.name).putExtra(GestureView.EXTRA_LOGIN_PASSWORD, it.password)
+                }
+            }
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 
