@@ -149,7 +149,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         val legacy = env.legacy ?: return
         val staging = env.paths.staging(gameId)
         FileValidator.requireSpace(env.paths.downloads, (if (product.expansion) SIZE_TFT else SIZE_ROC) * 2)
-        staging.deleteRecursively()
+        staging.deleteTree()
         staging.mkdirs()
         try {
             // The base game, then the expansion over it, as Blizzard's installers do. No key: single
@@ -158,7 +158,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
             if (product.expansion) legacy.install("W3XP", staging, noBase = true, keys = null, cancel = env.cancel, onProgress = env.progress)
             File(staging, MARK).writeText(product.codes.joinToString(" ") + "\n")
         } catch (e: Throwable) {
-            staging.deleteRecursively()
+            staging.deleteTree()
             throw e
         }
     }
@@ -199,7 +199,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
                     // Moved, not copied: it was just unpacked beside staging.
                     for (f in root.listFiles().orEmpty()) {
                         val target = File(asm.staging, f.name)
-                        target.deleteRecursively()
+                        target.deleteTree()
                         if (!f.renameTo(target)) f.copyRecursively(target, true)
                     }
                 }
@@ -215,7 +215,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 

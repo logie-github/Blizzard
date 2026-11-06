@@ -153,10 +153,16 @@ object GameImportManager {
             var state = WizardState(gameId, repo.load(gameId), running = true, entry = library.get(gameId))
             publish(state)
             try {
+                var shownAt = 0L
+                var notifiedAt = 0L
                 val env = env(app, gameId, cancel) { p ->
+                    // Tens of thousands of files (World of Warcraft) each say where the copy is: the screen hears it at most
+                    // four times a second and the notification once (each is a call to the system), a new stage at once.
+                    val now = android.os.SystemClock.uptimeMillis()
+                    val newStage = p.stage != state.record.stage
                     state = state.copy(progress = p, record = state.record.copy(stage = p.stage))
-                    publish(state)
-                    ImportService.update(app, p)
+                    if (newStage || now - shownAt >= 250) { shownAt = now; publish(state) }
+                    if (newStage || now - notifiedAt >= 1000) { notifiedAt = now; ImportService.update(app, p) }
                 }
                 // A game the installer put in the app's Windows (it ignored the folder it was given) is brought to the folder the import reads.
                 kit(gameId)?.let { k -> runCatching { InstallerRun.collect(env.paths, gameId, k.isRoot, k.loose, host(app)) } }

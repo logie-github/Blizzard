@@ -226,7 +226,7 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         // Whole: the finished copy becomes the installation.
         journal.delete()
         val asm = Assembler(env.paths, gameId)
-        asm.staging.deleteRecursively()
+        asm.staging.deleteTree()
         asm.staging.parentFile?.mkdirs()
         if (!work.renameTo(asm.staging)) throw ImportException(Problem.PERMISSION_DENIED, "The copy couldn't be put in place.")
         asm.commit()
@@ -244,14 +244,14 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
             readZip(env, source)
         } catch (e: Throwable) {
             // A zip isn't resumable: what was written is of no use.
-            work(env).deleteRecursively()
+            work(env).deleteTree()
             throw e
         }
     }
 
     private fun readZip(env: ImportEnv, source: SourceNode) {
         val work = work(env)
-        work.deleteRecursively()
+        work.deleteTree()
         val files = File(work, "files").also { it.mkdirs() }
         val keep = File(work, EXPORT_COPY).also { it.mkdirs() }
         FileValidator.requireSpace(env.paths.games, source.size + (64L shl 20))
@@ -330,7 +330,7 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         val check = validateDir(work)
         if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "The copy didn't check out.")
         val asm = Assembler(env.paths, gameId)
-        asm.staging.deleteRecursively()
+        asm.staging.deleteTree()
         asm.staging.parentFile?.mkdirs()
         if (!work.renameTo(asm.staging)) throw ImportException(Problem.PERMISSION_DENIED, "The copy couldn't be put in place.")
         asm.commit()

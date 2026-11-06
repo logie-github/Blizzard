@@ -140,7 +140,7 @@ class Diablo1DevilutionXImporter : GameImporter {
         try {
             FileValidator.requireSpace(env.paths.staging, 1_600L shl 20)
             val staging = asm.begin()
-            scratch.deleteRecursively()
+            scratch.deleteTree()
             // What's already installed and still good stays (moved, not copied).
             asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { f -> !f.name.endsWith(".mpq", true) || Mpq.isArchive(f) }
 
@@ -176,7 +176,7 @@ class Diablo1DevilutionXImporter : GameImporter {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 

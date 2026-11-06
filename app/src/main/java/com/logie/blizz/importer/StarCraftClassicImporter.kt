@@ -87,7 +87,7 @@ class StarCraftClassicImporter : GameImporter {
         val legacy = env.legacy ?: return
         val staging = env.paths.staging(gameId)
         FileValidator.requireSpace(env.paths.downloads, SIZE * 2)
-        staging.deleteRecursively()
+        staging.deleteTree()
         staging.mkdirs()
         try {
             // StarCraft's install script stores a key and owner in StarDat.mpq (font\font.gid, font.clh), and the game
@@ -100,7 +100,7 @@ class StarCraftClassicImporter : GameImporter {
             legacy.install("STAR", staging, noBase = false, keys = keys, cancel = env.cancel, onProgress = env.progress)
             File(staging, MARK).writeText("STAR\n")
         } catch (e: Throwable) {
-            staging.deleteRecursively()
+            staging.deleteTree()
             throw e
         }
     }
@@ -150,7 +150,7 @@ class StarCraftClassicImporter : GameImporter {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 

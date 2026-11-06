@@ -1,5 +1,7 @@
 package com.logie.blizz.update
 
+import com.logie.blizz.importer.deleteTree
+
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -113,7 +115,7 @@ object Updater {
     /** [update]'s APK into the cache, checked to be a newer build of this app. */
     fun download(context: Context, update: Update, onProgress: (Long, Long) -> Unit): File {
         val directory = File(context.cacheDir, "updates")
-        directory.deleteRecursively()
+        directory.deleteTree()
         directory.mkdirs()
         val target = File(directory, update.apkName.replace('/', '_'))
         val partial = File(directory, "${target.name}.part")

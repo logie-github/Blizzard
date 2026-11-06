@@ -35,7 +35,7 @@ object InstallManifest {
     /** One line per file under [root], at most [limit]; past that a count per top folder. */
     fun describe(root: File, label: String, limit: Int = 1200): String {
         if (!root.exists()) return "$label: not there\n"
-        val files = root.walkTopDown().filter { it.isFile }.toList()
+        val files = root.filesNoLinks().toList()
         val total = files.sumOf { it.length() }
         return buildString {
             append("$label: ${files.size} files, ${FileValidator.gb(total)}\n")

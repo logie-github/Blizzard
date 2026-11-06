@@ -187,7 +187,7 @@ abstract class WargusImporter(conversion: ConversionTools?) : GameImporter {
             fixCase(root)
             env.cancel.check()
             WargusConversion.run(tools, game, root, staging, what, env.cancel, env.progress)
-            scratch.deleteRecursively()
+            scratch.deleteTree()
             env.progress(Progress(Stage.VALIDATING, "Checking $what"))
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "$what's converted data didn't check out.")
@@ -197,7 +197,7 @@ abstract class WargusImporter(conversion: ConversionTools?) : GameImporter {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 

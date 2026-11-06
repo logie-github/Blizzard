@@ -203,7 +203,7 @@ object InstallerRun {
 
     /** The copy and everything the installer made: gone (a Reset does this too). */
     fun removeCopy(paths: GamePaths, gameId: String) {
-        paths.installer(gameId).deleteRecursively()
+        paths.installer(gameId).deleteTree()
     }
 
     // ---- Runs ----
@@ -318,7 +318,7 @@ object InstallerRun {
         if (!root.renameTo(target)) {
             FileValidator.requireSpace(target.parentFile!!, sizeOf(root))
             root.copyRecursively(target, true)
-            root.deleteRecursively()
+            root.deleteTree()
         }
         return target
     }

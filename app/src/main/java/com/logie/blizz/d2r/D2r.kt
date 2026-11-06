@@ -1,5 +1,7 @@
 package com.logie.blizz.d2r
 
+import com.logie.blizz.importer.deleteTree
+
 import com.logie.blizz.importer.CancelToken
 import com.logie.blizz.importer.GamePaths
 import com.logie.blizz.importer.ZipExtractor
@@ -42,10 +44,10 @@ object D2r {
     fun installModule(apk: File, paths: GamePaths, tag: String, cancel: CancelToken) {
         val dir = moduleDir(paths)
         val next = File(dir.parentFile, "d2r.new")
-        next.deleteRecursively()
+        next.deleteTree()
         apk.inputStream().use { ZipExtractor.extract(it, next, cancel, filter = ::wanted) }
         File(next, "module.json").writeText(JSONObject().put("tag", tag).put("apk", APK).toString())
-        dir.deleteRecursively()
+        dir.deleteTree()
         if (!next.renameTo(dir)) throw java.io.IOException("The module couldn't be put in place.")
     }
 }

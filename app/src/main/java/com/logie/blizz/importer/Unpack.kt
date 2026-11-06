@@ -146,7 +146,7 @@ class Unpacker(private val innoextract: Innoextract?) {
             )
         }
         val base = setup.name.substringBeforeLast('.')
-        val dir = File(scratch, "installer").also { it.deleteRecursively(); it.mkdirs() }
+        val dir = File(scratch, "installer").also { it.deleteTree(); it.mkdirs() }
         val exe = File(dir, "$base.exe")
         var copied = 0L
         val needed = parts.sumOf { it.size } + setup.size
@@ -171,7 +171,7 @@ class Unpacker(private val innoextract: Innoextract?) {
                 e.detail, e,
             )
         } finally {
-            dir.deleteRecursively()
+            dir.deleteTree()
         }
     }
 }
@@ -227,7 +227,7 @@ object Packages {
         isRoot: (Set<String>) -> Boolean, checkFound: (SourceNode) -> Unit = {}, checkUnpacked: (File) -> Unit = {},
         looseRoot: (File) -> File? = { null },
     ): File {
-        val out = File(scratch, "game").also { it.deleteRecursively(); it.mkdirs() }
+        val out = File(scratch, "game").also { it.deleteTree(); it.mkdirs() }
         val found: SourceNode?
         val setup: SourceNode?
         val siblings: List<SourceNode>
@@ -292,7 +292,7 @@ object Packages {
         val archives = out.walkTopDown().maxDepth(8).filter { it.isFile && it.length() >= (1L shl 16) }
             .filter { runCatching { Format.of(FileNode(it)) }.getOrDefault(Format.UNKNOWN) in NESTED }.take(6).toList()
         for ((i, archive) in archives.withIndex()) {
-            val into = File(scratch, "nested-$i").also { it.deleteRecursively(); it.mkdirs() }
+            val into = File(scratch, "nested-$i").also { it.deleteTree(); it.mkdirs() }
             runCatching { Unpacker(env.innoextract).unpack(FileNode(archive), emptyList(), into, scratch, env.cancel, env.progress) }
                 .onFailure { if (it is ImportException && it.problem == Problem.CANCELLED) throw it }
             (findRoot(into, 6, isRoot) ?: looseRoot(into))?.let { return it }

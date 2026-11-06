@@ -80,7 +80,7 @@ class Diablo2ResurrectedImporter : GameImporter {
         try {
             FileValidator.requireSpace(env.paths.staging, SPACE)
             val staging = asm.begin()
-            work.deleteRecursively(); home.deleteRecursively()
+            work.deleteTree(); home.deleteTree()
             val nca = File(work, "nca").also { it.mkdirs() }
             File(home, ".switch").mkdirs()
 
@@ -141,12 +141,12 @@ class Diablo2ResurrectedImporter : GameImporter {
                 val hint = if (personalized > 0) " The tickets are tied to the console they came from (personalized): their title keys can't be read, so add them to the keys file." else ""
                 throw ImportException(Problem.CORRUPT_ARCHIVE, "The update couldn't be extracted: wrong keys, or a file that is damaged.$hint", log.lines().takeLast(3).joinToString("\n"))
             }
-            nca.deleteRecursively()
+            nca.deleteTree()
 
             // Only what the game reads: the rest of RomFS/data goes.
             val data = File(out, "RomFS/data")
             data.listFiles()?.filter { it.isFile && !SwitchPackages.keep(it.name) }?.forEach { it.delete() }
-            data.listFiles()?.filter { it.isDirectory }?.forEach { it.deleteRecursively() }
+            data.listFiles()?.filter { it.isDirectory }?.forEach { it.deleteTree() }
 
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.UNSUPPORTED_VERSION, check.message ?: "The files didn't check out.")
@@ -155,8 +155,8 @@ class Diablo2ResurrectedImporter : GameImporter {
             asm.abandon()
             throw e
         } finally {
-            work.deleteRecursively()
-            home.deleteRecursively()
+            work.deleteTree()
+            home.deleteTree()
         }
     }
 
@@ -166,7 +166,7 @@ class Diablo2ResurrectedImporter : GameImporter {
         if (source.name.lowercase().endsWith(".nsp")) return listOf(localCopy(source, scratch, env.cancel))
         Unpacker(env.innoextract).unpack(source, emptyList(), scratch, File(scratch, "tmp"), env.cancel, env.progress)
         val found = scratch.walkTopDown().filter { it.isFile && NSP.matches(it.name.lowercase()) }.toList()
-        File(scratch, "tmp").deleteRecursively()
+        File(scratch, "tmp").deleteTree()
         if (found.isEmpty()) throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no .nsp in ${source.name}.")
         return found
     }

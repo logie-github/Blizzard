@@ -78,7 +78,7 @@ class Assembler(private val paths: GamePaths, private val gameId: String) {
     val game: File get() = paths.game(gameId)
 
     fun begin(): File {
-        staging.deleteRecursively()
+        staging.deleteTree()
         staging.mkdirs()
         return staging
     }
@@ -97,19 +97,19 @@ class Assembler(private val paths: GamePaths, private val gameId: String) {
     /** Staging becomes the installation; the old one goes. */
     fun commit() {
         val old = File(paths.games, ".$gameId.old")
-        old.deleteRecursively()
+        old.deleteTree()
         paths.games.mkdirs()
         if (game.exists() && !game.renameTo(old)) throw ImportException(Problem.PERMISSION_DENIED, "The old installation couldn't be moved aside.")
         if (!staging.renameTo(game)) {
             old.renameTo(game)
             throw ImportException(Problem.PERMISSION_DENIED, "The new installation couldn't be put in place.")
         }
-        old.deleteRecursively()
+        old.deleteTree()
     }
 
     /** A stopped or failed import: staging goes, the installation stays as it was. */
     fun abandon() {
-        staging.deleteRecursively()
+        staging.deleteTree()
     }
 }
 
@@ -134,11 +134,11 @@ object GameReset {
     fun reset(paths: GamePaths, gameId: String, kept: List<String> = emptyList()) {
         Library(paths).remove(gameId)
         File(paths.state, "import-$gameId.json").delete()
-        paths.staging(gameId).deleteRecursively()
-        File(paths.staging, "$gameId-scratch").deleteRecursively()
-        paths.installer(gameId).deleteRecursively()
-        File(paths.staging, "$gameId-work").deleteRecursively()
-        File(paths.games, ".$gameId.old").deleteRecursively()
+        paths.staging(gameId).deleteTree()
+        File(paths.staging, "$gameId-scratch").deleteTree()
+        paths.installer(gameId).deleteTree()
+        File(paths.staging, "$gameId-work").deleteTree()
+        File(paths.games, ".$gameId.old").deleteTree()
         val game = paths.game(gameId)
         if (!game.exists()) return
         val keep = kept.map { it.replace('\\', '/').trim('/').lowercase() }
@@ -148,7 +148,7 @@ object GameReset {
                 when {
                     keep.any { it == path } -> {}
                     child.isDirectory && keep.any { it.startsWith("$path/") } -> sweep(child, "${child.name}/".let { prefix + it })
-                    else -> child.deleteRecursively()
+                    else -> child.deleteTree()
                 }
             }
         }

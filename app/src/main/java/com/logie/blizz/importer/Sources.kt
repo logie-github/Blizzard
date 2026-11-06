@@ -48,7 +48,7 @@ class FileNode(val file: File) : SourceNode {
     override fun children(): List<SourceNode> = file.listFiles()?.sortedBy { it.name }?.map { FileNode(it) } ?: emptyList()
     override fun open(): InputStream = file.inputStream()
     override fun localFile(): File = file
-    override fun delete(): Boolean = file.deleteRecursively()
+    override fun delete(): Boolean = file.deleteTree()
 }
 
 /** A document or folder from the picker ([Uri] from ACTION_OPEN_DOCUMENT or ACTION_OPEN_DOCUMENT_TREE). */

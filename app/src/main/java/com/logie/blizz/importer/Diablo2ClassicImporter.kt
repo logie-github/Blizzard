@@ -67,14 +67,14 @@ class Diablo2ClassicImporter : GameImporter {
         val staging = env.paths.staging(gameId)
         // The pieces are cached apart from staging: a stopped download goes on where it was.
         FileValidator.requireSpace(env.paths.downloads, SIZE * 2)
-        staging.deleteRecursively()
+        staging.deleteTree()
         staging.mkdirs()
         try {
             legacy.install("D2DV", staging, noBase = true, keys = env.keys?.copy(expansion = null), cancel = env.cancel, onProgress = env.progress)
             legacy.install("D2XP", staging, noBase = true, keys = env.keys?.copy(classic = null), cancel = env.cancel, onProgress = env.progress)
             File(staging, MARK).writeText("D2DV D2XP\n")
         } catch (e: Throwable) {
-            staging.deleteRecursively()
+            staging.deleteTree()
             throw e
         }
     }
@@ -109,7 +109,7 @@ class Diablo2ClassicImporter : GameImporter {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 

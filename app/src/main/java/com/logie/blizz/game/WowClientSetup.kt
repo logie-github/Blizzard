@@ -1,5 +1,7 @@
 package com.logie.blizz.game
 
+import com.logie.blizz.importer.deleteTree
+
 import org.json.JSONObject
 import java.io.File
 
@@ -103,7 +105,7 @@ object WowClientSetup {
         val record = File(filesDir, REALM_RECORD)
         val last = runCatching { record.takeIf { it.isFile }?.readText() }.getOrNull()
         val clear = mustClearCache(last, realmKey)
-        if (clear) File(client, "Cache/WDB").deleteRecursively()
+        if (clear) File(client, "Cache/WDB").deleteTree()
         filesDir.mkdirs()
         writeWhole(record, realmKey + "\n")
 

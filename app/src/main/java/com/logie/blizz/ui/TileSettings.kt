@@ -1,5 +1,7 @@
 package com.logie.blizz.ui
 
+import com.logie.blizz.importer.deleteTree
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -107,7 +109,7 @@ object TileSettings {
     /** The tile layout as it came: order, orientations, size and pictures. The mode stays. */
     fun reset(context: Context) {
         prefs(context).edit().remove("order").remove("wide").remove("columns").apply()
-        dir(context).deleteRecursively()
+        dir(context).deleteTree()
         _state.value = _state.value.copy(order = emptyList(), wide = emptySet(), columns = 0, artVersion = _state.value.artVersion + 1)
     }
 }

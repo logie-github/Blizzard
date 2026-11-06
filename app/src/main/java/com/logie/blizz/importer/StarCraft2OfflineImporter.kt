@@ -110,7 +110,7 @@ class StarCraft2OfflineImporter : GameImporter {
                 precheckVersion(installed)
                 for (f in installed.listFiles().orEmpty()) {
                     val target = File(staging, f.name)
-                    target.deleteRecursively()
+                    target.deleteTree()
                     if (!f.renameTo(target)) f.copyRecursively(target, true)
                 }
             } else if (InstallerRun.readRun(env.paths, gameId) != null && (install == null || isInstaller(install))) {
@@ -126,7 +126,7 @@ class StarCraft2OfflineImporter : GameImporter {
                 // Moved, not copied: it was just unpacked beside staging.
                 for (f in root.listFiles().orEmpty()) {
                     val target = File(staging, f.name)
-                    target.deleteRecursively()
+                    target.deleteTree()
                     if (!f.renameTo(target)) f.copyRecursively(target, true)
                 }
             }
@@ -146,12 +146,12 @@ class StarCraft2OfflineImporter : GameImporter {
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "StarCraft II's files didn't check out.")
             asm.commit()
-            env.paths.installer(gameId).deleteRecursively()
+            env.paths.installer(gameId).deleteTree()
         } catch (e: Throwable) {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 

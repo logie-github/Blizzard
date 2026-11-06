@@ -96,7 +96,7 @@ class StarCraftRemasteredImporter : GameImporter {
                 precheck(root)
                 for (f in root.listFiles().orEmpty()) {
                     val target = File(staging, f.name)
-                    target.deleteRecursively()
+                    target.deleteTree()
                     if (!f.renameTo(target)) f.copyRecursively(target, true)
                 }
             }
@@ -108,12 +108,12 @@ class StarCraftRemasteredImporter : GameImporter {
                 "Checks: ${check.checks.joinToString("; ") { "${if (it.passed) "ok" else "FAILED"} ${it.name} (${it.detail})" }}\n${diagnose(staging)}",
             )
             asm.commit()
-            env.paths.installer(gameId).deleteRecursively()
+            env.paths.installer(gameId).deleteTree()
         } catch (e: Throwable) {
             asm.abandon()
             throw e
         } finally {
-            scratch.deleteRecursively()
+            scratch.deleteTree()
         }
     }
 
