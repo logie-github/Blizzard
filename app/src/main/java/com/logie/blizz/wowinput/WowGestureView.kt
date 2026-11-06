@@ -506,8 +506,11 @@ class WowGestureView(
 
     override fun pointerBy(dx: Float, dy: Float) {
         // Whole pixels, keeping what's left over for the next move.
-        restX += dx * scale * CAMERA_SPEED
-        restY += dy * scale * CAMERA_SPEED
+        // The camera turns by the game's pixels moved, so the speed is tuned for the 720-line picture the World of Warcraft app
+        // played at: at a bigger picture (this app plays at the screen's own size) a finger's travel is scaled back to match.
+        val speed = if (height > 0) CAMERA_REFERENCE_LINES / height.toFloat() else scale
+        restX += dx * speed * CAMERA_SPEED
+        restY += dy * speed * CAMERA_SPEED
         val mx = restX.toInt()
         val my = restY.toInt()
         if (mx == 0 && my == 0) return
@@ -743,6 +746,8 @@ class WowGestureView(
         private const val NAME_CLEAR_KEYS = 16
         /** The camera turns a little faster than the thumb moves. */
         private const val CAMERA_SPEED = 1.5f
+        /** The picture's height the camera's speed was tuned at. */
+        private const val CAMERA_REFERENCE_LINES = 720f
         /** How often the game's window is looked at for the character creation screen. */
         private const val SCREEN_CHECK_MS = 1000L
         /** A picture asked for that hasn't come by then (the drawing paused) is asked for again. */

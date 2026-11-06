@@ -118,6 +118,13 @@ object WowClientSetup {
         val config = File(client, "WTF/Config.wtf")
         val old = if (config.isFile) config.readText() else ""
         writeWhole(config, updateConfig(old, configValues(width, height, realmKey, account)))
+        // The World of Warcraft app's own add-on for the touch controls, put in before each start as that app does:
+        // where the spellbook and the game's windows are (drags, holds, double taps that mustn't jump), sticky targeting.
+        runCatching {
+            val touch = File(client, "Interface/AddOns/${com.logie.blizz.wowinput.TouchAddon.FOLDER}")
+            touch.mkdirs()
+            for ((name, content) in com.logie.blizz.wowinput.TouchAddon.files) writeWhole(File(touch, name), content)
+        }
         return Applied(written, "WTF/Config.wtf", clear)
     }
 
