@@ -22,12 +22,14 @@ class BugReportsTest {
     @get:Rule val tmp = TemporaryFolder()
     private lateinit var server: HttpServer
     private var status = 201
+    private var retryAfter: String? = null
     private val requests = ArrayList<Triple<String, String?, String>>()
 
     @Before fun start() {
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server.createContext("/") { ex ->
             requests += Triple(ex.requestURI.path, ex.requestHeaders.getFirst("Authorization"), ex.requestBody.readBytes().decodeToString())
+            retryAfter?.let { ex.responseHeaders.add("Retry-After", it) }
             ex.sendResponseHeaders(status, -1)
             ex.close()
         }
@@ -74,6 +76,21 @@ class BugReportsTest {
         assertEquals(BugReports.Outcome.NOT_CONFIGURED, BugReports.send(file, "o/r", "tok", api))
         assertEquals(BugReports.Outcome.NOT_CONFIGURED, BugReports.send(file, "o/r", "", api))
         assertEquals(BugReports.Outcome.RETRY, BugReports.send(file, "o/r", "tok", "http://127.0.0.1:1"))
+        assertTrue(file.exists())
+    }
+
+    @Test fun gitHubsRateLimitIsRetriedNotTakenForARefusedToken() {
+        val dir = tmp.newFolder("reports")
+        BugReports.queue(dir, BugReports.Report("x", "y"))
+        val file = dir.listFiles { f -> f.name.endsWith(".json") }!!.single()
+        status = 403
+        retryAfter = "60"
+        assertEquals(BugReports.Outcome.RETRY, BugReports.send(file, "o/r", "tok", api))
+        status = 429
+        assertEquals(BugReports.Outcome.RETRY, BugReports.send(file, "o/r", "tok", api))
+        retryAfter = null
+        status = 403
+        assertEquals(BugReports.Outcome.NOT_CONFIGURED, BugReports.send(file, "o/r", "tok", api))
         assertTrue(file.exists())
     }
 

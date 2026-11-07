@@ -43,6 +43,8 @@ object BugReports {
 
     private const val ONCE_PER_MS = 24 * 60 * 60 * 1000L
     private const val RETRY_MS = 60_000L
+    /** Between two reports sent in a row: GitHub refuses issues opened in a burst. */
+    private const val SEND_GAP_MS = 3_000L
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var looping = false
 
@@ -138,7 +140,7 @@ object BugReports {
                     var retry = false
                     for (file in waiting) {
                         when (send(file, repo, token(context))) {
-                            Outcome.SENT -> file.delete()
+                            Outcome.SENT -> { file.delete(); if (waiting.size > 1) delay(SEND_GAP_MS) }
                             Outcome.RETRY -> retry = true
                             Outcome.NOT_CONFIGURED -> return@launch
                         }
@@ -174,6 +176,8 @@ object BugReports {
             runCatching { (if (code < 400) c.inputStream else c.errorStream)?.close() }
             when {
                 code in 200..299 -> Outcome.SENT
+                // GitHub's "too many requests too fast" (a secondary rate limit: 403 or 429 with Retry-After): the report stays and goes again, it is not a token that is refused.
+                code == 429 || code == 403 && c.getHeaderField("Retry-After") != null -> Outcome.RETRY
                 // A token that may not open issues there, or a repository that's gone: nothing a retry fixes.
                 code == 401 || code == 403 && c.getHeaderField("X-RateLimit-Remaining") != "0" || code == 404 || code == 410 -> Outcome.NOT_CONFIGURED
                 // A report GitHub refuses as it is (too long, malformed) is dropped: sent again every minute it would hold back every later one.
