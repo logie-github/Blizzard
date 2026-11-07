@@ -32,8 +32,9 @@ jobs:
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          # One leg writes the Gradle cache; the other only reads it (saving it takes 25 s).
-          cache-read-only: ${{ matrix.task == 'test' }}
+          # Saving the Gradle cache takes 25 s at the end of the APK build, which the release waits for: only the APK leg writes it, and only every
+          # fourth run (the dependencies it holds change rarely; after a change the next runs fetch them again until a save).
+          cache-read-only: ${{ matrix.task == 'test' || github.run_number % 4 != 0 }}
 
       # The runner's own Android SDK; Winlator's native code and the tools need the NDK and CMake.
       - name: Install build tools
