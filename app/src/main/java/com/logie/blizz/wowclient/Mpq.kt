@@ -322,6 +322,9 @@ object Mpq {
 
         fun has(name: String) = archives.any { it.has(name) }
 
+        /** The archive the game reads [name] from (the last that has it), or null. */
+        fun owner(name: String): File? = archives.lastOrNull { it.has(name) }?.path
+
         fun close() = archives.forEach { it.close() }
     }
 

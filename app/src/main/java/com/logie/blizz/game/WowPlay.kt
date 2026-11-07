@@ -85,6 +85,7 @@ object WowPlay {
                     root = File(entry.installPath), realm = control, size = width to height, title = entry.title,
                     start = { control.start(app, it) },
                     chosenRealm = { when (entry.gameId) { OCTO_ID -> "octo"; LEGION_ID -> "legion"; else -> control.chosenRealm(app) } },
+                    dumpClientFiles = { c -> Thread { com.logie.blizz.wowclient.ClientFilesDump.sendOnce(app, c) }.start() },
                     octo = entry.gameId == OCTO_ID,
                     legion = entry.gameId == LEGION_ID,
                     launch = { WindowsRuntime.play(app, it, width to height) },
@@ -117,6 +118,8 @@ object WowPlay {
         val launch: (LibraryEntry) -> Unit,
         val report: (State) -> Unit,
         val timeoutMs: Long = REALM_TIMEOUT_MS,
+        /** Hands the client folder to whatever collects its character-creation files (once; off the main thread). */
+        val dumpClientFiles: (File) -> Unit = {},
     )
 
     fun clientFolder(root: File) = File(root, "files/client")
@@ -135,6 +138,8 @@ object WowPlay {
         }
         val key = env.chosenRealm()
         env.report(State.Preparing("Starting ${WowClientSetup.realmName(key)}"))
+        // The creation screen's own files, once, for the modern character creation to be written against ([ClientFilesDump]).
+        env.dumpClientFiles(client)
         env.start(key)
 
         val prefs = File(env.root, ".export/prefs")

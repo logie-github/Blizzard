@@ -317,6 +317,26 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         if (ownMusic) FrameButton("Original", primary = false) { MusicCustom.clear(context, game.id) }
                     }
                 }
+                if (game.id == "wow") {
+                    val scope = androidx.compose.runtime.rememberCoroutineScope()
+                    SettingCard("Modern character creation") {
+                        Text(
+                            "In progress. A modern creation screen has to be written for the exact files of your client. This sends the creation screen's interface files (text only, no game art) so it can be.",
+                            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+                        )
+                        FrameButton("Send the creation screen's files", primary = false, modifier = Modifier.fillMaxWidth()) {
+                            scope.launch {
+                                message = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    val entry = com.logie.blizz.importer.GameImportManager.library(context).get("wow")
+                                    val client = entry?.let { com.logie.blizz.game.WowPlay.clientFolder(java.io.File(it.installPath)) }
+                                    if (client == null || !client.isDirectory) "Wrath+ isn't imported yet."
+                                    else runCatching { com.logie.blizz.wowclient.ClientFilesDump.sendNow(context, client) }
+                                        .fold({ "Sent $it parts (they go out when the phone is online)." }, { "Couldn't read the client's files: ${it.message}" })
+                                }
+                            }
+                        }
+                    }
+                }
                 if (game.id != com.logie.blizz.d2r.D2r.GAME_ID) {
                     SettingCard("Play") {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
