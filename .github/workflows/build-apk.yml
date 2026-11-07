@@ -15,9 +15,15 @@ concurrency:
   group: blizzard-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  apk:
+  # The APK and the unit tests are built side by side (they only share the compile): the release waits for both.
+  build:
+    name: ${{ matrix.task }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [assemble, test]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -25,6 +31,9 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # One leg writes the Gradle cache; the other only reads it (saving it takes 25 s).
+          cache-read-only: ${{ matrix.task == 'test' }}
 
       # The runner's own Android SDK; Winlator's native code and the tools need the NDK and CMake.
       - name: Install build tools
@@ -39,11 +48,28 @@ jobs:
         with:
           path: app/winlator
           key: blizz-winlator-v1-${{ hashFiles('winlator-version.env', 'patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py', 'box64-version.env', 'patches/box64/**', 'scripts/build-box64.sh') }}
+      # Box64 (4 minutes of cross-compiling) has a cache of its own: a change to Winlator's patches doesn't build it again.
+      - name: Look for Box64
+        id: box64
+        if: steps.winlator.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/box64-cache
+          key: blizz-box64-v1-${{ hashFiles('box64-version.env', 'patches/box64/**', 'scripts/build-box64.sh', 'winlator-version.env') }}
       - name: Prepare Winlator
         if: steps.winlator.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard gcc-aarch64-linux-gnu g++-aarch64-linux-gnu patchelf zstd cmake > /dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard patchelf zstd cmake > /dev/null
+          if [ "${{ steps.box64.outputs.cache-hit }}" != "true" ]; then
+            sudo apt-get install -y -qq gcc-aarch64-linux-gnu g++-aarch64-linux-gnu > /dev/null
+          fi
           scripts/prepare-winlator.sh
+      - name: Save Box64
+        if: steps.winlator.outputs.cache-hit != 'true' && steps.box64.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/box64-cache
+          key: ${{ steps.box64.outputs.cache-primary-key }}
       - name: Save Winlator
         if: steps.winlator.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -84,26 +110,51 @@ jobs:
           key: ${{ steps.stratagus.outputs.cache-primary-key }}
 
       - run: chmod +x gradlew
-      - name: Build and test
+      - name: Build the APK
+        if: matrix.task == 'assemble'
         env:
           # The bug reports' token (Issues: read and write on this repository), as YeaBwoi's apps carry theirs.
           BLIZZ_REPORT_TOKEN: ${{ secrets.BLIZZ_REPORT_TOKEN }}
         run: >
-          ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
+          ./gradlew :app:assembleDebug --no-daemon
           -PblizzVersionCode=${{ github.run_number }} -PblizzVersionName=1.0.${{ github.run_number }}
           -PblizzReportToken="$BLIZZ_REPORT_TOKEN"
+      - name: Run the unit tests
+        if: matrix.task == 'test'
+        run: >
+          ./gradlew :app:testDebugUnitTest --no-daemon -PtestForks=2
+          -PblizzVersionCode=${{ github.run_number }} -PblizzVersionName=1.0.${{ github.run_number }}
       - run: cp app/build/outputs/apk/debug/app-debug.apk Blizzard.apk
+        if: matrix.task == 'assemble'
       - uses: actions/upload-artifact@v4
+        if: matrix.task == 'assemble'
         with:
           name: Blizzard
-          path: |
-            Blizzard.apk
-            app/build/reports/previews/
+          path: Blizzard.apk
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: matrix.task == 'test' && always()
+        with:
+          name: previews
+          path: app/build/reports/previews/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Only once the APK is built and every test has passed.
+  release:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Blizzard
       - name: Release
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "blizzard-build-${{ github.run_number }}" Blizzard.apk
+          --repo "${{ github.repository }}"
           --target "${{ github.sha }}" --title "Blizzard 1.0.${{ github.run_number }}"
           --notes "Install Blizzard.apk on the phone; it installs over earlier releases."

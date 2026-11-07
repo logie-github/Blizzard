@@ -121,6 +121,8 @@ android {
 		systemProperty 'robolectric.graphicsMode', 'NATIVE'
 		systemProperty 'robolectric.dependency.repo.url', 'https://maven-central.storage-download.googleapis.com/maven2'
 		maxHeapSize = '3g'
+		// Robolectric's tests are independent: CI runs them in more than one JVM (-PtestForks=N); one by default.
+		maxParallelForks = (project.findProperty('testForks') ?: '1').toInteger()
 	}
 }
 

@@ -77,7 +77,21 @@ PY
 rm -f "$OUT/res/xml/file_paths.xml"
 
 # The Box64 Legion's client needs (scripts/build-box64.sh), beside Winlator's: its path rewritten with the rest.
-"$ROOT/scripts/build-box64.sh" "$OUT/assets/box64"
+# Built once per pin and patches and kept in BOX64_CACHE (CI caches that folder by its own key): a change to Winlator's patches
+# no longer builds Box64 again (minutes of cross-compiling).
+# shellcheck disable=SC1090
+. "$ROOT/box64-version.env"
+BOX64_CACHE="${BOX64_CACHE:-$ROOT/build/box64-cache}"
+BOX64_FILE="box64-$BOX64_LEGION_VERSION.tzst"
+mkdir -p "$OUT/assets/box64"
+if [ -f "$BOX64_CACHE/$BOX64_FILE" ]; then
+	cp "$BOX64_CACHE/$BOX64_FILE" "$OUT/assets/box64/$BOX64_FILE"
+	echo "Box64 $BOX64_LEGION_VERSION from $BOX64_CACHE"
+else
+	"$ROOT/scripts/build-box64.sh" "$OUT/assets/box64"
+	mkdir -p "$BOX64_CACHE"
+	cp "$OUT/assets/box64/$BOX64_FILE" "$BOX64_CACHE/$BOX64_FILE"
+fi
 
 # The runtime, for this app's path.
 find "$OUT/assets" -name '*.tzst' | sort > "$OUT/.archives"
