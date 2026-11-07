@@ -22,7 +22,7 @@ import java.net.URL
 
 /**
  * Updates from this repository's GitHub releases (blizzard-build-N, where N is the version code),
- * as YeaBwoi's apps update: checked each time the app opens; a newer one is downloaded by itself
+ * as YeaBwoi's apps update: checked each time the app comes to the front; a newer one is downloaded by itself
  * and handed to Android's installer, which asks for the one tap Android requires.
  */
 object Updater {
@@ -45,12 +45,15 @@ object Updater {
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    @Volatile private var checked = false
+    @Volatile private var lastCheck = 0L
+    private const val RECHECK_MS = 5 * 60 * 1000L
 
-    /** Once per launch of the app: look, and if there's a newer build, fetch it and open the installer. */
+    /** Each time the app comes to the front (at most every few minutes): look, and if there's a newer build, fetch it and open the installer. */
     fun checkAndInstall(context: Context) {
-        if (checked) return
-        checked = true
+        val now = System.currentTimeMillis()
+        if (_state.value is State.Downloading || _state.value is State.Ready) return
+        if (now - lastCheck < RECHECK_MS) return
+        lastCheck = now
         val app = context.applicationContext
         scope.launch {
             // Offline or GitHub unreachable: carry on, and look again next time.

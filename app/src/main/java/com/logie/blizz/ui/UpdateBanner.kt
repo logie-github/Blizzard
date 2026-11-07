@@ -41,9 +41,8 @@ import com.logie.blizz.update.Updater
 @Composable
 fun UpdateBanner() {
     val context = LocalContext.current
-    LaunchedEffect(Unit) { Updater.checkAndInstall(context) }
     // Back from "install unknown apps": on to the installer.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { Updater.retryInstall(context) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { Updater.retryInstall(context); Updater.checkAndInstall(context) }
     val state by Updater.state.collectAsState()
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(state !is Updater.State.Idle, enter = fadeIn() + slideInVertically { it }, exit = fadeOut() + slideOutVertically { it }) {
