@@ -145,6 +145,9 @@ dependencies {
 	implementation 'androidx.preference:preference:1.2.1'
 	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
 	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
+	// warperia.com's add-on pages (the add-on search in World of Warcraft's page).
+	implementation 'org.jsoup:jsoup:1.18.3'
+	compileOnly 'org.jspecify:jspecify:1.0.0'
 	testImplementation 'junit:junit:4.13.2'
 	// The World of Warcraft app's controls tests, as they were written there.
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:2.3.21'
