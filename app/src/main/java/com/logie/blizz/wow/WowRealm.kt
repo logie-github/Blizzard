@@ -56,7 +56,7 @@ object WowRealm {
     val status: StateFlow<Status> = _status
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    @Volatile private var controller: RealmController? = null
+    @Volatile private var controller: RealmRun? = null
     @Volatile private var job: Job? = null
 
     fun isRunning(): Boolean = _status.value.phase.let { it == Phase.STARTING || it == Phase.RUNNING }
@@ -68,8 +68,22 @@ object WowRealm {
     /** Starts [realm] (and the service that keeps it alive). Does nothing while a realm is starting or running. */
     @Synchronized
     fun start(context: Context, realm: Realm = Realm.CHROMIE) {
-        if (isRunning()) return
         val app = context.applicationContext
+        if (isRunning()) {
+            if (_status.value.realm == realm) return
+            // The other realm holds the login port (3724): it is stopped, characters saved, and then this one starts.
+            _status.value = Status(phase = Phase.STARTING, step = Step.PREPARING, message = "Stopping ${_status.value.realm.displayName}", realm = realm)
+            scope.launch {
+                controller?.let { old -> job?.cancel(); job?.join(); old.shutDown() }
+                begin(app, realm)
+            }
+            return
+        }
+        begin(app, realm)
+    }
+
+    private fun begin(app: Context, realm: Realm) {
+        if (realm == Realm.OCTO) { startOcto(app); return }
         val layout = WowLayout.of(app)
         val c = RealmController(
             layout = layout, runner = SystemRunner(), scope = scope,
@@ -83,6 +97,20 @@ object WowRealm {
         _status.value = Status(phase = Phase.STARTING, step = Step.PREPARING, realm = realm)
         runCatching { ContextCompat.startForegroundService(app, Intent(app, WowRealmService::class.java)) }
         job = scope.launch { c.run(realm) }
+    }
+
+    private fun startOcto(app: Context) {
+        val c = OctoRealmController(
+            layout = WowLayout.octo(app), runner = SystemRunner(), scope = scope,
+            lanAddress = { null },
+            portOpen = ::portOpen,
+            onFailure = { message, log -> report(app, Realm.OCTO, message, log) },
+            _status = _status,
+        )
+        controller = c
+        _status.value = Status(phase = Phase.STARTING, step = Step.PREPARING, realm = Realm.OCTO)
+        runCatching { ContextCompat.startForegroundService(app, Intent(app, WowRealmService::class.java)) }
+        job = scope.launch { c.run() }
     }
 
     /** Stops the realm (characters saved first) and the service. Returns at once. */

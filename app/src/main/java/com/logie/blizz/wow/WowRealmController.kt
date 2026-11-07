@@ -41,7 +41,7 @@ internal class RealmController(
     private val onFailure: (message: String, log: String?) -> Unit = { _, _ -> },
     private val pollMs: Long = 1000,
     private val _status: MutableStateFlow<WowRealm.Status> = MutableStateFlow(WowRealm.Status()),
-) {
+) : RealmRun {
     val status: StateFlow<WowRealm.Status> = _status
 
     private val lock = Mutex()
@@ -186,7 +186,7 @@ internal class RealmController(
     }
 
     /** Stops the realm: world first (it saves the characters), then auth, then the database. */
-    suspend fun shutDown() {
+    override suspend fun shutDown() {
         // (the run in progress, if any, was cancelled and has let go of the lock)
         lock.withLock {
             if (db == null && auth == null && world == null && stepProcess == null) {
@@ -230,7 +230,7 @@ internal class RealmController(
     }
 
     /** Sends a command to the world server's console (`saveall`, without a dot). */
-    fun worldCommand(command: String): Boolean = world?.send(command) == true
+    override fun worldCommand(command: String): Boolean = world?.send(command) == true
 
     private suspend fun startDatabase() {
         val log = File(layout.logs, "mariadb.log")

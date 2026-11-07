@@ -27,7 +27,7 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
     enum class WowMode(val exportKey: String, val gameId: String, val title: String, val playable: Boolean) {
         WRATH_PLUS("wrath-plus", "wow", "Wrath+", true),
         LEGION("legion", "wow_legion", "Legion", false),
-        OCTOWOW("octowow", "wow_octowow", "OctoWoW", false),
+        OCTOWOW("octowow", "wow_octowow", "OctoWoW", true),
         FOREVER("forever", "wow_forever", "Forever", false),
     }
 

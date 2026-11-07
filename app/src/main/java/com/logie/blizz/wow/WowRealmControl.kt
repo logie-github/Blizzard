@@ -30,7 +30,7 @@ object WowRealmControl : RealmControl {
         WowRealm.status.map { map(it) }.stateIn(scope, SharingStarted.Eagerly, map(WowRealm.status.value))
 
     override fun start(context: Context, realm: String) =
-        WowRealm.start(context, if (realm == "remix") Realm.REMIX else Realm.CHROMIE)
+        WowRealm.start(context, when (realm) { "remix" -> Realm.REMIX; "octo" -> Realm.OCTO; else -> Realm.CHROMIE })
 
     override suspend fun awaitUp(timeoutMs: Long): RealmControl.Status {
         WowRealm.awaitUp(timeoutMs)

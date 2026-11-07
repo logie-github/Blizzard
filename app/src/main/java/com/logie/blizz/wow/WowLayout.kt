@@ -35,6 +35,11 @@ class WowLayout(val root: File, val exportDir: File) {
     fun isImported(): Boolean =
         ctl.isFile && File(server, "bin/worldserver").isFile && File(server, "bin/mariadbd").isFile && File(databases, "mysql").isDirectory
 
+    /** OctoWoW's realm is there to start: Tortoise-WoW's programs (mangosd, realmd), its script and its databases. */
+    fun isOctoImported(): Boolean =
+        ctl.isFile && File(server, "bin/mangosd").isFile && File(server, "bin/realmd").isFile &&
+            File(server, "bin/mariadbd").isFile && File(databases, "mysql").isDirectory
+
     /** The world server's data (dbc and maps at least, from the client). */
     fun hasServerData(): Boolean = listOf("dbc", "maps").all { File(data, it).list()?.isNotEmpty() == true }
 
@@ -45,6 +50,12 @@ class WowLayout(val root: File, val exportDir: File) {
     fun realmLogs(realm: Realm) = if (realm == Realm.REMIX) File(logs, "remix") else logs
 
     companion object {
+        /** The imported OctoWoW (`games/wow_octowow`): the export's `turtle` folder is the realm's root. */
+        fun octo(context: Context): WowLayout {
+            val game = File(context.applicationContext.filesDir, "games/wow_octowow")
+            return WowLayout(File(game, "files/turtle"), File(game, ".export"))
+        }
+
         fun of(context: Context): WowLayout {
             val game = File(context.applicationContext.filesDir, "games/wow")
             return WowLayout(File(game, "files"), File(game, ".export"))
@@ -62,7 +73,9 @@ enum class Realm(
     val charactersDatabase: String,
 ) {
     CHROMIE("main", 1, "ChromieCraft", 8085, "acore_characters"),
-    REMIX("remix", 2, "Wrath Remix", 8086, "acore_characters_remix");
+    REMIX("remix", 2, "Wrath Remix", 8086, "acore_characters_remix"),
+    /** OctoWoW's realm (Tortoise-WoW, its own database on 3311 and world port 8090); the login port 3724 is shared, so one realm runs at a time. */
+    OCTO("octo", 3, "OctoWoW", 8090, "tw_char");
 
     companion object {
         const val AUTH_PORT = 3724

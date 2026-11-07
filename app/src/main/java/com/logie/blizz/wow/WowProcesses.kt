@@ -26,6 +26,9 @@ interface ProcessRunner {
      * hold their ports): those named in the pid files in `run/` whose command line is the server's.
      */
     fun endLeftovers(layout: WowLayout)
+
+    /** The same for a realm whose programs name other pid files (OctoWoW's: mangosd, realmd, mysqld). */
+    fun endLeftovers(layout: WowLayout, pidFiles: List<String>) = endLeftovers(layout)
 }
 
 class SystemRunner : ProcessRunner {
@@ -48,9 +51,11 @@ class SystemRunner : ProcessRunner {
         }
     }
 
-    override fun endLeftovers(layout: WowLayout) {
+    override fun endLeftovers(layout: WowLayout) = endLeftovers(layout, listOf("worldserver.pid", "authserver.pid", "mysqld.pid"))
+
+    override fun endLeftovers(layout: WowLayout, pidFiles: List<String>) {
         val bin = File(layout.server, "bin").path
-        val pids = listOf("worldserver.pid", "authserver.pid", "mysqld.pid").mapNotNull { name ->
+        val pids = pidFiles.mapNotNull { name ->
             File(layout.run, name).takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()
         }.filter { pid -> runCatching { File("/proc/$pid/cmdline").readText().contains(bin) }.getOrDefault(false) }
         if (pids.isEmpty()) return

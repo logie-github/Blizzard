@@ -44,6 +44,8 @@ object WowPlay {
     }
 
     const val GAME_ID = "wow-client"
+    /** The imported OctoWoW's library id ([com.logie.blizz.importer.WowImporter.WowMode.OCTOWOW]). */
+    const val OCTO_ID = "wow_octowow"
     const val PROFILE = "wow"
 
     /** How long the realm may take to come up (its databases load for minutes). */
@@ -76,7 +78,9 @@ object WowPlay {
             try {
                 val environment = Environment(
                     root = File(entry.installPath), realm = control, size = width to height, title = entry.title,
-                    start = { control.start(app, it) }, chosenRealm = { control.chosenRealm(app) },
+                    start = { control.start(app, it) },
+                    chosenRealm = { if (entry.gameId == OCTO_ID) "octo" else control.chosenRealm(app) },
+                    octo = entry.gameId == OCTO_ID,
                     launch = { WindowsRuntime.play(app, it, width to height) }, report = { _state.value = it },
                 )
                 val failure = prepare(environment)
@@ -97,6 +101,8 @@ object WowPlay {
         val realm: RealmControl,
         val size: Pair<Int, Int>,
         val title: String = "World of Warcraft",
+        /** OctoWoW (the 1.18.1 client and Tortoise's realm) in place of the 3.3.5a game. */
+        val octo: Boolean = false,
         val start: (String) -> Unit,
         val chosenRealm: () -> String,
         val launch: (LibraryEntry) -> Unit,
@@ -111,6 +117,7 @@ object WowPlay {
      * Returns null when the client was started, else what to tell the person.
      */
     suspend fun prepare(env: Environment): String? {
+        if (env.octo) return prepareOcto(env)
         val client = clientFolder(env.root)
         if (!WowClientSetup.hasClient(client)) {
             return "The game's files aren't there (files/client with Wow.exe). Export again from the World of Warcraft app and import it."
@@ -126,10 +133,20 @@ object WowPlay {
             WowClientSetup.apply(client, File(env.root, "files"), env.size.first, env.size.second, key, account)
         }
 
+        waitForRealm(env, WowClientSetup.realmName(key))?.let { return it }
+
+        env.report(State.Preparing("Starting the game"))
+        val exe = withContext(Dispatchers.IO) { WowClientSetup.executable(client, mods) }
+        env.launch(launchEntry(client, exe, env.title))
+        return null
+    }
+
+    /** Waits for the realm, showing its steps; null when it is up, else what to tell the person. */
+    private suspend fun waitForRealm(env: Environment, name: String): String? {
         val watcher = CoroutineScope(Dispatchers.Unconfined).launch {
             env.realm.status.collect { s ->
                 if (s.phase == RealmControl.Phase.STARTING) {
-                    env.report(State.Preparing(s.detail ?: "Starting ${WowClientSetup.realmName(key)}", s.progress))
+                    env.report(State.Preparing(s.detail ?: "Starting $name", s.progress))
                 }
             }
         }
@@ -138,17 +155,29 @@ object WowPlay {
         } finally {
             watcher.cancel()
         }
-        when (up.phase) {
-            RealmControl.Phase.UP -> Unit
-            RealmControl.Phase.FAILED -> return up.error ?: "The realm didn't start."
-            RealmControl.Phase.STOPPED -> return "The realm was stopped."
-            RealmControl.Phase.NO_DATA -> return up.error ?: "The realm has no data (import the World of Warcraft export first)."
-            RealmControl.Phase.STARTING -> return "The realm is still loading after ${env.timeoutMs / 60_000} minutes. Try again in a moment."
+        return when (up.phase) {
+            RealmControl.Phase.UP -> null
+            RealmControl.Phase.FAILED -> up.error ?: "The realm didn't start."
+            RealmControl.Phase.STOPPED -> "The realm was stopped."
+            RealmControl.Phase.NO_DATA -> up.error ?: "The realm has no data (import the export first)."
+            RealmControl.Phase.STARTING -> "The realm is still loading after ${env.timeoutMs / 60_000} minutes. Try again in a moment."
         }
+    }
 
+    /** OctoWoW: its realm, its 1.18.1 client (`files/turtle/client`), the saved account typed at its login. */
+    private suspend fun prepareOcto(env: Environment): String? {
+        val client = File(env.root, "files/turtle/client")
+        if (!OctoClientSetup.hasClient(client)) {
+            return "OctoWoW's game files aren't there (files/turtle/client with WoW.exe). Export OctoWoW again from the World of Warcraft app and import it."
+        }
+        env.report(State.Preparing("Starting OctoWoW"))
+        env.start("octo")
+        val account = WowClientSetup.savedAccount(runCatching { File(env.root, ".export/prefs/turtle_login.json").readText() }.getOrNull())
+        withContext(Dispatchers.IO) { OctoClientSetup.apply(client, env.size.first, env.size.second, account) }
+        waitForRealm(env, "OctoWoW")?.let { return it }
         env.report(State.Preparing("Starting the game"))
-        val exe = withContext(Dispatchers.IO) { WowClientSetup.executable(client, mods) }
-        env.launch(launchEntry(client, exe, env.title))
+        val exe = OctoClientSetup.executable(client)?.name ?: OctoClientSetup.EXE
+        env.launch(launchEntry(client, exe, env.title).copy(clientVersion = OctoClientSetup.VERSION))
         return null
     }
 
