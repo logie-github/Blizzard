@@ -516,9 +516,9 @@ record "${'$'}prog" "${'$'}@"
         File(l.prefsDir, "realms.json").writeText("{\n  \"realm\": {\"type\": \"int\", \"value\": 2}\n}\n")
         assertEquals(Realm.CHROMIE, WowExportInfo.chosenRealm(l))
         // the realm keys and ports are the WoW app's Realms.kt
-        assertEquals(listOf("main" to 8085, "remix" to 8086, "octo" to 8090), Realm.entries.map { it.key to it.port })
-        assertEquals(listOf(1, 2, 3), Realm.entries.map { it.id })
-        assertEquals(listOf("acore_characters", "acore_characters_remix", "tw_char"), Realm.entries.map { it.charactersDatabase })
+        assertEquals(listOf("main" to 8085, "remix" to 8086, "octo" to 8090, "legion" to 8095), Realm.entries.map { it.key to it.port })
+        assertEquals(listOf(1, 2, 3, 4), Realm.entries.map { it.id })
+        assertEquals(listOf("acore_characters", "acore_characters_remix", "tw_char", "characters"), Realm.entries.map { it.charactersDatabase })
         assertNotNull(Realm.byKey("remix"))
     }
 

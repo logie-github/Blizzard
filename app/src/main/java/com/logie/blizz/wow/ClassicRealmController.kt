@@ -23,16 +23,51 @@ internal interface RealmRun {
 }
 
 /**
- * Starts and stops OctoWoW's realm (Tortoise-WoW) from Blizzard's copy of the files the World of Warcraft
- * app exported (`games/wow_octowow/files/turtle`), the way the WoW app's `TurtleServer` does: its own
- * MariaDB (3311), the login server `realmd` (3724) and the world server `mangosd` (8090), each a program of
- * Turtle's own `ctl.sh`, run through musl's loader ([WowCtl]: its `"$SERVER/bin/<name>"` calls are the same
- * shape as ChromieCraft's). Stopping saves the characters first (`server shutdown`).
+ * What differs between the realms this controller runs: OctoWoW's (Tortoise-WoW: `realmd` and `mangosd`) and
+ * Legion's (LegionCore: `bnetserver` and `worldserver`). Both are the WoW app's own `ctl.sh` of a MariaDB, a login
+ * server and a world server.
+ */
+internal class RealmSpec(
+    val realm: Realm,
+    val name: String,
+    /** The imported folder as the person knows it, for messages (`games/wow_octowow/files/turtle`). */
+    val folder: String,
+    val loginProgram: String,
+    val worldProgram: String,
+    val loginLog: String,
+    val worldLog: String,
+    val worldConf: String,
+    /** The ports that say the login server is up (all of them), and every port the realm holds. */
+    val loginPorts: List<Int>,
+    val allPorts: List<Int>,
+    val pidFiles: List<String>,
+    val ready: Regex,
+    val fatal: List<Pair<Regex, String>>,
+    val worldMinutes: Long,
+    val imported: (WowLayout) -> Boolean,
+    val noData: String,
+    /** The login database's name for `ctl.sh sql`, and the row that tells the client where the world is. */
+    val realmSql: (address: String) -> Pair<String, String>,
+    /** Settings the app owns in the world server's conf (given which data parts exist). */
+    val worldSettings: (vmaps: Boolean, mmaps: Boolean) -> Map<String, String>,
+    /** Settings for other confs, by file name (relative to etc/), written after `configure`. */
+    val otherConfs: (address: String) -> Map<String, Map<String, String>> = { emptyMap() },
+    /** A step to run once after configure when [needsStep] says so (Legion's client patch). */
+    val extra: List<Pair<String, (WowLayout) -> List<String>?>> = emptyList(),
+)
+
+/**
+ * Starts and stops one of those realms from Blizzard's copy of the files the World of Warcraft app exported,
+ * the way the WoW app's `TurtleServer` and `FelsongServer` do: its own MariaDB, the login server and the world
+ * server, each a program of the realm's `ctl.sh`, run through musl's loader ([WowCtl]: its
+ * `"$SERVER/bin/<name>"` calls are the same shape as ChromieCraft's). Stopping saves the characters first
+ * (`server shutdown`).
  *
  * Everything outside (processes, time, ports) is passed in, so tests run it with a fake runner.
  * Only that fake-runner behaviour is verified; the real programs have never run from Blizzard's folder.
  */
-internal class OctoRealmController(
+internal class ClassicRealmController(
+    private val spec: RealmSpec,
     private val layout: WowLayout,
     private val runner: ProcessRunner,
     private val scope: CoroutineScope,
@@ -44,7 +79,7 @@ internal class OctoRealmController(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val onFailure: (message: String, log: String?) -> Unit = { _, _ -> },
     private val pollMs: Long = 1000,
-    private val _status: MutableStateFlow<WowRealm.Status> = MutableStateFlow(WowRealm.Status(realm = Realm.OCTO)),
+    private val _status: MutableStateFlow<WowRealm.Status> = MutableStateFlow(WowRealm.Status(realm = spec.realm)),
 ) : RealmRun {
     val status: StateFlow<WowRealm.Status> = _status
 
@@ -69,7 +104,7 @@ internal class OctoRealmController(
         withContext(io) {
             try {
                 stopping = false
-                _status.value = WowRealm.Status(phase = WowRealm.Phase.STARTING, step = WowRealm.Step.PREPARING, realm = Realm.OCTO)
+                _status.value = WowRealm.Status(phase = WowRealm.Phase.STARTING, step = WowRealm.Step.PREPARING, realm = spec.realm)
                 up()
             } catch (e: StepFailed) {
                 fail(e.message ?: "", e.log)
@@ -84,53 +119,55 @@ internal class OctoRealmController(
 
     private suspend fun up() {
         step(WowRealm.Step.PREPARING, "Checking the imported realm")
-        if (!layout.isOctoImported()) {
-            throw StepFailed("OctoWoW isn't imported completely (the server's programs or databases are missing). Export it again from the World of Warcraft app (OctoWoW's zip) and import it.")
+        if (!spec.imported(layout)) {
+            throw StepFailed("${spec.name} isn't imported completely (the server's programs or databases are missing). Export it again from the World of Warcraft app (${spec.name}'s zip) and import it.")
         }
         val prefix = layout.root.parentFile!!.path
         val moved = WowPathRewrite.rewrite(layout, WowPathRewrite.oldPrefixes(WowExportInfo.sourceFilesDir(layout)), prefix)
         if (moved.changed) logLine("Paths moved to $prefix: ${moved.filesRewritten.size} files, ${moved.linksRewritten.size} links")
         loader = WowCtl.prepare(layout)
-        runner.endLeftovers(layout, PID_FILES)
-        for (name in listOf("mysqld.pid", "mysqld.sock", "mysqld.sock.lock", "realmd.pid", "mangosd.pid")) File(layout.run, name).delete()
+        runner.endLeftovers(layout, spec.pidFiles)
+        for (name in spec.pidFiles + listOf("mysqld.sock", "mysqld.sock.lock")) File(layout.run, name).delete()
         if (!layout.hasServerData()) {
-            throw StepFailed("OctoWoW's server data (dbc and maps) isn't in the imported files. Make it in the World of Warcraft app's OctoWoW game files, then export again.")
+            throw StepFailed(spec.noData)
         }
         busyPort()?.let { throw StepFailed("Port $it is taken by another program (the other realm still running?). Stop it and try again.") }
 
         step(WowRealm.Step.CONFIGURING, "Writing the realm's settings")
         runToEnd(listOf("configure"), "configure.log")
         applySettings()
+        for ((step, args) in spec.extra) {
+            val a = args(layout) ?: continue
+            step(WowRealm.Step.CONFIGURING, step)
+            runToEnd(a, "${a.first()}.log", timeoutMinutes = 10)
+        }
 
         step(WowRealm.Step.DATABASE, "Starting the database")
         startDatabase()
         setRealmList()
 
         step(WowRealm.Step.AUTH, "Starting the login server")
-        val loginLog = File(layout.logs, "realmd.out")
-        login = launch(loginLog, listOf("realmd"))
-        waitForPort(AUTH_PORT, 90, login!!, loginLog, "The login server didn't start.")
+        val loginLog = File(layout.logs, spec.loginLog)
+        login = launch(loginLog, listOf(spec.loginProgram))
+        for (port in spec.loginPorts) waitForPort(port, 90, login!!, loginLog, "The login server didn't start.")
 
         startWorld()
     }
 
-    /** Settings the app owns in the live configs: this phone's data parts, a local realm (normal, no queue). */
+    /** Settings the app owns in the live configs: what this phone's data parts allow, and a realm for one player. */
     private fun applySettings() {
         val vmaps = File(layout.data, "vmaps").list()?.isNotEmpty() == true
         val mmaps = File(layout.data, "mmaps").list()?.isNotEmpty() == true
-        val mangosd = File(layout.etc, "mangosd.conf")
-        for ((key, value) in mapOf(
-            "vmap.enableLOS" to vmaps, "vmap.enableHeight" to vmaps, "vmap.enableIndoorCheck" to vmaps, "mmap.enabled" to mmaps,
-        )) setConf(mangosd, key, if (value) "1" else "0")
-        setConf(mangosd, "GameType", "0")
-        setConf(mangosd, "PlayerLimit", "0")
+        val world = File(layout.etc, spec.worldConf)
+        for ((key, value) in spec.worldSettings(vmaps, mmaps)) setConf(world, key, value)
+        val address = lanAddress() ?: "127.0.0.1"
+        for ((file, settings) in spec.otherConfs(address)) for ((key, value) in settings) setConf(File(layout.etc, file), key, value)
     }
 
     /** The realm's row in the login database: the client connects to 127.0.0.1 (or the Wi-Fi address). */
     private suspend fun setRealmList() {
-        val address = lanAddress() ?: "127.0.0.1"
-        val sql = "UPDATE realmlist SET name = '$REALM_NAME', address = '$address', port = $WORLD_PORT, realmbuilds = '7272' WHERE id = 1;"
-        val base = WowCtl.command(layout, loader, timeZone(), "sql", "tw_logon")
+        val (database, sql) = spec.realmSql(lanAddress() ?: "127.0.0.1")
+        val base = WowCtl.command(layout, loader, timeZone(), "sql", database)
         val script = "printf '%s\\n' \"\$SQL\" | " + base.argv.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
         val log = File(layout.logs, "realmlist.log")
         log.delete()
@@ -143,25 +180,25 @@ internal class OctoRealmController(
     }
 
     private suspend fun startWorld() {
-        step(WowRealm.Step.WORLD, "Loading OctoWoW")
-        val log = File(layout.logs, "mangosd.out")
-        val process = launch(log, listOf("mangosd"), keepInput = true)
+        step(WowRealm.Step.WORLD, "Loading ${spec.name}")
+        val log = File(layout.logs, spec.worldLog)
+        val process = launch(log, listOf(spec.worldProgram), keepInput = true)
         world = process
         // The first start applies Tortoise's database updates (minutes more on a phone).
-        val deadline = clock() + 45 * 60_000L
-        val ready = LineWatch(READY)
+        val deadline = clock() + spec.worldMinutes * 60_000L
+        val ready = LineWatch(spec.ready)
         var read = 0L
         while (true) {
             if (!process.isAlive) throw StepFailed("The world server ended (code ${process.exitValue()}) while starting.", log)
             val (text, end) = WowLogs.readFrom(log, read)
             read = end
-            ConsoleText.plain(text).lineSequence().firstNotNullOfOrNull { fatal(it) }?.let { throw StepFailed(it, log) }
+            ConsoleText.plain(text).lineSequence().firstNotNullOfOrNull { fatal(spec, it) }?.let { throw StepFailed(it, log) }
             if (ready.feed(text)) break
-            if (clock() > deadline) throw StepFailed("The world server took more than 45 minutes to start.", log)
+            if (clock() > deadline) throw StepFailed("The world server took more than ${spec.worldMinutes} minutes to start.", log)
             update { copy(message = WowLogs.tail(log, 3).lines().lastOrNull { it.isNotBlank() }?.take(160)) }
             sleep(pollMs)
         }
-        update { copy(phase = WowRealm.Phase.RUNNING, step = null, message = "OctoWoW is running") }
+        update { copy(phase = WowRealm.Phase.RUNNING, step = null, message = "${spec.name} is running") }
         watcher = scope.launch(io) { watch(log) }
     }
 
@@ -171,7 +208,7 @@ internal class OctoRealmController(
             if (stopping) return
             val dead = when {
                 world?.isAlive == false -> "The world server stopped (code ${world!!.exitValue()})." to worldLog
-                login?.isAlive == false -> "The login server stopped (code ${login!!.exitValue()})." to File(layout.logs, "realmd.out")
+                login?.isAlive == false -> "The login server stopped (code ${login!!.exitValue()})." to File(layout.logs, spec.loginLog)
                 db?.isAlive == false -> "The database stopped (code ${db!!.exitValue()})." to File(layout.logs, "mariadb.log")
                 else -> null
             } ?: continue
@@ -191,12 +228,12 @@ internal class OctoRealmController(
     override suspend fun shutDown() {
         lock.withLock {
             if (db == null && login == null && world == null && stepProcess == null) {
-                if (_status.value.phase != WowRealm.Phase.FAILED) update { WowRealm.Status(realm = Realm.OCTO) }
+                if (_status.value.phase != WowRealm.Phase.FAILED) update { WowRealm.Status(realm = spec.realm) }
                 return
             }
             update { copy(phase = WowRealm.Phase.STOPPING, step = null, message = "Saving and stopping") }
             withContext(io) { killAll() }
-            update { WowRealm.Status(realm = Realm.OCTO) }
+            update { WowRealm.Status(realm = spec.realm) }
         }
     }
 
@@ -273,7 +310,7 @@ internal class OctoRealmController(
         }
         stepProcess = null
         val code = process.exitValue()
-        if (code != 0) throw StepFailed("Step ${args.first()} failed (code $code).\n\n${WowLogs.tail(log, 12)}\n\nFull logs: games/wow_octowow/files/turtle/logs/${log.name}", log)
+        if (code != 0) throw StepFailed("Step ${args.first()} failed (code $code).\n\n${WowLogs.tail(log, 12)}\n\nFull logs: ${spec.folder}/logs/${log.name}", log)
     }
 
     private suspend fun waitForPort(port: Int, seconds: Int, process: RealmProcess, log: File, message: String) {
@@ -286,31 +323,15 @@ internal class OctoRealmController(
     }
 
     /** One of the realm's ports already taken (by another program, or the other realm). */
-    private fun busyPort(): Int? = listOf(DB_PORT, AUTH_PORT, WORLD_PORT).firstOrNull { portOpen(it) }
+    private fun busyPort(): Int? = spec.allPorts.firstOrNull { portOpen(it) }
 
     private fun logLine(text: String) {
         runCatching { File(layout.logs, "blizzard.log").apply { parentFile?.mkdirs() }.appendText("$text\n") }
     }
 
     companion object {
-        const val DB_PORT = 3311
-        const val AUTH_PORT = 3724
-        const val WORLD_PORT = 8090
-        const val REALM_NAME = "Tortoise WoW"
-        val PID_FILES = listOf("mangosd.pid", "realmd.pid", "mysqld.pid")
-
-        /** mangosd's line once the world is loaded (src/game/World.cpp). */
-        val READY = Regex("World server is up and running")
-
-        private val FATAL = listOf(
-            Regex("Correct \\*\\.map files not found|is non-compatible version|vmap file .* is missing") to
-                "The world server's data is missing or from another client (maps, vmaps). Make it again in the World of Warcraft app and export again.",
-            Regex("DB AutoUpdater FAILED|Migration .* failed to apply") to "A database update failed. See games/wow_octowow/files/turtle/logs/mangosd.out.",
-            Regex("Cannot connect to world database|database not specified") to "The world server couldn't reach its database.",
-            Regex("required \\*\\.dbc files") to "The DBC files are missing or don't fit this server.",
-        )
-
-        fun fatal(line: String): String? = FATAL.firstOrNull { it.first.containsMatchIn(line) }?.second
+        /** A fatal line of the world server's log, said for the person, or null. */
+        fun fatal(spec: RealmSpec, line: String): String? = spec.fatal.firstOrNull { it.first.containsMatchIn(line) }?.second
 
         /** `Key = value` in a config file: changed in place, or added. */
         fun setConf(file: File, key: String, value: String) {

@@ -76,7 +76,7 @@ class WowGestureView(
     private var lastTapAt = Long.MIN_VALUE / 2
     private var lastTap: TapResult? = null
     private val turtle = false
-    private val felsong = false
+    private val felsong = com.logie.blizz.game.WowPlay.legion
     private val spp = false
     private val runFolder: java.io.File = com.logie.blizz.wow.WowLayout.of(activity).run
     private val selectionFile = java.io.File(runFolder, "selection")

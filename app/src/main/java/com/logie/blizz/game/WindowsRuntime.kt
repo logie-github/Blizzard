@@ -126,6 +126,14 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId, options) }
+        // Legion: the Battle.net certificate bundle the patched client trusts goes into the game's Windows.
+        val legion = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == LegionClientSetup.VERSION
+        if (legion) {
+            withContext(Dispatchers.IO) {
+                val layout = com.logie.blizz.wow.WowLayout.legion(context)
+                LegionClientSetup.installCertificateBundle(com.logie.blizz.wow.RealmSpecsAccess.certBundle(layout), File(container.rootDir, ".wine/drive_c"))
+            }
+        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
@@ -144,13 +152,19 @@ object WindowsRuntime {
             // (patches/winlator/0005): paths in them would otherwise break that conversion.
             .putExtra("exec_path", program.path)
             .putExtra("exec_args", entry.arguments)
+            // Legion's start-up protection needs the Box64 with the signal-flags fix (Winlator patch 0007).
+            .apply { if (legion) putExtra("box64_version", LegionClientSetup.BOX64) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
             .putExtra(GestureView.EXTRA_PROFILE, profile.id)
             .apply {
                 // World of Warcraft: the account the other app logged in with by itself, typed at the login screen.
-                if (entry.gameId == WowPlay.GAME_ID) (if (entry.clientVersion == OctoClientSetup.VERSION) com.logie.blizz.wow.WowLogin.octo(context) else com.logie.blizz.wow.WowLogin.get(context))?.let {
+                if (entry.gameId == WowPlay.GAME_ID) (when (entry.clientVersion) {
+                    OctoClientSetup.VERSION -> com.logie.blizz.wow.WowLogin.octo(context)
+                    LegionClientSetup.VERSION -> com.logie.blizz.wow.WowLogin.legion(context)
+                    else -> com.logie.blizz.wow.WowLogin.get(context)
+                })?.let {
                     putExtra(GestureView.EXTRA_LOGIN_NAME, it.name).putExtra(GestureView.EXTRA_LOGIN_PASSWORD, it.password)
                 }
             }

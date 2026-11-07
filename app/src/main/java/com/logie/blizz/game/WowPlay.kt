@@ -46,6 +46,11 @@ object WowPlay {
     const val GAME_ID = "wow-client"
     /** The imported OctoWoW's library id ([com.logie.blizz.importer.WowImporter.WowMode.OCTOWOW]). */
     const val OCTO_ID = "wow_octowow"
+    /** The imported Legion's library id. */
+    const val LEGION_ID = "wow_legion"
+
+    /** Set as Legion starts: the touch layer (which the game window makes later) waits for its login screen the Legion way. */
+    @Volatile var legion = false
     const val PROFILE = "wow"
 
     /** How long the realm may take to come up (its databases load for minutes). */
@@ -79,8 +84,9 @@ object WowPlay {
                 val environment = Environment(
                     root = File(entry.installPath), realm = control, size = width to height, title = entry.title,
                     start = { control.start(app, it) },
-                    chosenRealm = { if (entry.gameId == OCTO_ID) "octo" else control.chosenRealm(app) },
+                    chosenRealm = { when (entry.gameId) { OCTO_ID -> "octo"; LEGION_ID -> "legion"; else -> control.chosenRealm(app) } },
                     octo = entry.gameId == OCTO_ID,
+                    legion = entry.gameId == LEGION_ID,
                     launch = { WindowsRuntime.play(app, it, width to height) }, report = { _state.value = it },
                 )
                 val failure = prepare(environment)
@@ -103,6 +109,8 @@ object WowPlay {
         val title: String = "World of Warcraft",
         /** OctoWoW (the 1.18.1 client and Tortoise's realm) in place of the 3.3.5a game. */
         val octo: Boolean = false,
+        /** Legion (the 7.3.5 client and LegionCore's realm). */
+        val legion: Boolean = false,
         val start: (String) -> Unit,
         val chosenRealm: () -> String,
         val launch: (LibraryEntry) -> Unit,
@@ -117,7 +125,9 @@ object WowPlay {
      * Returns null when the client was started, else what to tell the person.
      */
     suspend fun prepare(env: Environment): String? {
+        legion = env.legion
         if (env.octo) return prepareOcto(env)
+        if (env.legion) return prepareLegion(env)
         val client = clientFolder(env.root)
         if (!WowClientSetup.hasClient(client)) {
             return "The game's files aren't there (files/client with Wow.exe). Export again from the World of Warcraft app and import it."
@@ -162,6 +172,26 @@ object WowPlay {
             RealmControl.Phase.NO_DATA -> up.error ?: "The realm has no data (import the export first)."
             RealmControl.Phase.STARTING -> "The realm is still loading after ${env.timeoutMs / 60_000} minutes. Try again in a moment."
         }
+    }
+
+    /** Legion: LegionCore's realm (the client is patched for it as it starts), its 7.3.5 client, the saved e-mail typed at its login. */
+    private suspend fun prepareLegion(env: Environment): String? {
+        val client = File(env.root, "files/felsong/client")
+        if (!LegionClientSetup.hasClient(client)) {
+            return "Legion's game files aren't there (files/felsong/client with Wow-64.exe). Export Legion again from the World of Warcraft app and import it."
+        }
+        env.report(State.Preparing("Starting Legion"))
+        env.start("legion")
+        val account = WowClientSetup.savedAccount(runCatching { File(env.root, ".export/prefs/felsong_login.json").readText() }.getOrNull())
+        withContext(Dispatchers.IO) { LegionClientSetup.apply(client, env.size.first, env.size.second, account) }
+        waitForRealm(env, "Legion")?.let { return it }
+        val exe = LegionClientSetup.executable(client, LegionClientSetup.PATCHED_EXE)
+            ?: return "The game wasn't patched for the realm (Wow-64_Patched.exe is missing after the realm started). See games/wow_legion/files/felsong/logs/patch-client.log."
+        env.report(State.Preparing("Starting the game"))
+        env.launch(
+            launchEntry(client, exe.name, env.title).copy(clientVersion = LegionClientSetup.VERSION, arguments = LegionClientSetup.GRAPHICS_ARGUMENT),
+        )
+        return null
     }
 
     /** OctoWoW: its realm, its 1.18.1 client (`files/turtle/client`), the saved account typed at its login. */

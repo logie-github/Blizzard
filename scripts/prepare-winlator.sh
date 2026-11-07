@@ -76,6 +76,9 @@ for path in glob.glob(res + "/values*/strings.xml"):
 PY
 rm -f "$OUT/res/xml/file_paths.xml"
 
+# The Box64 Legion's client needs (scripts/build-box64.sh), beside Winlator's: its path rewritten with the rest.
+"$ROOT/scripts/build-box64.sh" "$OUT/assets/box64"
+
 # The runtime, for this app's path.
 find "$OUT/assets" -name '*.tzst' | sort > "$OUT/.archives"
 # shellcheck disable=SC2046

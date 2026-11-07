@@ -309,7 +309,7 @@ class WowImporterTest {
     @Test fun eachModeTakesItsOwnZipAndKeepsItsOwnFolder() {
         val legion = runMode(zipWithMode("legion"), WowImporter.WowMode.LEGION)
         assertTrue(legion.toString(), legion is ImportPipeline.Result.Done)
-        assertEquals(LibraryEntry.RUNTIME_PENDING, (legion as ImportPipeline.Result.Done).entry.runtime)
+        assertEquals(LibraryEntry.RUNTIME_EXTERNAL, (legion as ImportPipeline.Result.Done).entry.runtime)
         assertEquals("wow_legion", legion.entry.gameId)
         assertTrue(File(paths.game("wow_legion"), "files/client/Data/common.MPQ").isFile)
         assertTrue(!paths.game("wow").exists())

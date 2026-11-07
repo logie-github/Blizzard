@@ -17,6 +17,9 @@ object WowLogin {
     /** OctoWoW's saved account (`turtle_login` in its own export, `games/wow_octowow`). */
     fun octo(context: Context): Login? = read(File(WowLayout.octo(context).exportDir, "prefs/turtle_login.json"))
 
+    /** Legion's saved e-mail and password (`felsong_login` in its own export, `games/wow_legion`). */
+    fun legion(context: Context): Login? = read(File(WowLayout.legion(context).exportDir, "prefs/felsong_login.json"))
+
     /** The export's `{"<key>":{"type":"string","value":...}}` file: the saved name and password. */
     fun read(file: File): Login? = runCatching {
         val o = JSONObject(file.readText())

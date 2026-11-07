@@ -40,6 +40,11 @@ class WowLayout(val root: File, val exportDir: File) {
         ctl.isFile && File(server, "bin/mangosd").isFile && File(server, "bin/realmd").isFile &&
             File(server, "bin/mariadbd").isFile && File(databases, "mysql").isDirectory
 
+    /** Legion's realm is there to start: LegionCore's programs (worldserver, bnetserver), its script and its databases. */
+    fun isLegionImported(): Boolean =
+        ctl.isFile && File(server, "bin/worldserver").isFile && File(server, "bin/bnetserver").isFile &&
+            File(server, "bin/mariadbd").isFile && File(databases, "mysql").isDirectory
+
     /** The world server's data (dbc and maps at least, from the client). */
     fun hasServerData(): Boolean = listOf("dbc", "maps").all { File(data, it).list()?.isNotEmpty() == true }
 
@@ -54,6 +59,12 @@ class WowLayout(val root: File, val exportDir: File) {
         fun octo(context: Context): WowLayout {
             val game = File(context.applicationContext.filesDir, "games/wow_octowow")
             return WowLayout(File(game, "files/turtle"), File(game, ".export"))
+        }
+
+        /** The imported Legion (`games/wow_legion`): the export's `felsong` folder is the realm's root. */
+        fun legion(context: Context): WowLayout {
+            val game = File(context.applicationContext.filesDir, "games/wow_legion")
+            return WowLayout(File(game, "files/felsong"), File(game, ".export"))
         }
 
         fun of(context: Context): WowLayout {
@@ -75,7 +86,9 @@ enum class Realm(
     CHROMIE("main", 1, "ChromieCraft", 8085, "acore_characters"),
     REMIX("remix", 2, "Wrath Remix", 8086, "acore_characters_remix"),
     /** OctoWoW's realm (Tortoise-WoW, its own database on 3311 and world port 8090); the login port 3724 is shared, so one realm runs at a time. */
-    OCTO("octo", 3, "OctoWoW", 8090, "tw_char");
+    OCTO("octo", 3, "OctoWoW", 8090, "tw_char"),
+    /** Legion's realm (LegionCore 7.3.5: its own database on 3312, Battle.net on 1119, the world on 8095); no port shared with the others. */
+    LEGION("legion", 4, "Legion", 8095, "characters");
 
     companion object {
         const val AUTH_PORT = 3724

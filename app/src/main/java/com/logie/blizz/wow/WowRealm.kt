@@ -83,7 +83,7 @@ object WowRealm {
     }
 
     private fun begin(app: Context, realm: Realm) {
-        if (realm == Realm.OCTO) { startOcto(app); return }
+        if (realm == Realm.OCTO || realm == Realm.LEGION) { startClassic(app, realm); return }
         val layout = WowLayout.of(app)
         val c = RealmController(
             layout = layout, runner = SystemRunner(), scope = scope,
@@ -99,16 +99,17 @@ object WowRealm {
         job = scope.launch { c.run(realm) }
     }
 
-    private fun startOcto(app: Context) {
-        val c = OctoRealmController(
-            layout = WowLayout.octo(app), runner = SystemRunner(), scope = scope,
+    private fun startClassic(app: Context, realm: Realm) {
+        val c = ClassicRealmController(
+            spec = if (realm == Realm.LEGION) RealmSpecs.LEGION else RealmSpecs.OCTO,
+            layout = if (realm == Realm.LEGION) WowLayout.legion(app) else WowLayout.octo(app), runner = SystemRunner(), scope = scope,
             lanAddress = { null },
             portOpen = ::portOpen,
-            onFailure = { message, log -> report(app, Realm.OCTO, message, log) },
+            onFailure = { message, log -> report(app, realm, message, log) },
             _status = _status,
         )
         controller = c
-        _status.value = Status(phase = Phase.STARTING, step = Step.PREPARING, realm = Realm.OCTO)
+        _status.value = Status(phase = Phase.STARTING, step = Step.PREPARING, realm = realm)
         runCatching { ContextCompat.startForegroundService(app, Intent(app, WowRealmService::class.java)) }
         job = scope.launch { c.run() }
     }

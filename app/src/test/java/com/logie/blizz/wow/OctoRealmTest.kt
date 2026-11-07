@@ -38,9 +38,10 @@ class OctoRealmTest {
         return l
     }
 
-    private fun controller(l: WowLayout, r: RealmControllerTest.FakeRunner) = OctoRealmController(
-        layout = l, runner = r, scope = scope, timeZone = { "<+0000>-00:00" },
-        portOpen = { port -> r.started.any { it.args.first() == "realmd" } && port == OctoRealmController.AUTH_PORT },
+    private fun controller(l: WowLayout, r: RealmControllerTest.FakeRunner, spec: RealmSpec = RealmSpecs.OCTO) = ClassicRealmController(
+        spec = spec, layout = l, runner = r, scope = scope, timeZone = { "<+0000>-00:00" },
+        // The login server's ports are open once it has been started.
+        portOpen = { port -> r.started.any { it.args.first() == spec.loginProgram } && port in spec.loginPorts },
         sleep = { }, pollMs = 1,
     )
 
@@ -89,15 +90,15 @@ class OctoRealmTest {
     }
 
     @Test fun theWorldServersFatalLinesAreNamed() {
-        assertTrue(OctoRealmController.fatal("Correct *.map files not found in data dir")!!.contains("data"))
-        assertTrue(OctoRealmController.fatal("DB AutoUpdater FAILED")!!.contains("update"))
-        assertNull(OctoRealmController.fatal("World server is up and running"))
+        assertTrue(ClassicRealmController.fatal(RealmSpecs.OCTO, "Correct *.map files not found in data dir")!!.contains("data"))
+        assertTrue(ClassicRealmController.fatal(RealmSpecs.OCTO, "DB AutoUpdater FAILED")!!.contains("update"))
+        assertNull(ClassicRealmController.fatal(RealmSpecs.OCTO, "World server is up and running"))
     }
 
     @Test fun aConfigKeyIsChangedInPlaceOrAdded() {
         val f = tmp.newFile("x.conf").apply { writeText("A = 1\nB = 2\n") }
-        OctoRealmController.setConf(f, "A", "9")
-        OctoRealmController.setConf(f, "C", "3")
+        ClassicRealmController.setConf(f, "A", "9")
+        ClassicRealmController.setConf(f, "C", "3")
         assertEquals("A = 9\nB = 2\nC = 3\n", f.readText())
     }
 
@@ -111,5 +112,72 @@ class OctoRealmTest {
         assertEquals("set realmlist 127.0.0.1\r\nset patchlist 127.0.0.1\r\n", File(client, "realmlist.wtf").readText())
         val config = File(client, "WTF/Config.wtf").readText()
         assertTrue(config, config.contains("SET gxResolution \"1828x1248\"") && config.contains("SET realmName \"Tortoise WoW\"") && config.contains("SET accountName \"ANNA\""))
+    }
+    private fun legionLayout(patched: Boolean, clientExe: Boolean = true): WowLayout {
+        val game = tmp.newFolder("games", "wow_legion")
+        val l = WowLayout(File(game, "files/felsong").apply { mkdirs() }, File(game, ".export").apply { mkdirs() })
+        l.ctl.apply { parentFile!!.mkdirs(); writeText("SERVER=\"\$FILES/server\"\nFILES=\"\${FILES:-/data/data/com.logie.warcraft/files/felsong}\"\n") }
+        for (f in listOf("bin/worldserver", "bin/bnetserver", "bin/mariadbd", "lib/ld-musl-aarch64.so.1")) File(l.server, f).apply { parentFile!!.mkdirs(); writeText("x") }
+        File(l.databases, "mysql").mkdirs()
+        for (d in listOf("dbc", "maps")) File(l.data, "$d/f").apply { parentFile!!.mkdirs(); writeText("x") }
+        File(l.etc, "worldserver.conf").apply { parentFile!!.mkdirs(); writeText("GameType = 1\n") }
+        File(l.etc, "bnetserver.conf").writeText("LoginREST.ExternalAddress = 1.2.3.4\n")
+        File(l.client, "Data").mkdirs()
+        if (clientExe) File(l.client, "Wow-64.exe").writeText("x")
+        if (patched) {
+            File(l.client, "Wow-64_Patched.exe").writeText("x")
+            RealmSpecs.certBundle(l).apply { parentFile!!.mkdirs(); writeText("c") }
+        }
+        return l
+    }
+
+    private class LegionBehavior : RealmControllerTest.Behavior() {
+        override fun alive(args: List<String>) = args.first() in setOf("db", "bnetserver", "worldserver")
+        override fun logFor(args: List<String>): String? = if (args.first() == "worldserver") "Loading\n(worldserver-daemon) ready...\n" else null
+    }
+
+    @Test fun legionComesUpWithItsBattleNetServerAndPatchesTheClientFirstWhenItIsNot() = runBlocking {
+        val l = legionLayout(patched = false)
+        val r = RealmControllerTest.FakeRunner(LegionBehavior())
+        val c = controller(l, r, RealmSpecs.LEGION)
+        c.run()
+        assertEquals(c.status.value.error, WowRealm.Phase.RUNNING, c.status.value.phase)
+        assertEquals(Realm.LEGION, c.status.value.realm)
+        val order = r.order()
+        assertEquals(listOf("configure", "patch-client", "db", "db-ping"), order.take(4))
+        assertTrue(order.indexOf("bnetserver") > order.indexOf("db-ping") && order.indexOf("worldserver") > order.indexOf("bnetserver"))
+        assertTrue(r.find("patch-client").command.argv.last().endsWith("Wow-64.exe"))
+        val sql = r.started.first { it.args.first().contains("'sql' 'auth'") }
+        assertTrue(sql.command.env.getValue("SQL").contains("gamebuild = 26972") && sql.command.env.getValue("SQL").contains("port = 8095"))
+        // The REST login is told this phone's address; a normal game; no Warden; no maps parts here (no vmaps or mmaps).
+        assertTrue(File(l.etc, "bnetserver.conf").readText().contains("LoginREST.ExternalAddress = 127.0.0.1"))
+        val world = File(l.etc, "worldserver.conf").readText()
+        assertTrue(world, world.contains("GameType = 0") && world.contains("Warden.Enabled = 0") && world.contains("mmap.enablePathFinding = 0"))
+        c.shutDown()
+        assertTrue(r.find("worldserver").sent.contains("server shutdown 1"))
+    }
+
+    @Test fun anAlreadyPatchedLegionClientIsNotPatchedAgain() = runBlocking {
+        val r = RealmControllerTest.FakeRunner(LegionBehavior())
+        controller(legionLayout(patched = true), r, RealmSpecs.LEGION).run()
+        assertTrue(r.order().none { it == "patch-client" })
+    }
+
+    @Test fun theBattleNetCertificateBundleGoesIntoBothPlacesOfTheGamesWindows() {
+        val bundle = tmp.newFile("web_cert_bundle").apply { writeText("certs") }
+        val driveC = tmp.newFolder("drive_c")
+        assertEquals(2, com.logie.blizz.game.LegionClientSetup.installCertificateBundle(bundle, driveC))
+        for (path in com.logie.blizz.game.LegionClientSetup.CERT_BUNDLE_IN_PREFIX) assertEquals("certs", File(driveC, path).readText())
+        assertEquals(0, com.logie.blizz.game.LegionClientSetup.installCertificateBundle(File(tmp.root, "none"), driveC))
+    }
+
+    @Test fun legionsClientIsPointedAtThePortalAndKeepsWhatWasChosenInTheGame() {
+        val client = tmp.newFolder("lclient")
+        File(client, "WTF").mkdirs()
+        File(client, "WTF/Config.wtf").writeText("SET graphicsQuality \"7\"\r\n")
+        com.logie.blizz.game.LegionClientSetup.apply(client, 1828, 1248, "anna@example.com")
+        val config = File(client, "WTF/Config.wtf").readText()
+        assertTrue(config, config.contains("SET portal \"127.0.0.1\"") && config.contains("SET gxWindowedResolution \"1828x1248\"") && config.contains("SET accountName \"anna@example.com\""))
+        assertTrue(config, config.contains("SET graphicsQuality \"7\"") && !config.contains("graphicsQuality \"3\""))
     }
 }
