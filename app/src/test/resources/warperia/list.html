@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head><title>Warperia</title></head>
+<body>
+<!-- Category Filter -->
+<div class="filter-section">
+    <label class="filter-label fw-medium mb-3">Categories</label>
+    <div class="category-checkboxes d-flex flex-column">
+                <div class="custom-checkbox-wrapper ">
+            <input type="checkbox" id="category-achievements"
+                class="custom-checkbox category-checkbox" value="achievements"
+                >
+            <label for="category-achievements"
+                class="custom-checkbox-label d-flex align-items-center">
+                <span class="checkbox-box d-flex align-items-center justify-content-center">
+                    <i class="bi bi-check"></i>
+                </span>
+                <span class="checkbox-text">Achievements</span>
+                            </label>
+
+                    </div>
+                <div class="custom-checkbox-wrapper ">
+            <input type="checkbox" id="category-action-bars"
+                class="custom-checkbox category-checkbox" value="action-bars"
+                >
+            <label for="category-action-bars"
+                class="custom-checkbox-label d-flex align-items-center">
+                <span class="checkbox-box d-flex align-items-center justify-content-center">
+                    <i class="bi bi-check"></i>
+                </span>
+                <span class="checkbox-text">Action Bars</span>
+                            </label>
+
+                    </div>
+                <div class="custom-checkbox-wrapper has-subcategories">
+            <input type="checkbox" id="category-class"
+                class="custom-checkbox category-checkbox" value="class"
+                >
+            <label for="category-class"
+                class="custom-checkbox-label d-flex align-items-center">
+                <span class="checkbox-box d-flex align-items-center justify-content-center">
+                    <i class="bi bi-check"></i>
+                </span>
+                <span class="checkbox-text">Class</span>
+                                <span class="expand-arrow "
+                    data-category="class">
+                    <i class="bi bi-chevron-right"></i>
+                </span>
+                            </label>
+
+                        <div class="subcategory-container "
+                data-category="class"
+                style="display: none;">
+                                <div class="custom-checkbox-wrapper subcategory-item">
+                    <input type="checkbox"
+                        id="class-death-knight"
+                        class="custom-checkbox class-checkbox"
+                        value="death-knight"
+                        data-parent-category="class"
+                        >
+                    <label
+                        for="class-death-knight"
+                        class="custom-checkbox-label d-flex align-items-center">
+                        <span class="checkbox-box d-flex align-items-center justify-content-center">
+                            <i class="bi bi-check"></i>
+                        </span>
+                        <span class="checkbox-text">Death Knight</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+                <div class="custom-checkbox-wrapper ">
+            <input type="checkbox" id="category-unit-frames"
+                class="custom-checkbox category-checkbox" value="unit-frames"
+                >
+            <label for="category-unit-frames"
+                class="custom-checkbox-label d-flex align-items-center">
+                <span class="checkbox-box d-flex align-items-center justify-content-center">
+                    <i class="bi bi-check"></i>
+                </span>
+                <span class="checkbox-text">Unit Frames</span>
+                            </label>
+
+                    </div>
+    </div>
+</div>
+<div>
+                                                                        <div class="browse-pagination-compact d-inline-flex align-items-center"
+                                        id="topPagination" data-current-page="1"
+                                        data-total-pages="42">
+                                        <button type="button"
+                                            class="browse-page-btn browse-page-prev d-inline-flex align-items-center justify-content-center"
+                                            data-page="1"
+                                            aria-label="Previous page"
+                                            disabled>
+                                            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                                        </button>
+                                        <span class="browse-page-status" aria-live="polite">
+                                            <span class="browse-page-current">1</span>
+                                            of                                            <span class="browse-page-total">42</span>
+                                        </span>
+                                        <button type="button"
+                                            class="browse-page-btn browse-page-next d-inline-flex align-items-center justify-content-center"
+                                            data-page="2"
+                                            aria-label="Next page"
+                                            >
+                                            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+</div>
+                            <div id="addons-grid" class="row row-cols-1 g-2">
+                                <div class="col">
+    <a        class="card addon-card-wrapper browse-addon-card h-100 addon-card-link"
+                href="https://warperia.com/addon-wotlk/questie/"
+                data-addon-id="3303">
+        <div class="wrapper d-flex align-items-start gap-2">
+            <div class="image position-relative">
+                <img src="https://warperia.com/wp-content/uploads/2024/12/addon-logo-3303-6a7604b3208e1.png"
+                    class="rounded-0" alt="Questie addon image logo"
+                    loading="lazy" draggable="false" width="100" height="100"
+                    onerror="this.onerror=null; this.src='https://warperia.com/wp-content/themes/warperia-com/assets/img/default-image.jpg'; this.classList.add('fallback-image');">
+            </div>
+            <div class="details d-flex flex-column justify-content-center flex-grow-1 min-w-0">
+                <div class="addon-name-header fw-medium min-w-0 d-flex gap-1 align-items-center">
+                    <span
+                        class="text-white fw-medium text-truncate d-block">Questie</span>
+                                        <div class="addon-author small text-truncate d-none d-sm-block">by
+                        Aldori15</div>
+                                    </div>
+                                <div class="addon-short text-muted fw-normal mt-2">
+                    A quest helper for World of Warcraft Wrath of the Lich King                </div>
+                
+                <!-- Desktop / tablet meta -->
+                <div class="addon-meta addon-meta--desktop">
+                    <div class="meta-item d-flex align-items-center" data-tooltip="Downloads">
+                        <svg></svg>
+                        <span class="text-muted">135K</span>
+                    </div>
+                    <div class="meta-item d-flex align-items-center" data-tooltip="Last updated">
+                        <svg></svg>
+                        <span class="text-muted">Oct 12, 2026</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="addon-meta-mobile">
+                        <span class="addon-meta-mobile__category text-truncate">
+                Map &amp; Minimap                                <span class="addon-meta-mobile__more">+1</span>
+                            </span>
+                        <span class="addon-meta-mobile__item text-muted"
+                title="Downloads">
+                <svg></svg>
+                135K            </span>
+            <span class="addon-meta-mobile__item text-muted"
+                title="Last updated">
+                <svg></svg>
+                Oct 12, 2026            </span>
+        </div>
+
+        <!-- Addon Categories Footer -->
+        <div class="addon-footer flex-wrap justify-content-between mt-2">
+            <div class="d-flex align-items-center justify-content-between wrap">
+                <span
+                    class="addon-type-label px-2 py-1 text-muted me-2">3.3.5 Addon</span>
+                <div class="addon-categories">
+                                        <div class="category-tags d-flex align-items-center gap-1">
+                                                <span class="category-tag text-muted">Map &amp; Minimap</span>
+                                                <span class="category-separator text-muted">•</span>
+                                                                        <span class="category-tag text-muted">Quests &amp; Leveling</span>
+                                                
+                                            </div>
+                                    </div>
+            </div>
+                    </div>
+    </a>
+</div>
+<div class="col">
+    <a        class="card addon-card-wrapper browse-addon-card h-100 addon-card-link"
+                href="https://warperia.com/addon-wotlk/details-damagemeter/"
+                data-addon-id="1121">
+        <div class="wrapper d-flex align-items-start gap-2">
+            <div class="image position-relative">
+                <img src="https://warperia.com/wp-content/uploads/2024/11/addon-logo-1121-6a7604ad8318d.png"
+                    class="rounded-0" alt="Details! DamageMeter addon image logo"
+                    loading="lazy" draggable="false" width="100" height="100"
+                    onerror="this.onerror=null; this.src='https://warperia.com/wp-content/themes/warperia-com/assets/img/default-image.jpg'; this.classList.add('fallback-image');">
+            </div>
+            <div class="details d-flex flex-column justify-content-center flex-grow-1 min-w-0">
+                <div class="addon-name-header fw-medium min-w-0 d-flex gap-1 align-items-center">
+                    <span
+                        class="text-white fw-medium text-truncate d-block">Details! DamageMeter</span>
+                                        <div class="addon-author small text-truncate d-none d-sm-block">by
+                        Bunny67</div>
+                                    </div>
+                                <div class="addon-short text-muted fw-normal mt-2">
+                    Essential tool to impress that chick in your raid.                </div>
+                
+                <!-- Desktop / tablet meta -->
+                <div class="addon-meta addon-meta--desktop">
+                    <div class="meta-item d-flex align-items-center" data-tooltip="Downloads">
+                        <svg></svg>
+                        <span class="text-muted">107K</span>
+                    </div>
+                    <div class="meta-item d-flex align-items-center" data-tooltip="Last updated">
+                        <svg></svg>
+                        <span class="text-muted">Aug 7, 2026</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="addon-meta-mobile">
+                        <span class="addon-meta-mobile__category text-truncate">
+                Boss Encounters                                <span class="addon-meta-mobile__more">+2</span>
+                            </span>
+                        <span class="addon-meta-mobile__item text-muted"
+                title="Downloads">
+                <svg></svg>
+                107K            </span>
+            <span class="addon-meta-mobile__item text-muted"
+                title="Last updated">
+                <svg></svg>
+                Aug 7, 2026            </span>
+        </div>
+
+        <!-- Addon Categories Footer -->
+        <div class="addon-footer flex-wrap justify-content-between mt-2">
+            <div class="d-flex align-items-center justify-content-between wrap">
+                <span
+                    class="addon-type-label px-2 py-1 text-muted me-2">3.3.5 Addon</span>
+                <div class="addon-categories">
+                                        <div class="category-tags d-flex align-items-center gap-1">
+                                                <span class="category-tag text-muted">Boss Encounters</span>
+                                                <span class="category-separator text-muted">•</span>
+                                                                        <span class="category-tag text-muted">Combat</span>
+                                                <span class="category-separator text-muted">•</span>
+                                                                        <span class="category-tag text-muted">PvP</span>
+                                                
+                                            </div>
+                                    </div>
+            </div>
+                    </div>
+    </a>
+</div>
+</div>
+</body>
+</html>

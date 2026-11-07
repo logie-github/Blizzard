@@ -276,6 +276,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     var splashOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
     var controlsOpen by remember { mutableStateOf(false) }
+    var addonsOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val pickArt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) message = if (TileSettings.setArt(context, game.id, false, uri)) null else "That picture couldn't be read."
@@ -318,6 +319,12 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         if (ownMusic) FrameButton("Original", primary = false) { MusicCustom.clear(context, game.id) }
                     }
                 }
+                if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
+                    SettingCard("Add-ons") {
+                        Text("Search warperia.com's add-ons for this version, install them into its client, turn them on and off, update them.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+                        FrameButton("Search add-ons", primary = false, modifier = Modifier.fillMaxWidth()) { addonsOpen = true }
+                    }
+                }
                 if (game.id == "wow") {
                     val scope = androidx.compose.runtime.rememberCoroutineScope()
                     SettingCard("Modern character creation") {
@@ -352,4 +359,5 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     if (splashOpen) SplashDialog(game, onDismiss = { splashOpen = false })
     if (optionsOpen) GameOptionsDialog(game, onDismiss = { optionsOpen = false })
     if (controlsOpen) ControlsScreen(game, onDismiss = { controlsOpen = false })
+    if (addonsOpen) WowAddonManager(game.id, onDismiss = { addonsOpen = false })
 }
