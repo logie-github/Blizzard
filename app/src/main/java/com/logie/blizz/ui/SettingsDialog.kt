@@ -125,8 +125,9 @@ internal fun <T> Segmented(options: List<Pair<String, T>>, selected: T, onSelect
     Row(Modifier.fillMaxWidth().border(1.dp, Colors.Steel)) {
         options.forEachIndexed { index, (label, value) ->
             val on = value == selected
+            val fill by androidx.compose.animation.animateColorAsState(if (on) Colors.Frost else Color.Transparent, label = "segment")
             Box(
-                Modifier.weight(1f).background(if (on) Colors.Frost else Color.Transparent).clickable { onSelect(value) }.padding(vertical = 11.dp),
+                Modifier.weight(1f).background(fill).clickable { onSelect(value) }.padding(vertical = 11.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, style = MaterialTheme.typography.bodyMedium.copy(color = if (on) Colors.Glow else Colors.Mist), maxLines = 1)
