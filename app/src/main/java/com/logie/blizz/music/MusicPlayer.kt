@@ -97,17 +97,35 @@ object MusicPlayer {
     }
 
     private fun fadeIn(p: MediaPlayer) {
-        val steps = 12
-        for (i in 1..steps) main.postDelayed({
-            if (player === p) runCatching { val v = _volume.value * i / steps; p.setVolume(v, v) }
-        }, i * 60L)
+        for (i in 1..Crossfade.STEPS) main.postDelayed({
+            if (player === p) runCatching { val v = Crossfade.volume(i, _volume.value, out = false); p.setVolume(v, v) }
+        }, i * Crossfade.MS / Crossfade.STEPS)
     }
 
+    /** The song that was playing fades out over the same time the next one fades in, then goes. */
     private fun release() {
         val p = player ?: return
         player = null
         playingKey = null
-        runCatching { p.stop() }
-        runCatching { p.release() }
+        val from = _volume.value
+        for (i in 1..Crossfade.STEPS) main.postDelayed({
+            runCatching { val v = Crossfade.volume(i, from, out = true); p.setVolume(v, v) }
+            if (i == Crossfade.STEPS) {
+                runCatching { p.stop() }
+                runCatching { p.release() }
+            }
+        }, i * Crossfade.MS / Crossfade.STEPS)
+    }
+}
+
+/** The arithmetic of a crossfade: one song fades out while the next fades in, over [MS]. Plain Kotlin, unit-tested. */
+object Crossfade {
+    const val MS = 1500L
+    const val STEPS = 30
+
+    /** The volume at [step] of [STEPS]: [target] times how far along the fade is, rising, or falling when [out]. */
+    fun volume(step: Int, target: Float, out: Boolean): Float {
+        val along = step.coerceIn(0, STEPS).toFloat() / STEPS
+        return target * (if (out) 1f - along else along)
     }
 }

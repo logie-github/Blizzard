@@ -238,11 +238,18 @@ class WowGestureView(
         // it): its own cursor (gxCursor), not the window's first, says the login screen is up.
         val legion = legionClient
         val wait = if (legion) LEGION_LOGIN_WAIT_MS else LOGIN_WAIT_MS
+        val shownAt = SystemClock.uptimeMillis()
+        // What the login did, for the report a game sends (never the password).
+        com.logie.blizz.game.GameLog.note(
+            "login: password ${if (activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD) != null) "given" else "not given"}, account " +
+                "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "Legion" else "classic"} wait ${wait / 1000} s",
+        )
         if (login != null) {
             // (a Legion client not at its login screen when the wait ends: asked, not typed blind
             // into whatever is up, its loading screen or a dialog)
             whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait,
                 timedOut = if (legion) ({ ask(PromptKind.PASSWORD) }) else null) {
+                com.logie.blizz.game.GameLog.note("login: typed after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
                 type(login.password, enter = true)
                 if (newAccount) postDelayed({ ask(PromptKind.NAME) }, NAME_PROMPT_DELAY_MS)
             }

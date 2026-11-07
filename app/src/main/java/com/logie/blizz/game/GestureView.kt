@@ -208,7 +208,7 @@ class GestureView(
         com.logie.blizz.reports.BugReports.report(
             activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} $what",
             "Sent by the app",
-            listOf("Game" to gameId, "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}", "Window shown" to windowShown.toString()),
+            listOf("Game" to gameId, "Version" to (activity.intent?.getStringExtra(EXTRA_SPLASH) ?: gameId), "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}", "Window shown" to windowShown.toString()),
             log = GameLog.snapshot().ifEmpty { null },
         )
     }

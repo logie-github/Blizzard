@@ -21,8 +21,20 @@ object GameLog {
     /** Starts listening to the programs' output (once; after Winlator has set up its own listeners). */
     fun start() {
         synchronized(lines) { lines.clear() }
+        synchronized(notes) { notes.clear() }
         ProcessHelper.addDebugCallback(callback)
     }
 
-    fun snapshot(): String = synchronized(lines) { lines.joinToString("\n") }
+    /** The app's own notes (what the launcher and the touch layer decided), kept apart so a flood of Wine's lines doesn't push them out. */
+    private val notes = ArrayDeque<String>()
+
+    fun note(text: String) {
+        synchronized(notes) {
+            if (notes.size >= 60) notes.removeFirst()
+            notes.addLast("[app] " + text.take(300))
+        }
+    }
+
+    fun snapshot(): String = synchronized(notes) { notes.joinToString("\n") } +
+        (if (notes.isEmpty()) "" else "\n") + synchronized(lines) { lines.joinToString("\n") }
 }
