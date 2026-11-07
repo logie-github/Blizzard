@@ -75,9 +75,8 @@ class WowGestureView(
     private var pointerMoves = 0
     private var lastTapAt = Long.MIN_VALUE / 2
     private var lastTap: TapResult? = null
-    private val turtle = false
-    private val felsong = com.logie.blizz.game.WowPlay.legion
-    private val spp = false
+    /** Legion (a 7.x client): its window shows well before its login screen. */
+    private val legionClient = com.logie.blizz.game.WowPlay.legion
     private val runFolder: java.io.File = com.logie.blizz.wow.WowLayout.of(activity).run
     private val selectionFile = java.io.File(runFolder, "selection")
     private val cutsceneFile = java.io.File(runFolder, "cutscene")
@@ -237,7 +236,7 @@ class WowGestureView(
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         // A Legion client shows its window well before its login screen (it loads its data behind
         // it): its own cursor (gxCursor), not the window's first, says the login screen is up.
-        val legion = felsong || spp
+        val legion = legionClient
         val wait = if (legion) LEGION_LOGIN_WAIT_MS else LOGIN_WAIT_MS
         if (login != null) {
             // (a Legion client not at its login screen when the wait ends: asked, not typed blind
@@ -709,11 +708,6 @@ class WowGestureView(
         const val EXTRA_LOGIN_PASSWORD = com.logie.blizz.game.GestureView.EXTRA_LOGIN_PASSWORD
         /** The account the launcher put in the game's login box. */
         const val EXTRA_ACCOUNT = "account"
-        /** Which game this is: none for the 3.3.5a game, [ENVIRONMENT_TURTLE] for Turtle WoW's, [ENVIRONMENT_FELSONG] for Felsong's. */
-        const val EXTRA_ENVIRONMENT = "environment"
-        const val ENVIRONMENT_TURTLE = "turtle"
-        const val ENVIRONMENT_FELSONG = "felsong"
-        const val ENVIRONMENT_SPP = "spp"
 
         private const val CLICK_MS = 30L
         private const val KEY_MS = 60L

@@ -58,7 +58,7 @@ internal class RealmSpec(
 
 /**
  * Starts and stops one of those realms from Blizzard's copy of the files the World of Warcraft app exported,
- * the way the WoW app's `TurtleServer` and `FelsongServer` do: its own MariaDB, the login server and the world
+ * the way the WoW app's servers for them do: its own MariaDB, the login server and the world
  * server, each a program of the realm's `ctl.sh`, run through musl's loader ([WowCtl]: its
  * `"$SERVER/bin/<name>"` calls are the same shape as ChromieCraft's). Stopping saves the characters first
  * (`server shutdown`).

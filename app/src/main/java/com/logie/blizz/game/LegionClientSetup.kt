@@ -5,7 +5,7 @@ import java.io.File
 
 /**
  * What Legion's 7.3.5 client (build 26972) needs before it starts, in the folder that came over from the World of
- * Warcraft app (`games/wow_legion/files/felsong/client`). Ported from the WoW app's `FelsongClientSetup`: a 7.x
+ * Warcraft app (`games/wow_legion/files/felsong/client`: the folder keeps the name the export gave it). Ported from the WoW app: a 7.x
  * client has no realmlist.wtf, its `portal` in `WTF/Config.wtf` is the Battle.net server it connects to (the patched
  * program takes a plain host), and the realm list comes from that server. The screen, the intro off, the account's
  * e-mail in the login box. Every other setting stays. Plain Kotlin, unit-tested.

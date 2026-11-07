@@ -2,7 +2,7 @@ package com.logie.blizz.wow
 
 import java.io.File
 
-/** The two realms [ClassicRealmController] runs, as the WoW app's `TurtleRealm` and `FelsongRealm` define them. */
+/** The two realms [ClassicRealmController] runs: OctoWoW's, and Legion's (a plain LegionCore 7.3.5 server, nothing of its own on top). */
 internal object RealmSpecs {
     /** OctoWoW: Tortoise-WoW (1.18.1, build 7272). Its own database on 3311, the login server on 3724, the world on 8090. */
     val OCTO = RealmSpec(

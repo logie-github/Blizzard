@@ -61,7 +61,7 @@ class WowLayout(val root: File, val exportDir: File) {
             return WowLayout(File(game, "files/turtle"), File(game, ".export"))
         }
 
-        /** The imported Legion (`games/wow_legion`): the export's `felsong` folder is the realm's root. */
+        /** The imported Legion (`games/wow_legion`): the export's folder for it (still named `felsong` on disk) is the realm's root. */
         fun legion(context: Context): WowLayout {
             val game = File(context.applicationContext.filesDir, "games/wow_legion")
             return WowLayout(File(game, "files/felsong"), File(game, ".export"))
