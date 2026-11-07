@@ -80,9 +80,11 @@ data class LaunchOptions(
         val singleCpu: Boolean,
         /** cnc-ddraw `nonexclusive` and `minfps`: for videos, menus and loading screens that stay invisible. */
         val redraw: Boolean,
+        /** The graphics card DXVK tells the game it has ("device:vendor:name", Winlator's customDevice), or null for the phone's own. */
+        val customDevice: String? = null,
     ) {
         /** The container's `dxwrapperConfig` (a Winlator KeyValueSet). */
-        val dxwrapperConfig: String get() = if (ddrawWrapper != null) "ddrawWrapper=$ddrawWrapper" else ""
+        val dxwrapperConfig: String get() = listOfNotNull(ddrawWrapper?.let { "ddrawWrapper=$it" }, customDevice?.let { "customDevice=$it" }).joinToString(",")
 
         /** Everything Winlator caches per container, so a change can be told from the last start. */
         val cacheKey: String get() = "$dxwrapper|$dxwrapperConfig|$graphicsDriver|$box64Preset"
@@ -140,6 +142,10 @@ data class LaunchOptions(
             vsync = if (s) false else vsync.or(false),
             singleCpu = if (s) false else singleCpu.or(false),
             redraw = if (s) true else redraw.or(true),
+            // On the Fold's Adreno, the games are told of a desktop card they know (a Radeon RX 6800 XT): one that never
+            // changes between starts and that their own checks count as supported, so they pick their best settings and
+            // show no "hardware changed" or "unsupported driver" message. Safe mode reports the phone's own.
+            customDevice = if (!s && hardware.adreno) DESKTOP_CARD else null,
         )
     }
 
@@ -151,6 +157,7 @@ data class LaunchOptions(
         const val DEFAULT_DRIVER = "vortek,gladio"
         const val DEFAULT_D3D = "dxvk"
         const val TURNIP_DRIVER = "turnip,gladio"
+        const val DESKTOP_CARD = "73bf:1002:AMD Radeon RX 6800 XT"
 
         /** The classic 2D games, which draw with DirectDraw. */
         val CLASSIC = setOf("diablo2", "starcraft", "warcraft2")

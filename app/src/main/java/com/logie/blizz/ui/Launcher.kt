@@ -711,11 +711,32 @@ private fun rememberLoadingLine(): String {
 @Composable
 private fun RuntimeOverlay() {
     val wow by com.logie.blizz.game.WowPlay.state.collectAsState()
-    when (val w = wow) {
-        is com.logie.blizz.game.WowPlay.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            // The version's own loading screen (the art and logo chosen for it), a line from the loading lines on it.
-            Box(Modifier.fillMaxSize()) { com.logie.blizz.game.Loading(w.gameId, rememberLoadingLine()) }
+    val state by WindowsRuntime.state.collectAsState()
+    // One loading screen from the realm's start to the game's own window: World of Warcraft's realm, then Windows, then the
+    // game, with no blink back to the launcher between them. It stays up until the game's screen has taken over.
+    val running = state as? WindowsRuntime.State.Preparing
+    val loadingId = running?.gameId ?: (wow as? com.logie.blizz.game.WowPlay.State.Preparing)?.gameId
+    val busy = running != null || wow is com.logie.blizz.game.WowPlay.State.Preparing
+    var held by remember { mutableStateOf<String?>(null) }
+    var holding by remember { mutableStateOf(false) }
+    if (busy) { held = loadingId ?: held; holding = true }
+    LaunchedEffect(busy) {
+        if (busy) return@LaunchedEffect
+        // Until the launcher is out of sight (the game's screen is up), at most a few seconds.
+        val until = System.currentTimeMillis() + 4_000
+        while (com.logie.blizz.MainActivity.visible && System.currentTimeMillis() < until && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) delay(100)
+        holding = false
+    }
+    if (holding && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) {
+        Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            Box(Modifier.fillMaxSize()) {
+                // The runtime's install is the one wait with a number to show.
+                val percent = if (running?.step == WindowsRuntime.Step.RUNTIME) running.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty() else ""
+                com.logie.blizz.game.Loading(held, rememberLoadingLine() + percent)
+            }
         }
+    }
+    when (val w = wow) {
         is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
             Column(Modifier.padding(16.dp).drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -730,15 +751,7 @@ private fun RuntimeOverlay() {
         }
         else -> {}
     }
-    val state by WindowsRuntime.state.collectAsState()
     when (val s = state) {
-        is WindowsRuntime.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Box(Modifier.fillMaxSize()) {
-                // The runtime's install is the one wait with a number to show.
-                val percent = if (s.step == WindowsRuntime.Step.RUNTIME) s.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty() else ""
-                com.logie.blizz.game.Loading(s.gameId, rememberLoadingLine() + percent)
-            }
-        }
         is WindowsRuntime.State.Failed -> Dialog(onDismissRequest = { WindowsRuntime.dismiss() }) {
             Column(Modifier.drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(s.message, style = MaterialTheme.typography.bodyLarge)

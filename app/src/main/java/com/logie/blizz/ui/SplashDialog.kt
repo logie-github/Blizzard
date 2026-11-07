@@ -91,9 +91,10 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                     if (boxArtShown != null) FrameButton("Original", primary = false) { TileSettings.clearArt(context, game.id, false) }
                 }
             }
-            // The loading screen itself, at half the size: pinch to zoom the picture, drag to move it.
+            // The loading screen itself, at half the size and at the game's own shape (the Fold's inside screen): what's
+            // outside this frame is cut on the phone too. Pinch to zoom the picture, drag to move it.
             BoxWithConstraints(
-                Modifier.fillMaxWidth().aspectRatio(16f / 9f).clipToBounds().border(1.dp, Colors.Steel).background(Colors.Abyss)
+                Modifier.fillMaxWidth().aspectRatio(com.logie.blizz.game.rememberGameAspect()).clipToBounds().border(1.dp, Colors.Steel).background(Colors.Abyss)
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             val z = (layout.zoom * zoom).coerceIn(1f, 4f)

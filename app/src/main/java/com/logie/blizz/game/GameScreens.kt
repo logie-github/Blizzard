@@ -47,7 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -144,8 +146,27 @@ class GameLoading(private val activity: Activity) {
     fun isShowing(): Boolean = dialog?.isShowing == true
 }
 
+/** The shape of the screen the games are made for (the Fold's inside screen, landscape): width over height. */
+@Composable
+internal fun rememberGameAspect(): Float {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    return remember { GameSettings.gameScreen(context).let { (w, h) -> maxOf(w, h).toFloat() / minOf(w, h).coerceAtLeast(1) } }
+}
+
+/**
+ * The loading screen, framed at the game's own shape (the Fold's inside screen) wherever it shows: the art fills it
+ * edge to edge and what is beyond that shape is cut. On the cover screen the frame sits between black bars, as the game will.
+ */
 @Composable
 internal fun Loading(gameId: String?, text: String, layoutOverride: Splashes.Layout? = null, grid: Boolean = false) {
+    val aspect = rememberGameAspect()
+    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+        Box(Modifier.aspectRatio(aspect).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid) }
+    }
+}
+
+@Composable
+private fun LoadingScreen(gameId: String?, text: String, layoutOverride: Splashes.Layout?, grid: Boolean) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val game = Games.find(gameId)
     val version by Splashes.version.collectAsState()

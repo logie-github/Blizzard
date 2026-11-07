@@ -5,16 +5,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MusicPlayerFadeTest {
-    @Test fun aCrossfadeTakesOneAndAHalfSecondsAndTheTwoSongsAddUpToTheVolume() {
+    @Test fun fadesStartAndEndWhereTheyShouldAndNeverJump() {
         assertEquals(1500L, Crossfade.MS)
-        assertEquals(0f, Crossfade.volume(0, 0.6f, out = false), 0.0001f)
-        assertEquals(0.6f, Crossfade.volume(30, 0.6f, out = false), 0.0001f)
-        assertEquals(0.6f, Crossfade.volume(0, 0.6f, out = true), 0.0001f)
-        assertEquals(0f, Crossfade.volume(30, 0.6f, out = true), 0.0001f)
-        for (step in 0..30) {
-            val sum = Crossfade.volume(step, 0.6f, out = false) + Crossfade.volume(step, 0.6f, out = true)
-            assertEquals(0.6f, sum, 0.0001f)
-            assertTrue(Crossfade.volume(step, 1f, out = false) >= 0f)
+        assertEquals(0f, Crossfade.ease(0f, 1f, 0f), 0.0001f)
+        assertEquals(1f, Crossfade.ease(0f, 1f, 1f), 0.0001f)
+        assertEquals(1f, Crossfade.ease(1f, 0f, 0f), 0.0001f)
+        assertEquals(0f, Crossfade.ease(1f, 0f, 1f), 0.0001f)
+        var last = 0f
+        for (i in 1..100) {
+            val g = Crossfade.ease(0f, 1f, i / 100f)
+            assertTrue(g >= last)
+            assertTrue("no jump at step $i", g - last < 0.04f)
+            last = g
         }
+    }
+
+    @Test fun twoSongsCrossingKeepTheirLoudness() {
+        for (i in 0..100) {
+            val a = i / 100f
+            val power = Crossfade.ease(0f, 1f, a).let { it * it } + Crossfade.ease(1f, 0f, a).let { it * it }
+            assertEquals(1f, power, 0.001f)
+        }
+    }
+
+    @Test fun aFadeCanStartPartWay() {
+        assertEquals(0.4f, Crossfade.ease(0.4f, 0f, 0f), 0.0001f)
+        assertEquals(1f, Crossfade.ease(0.4f, 1f, 1f), 0.0001f)
     }
 }

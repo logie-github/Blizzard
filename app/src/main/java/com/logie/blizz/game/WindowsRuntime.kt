@@ -90,7 +90,7 @@ object WindowsRuntime {
     fun gameSize(context: Context, gameId: String, profile: LaunchProfile = LaunchProfile.of(gameId)): Pair<Int, Int> {
         val options = LaunchOptionsStore(context.applicationContext).get(gameId).resolve(gameId)
         return options.lines?.let { lines ->
-            val (w, h) = GameSettings.screenSize(context)
+            val (w, h) = GameSettings.gameScreen(context)
             Screen.resolutionFor(w, h, lines)
         } ?: GameSettings.gameSize(context, profile)
     }
@@ -171,7 +171,8 @@ object WindowsRuntime {
                     putExtra(GestureView.EXTRA_LOGIN_NAME, it.name).putExtra(GestureView.EXTRA_LOGIN_PASSWORD, it.password)
                 }
             }
-        if (MainActivity.visible) context.startActivity(intent) else pending = intent
+        // The game's screen fades in over the loading screen, the same picture, rather than sliding in.
+        if (MainActivity.visible) context.startActivity(intent, android.app.ActivityOptions.makeCustomAnimation(context, android.R.anim.fade_in, android.R.anim.fade_out).toBundle()) else pending = intent
     }
 
     /** The runtime's hosts file: Blizzard's names nowhere ([Offline]). */
