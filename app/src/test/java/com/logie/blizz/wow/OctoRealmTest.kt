@@ -181,3 +181,41 @@ class OctoRealmTest {
         assertTrue(config, config.contains("SET graphicsQuality \"7\"") && !config.contains("graphicsQuality \"3\""))
     }
 }
+
+class CompiledPathsTest {
+    @get:Rule val tmp = TemporaryFolder()
+
+    @Test fun theOldAppsFolderInAProgramBecomesBlizzardsOfTheSameLength() {
+        val old = "/data/data/com.logie.warcraft/files/turtle/server/modules"
+        val filler = ByteArray(3_000_000) { 7 }
+        val bytes = filler + old.toByteArray() + byteArrayOf(0) + filler.copyOf(100) + old.toByteArray() + byteArrayOf(0)
+        val file = tmp.newFile("mangosd").apply { writeBytes(bytes) }
+        assertEquals(2, CompiledPaths.patchFile(file))
+        val after = file.readBytes()
+        assertEquals(bytes.size, after.size)
+        val text = String(after, Charsets.ISO_8859_1)
+        assertTrue(!text.contains("com.logie.warcraft"))
+        assertEquals(2, Regex(Regex.escape("/data/data/com.logie.blizz////files/turtle/server/modules")).findAll(text).count())
+        assertEquals(0, CompiledPaths.patchFile(file))
+    }
+
+    @Test fun aMatchAcrossAChunkBoundaryIsFound() {
+        val old = "com.logie.warcraft/".toByteArray()
+        val bytes = ByteArray((1 shl 20) - 5) { 1 } + old + ByteArray(50) { 1 }
+        val file = tmp.newFile("x").apply { writeBytes(bytes) }
+        assertEquals(1, CompiledPaths.patchFile(file))
+        assertEquals(0, CompiledPaths.patchFile(file))
+    }
+
+    @Test fun theRealmFolderIsLinkedFromTheAppsFiles() {
+        val appFiles = tmp.newFolder("files")
+        val root = File(appFiles, "games/wow_octowow/files/turtle").apply { mkdirs() }
+        val layout = WowLayout(root, File(appFiles, "games/wow_octowow/.export"))
+        assertEquals(appFiles, CompiledPaths.appFiles(layout))
+        File(layout.server, "bin").mkdirs()
+        File(layout.server, "bin/mangosd").writeBytes("x/data/data/com.logie.warcraft/files/turtle/server/modules\u0000".toByteArray())
+        assertEquals(1, CompiledPaths.fix(layout))
+        assertEquals(root.canonicalPath, File(appFiles, "turtle").canonicalPath)
+        assertEquals(0, CompiledPaths.fix(layout))
+    }
+}

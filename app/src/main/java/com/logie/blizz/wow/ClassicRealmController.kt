@@ -126,6 +126,9 @@ internal class ClassicRealmController(
         val moved = WowPathRewrite.rewrite(layout, WowPathRewrite.oldPrefixes(WowExportInfo.sourceFilesDir(layout)), prefix)
         if (moved.changed) logLine("Paths moved to $prefix: ${moved.filesRewritten.size} files, ${moved.linksRewritten.size} links")
         loader = WowCtl.prepare(layout)
+        // The programs name their old app's folder inside (a modules folder the world server reads): Blizzard's own, same length.
+        val patched = CompiledPaths.fix(layout)
+        if (patched > 0) logLine("The programs' compiled-in folder changed to Blizzard's: $patched places")
         runner.endLeftovers(layout, spec.pidFiles)
         for (name in spec.pidFiles + listOf("mysqld.sock", "mysqld.sock.lock")) File(layout.run, name).delete()
         if (!layout.hasServerData()) {

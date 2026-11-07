@@ -1,0 +1,115 @@
+From bc828c05b70ddcaf33b1592853b987cdd1aebc7e Mon Sep 17 00:00:00 2001
+From: Blizzard <blizz@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 14:44:35 +0000
+Subject: [PATCH] Box64 for a session is verified and put in place by a rename
+ (the stock one kept running when the write was refused)
+
+---
+ .../com/winlator/core/GeneralComponents.java  | 15 +++++
+ .../GuestProgramLauncherComponent.java        | 59 +++++++++++++++++--
+ 2 files changed, 70 insertions(+), 4 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/core/GeneralComponents.java b/app/src/main/java/com/winlator/core/GeneralComponents.java
+index 582b276..96c4cf4 100644
+--- a/app/src/main/java/com/winlator/core/GeneralComponents.java
++++ b/app/src/main/java/com/winlator/core/GeneralComponents.java
+@@ -224,6 +224,21 @@ public abstract class GeneralComponents {
+         }
+     }
+ 
++    /**
++     * Blizzard: [identifier] (a built-in version, or an installed component, else [defaultVersion]'s) extracted
++     * into [destination] instead of the runtime; whether it was.
++     */
++    public static boolean extractFileTo(Type type, Context context, String identifier, String defaultVersion, File destination) {
++        if (isBuiltinComponent(type, identifier)) {
++            String sourcePath = type.assetFolder()+"/"+type.lowerName()+"-"+identifier+".tzst";
++            return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, sourcePath, destination, null);
++        }
++        File source = new File(getComponentDir(type, context), type.lowerName()+"-"+identifier+".tzst");
++        if (TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, source, destination, null)) return true;
++        String sourcePath = type.assetFolder()+"/"+type.lowerName()+"-"+defaultVersion+".tzst";
++        return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, sourcePath, destination, null);
++    }
++
+     private static String parseDisplayText(Type type, String filename) {
+         return filename.replace(type.lowerName()+"-", "").replace(".tzst", "").replace(".sf2", "");
+     }
+diff --git a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+index 7107d9f..37a22b5 100644
+--- a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
++++ b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+@@ -117,15 +117,66 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+         });
+     }
+ 
++    /**
++     * Blizzard: Box64 [box64Version] (the session's, else the app-wide one) in the runtime. The version's binary
++     * is extracted beside the runtime (once per app build), compared with the installed one at every start and
++     * put in place in one step (a rename): written over in place, a Box64 still running refused it (ETXTBSY)
++     * and the other version stayed while this one was recorded, which Legion's client fails on (its start-up
++     * protection: "Game Initialization Failed!"). The version is recorded only once it is installed.
++     */
+     private void extractBox64File() {
+         Context context = environment.getContext();
+         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+         String box64Version = this.box64Version != null ? this.box64Version : preferences.getString("box64_version", DefaultVersion.BOX64);
+-        String currentBox64Version = preferences.getString("current_box64_version", "");
+-
+-        if (!box64Version.equals(currentBox64Version)) {
++        File installed = new File(RootFS.find(context).getRootDir(), "usr/local/bin/box64");
++        File staging = new File(context.getCacheDir(), "box64-"+box64Version+"-"+com.winlator.core.AppUtils.getVersionCode(context));
++        File staged = new File(staging, "usr/local/bin/box64");
++        if (!staged.isFile()) {
++            FileUtils.delete(staging);
++            staging.mkdirs();
++            if (!GeneralComponents.extractFileTo(GeneralComponents.Type.BOX64, context, box64Version, DefaultVersion.BOX64, staging)) FileUtils.delete(staging);
++        }
++        if (staged.isFile()) {
++            if (!sameContent(staged, installed)) {
++                File temporary = new File(installed.getParentFile(), ".box64-"+box64Version);
++                temporary.delete();
++                if (FileUtils.copy(staged, temporary)) {
++                    FileUtils.chmod(temporary, 0771);
++                    if (!temporary.renameTo(installed)) temporary.delete();
++                }
++            }
++            if (sameContent(staged, installed)) preferences.edit().putString("current_box64_version", box64Version).commit();
++        }
++        else if (!box64Version.equals(preferences.getString("current_box64_version", ""))) {
++            // (no staged copy: as before, in place)
+             GeneralComponents.extractFile(GeneralComponents.Type.BOX64, context, box64Version, DefaultVersion.BOX64);
+-            preferences.edit().putString("current_box64_version", box64Version).apply();
++            preferences.edit().putString("current_box64_version", box64Version).commit();
++        }
++    }
++
++    /** Blizzard: which Box64 the runtime has (its version as recorded, and its file's SHA-256), for a log. */
++    public static String box64Identity(Context context) {
++        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
++        File installed = new File(RootFS.find(context).getRootDir(), "usr/local/bin/box64");
++        return "Box64 "+preferences.getString("current_box64_version", "?")+" (sha256 "+sha256(installed)+")";
++    }
++
++    private static boolean sameContent(File a, File b) {
++        return a.isFile() && b.isFile() && a.length() == b.length() && sha256(a).equals(sha256(b));
++    }
++
++    private static String sha256(File file) {
++        try (java.io.InputStream input = new java.io.FileInputStream(file)) {
++            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
++            byte[] buffer = new byte[65536];
++            int read;
++            while ((read = input.read(buffer)) > 0) digest.update(buffer, 0, read);
++            StringBuilder hex = new StringBuilder();
++            for (byte b : digest.digest()) hex.append(String.format("%02x", b));
++            return hex.toString();
++        }
++        catch (Exception e) {
++            return "none";
+         }
+     }
+ 
+-- 
+2.43.0
+
