@@ -277,6 +277,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     var optionsOpen by remember { mutableStateOf(false) }
     var controlsOpen by remember { mutableStateOf(false) }
     var addonsOpen by remember { mutableStateOf(false) }
+    var modulesOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val pickArt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) message = if (TileSettings.setArt(context, game.id, false, uri)) null else "That picture couldn't be read."
@@ -326,6 +327,12 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     }
                 }
                 if (game.id == "wow") {
+                    SettingCard("Modules") {
+                        Text(com.logie.blizz.wowmodules.modulesSummary(context), style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+                        FrameButton("Search modules", primary = false, modifier = Modifier.fillMaxWidth()) { modulesOpen = true }
+                    }
+                }
+                if (game.id == "wow") {
                     val scope = androidx.compose.runtime.rememberCoroutineScope()
                     SettingCard("Modern character creation") {
                         Text(
@@ -360,4 +367,5 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     if (optionsOpen) GameOptionsDialog(game, onDismiss = { optionsOpen = false })
     if (controlsOpen) ControlsScreen(game, onDismiss = { controlsOpen = false })
     if (addonsOpen) WowAddonManager(game.id, onDismiss = { addonsOpen = false })
+    if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
 }
