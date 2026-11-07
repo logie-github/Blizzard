@@ -54,16 +54,14 @@ object WindowsRuntime {
     /** The game screen, waiting for the launcher to be on screen (Android starts no screens from the background). */
     private var pending: Intent? = null
 
-    fun play(context: Context, entry: LibraryEntry) {
+    /** [size]: the X screen's, when the caller has worked it out already (World of Warcraft, whose Config.wtf must match it). */
+    fun play(context: Context, entry: LibraryEntry, size: Pair<Int, Int>? = null) {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val profile = LaunchProfile.of(entry.controlProfile)
         // The person's launch options ([LaunchOptions]): the game's own screen, or a phone-shaped one at their lines.
         val options = LaunchOptionsStore(app).get(entry.gameId).resolve(entry.gameId, hardware(app))
-        val size = options.lines?.let { lines ->
-            val (w, h) = GameSettings.screenSize(context)
-            Screen.resolutionFor(w, h, lines)
-        } ?: GameSettings.gameSize(context, profile)
+        val size = size ?: gameSize(context, entry.gameId, profile)
         _state.value = State.Preparing(Step.RUNTIME)
         scope.launch {
             try {
@@ -81,6 +79,19 @@ object WindowsRuntime {
                 )
             }
         }
+    }
+
+    /**
+     * The game's screen (Winlator's X screen) for [gameId] on the screen the launcher is on: the screen's own size for the games
+     * that follow its shape, else the game's own. The one place it's worked out: World of Warcraft's Config.wtf (gxResolution)
+     * must be this same size, or the game's window is smaller than the screen and touches land beside it.
+     */
+    fun gameSize(context: Context, gameId: String, profile: LaunchProfile = LaunchProfile.of(gameId)): Pair<Int, Int> {
+        val options = LaunchOptionsStore(context.applicationContext).get(gameId).resolve(gameId)
+        return options.lines?.let { lines ->
+            val (w, h) = GameSettings.screenSize(context)
+            Screen.resolutionFor(w, h, lines)
+        } ?: GameSettings.gameSize(context, profile)
     }
 
     /** The phone as the options see it: an Adreno GPU gets Turnip. */

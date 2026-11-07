@@ -69,14 +69,15 @@ object WowPlay {
             _state.value = State.Failed("The realm isn't available in this build.")
             return
         }
-        val (width, height) = GameSettings.gameSize(context, LaunchProfile.WOW)
+        // The same size as the X screen WindowsRuntime makes for the client (its gxResolution and the screen must agree).
+        val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
         _state.value = State.Preparing("Starting the realm")
         scope.launch {
             try {
                 val environment = Environment(
                     root = File(entry.installPath), realm = control, size = width to height, title = entry.title,
                     start = { control.start(app, it) }, chosenRealm = { control.chosenRealm(app) },
-                    launch = { WindowsRuntime.play(app, it) }, report = { _state.value = it },
+                    launch = { WindowsRuntime.play(app, it, width to height) }, report = { _state.value = it },
                 )
                 val failure = prepare(environment)
                 _state.value = if (failure == null) State.Idle else State.Failed(failure)
