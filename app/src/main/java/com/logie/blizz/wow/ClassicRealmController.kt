@@ -23,7 +23,7 @@ internal interface RealmRun {
 }
 
 /**
- * What differs between the realms this controller runs: OctoWoW's (Tortoise-WoW: `realmd` and `mangosd`) and
+ * What differs between the realms this controller runs: OctoWoW's (`realmd` and `mangosd`) and
  * Legion's (LegionCore: `bnetserver` and `worldserver`). Both are the WoW app's own `ctl.sh` of a MariaDB, a login
  * server and a world server.
  */
@@ -187,7 +187,7 @@ internal class ClassicRealmController(
         val log = File(layout.logs, spec.worldLog)
         val process = launch(log, listOf(spec.worldProgram), keepInput = true)
         world = process
-        // The first start applies Tortoise's database updates (minutes more on a phone).
+        // The first start applies the realm's database updates (minutes more on a phone).
         val deadline = clock() + spec.worldMinutes * 60_000L
         val ready = LineWatch(spec.ready)
         var read = 0L

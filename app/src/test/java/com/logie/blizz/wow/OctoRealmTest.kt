@@ -58,8 +58,8 @@ class OctoRealmTest {
         // The realm's row is set through ctl.sh's sql, with the realm's own build and ports.
         val sql = r.started.first { "tw_logon" in it.args.first() }.command.argv.last()
         assertTrue(sql, sql.contains("blizz") && sql.contains("sql") && sql.contains("tw_logon"))
-        assertEquals("UPDATE realmlist SET name = 'Tortoise WoW', address = '127.0.0.1', port = 8090, realmbuilds = '7272' WHERE id = 1;", r.started.first { "tw_logon" in it.args.first() }.command.env["SQL"])
-        // Leftovers are looked for by Turtle's own pid files; the programs run through the loader of the server.
+        assertEquals("UPDATE realmlist SET name = 'OctoWoW', address = '127.0.0.1', port = 8090, realmbuilds = '7272' WHERE id = 1;", r.started.first { "tw_logon" in it.args.first() }.command.env["SQL"])
+        // Leftovers are looked for by OctoWoW's own pid files; the programs run through the loader of the server.
         assertEquals(1, r.leftoversCalls)
         assertTrue(File(l.server, "ctl.blizz.sh").isFile)
         // The settings the data allows: no vmaps here, a normal game.
@@ -111,7 +111,7 @@ class OctoRealmTest {
         OctoClientSetup.apply(client, 1828, 1248, "ANNA")
         assertEquals("set realmlist 127.0.0.1\r\nset patchlist 127.0.0.1\r\n", File(client, "realmlist.wtf").readText())
         val config = File(client, "WTF/Config.wtf").readText()
-        assertTrue(config, config.contains("SET gxResolution \"1828x1248\"") && config.contains("SET realmName \"Tortoise WoW\"") && config.contains("SET accountName \"ANNA\""))
+        assertTrue(config, config.contains("SET gxResolution \"1828x1248\"") && config.contains("SET realmName \"OctoWoW\"") && config.contains("SET accountName \"ANNA\""))
     }
     private fun legionLayout(patched: Boolean, clientExe: Boolean = true): WowLayout {
         val game = tmp.newFolder("games", "wow_legion")
@@ -179,6 +179,22 @@ class OctoRealmTest {
         val config = File(client, "WTF/Config.wtf").readText()
         assertTrue(config, config.contains("SET portal \"127.0.0.1\"") && config.contains("SET gxWindowedResolution \"1828x1248\"") && config.contains("SET accountName \"anna@example.com\""))
         assertTrue(config, config.contains("SET graphicsQuality \"7\"") && !config.contains("graphicsQuality \"3\""))
+    }
+}
+
+class OctoClientFoldersTest {
+    @get:Rule val tmp = TemporaryFolder()
+
+    @Test fun aCharactersSettingsFolderUnderTheOldRealmNameMovesToTheNewOne() {
+        val client = tmp.newFolder("client")
+        val old = File(client, "WTF/Account/ANNA/Tortoise WoW/Bob").apply { mkdirs() }
+        File(old, "macros-cache.txt").writeText("m")
+        File(client, "WTF/Account/ZED/Tortoise WoW").mkdirs()
+        File(client, "WTF/Account/ZED/OctoWoW").mkdirs()
+        assertEquals(1, OctoClientSetup.renameRealmFolders(client))
+        assertEquals("m", File(client, "WTF/Account/ANNA/OctoWoW/Bob/macros-cache.txt").readText())
+        assertTrue(File(client, "WTF/Account/ZED/Tortoise WoW").isDirectory)
+        assertEquals(0, OctoClientSetup.renameRealmFolders(client))
     }
 }
 

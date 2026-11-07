@@ -6,7 +6,7 @@ import java.nio.file.Files
 
 /**
  * The WoW app's realm programs have their app's folder compiled in as text (`/data/data/com.logie.warcraft/files/turtle/server/modules`,
- * the folder Tortoise's world server reads each module's database updates from; LegionCore's install prefix is the same
+ * the folder OctoWoW's world server reads each module's database updates from; LegionCore's install prefix is the same
  * kind of string). In Blizzard that path is another app's folder, which Android keeps closed, and the world server ended
  * on it ("filesystem error: symlink_status: Permission denied", code 134).
  *

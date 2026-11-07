@@ -4,7 +4,7 @@ import java.io.File
 
 /** The two realms [ClassicRealmController] runs: OctoWoW's, and Legion's (a plain LegionCore 7.3.5 server, nothing of its own on top). */
 internal object RealmSpecs {
-    /** OctoWoW: Tortoise-WoW (1.18.1, build 7272). Its own database on 3311, the login server on 3724, the world on 8090. */
+    /** OctoWoW (1.18.1, build 7272). Its own database on 3311, the login server on 3724, the world on 8090. */
     val OCTO = RealmSpec(
         realm = Realm.OCTO,
         name = "OctoWoW",
@@ -27,7 +27,7 @@ internal object RealmSpecs {
         imported = { it.isOctoImported() },
         noData = "OctoWoW's server data (dbc and maps) isn't in the imported files. Make it in the World of Warcraft app's OctoWoW game files, then export again.",
         realmSql = { address ->
-            "tw_logon" to "UPDATE realmlist SET name = 'Tortoise WoW', address = '$address', port = 8090, realmbuilds = '7272' WHERE id = 1;"
+            "tw_logon" to "UPDATE realmlist SET name = '${com.logie.blizz.game.OctoClientSetup.REALM_NAME}', address = '$address', port = 8090, realmbuilds = '7272' WHERE id = 1;"
         },
         worldSettings = { vmaps, mmaps ->
             mapOf(

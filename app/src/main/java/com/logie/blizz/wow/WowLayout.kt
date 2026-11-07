@@ -35,7 +35,7 @@ class WowLayout(val root: File, val exportDir: File) {
     fun isImported(): Boolean =
         ctl.isFile && File(server, "bin/worldserver").isFile && File(server, "bin/mariadbd").isFile && File(databases, "mysql").isDirectory
 
-    /** OctoWoW's realm is there to start: Tortoise-WoW's programs (mangosd, realmd), its script and its databases. */
+    /** OctoWoW's realm is there to start: its programs (mangosd, realmd), its script and its databases. */
     fun isOctoImported(): Boolean =
         ctl.isFile && File(server, "bin/mangosd").isFile && File(server, "bin/realmd").isFile &&
             File(server, "bin/mariadbd").isFile && File(databases, "mysql").isDirectory
@@ -55,7 +55,7 @@ class WowLayout(val root: File, val exportDir: File) {
     fun realmLogs(realm: Realm) = if (realm == Realm.REMIX) File(logs, "remix") else logs
 
     companion object {
-        /** The imported OctoWoW (`games/wow_octowow`): the export's `turtle` folder is the realm's root. */
+        /** The imported OctoWoW (`games/wow_octowow`): the export's folder for it (still named `turtle` on disk) is the realm's root. */
         fun octo(context: Context): WowLayout {
             val game = File(context.applicationContext.filesDir, "games/wow_octowow")
             return WowLayout(File(game, "files/turtle"), File(game, ".export"))
@@ -85,7 +85,7 @@ enum class Realm(
 ) {
     CHROMIE("main", 1, "ChromieCraft", 8085, "acore_characters"),
     REMIX("remix", 2, "Wrath Remix", 8086, "acore_characters_remix"),
-    /** OctoWoW's realm (Tortoise-WoW, its own database on 3311 and world port 8090); the login port 3724 is shared, so one realm runs at a time. */
+    /** OctoWoW's realm (its own database on 3311 and world port 8090); the login port 3724 is shared, so one realm runs at a time. */
     OCTO("octo", 3, "OctoWoW", 8090, "tw_char"),
     /** Legion's realm (LegionCore 7.3.5: its own database on 3312, Battle.net on 1119, the world on 8095); no port shared with the others. */
     LEGION("legion", 4, "Legion", 8095, "characters");

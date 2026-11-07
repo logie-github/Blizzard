@@ -107,7 +107,7 @@ object WowPlay {
         val realm: RealmControl,
         val size: Pair<Int, Int>,
         val title: String = "World of Warcraft",
-        /** OctoWoW (the 1.18.1 client and Tortoise's realm) in place of the 3.3.5a game. */
+        /** OctoWoW (the 1.18.1 client and its realm) in place of the 3.3.5a game. */
         val octo: Boolean = false,
         /** Legion (the 7.3.5 client and LegionCore's realm). */
         val legion: Boolean = false,
