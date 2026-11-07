@@ -264,40 +264,67 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         val got = HashMap<String, Pair<String, Long>>()
         var checksumsText: String? = null
         var manifestText: String? = null
+        // One entry of the zip, whichever way it is read.
+        fun consume(name: String, zip: java.io.InputStream) {
+            when {
+                name == WowExport.CHECKSUMS -> checksumsText = zip.readBytes().toString(Charsets.UTF_8)
+                name == WowExport.MANIFEST -> manifestText = zip.readBytes().toString(Charsets.UTF_8)
+                // The mode, first in a zip the World of Warcraft app makes per mode: checked before the gigabytes are copied.
+                name == MODE_ENTRY -> checkMode(zip.readBytes().toString(Charsets.UTF_8).trim().ifEmpty { null })
+                name.startsWith("prefs/") -> {
+                    WowExport.safePath(name)
+                    val target = File(keep, name)
+                    target.parentFile?.mkdirs()
+                    target.writeBytes(zip.readBytes())
+                }
+                name.startsWith("files/") -> {
+                    // A zip without its mode first is a zip of everything (Wrath+'s): refused at once for another mode.
+                    if (got.isEmpty() && !modeChecked && mode != WowMode.WRATH_PLUS) checkMode(null)
+                    val path = name.removePrefix("files/")
+                    WowExport.safePath(path)
+                    val label = "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})"
+                    env.progress(Progress(Stage.EXTRACTING, label, read, total))
+                    val target = File(files, path)
+                    target.parentFile?.mkdirs()
+                    val (sha, bytes) = target.outputStream().buffered(1 shl 20).use { o ->
+                        // A game archive is gigabytes: the progress moves inside it too (the screen takes it a few times a second).
+                        WowExport.copyHashed(zip, o, env.cancel) { n -> read += n; env.progress(Progress(Stage.EXTRACTING, label, read, total)) }
+                    }
+                    got[path] = sha to bytes
+                }
+                else -> {}
+            }
+        }
         try {
-            org.apache.commons.compress.archivers.zip.ZipArchiveInputStream(source.open().buffered(1 shl 20), "UTF-8", true, true).use { zip ->
-                while (true) {
-                    env.cancel.check()
-                    val entry = zip.nextEntry ?: break
-                    if (entry.isDirectory) continue
-                    val name = entry.name
-                    when {
-                        name == WowExport.CHECKSUMS -> checksumsText = zip.readBytes().toString(Charsets.UTF_8)
-                        name == WowExport.MANIFEST -> manifestText = zip.readBytes().toString(Charsets.UTF_8)
-                        // The mode, first in a zip the World of Warcraft app makes per mode: checked before the gigabytes are copied.
-                        name == MODE_ENTRY -> checkMode(zip.readBytes().toString(Charsets.UTF_8).trim().ifEmpty { null })
-                        name.startsWith("prefs/") -> {
-                            WowExport.safePath(name)
-                            val target = File(keep, name)
-                            target.parentFile?.mkdirs()
-                            target.writeBytes(zip.readBytes())
+            // With a seekable file the zip's directory is read and each entry is inflated through a 1 MB buffer: the
+            // streaming reader feeds its inflater 512 bytes at a time, which made gigabytes take minutes longer.
+            val channel = source.channel()
+            if (channel != null) {
+                org.apache.commons.compress.archivers.zip.ZipFile.builder().setSeekableByteChannel(channel).get().use { zip ->
+                    zip.getEntry(MODE_ENTRY)?.let { consume(MODE_ENTRY, zip.getInputStream(it)) }
+                    for (entry in zip.entriesInPhysicalOrder) {
+                        env.cancel.check()
+                        if (entry.isDirectory || entry.name == MODE_ENTRY) continue
+                        val raw = zip.getRawInputStream(entry)
+                        if (entry.method == java.util.zip.ZipEntry.DEFLATED) {
+                            val inflater = java.util.zip.Inflater(true)
+                            try {
+                                // The dummy byte after the data is what a raw (nowrap) inflater is given by the JDK's own readers.
+                                val input = java.io.SequenceInputStream(raw, java.io.ByteArrayInputStream(byteArrayOf(0)))
+                                consume(entry.name, java.util.zip.InflaterInputStream(input, inflater, 1 shl 20))
+                            } finally { inflater.end() }
+                        } else {
+                            consume(entry.name, zip.getInputStream(entry))
                         }
-                        name.startsWith("files/") -> {
-                            // A zip without its mode first is a zip of everything (Wrath+'s): refused at once for another mode.
-                            if (got.isEmpty() && !modeChecked && mode != WowMode.WRATH_PLUS) checkMode(null)
-                            val path = name.removePrefix("files/")
-                            WowExport.safePath(path)
-                            env.progress(Progress(Stage.EXTRACTING, "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})", read, total))
-                            val target = File(files, path)
-                            target.parentFile?.mkdirs()
-                            val label = "Copying ${path.substringAfterLast('/')} (${path.substringBefore('/')})"
-                            val (sha, bytes) = target.outputStream().buffered(1 shl 20).use { o ->
-                                // A game archive is gigabytes: the progress moves inside it too (the screen takes it a few times a second).
-                                WowExport.copyHashed(zip, o, env.cancel) { n -> read += n; env.progress(Progress(Stage.EXTRACTING, label, read, total)) }
-                            }
-                            got[path] = sha to bytes
-                        }
-                        else -> {}
+                    }
+                }
+            } else {
+                org.apache.commons.compress.archivers.zip.ZipArchiveInputStream(source.open().buffered(1 shl 20), "UTF-8", true, true).use { zip ->
+                    while (true) {
+                        env.cancel.check()
+                        val entry = zip.nextEntry ?: break
+                        if (entry.isDirectory) continue
+                        consume(entry.name, zip)
                     }
                 }
             }

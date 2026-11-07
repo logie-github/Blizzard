@@ -19,6 +19,8 @@ interface SourceNode {
     val display: String
     fun children(): List<SourceNode>
     fun open(): InputStream
+    /** The file as a seekable channel (a zip's directory is read from its end), or null when this isn't one (a folder, a pipe). */
+    fun channel(): java.nio.channels.SeekableByteChannel? = null
     /** A file on this phone that can be handed to a program (innoextract), when it already is one. */
     fun localFile(): File? = null
 
@@ -47,6 +49,8 @@ class FileNode(val file: File) : SourceNode {
     override val display: String get() = file.path
     override fun children(): List<SourceNode> = file.listFiles()?.sortedBy { it.name }?.map { FileNode(it) } ?: emptyList()
     override fun open(): InputStream = file.inputStream()
+    override fun channel(): java.nio.channels.SeekableByteChannel? =
+        if (file.isFile) runCatching { java.nio.channels.FileChannel.open(file.toPath(), java.nio.file.StandardOpenOption.READ) }.getOrNull() else null
     override fun localFile(): File = file
     override fun delete(): Boolean = file.deleteTree()
 }
@@ -86,6 +90,26 @@ class DocumentNode(
 
     override fun open(): InputStream = resolver.openInputStream(uri)
         ?: throw ImportException(Problem.PERMISSION_DENIED, "$name can't be opened: pick it again so the app may read it.")
+
+    override fun channel(): java.nio.channels.SeekableByteChannel? {
+        if (isDirectory) return null
+        val pfd = runCatching { resolver.openFileDescriptor(uri, "r") }.getOrNull() ?: return null
+        val stream = java.io.FileInputStream(pfd.fileDescriptor)
+        val ch = stream.channel
+        // A provider that hands over a pipe can't seek: the streaming reader is used then.
+        val seekable = runCatching { ch.position(0); ch.size() > 0 }.getOrDefault(false)
+        if (!seekable) { runCatching { stream.close() }; runCatching { pfd.close() }; return null }
+        return object : java.nio.channels.SeekableByteChannel {
+            override fun read(dst: java.nio.ByteBuffer) = ch.read(dst)
+            override fun write(src: java.nio.ByteBuffer): Int = throw java.nio.channels.NonWritableChannelException()
+            override fun position() = ch.position()
+            override fun position(newPosition: Long) = apply { ch.position(newPosition) }
+            override fun size() = ch.size()
+            override fun truncate(size: Long): java.nio.channels.SeekableByteChannel = throw java.nio.channels.NonWritableChannelException()
+            override fun isOpen() = ch.isOpen
+            override fun close() { runCatching { stream.close() }; runCatching { pfd.close() } }
+        }
+    }
 
     override fun delete(): Boolean = runCatching { DocumentsContract.deleteDocument(resolver, uri) }.getOrDefault(false)
 

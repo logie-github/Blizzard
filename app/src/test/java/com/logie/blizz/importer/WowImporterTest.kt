@@ -250,6 +250,20 @@ class WowImporterTest {
         assertTrue(!File(paths.staging, "wow-work").exists())
     }
 
+    /** A file the provider hands over as a pipe: no seeking, so the streaming reader is used. */
+    private class PipeNode(private val file: File) : SourceNode by FileNode(file) {
+        override fun channel(): java.nio.channels.SeekableByteChannel? = null
+    }
+
+    @Test fun aZipFromASourceThatCannotSeekIsReadByStreamingToo() {
+        paths = GamePaths(tmp.newFolder())
+        val zip = zipOf(export())
+        val result = ImportPipeline(ImportStateRepository(paths), Library(paths)).run(WowImporter(), env(), mapOf("install" to Supplied.Picked("install", PipeNode(zip))))
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("print('hi')", File(paths.game("wow"), "files/addons/Questie/Questie.lua").readText())
+        assertEquals(5000, File(paths.game("wow"), "files/client/Data/common.MPQ").length())
+    }
+
     @Test fun aZipThatWasCutOffIsRefusedAndNothingIsLeftHalfMade() {
         val zip = zipOf(export())
         val bytes = zip.readBytes()
