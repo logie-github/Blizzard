@@ -38,7 +38,7 @@ import kotlin.coroutines.resume
 object WindowsRuntime {
     sealed interface State {
         data object Idle : State
-        data class Preparing(val step: Step, val progress: Float? = null) : State
+        data class Preparing(val step: Step, val progress: Float? = null, val gameId: String? = null) : State
         data class Failed(val message: String) : State
     }
 
@@ -62,7 +62,7 @@ object WindowsRuntime {
         // The person's launch options ([LaunchOptions]): the game's own screen, or a phone-shaped one at their lines.
         val options = LaunchOptionsStore(app).get(entry.gameId).resolve(entry.gameId, hardware(app))
         val size = size ?: gameSize(context, entry.gameId, profile)
-        _state.value = State.Preparing(Step.RUNTIME)
+        _state.value = State.Preparing(Step.RUNTIME, gameId = WowPlay.splashIdOf(entry))
         scope.launch {
             try {
                 run(app, entry, profile, size, options)
@@ -113,14 +113,14 @@ object WindowsRuntime {
         val program = File(folder, entry.executable)
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
 
-        _state.value = State.Preparing(Step.RUNTIME, 0f)
+        _state.value = State.Preparing(Step.RUNTIME, 0f, WowPlay.splashIdOf(entry))
         val installed = withContext(Dispatchers.IO) {
-            RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f) }
+            RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
         if (!installed) throw IllegalStateException(context.getString(R.string.game_error_runtime))
         withContext(Dispatchers.IO) { keepOffline(context) }
 
-        _state.value = State.Preparing(Step.WINDOWS)
+        _state.value = State.Preparing(Step.WINDOWS, gameId = WowPlay.splashIdOf(entry))
         val (width, height) = size
         val container = container(context, width, height, options)
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
@@ -144,7 +144,7 @@ object WindowsRuntime {
         android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
             .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,loaddll").apply()
 
-        _state.value = State.Preparing(Step.STARTING)
+        _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
@@ -157,6 +157,8 @@ object WindowsRuntime {
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
+            // The loading screen of the version played (Wrath+, Legion, OctoWoW share one client entry).
+            .putExtra(GestureView.EXTRA_SPLASH, WowPlay.splashIdOf(entry))
             .putExtra(GestureView.EXTRA_PROFILE, profile.id)
             .apply {
                 // World of Warcraft: the account the other app logged in with by itself, typed at the login screen.

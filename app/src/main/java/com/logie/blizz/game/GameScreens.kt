@@ -114,13 +114,14 @@ private fun fullScreenDialog(activity: Activity, dim: Boolean, content: @Composa
  * (patches/winlator/0004).
  */
 class GameLoading(private val activity: Activity) {
-    private val gameId = activity.intent?.getStringExtra(GestureView.EXTRA_GAME)
+    private val gameId = activity.intent?.getStringExtra(GestureView.EXTRA_SPLASH) ?: activity.intent?.getStringExtra(GestureView.EXTRA_GAME)
     private var dialog: ComponentDialog? = null
     private val text = mutableStateOf("")
 
     @Synchronized
     fun show(textResId: Int) {
-        text.value = activity.getString(textResId)
+        // A line of the loading lines, in place of the step's name.
+        text.value = LoadingLines.next(text.value.takeIf { it.isNotEmpty() })
         if (dialog?.isShowing == true) return
         val created = dialog ?: fullScreenDialog(activity, dim = false) { Loading(gameId, text.value) }.also {
             it.setCancelable(false)

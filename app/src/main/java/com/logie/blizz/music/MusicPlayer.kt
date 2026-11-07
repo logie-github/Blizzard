@@ -21,6 +21,7 @@ object MusicPlayer {
     private var player: MediaPlayer? = null
     private var playingKey: String? = null
     private var wanted: String = MusicCatalog.LAUNCHER
+    private var wantedGame: String? = null
     private var foreground = false
     private var appContext: Context? = null
 
@@ -50,9 +51,10 @@ object MusicPlayer {
     }
 
     /** What should play now (see [MusicCatalog.keyFor]). */
-    fun select(context: Context, key: String) {
+    fun select(context: Context, key: String, gameId: String? = null) {
         appContext = context.applicationContext
         wanted = key
+        wantedGame = gameId
         sync()
     }
 
@@ -70,12 +72,15 @@ object MusicPlayer {
 
     private fun sync() {
         val context = appContext ?: return
-        val file = File(File(context.filesDir, "music"), "$wanted.mp3")
-        if (!foreground || !_enabled.value || !MusicStore(file.parentFile!!).has(wanted)) {
+        // The person's own song for this version of the game, else the downloaded track.
+        val custom = wantedGame?.let { MusicCustom.file(context, it) }
+        val file = custom ?: File(File(context.filesDir, "music"), "$wanted.mp3")
+        val id = if (custom != null) "custom:$wantedGame:${custom.lastModified()}" else wanted
+        if (!foreground || !_enabled.value || (custom == null && !MusicStore(file.parentFile!!).has(wanted))) {
             release()
             return
         }
-        if (playingKey == wanted && player != null) return
+        if (playingKey == id && player != null) return
         release()
         runCatching {
             val p = MediaPlayer()
@@ -86,7 +91,7 @@ object MusicPlayer {
             p.prepare()
             p.start()
             player = p
-            playingKey = wanted
+            playingKey = id
             fadeIn(p)
         }.onFailure { release() }
     }

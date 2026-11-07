@@ -159,7 +159,9 @@ fun Launcher(fold: Fold? = rememberFold()) {
     // The launch test no longer runs by itself (the user: "turn off the launch test"); the settings' button starts it.
     // A test the app died in is still reported at start.
     LaunchedEffect(Unit) { com.logie.blizz.selftest.SelfTest.reportInterruptedOnly(context) }
-    LaunchedEffect(musicKey) { com.logie.blizz.music.MusicPlayer.select(context, musicKey) }
+    val musicGame = open?.let { Variants.effective(it, chosenVersions).id }
+    val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
+    LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
     LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
@@ -638,12 +640,15 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
 
 // Imported games
 
-/** The picture of [game]'s box: the person's own for this mode (set in its long-press dialog or the tile layout's Change art), else the built-in cover. */
+/** The picture of [game]'s box (the version its page shows): see [boxArtOf]. */
 @Composable
-internal fun boxArt(game: Game): androidx.compose.ui.graphics.painter.Painter {
+internal fun boxArt(game: Game): androidx.compose.ui.graphics.painter.Painter = boxArtOf(effectiveGame(game))
+
+/** The picture of this exact [shown] version's box: the person's own for it (set in its settings, its long-press dialog or the tile layout's Change art), else the built-in cover. */
+@Composable
+internal fun boxArtOf(shown: Game): androidx.compose.ui.graphics.painter.Painter {
     val context = LocalContext.current
     val state by TileSettings.state.collectAsState()
-    val shown = effectiveGame(game)
     val custom = remember(shown.id, state.artVersion) {
         TileSettings.artFile(context, shown.id, false)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
     }
@@ -708,10 +713,8 @@ private fun RuntimeOverlay() {
     val wow by com.logie.blizz.game.WowPlay.state.collectAsState()
     when (val w = wow) {
         is com.logie.blizz.game.WowPlay.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(Modifier.fillMaxSize().background(Colors.Abyss.copy(alpha = 0.92f)).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
-                Spinner(44.dp)
-                Text(rememberLoadingLine(), style = MaterialTheme.typography.titleMedium, color = Colors.Mist)
-            }
+            // The version's own loading screen (the art and logo chosen for it), a line from the loading lines on it.
+            Box(Modifier.fillMaxSize()) { com.logie.blizz.game.Loading(w.gameId, rememberLoadingLine()) }
         }
         is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -730,11 +733,10 @@ private fun RuntimeOverlay() {
     val state by WindowsRuntime.state.collectAsState()
     when (val s = state) {
         is WindowsRuntime.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(Modifier.fillMaxSize().background(Colors.Abyss.copy(alpha = 0.92f)), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
-                Spinner(44.dp)
-                Text(rememberLoadingLine(), style = MaterialTheme.typography.titleMedium, color = Colors.Mist)
+            Box(Modifier.fillMaxSize()) {
                 // The runtime's install is the one wait with a number to show.
-                if (s.step == WindowsRuntime.Step.RUNTIME) s.progress?.let { Text("${(it * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = Colors.Mist) }
+                val percent = if (s.step == WindowsRuntime.Step.RUNTIME) s.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty() else ""
+                com.logie.blizz.game.Loading(s.gameId, rememberLoadingLine() + percent)
             }
         }
         is WindowsRuntime.State.Failed -> Dialog(onDismissRequest = { WindowsRuntime.dismiss() }) {

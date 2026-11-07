@@ -361,6 +361,8 @@ class GestureView(
     companion object {
         /** The game the launcher started ([com.logie.blizz.Game.id]): the loading screen's and menus' look. */
         const val EXTRA_GAME = "com.logie.blizz.GAME"
+        /** The game whose loading screen shows ([EXTRA_GAME] when absent): the version played of World of Warcraft. */
+        const val EXTRA_SPLASH = "com.logie.blizz.SPLASH"
         /** Its control profile ([LaunchProfile.id]). */
         const val EXTRA_PROFILE = "com.logie.blizz.PROFILE"
 

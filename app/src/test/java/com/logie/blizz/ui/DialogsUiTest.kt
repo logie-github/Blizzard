@@ -3,6 +3,7 @@ package com.logie.blizz.ui
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ApplicationProvider
 import com.logie.blizz.Games
@@ -45,6 +46,24 @@ class DialogsUiTest {
         rule.setContent { BlizzTheme { SplashDialog(Games.find("wow")!!, onDismiss = {}) } }
         settle()
         UiShots.saveAll("splash-editor-fold", rule)
+    }
+
+    @Test fun settingsGamesPage() {
+        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
+        settle()
+        rule.onNodeWithText("Games", ignoreCase = true).performClick()
+        settle(500)
+        rule.onNodeWithText("Legion", ignoreCase = true).assertExists()
+        rule.onNodeWithText("The Frozen Throne", ignoreCase = true).assertExists()
+        UiShots.saveAll("settings-games", rule)
+    }
+
+    @Test fun settingsForOneVersion() {
+        rule.setContent { BlizzTheme { GameSettingsDialog(Games.find("wow_legion")!!, onDismiss = {}) } }
+        settle()
+        rule.onNodeWithText("Choose song", ignoreCase = true).assertExists()
+        rule.onNodeWithText("Choose", ignoreCase = true).assertExists()
+        UiShots.saveAll("settings-version", rule)
     }
 
     @Test fun settingsTilesMode() {

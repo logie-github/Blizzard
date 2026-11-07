@@ -39,7 +39,7 @@ interface RealmControl {
 object WowPlay {
     sealed interface State {
         data object Idle : State
-        data class Preparing(val message: String, val progress: Float? = null) : State
+        data class Preparing(val message: String, val progress: Float? = null, val gameId: String? = null) : State
         data class Failed(val message: String) : State
     }
 
@@ -78,7 +78,7 @@ object WowPlay {
         }
         // The same size as the X screen WindowsRuntime makes for the client (its gxResolution and the screen must agree).
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
-        _state.value = State.Preparing("Starting the realm")
+        _state.value = State.Preparing("Starting the realm", gameId = splashIdOf(entry))
         scope.launch {
             try {
                 val environment = Environment(
@@ -87,7 +87,8 @@ object WowPlay {
                     chosenRealm = { when (entry.gameId) { OCTO_ID -> "octo"; LEGION_ID -> "legion"; else -> control.chosenRealm(app) } },
                     octo = entry.gameId == OCTO_ID,
                     legion = entry.gameId == LEGION_ID,
-                    launch = { WindowsRuntime.play(app, it, width to height) }, report = { _state.value = it },
+                    launch = { WindowsRuntime.play(app, it, width to height) },
+                    report = { _state.value = (it as? State.Preparing)?.copy(gameId = splashIdOf(entry)) ?: it },
                 )
                 val failure = prepare(environment)
                 _state.value = if (failure == null) State.Idle else State.Failed(failure)
@@ -210,6 +211,16 @@ object WowPlay {
         env.launch(launchEntry(client, exe, env.title).copy(clientVersion = OctoClientSetup.VERSION))
         return null
     }
+
+    /**
+     * The id whose loading screen, art and music a start shows: the version played. World of Warcraft's three clients are
+     * one library entry ("wow-client", for the controls), told apart by their version.
+     */
+    fun splashIdOf(entry: LibraryEntry): String = if (entry.gameId == GAME_ID) when (entry.clientVersion) {
+        OctoClientSetup.VERSION -> OCTO_ID
+        LegionClientSetup.VERSION -> LEGION_ID
+        else -> "wow"
+    } else when (entry.gameId) { OCTO_ID, LEGION_ID -> entry.gameId; else -> entry.gameId }
 
     /** The entry [WindowsRuntime.play] starts: the client as its own game ("wow-client"), with the `wow` controls. */
     fun launchEntry(client: File, executable: String = WowClientSetup.EXE, title: String = "World of Warcraft") = LibraryEntry(
