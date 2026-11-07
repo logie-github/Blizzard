@@ -1,6 +1,9 @@
 package com.logie.blizz.wowclient
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
 import com.logie.blizz.reports.BugReports
 import java.io.File
 
@@ -62,14 +65,36 @@ object ClientFilesDump {
     }
 
     /** Sends [pieces] as reports, one each (the interface's text goes in the report's files section, cut at what an issue holds). */
-    fun send(context: Context, pieces: List<Piece>) {
+    fun send(context: Context, pieces: List<Piece>): Int {
+        var queued = 0
         for (piece in pieces) {
-            BugReports.report(
+            if (BugReports.report(
                 context, "Client file ${piece.name}", "The 3.3.5 client's character creation (${piece.text.length} characters)",
                 details = listOf("Part" to piece.name),
                 files = piece.text,
-            )
+            )) queued++
         }
+        announce(context, pieces.size, queued)
+        return queued
+    }
+
+    /**
+     * A pop-up (a toast, which shows over the game too) once the files have reached GitHub, or what is holding them: they are sent
+     * a few seconds apart, so it waits for the queue to empty, up to a minute and a half.
+     */
+    private fun announce(context: Context, total: Int, queued: Int) {
+        val app = context.applicationContext
+        fun say(text: String) = Handler(Looper.getMainLooper()).post { Toast.makeText(app, text, Toast.LENGTH_LONG).show() }
+        if (queued == 0) { say("Your client's character-creation files were already sent (within the last day)."); return }
+        if (!BugReports.configured(app)) { say("This build can't send the character-creation files (no report token)."); return }
+        Thread {
+            val deadline = System.currentTimeMillis() + 90_000
+            while (BugReports.waiting(app) > 0 && System.currentTimeMillis() < deadline) Thread.sleep(1000)
+            say(
+                if (BugReports.waiting(app) == 0) "Got it: your client's character-creation files ($total parts) reached GitHub."
+                else "The character-creation files are waiting to be sent (is the phone online?). They go by themselves.",
+            )
+        }.apply { isDaemon = true }.start()
     }
 
     /** Sent the first time only. */
