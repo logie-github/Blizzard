@@ -175,7 +175,16 @@ object GameImportManager {
                 val result = ImportPipeline(repo, library).run(factory(), env, supplied, repair)
                 state = when (result) {
                     is ImportPipeline.Result.Waiting -> state.copy(record = result.record, missing = result.missing, autoSources = result.autoSources)
-                    is ImportPipeline.Result.Done -> state.copy(record = result.record, validation = result.validation, entry = result.entry, missing = emptyList())
+                    is ImportPipeline.Result.Done -> {
+                        // The game is in and checked: what was picked for it goes (unless switched off), and what could not go is said.
+                        var record = result.record
+                        if (com.logie.blizz.game.GameSettings.deleteSources(app)) {
+                            val outcome = SourceCleanup.run(supplied, app.filesDir)
+                            if (outcome.deleted.isNotEmpty()) File(paths(app).state, "export-source-$gameId.txt").delete()
+                            outcome.summary?.let { note -> record = repo.update(gameId) { it.copy(detail = note) } }
+                        }
+                        state.copy(record = record, validation = result.validation, entry = result.entry, missing = emptyList())
+                    }
                     is ImportPipeline.Result.Failed -> {
                         reportFailure(app, gameId, repair, result)
                         var record = result.record

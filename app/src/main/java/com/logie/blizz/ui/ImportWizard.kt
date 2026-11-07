@@ -113,7 +113,7 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
     var confirmDeleteExport by remember { mutableStateOf(false) }
     // The export an import read from, offered for deletion once the copy is verified and in place.
     val exportToDelete = remember(state.record.stage, state.running, confirmDeleteExport) { GameImportManager.exportSource(context, game.id) }
-    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val pickFile = rememberLauncherForActivityResult(OpenDocumentWithWrite()) { uri ->
         val id = pickingFor
         pickingFor = null
         if (uri != null && id != null) GameImportManager.supply(context, game.id, id, uri, tree = false)
@@ -349,3 +349,14 @@ private fun CdKeys(gameId: String) {
     field(expansion, "Lord of Destruction key (26 characters)") { expansion = it; GameImportManager.setKeys(gameId, classic.takeIf { k -> k.length == 16 || k.length == 26 }, expansion.takeIf { k -> k.length == 26 }, null) }
 }
 
+/**
+ * The file picker, asking for write access too (and to keep it): the file picked for an import is deleted once the game is in
+ * ([com.logie.blizz.importer.SourceCleanup]), which a document picked with read access alone can't be.
+ */
+class OpenDocumentWithWrite : ActivityResultContracts.OpenDocument() {
+    override fun createIntent(context: android.content.Context, input: Array<String>): android.content.Intent =
+        super.createIntent(context, input).addFlags(
+            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+        )
+}

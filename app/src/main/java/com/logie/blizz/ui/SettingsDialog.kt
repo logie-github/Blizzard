@@ -196,6 +196,12 @@ private fun LauncherPage(onDismiss: () -> Unit) {
         if (download !is MusicDownloads.State.Running && have < total) FrameButton("Download music", primary = false, modifier = Modifier.fillMaxWidth()) { MusicDownloads.start(context) }
     }
 
+    SettingCard("Imports") {
+        var deleteSources by remember { mutableStateOf(GameSettings.deleteSources(context)) }
+        ToggleRow("Delete the files I picked after a successful import", deleteSources) { deleteSources = it; GameSettings.setDeleteSources(context, it) }
+        Text("Only files, never a folder, and never your console keys.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+    }
+
     SettingCard("Maintenance") {
         FrameButton("Run the launch test", primary = false, modifier = Modifier.fillMaxWidth()) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
         if (confirmReset) {

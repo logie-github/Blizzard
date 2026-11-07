@@ -16,6 +16,13 @@ object GameSettings {
         prefs(context).edit().putBoolean("vibration", on).apply()
     }
 
+    /** A successful import deletes the files that were picked for it ([com.logie.blizz.importer.SourceCleanup]); on unless switched off. */
+    fun deleteSources(context: Context): Boolean = prefs(context).getBoolean("delete_sources", true)
+
+    fun setDeleteSources(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("delete_sources", on).apply()
+    }
+
     /** The screen the launcher is on (a Fold's inside or outside), in pixels. */
     fun screenSize(context: Context): Pair<Int, Int> =
         if (context is Activity && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
