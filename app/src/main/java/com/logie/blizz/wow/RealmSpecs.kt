@@ -78,6 +78,8 @@ internal object RealmSpecs {
         },
         // The Battle.net server tells the client where its REST login is.
         otherConfs = { address -> mapOf("bnetserver.conf" to mapOf("LoginREST.ExternalAddress" to address, "LoginREST.LocalAddress" to "127.0.0.1")) },
+        // Legion's ctl.sh sets no PidFile for these two (ChromieCraft's and OctoWoW's do): without one an orphaned server is never found, and the next start says its ports are taken.
+        pidConfs = mapOf("bnetserver.conf" to "bnetserver.pid", "worldserver.conf" to "worldserver.pid"),
         extra = listOf("Patching the game for this realm" to { layout -> patchClientArgs(layout) }),
     )
 

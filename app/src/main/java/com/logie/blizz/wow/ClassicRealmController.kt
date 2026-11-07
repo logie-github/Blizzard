@@ -52,6 +52,8 @@ internal class RealmSpec(
     val worldSettings: (vmaps: Boolean, mmaps: Boolean) -> Map<String, String>,
     /** Settings for other confs, by file name (relative to etc/), written after `configure`. */
     val otherConfs: (address: String) -> Map<String, Map<String, String>> = { emptyMap() },
+    /** Programs whose own `ctl.sh` never writes a pid file: conf file (in etc/) to the pid file's name, set here so a program left running by an ended app is found and stopped. */
+    val pidConfs: Map<String, String> = emptyMap(),
     /** A step to run once after configure when [needsStep] says so (Legion's client patch). */
     val extra: List<Pair<String, (WowLayout) -> List<String>?>> = emptyList(),
 )
@@ -165,6 +167,7 @@ internal class ClassicRealmController(
         for ((key, value) in spec.worldSettings(vmaps, mmaps)) setConf(world, key, value)
         val address = lanAddress() ?: "127.0.0.1"
         for ((file, settings) in spec.otherConfs(address)) for ((key, value) in settings) setConf(File(layout.etc, file), key, value)
+        for ((file, pid) in spec.pidConfs) setConf(File(layout.etc, file), "PidFile", "\"${File(layout.run, pid).path}\"")
     }
 
     /** The realm's row in the login database: the client connects to 127.0.0.1 (or the Wi-Fi address). */

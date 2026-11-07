@@ -151,6 +151,9 @@ class OctoRealmTest {
         assertTrue(sql.command.env.getValue("SQL").contains("gamebuild = 26972") && sql.command.env.getValue("SQL").contains("port = 8095"))
         // The REST login is told this phone's address; a normal game; no Warden; no maps parts here (no vmaps or mmaps).
         assertTrue(File(l.etc, "bnetserver.conf").readText().contains("LoginREST.ExternalAddress = 127.0.0.1"))
+        // Their pid files are named in the confs, where the leftovers' search looks.
+        assertTrue(File(l.etc, "bnetserver.conf").readText().contains("PidFile = \"${File(l.run, "bnetserver.pid").path}\""))
+        assertTrue(File(l.etc, "worldserver.conf").readText().contains("PidFile = \"${File(l.run, "worldserver.pid").path}\""))
         val world = File(l.etc, "worldserver.conf").readText()
         assertTrue(world, world.contains("GameType = 0") && world.contains("Warden.Enabled = 0") && world.contains("mmap.enablePathFinding = 0"))
         c.shutDown()
