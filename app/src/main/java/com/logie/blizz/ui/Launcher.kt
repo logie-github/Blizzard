@@ -167,7 +167,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
         // Diablo, Diablo II, StarCraft and StarCraft II: imported into the app and played on its Winlator.
         if (GameImportManager.importable(game.id)) {
             val entry = GameImportManager.library(context).get(game.id)
-            if (entry != null && entry.runtime == com.logie.blizz.importer.LibraryEntry.RUNTIME_EXTERNAL && java.io.File(entry.installPath, entry.executable).isFile) {
+            if (entry != null && (entry.runtime == com.logie.blizz.importer.LibraryEntry.RUNTIME_EXTERNAL || game.id in WOW_MODES) && java.io.File(entry.installPath, entry.executable).isFile) {
                 // World of Warcraft: the realm and the client, from the imported files (the WoW app isn't needed).
                 com.logie.blizz.game.WowPlay.play(context, entry)
             } else if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) {
@@ -638,6 +638,9 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
 
 // Imported games
 
+/** The World of Warcraft modes: each plays through [com.logie.blizz.game.WowPlay], whatever runtime an earlier import recorded (Legion's and OctoWoW's said "not ported"). */
+private val WOW_MODES = setOf("wow", "wow_legion", "wow_octowow")
+
 /** Play, or Auto Import for an importable game that isn't in the app yet. */
 @Composable
 private fun PlayButton(shown: Game, modifier: Modifier, onPlay: () -> Unit) {
@@ -662,17 +665,15 @@ private fun ImportStatus(shown: Game) {
     val states by GameImportManager.states.collectAsState()
     val state = states[game.id] ?: return
     val open = LocalOpenWizard.current
-    val text = when {
-        state.running -> state.progress?.label ?: "Importing…"
-        else -> statusLabel(state.record.stage, state.record.outcome, state.record.launchTest, game.id)
-    }
-    if (text.isEmpty() && state.entry == null) return
+    // Shown while something is happening or has gone wrong; a finished import says nothing under Play.
+    if (!state.running && state.record.stage != Stage.FAILED) return
+    val text = if (state.running) state.progress?.label ?: "Importing…" else statusLabel(state.record.stage, state.record.outcome, state.record.launchTest, game.id)
+    if (text.isEmpty()) return
     Row(
         Modifier.clip(CircleShape).clickable { open(game) }.padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text, style = MaterialTheme.typography.bodySmall.copy(color = if (state.record.stage == Stage.READY) Colors.Ice else Colors.Mist))
-        if (state.entry != null && !state.running) Text("  ·  Repair", style = MaterialTheme.typography.bodySmall.copy(color = Colors.Mist))
     }
 }
 
