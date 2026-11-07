@@ -27,9 +27,13 @@ class ClientFilesDumpTest {
             "Interface\\GlueXML\\GlueParent.lua" to "-- glue",
             "Interface\\GlueXML\\CharacterSelect.xml" to "<Ui/>",
             "Interface\\GlueXML\\Other.lua" to "-- other")
-        archive(File(data, "patch-3.MPQ"), "Interface\\GlueXML\\CharacterCreate.xml" to "<Ui>patched</Ui>")
+        archive(File(data, "patch-3.MPQ"), "Interface\\GlueXML\\CharacterCreate.xml" to "<Ui><Script file=\"CharacterCreate.lua\"/><Include file=\"Extra.xml\"/></Ui>",
+            "Interface\\GlueXML\\Extra.xml" to "<Ui><Script file=\"Extra.lua\"/></Ui>", "Interface\\GlueXML\\Extra.lua" to "-- extra")
         val pieces = ClientFilesDump.collect(data).associate { it.name to it.text }
-        assertEquals("<Ui>patched</Ui>", pieces["CharacterCreate.xml"])
+        assertTrue(pieces["CharacterCreate.xml"]!!.contains("<Script file=\"CharacterCreate.lua\"/>"))
+        // The Lua the XML loads, and what its included XML loads in turn.
+        assertEquals("-- old", pieces["CharacterCreate.lua"])
+        assertEquals("-- extra", pieces["Extra.lua"])
         assertTrue(pieces.containsKey("GlueXML.toc") && pieces.containsKey("GlueParent.lua") && pieces.containsKey("CharacterSelect.xml"))
         // Only what the toc names that has to do with the screens; not the other files.
         assertTrue(!pieces.containsKey("Other.lua"))

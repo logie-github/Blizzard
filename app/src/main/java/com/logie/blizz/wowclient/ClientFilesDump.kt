@@ -29,6 +29,18 @@ object ClientFilesDump {
                 val name = "Interface\\GlueXML\\" + line.replace('/', '\\').removePrefix("\\")
                 if (WANTED.containsMatchIn(line)) names += name
             }
+            // What the creation screen's XML loads (its Lua, other XML): the screen's code is in those.
+            val queue = ArrayDeque(names.filter { it.endsWith(".xml", true) && Regex("(?i)charactercreate").containsMatchIn(it) })
+            val scripted = Regex("(?i)<(?:Script|Include)\\s+[^>]*?file\\s*=\\s*\"([^\"]+)\"")
+            while (queue.isNotEmpty()) {
+                val xml = queue.removeFirst()
+                val text = game.read(xml)?.let { String(it, Charsets.UTF_8) } ?: continue
+                for (m in scripted.findAll(text)) {
+                    val file = m.groupValues[1].replace('/', '\\')
+                    val name = if (file.contains('\\')) file else xml.substringBeforeLast('\\') + "\\" + file
+                    if (names.add(name) && name.endsWith(".xml", true)) queue.addLast(name)
+                }
+            }
             val overview = buildString {
                 appendLine("locale: ${game.locale.ifEmpty { "none found" }}")
                 appendLine("archives in the order the game reads them (the last wins):")
@@ -63,9 +75,10 @@ object ClientFilesDump {
     /** Sent the first time only. */
     fun sendOnce(context: Context, client: File) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (prefs.getBoolean("sent", false)) return
+        // (2: the files the screen's XML loads were added; a part already sent today isn't sent again)
+        if (prefs.getBoolean("sent2", false)) return
         // Marked first: a start that dies halfway must not send it again and again.
-        prefs.edit().putBoolean("sent", true).apply()
+        prefs.edit().putBoolean("sent2", true).apply()
         runCatching { send(context, collect(File(client, "Data"))) }
     }
 
