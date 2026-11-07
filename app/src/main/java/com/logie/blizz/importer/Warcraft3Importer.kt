@@ -203,8 +203,10 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
                         if (!f.renameTo(target)) f.copyRecursively(target, true)
                     }
                 }
-                // What was there and isn't in the new files (saves, maps) stays.
-                asm.reuse(env.paths.game(gameId).list()?.toList() ?: emptyList()) { true }
+                // What was there and isn't in the new files stays. With new files given, only the player's own folders (saves, maps, replays):
+                // another version's program and archives would mix two installs (1.30 over 1.27 kept the old war3.exe). A repair with none given keeps it all.
+                val current = env.paths.game(gameId).list()?.toList() ?: emptyList()
+                asm.reuse(if (root != null) current.filter { n -> n.lowercase() in setOf("save", "maps", "replay", "replays") } else current) { true }
             }
             File(asm.staging, MARK).delete()
             env.progress(Progress(Stage.VALIDATING, "Checking Warcraft III"))

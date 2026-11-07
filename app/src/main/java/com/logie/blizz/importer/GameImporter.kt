@@ -77,10 +77,20 @@ class Assembler(private val paths: GamePaths, private val gameId: String) {
     val staging: File get() = paths.staging(gameId)
     val game: File get() = paths.game(gameId)
 
+    /** What was moved out of the installation into staging: (where it was, where it is now), so a failed import can put it back. */
+    private val moved = ArrayList<Pair<File, File>>()
+
     fun begin(): File {
         staging.deleteTree()
         staging.mkdirs()
+        moved.clear()
         return staging
+    }
+
+    /** Moves [from] (a file or folder of the current installation) to [to] in staging, copying where a rename can't; [abandon] puts a moved one back. */
+    fun move(from: File, to: File) {
+        to.parentFile?.mkdirs()
+        if (from.renameTo(to)) moved += from to to else from.copyTo(to, overwrite = true)
     }
 
     /** Moves [names] that [good] accepts from the current installation into staging. */
@@ -90,7 +100,7 @@ class Assembler(private val paths: GamePaths, private val gameId: String) {
             val target = File(staging, name)
             if (target.exists() || !good(current)) continue
             target.parentFile?.mkdirs()
-            if (!current.renameTo(target)) current.copyTo(target, overwrite = true)
+            move(current, target)
         }
     }
 
@@ -105,10 +115,21 @@ class Assembler(private val paths: GamePaths, private val gameId: String) {
             throw ImportException(Problem.PERMISSION_DENIED, "The new installation couldn't be put in place.")
         }
         old.deleteTree()
+        moved.clear()
     }
 
-    /** A stopped or failed import: staging goes, the installation stays as it was. */
+    /**
+     * A stopped or failed import: what was moved out of the installation (its files, the player's characters and saves) goes back where
+     * it was, then staging goes. The installation stays as it was.
+     */
     fun abandon() {
+        for ((from, now) in moved.asReversed()) {
+            if (now.exists() && !from.exists()) {
+                from.parentFile?.mkdirs()
+                now.renameTo(from)
+            }
+        }
+        moved.clear()
         staging.deleteTree()
     }
 }
@@ -136,6 +157,8 @@ object GameReset {
         File(paths.state, "import-$gameId.json").delete()
         paths.staging(gameId).deleteTree()
         File(paths.staging, "$gameId-scratch").deleteTree()
+        File(paths.staging, "$gameId-keys").deleteTree()
+        File(paths.state, "export-source-$gameId.txt").delete()
         paths.installer(gameId).deleteTree()
         File(paths.staging, "$gameId-work").deleteTree()
         File(paths.games, ".$gameId.old").deleteTree()

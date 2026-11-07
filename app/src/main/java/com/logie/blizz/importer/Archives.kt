@@ -27,7 +27,7 @@ object SafePaths {
 fun copyStream(input: InputStream, target: File, cancel: CancelToken, onBytes: (Long) -> Unit = {}) {
     target.parentFile?.mkdirs()
     val temp = File(target.parentFile, ".${target.name}.part")
-    temp.outputStream().buffered(1 shl 20).use { out ->
+    temp.outputStream().use { out ->
         val buffer = ByteArray(1 shl 16)
         while (true) {
             cancel.check()

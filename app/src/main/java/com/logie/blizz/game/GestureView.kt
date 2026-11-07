@@ -355,6 +355,9 @@ class GestureView(
         removeCallbacks(minuteReport)
         removeCallbacks(typeNext)
         removeCallbacks(ticker)
+        // (their flags too: left set, a view attached again would never type or tick)
+        typingRuns = false
+        ticking = false
         super.onDetachedFromWindow()
     }
 

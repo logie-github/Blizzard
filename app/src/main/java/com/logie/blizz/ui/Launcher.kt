@@ -162,7 +162,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val musicGame = open?.let { Variants.effective(it, chosenVersions).id }
     val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
-    LaunchedEffect(resumed) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } }
+    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)

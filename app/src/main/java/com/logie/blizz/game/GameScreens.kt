@@ -127,7 +127,9 @@ class GameLoading(private val activity: Activity) {
             it.setCancelable(false)
             dialog = it
         }
-        created.show()
+        // (the activity may be gone: the screen it was for was left while this was starting)
+        if (activity.isFinishing || activity.isDestroyed) return
+        runCatching { created.show() }
     }
 
     fun showOnUiThread(textResId: Int) = activity.runOnUiThread { show(textResId) }

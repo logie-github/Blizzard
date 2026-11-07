@@ -141,7 +141,7 @@ class StarCraftClassicImporter : GameImporter {
                 discArchive(staging, BW_DISC, (supplied["bwdisc"] as? Supplied.Picked)?.source ?: detection.found["bwdisc"], scratch, env)
             }
             File(staging, MARK).delete()
-            keepUserData(env.paths.game(gameId), staging)
+            keepUserData(asm, env.paths.game(gameId), staging)
             env.progress(Progress(Stage.VALIDATING, "Checking StarCraft"))
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "StarCraft's files didn't check out.")
@@ -155,15 +155,14 @@ class StarCraftClassicImporter : GameImporter {
     }
 
     /** The current installation's characters, saved games and replays, moved into the new one; nothing of theirs overwritten. */
-    private fun keepUserData(game: File, staging: File) {
+    private fun keepUserData(asm: Assembler, game: File, staging: File) {
         for (path in USER_DATA) {
             val from = File(game, path)
             if (!from.isDirectory) continue
             from.walkTopDown().filter { it.isFile }.forEach { f ->
                 val target = File(File(staging, path), f.relativeTo(from).path)
                 if (target.exists()) target.delete()
-                target.parentFile?.mkdirs()
-                if (!f.renameTo(target)) f.copyTo(target, true)
+                asm.move(f, target)
             }
         }
     }

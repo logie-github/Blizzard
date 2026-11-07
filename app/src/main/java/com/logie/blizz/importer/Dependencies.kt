@@ -20,6 +20,7 @@ object Dependencies {
         "d3dcompiler_43", "d3dcompiler_47", "msvfw32", "avifil32", "olepro32", "urlmon", "wldap32", "sensapi", "dciman32",
         "dsound", "dplayx", "dpnet", "msi", "riched20", "riched32", "comsupp", "vulkan-1", "x3daudio1_7", "xaudio2_7",
         "xaudio2_8", "xaudio2_9", "imagehlp", "ntdsapi", "credui", "msv1_0", "kernelbase", "sechost", "wer", "dsound",
+        "dwrite", "d2d1", "ncrypt", "mswsock", "cabinet", "pdh", "shfolder", "rasapi32", "wevtapi", "bcryptprimitives", "cryptsp", "sspicli",
     )
 
     private fun isSystem(dll: String): Boolean {

@@ -28,8 +28,27 @@ object StratagusRuntime {
             Toast.makeText(app, "${entry.title} isn't imported: use Repair.", Toast.LENGTH_LONG).show()
             return
         }
-        context.startActivity(StratagusActivity.intent(context, entry.gameId, entry.title, dir.path))
-        watch(app, dir, entry)
+        // Warcraft I and II share one activity and one process: a game left with Home is still alive, and starting the other would only bring it back.
+        // The other one's process is ended first.
+        val others = dir.parentFile?.listFiles()?.filter { it != dir && File(it, "running").isFile }.orEmpty()
+        if (others.isEmpty()) {
+            context.startActivity(StratagusActivity.intent(context, entry.gameId, entry.title, dir.path))
+            watch(app, dir, entry)
+            return
+        }
+        Thread {
+            for (other in others) {
+                val running = File(other, "running")
+                val pid = runCatching { running.readText().trim().toInt() }.getOrNull()
+                if (pid != null && StratagusStops.isGameProcess(pid)) android.os.Process.killProcess(pid)
+                running.delete()
+            }
+            Thread.sleep(800)
+            Handler(Looper.getMainLooper()).post {
+                context.startActivity(StratagusActivity.intent(context, entry.gameId, entry.title, dir.path))
+                watch(app, dir, entry)
+            }
+        }.start()
     }
 
     /** The game runs in a process of its own: when it's gone without being left properly, say so. */

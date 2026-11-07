@@ -82,8 +82,10 @@ object MusicPlayer {
         }
         if (playingKey == id && player != null) return
         release()
+        var created: MediaPlayer? = null
         runCatching {
             val p = MediaPlayer()
+            created = p
             p.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
             p.setDataSource(file.path)
             p.isLooping = true
@@ -93,7 +95,11 @@ object MusicPlayer {
             player = p
             playingKey = id
             fadeIn(p)
-        }.onFailure { release() }
+        }.onFailure {
+            // (a song that won't prepare: its player was never kept, so it is let go here)
+            runCatching { created?.release() }
+            release()
+        }
     }
 
     private fun fadeIn(p: MediaPlayer) {

@@ -65,6 +65,9 @@ class ImportPipeline(private val repo: ImportStateRepository, private val librar
             fail(id, ImportException(problem, if (problem == Problem.INSUFFICIENT_STORAGE) "The phone ran out of space. Free some and retry." else "A file couldn't be read or written (${e.message}).", e.toString(), e), null)
         } catch (e: SecurityException) {
             fail(id, ImportException(Problem.PERMISSION_DENIED, "The app may no longer read that file or folder: pick it again.", e.toString(), e), null)
+        } catch (e: Exception) {
+            // Anything else (a damaged image's sizes, an answer that isn't JSON): a failed import with its reason, not a crash and a record stuck half-way.
+            fail(id, ImportException(Problem.CORRUPT_ARCHIVE, "The import hit an unexpected error (${e.javaClass.simpleName}: ${e.message}).", e.stackTraceToString(), e), null)
         }
     }
 

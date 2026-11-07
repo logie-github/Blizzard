@@ -67,8 +67,10 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
 
     /** Written once the copy is in place: which document the export is, so the app can offer to delete it. */
     private fun rememberExport(env: ImportEnv) {
-        val doc = (deletable as? DocumentNode)?.uri?.toString() ?: return
-        File(env.paths.state, "export-source-$gameId.txt").also { it.parentFile?.mkdirs() }.writeText(doc)
+        val file = File(env.paths.state, "export-source-$gameId.txt")
+        // An import from a local folder has nothing to delete: the last one's document is forgotten, not offered for deletion again.
+        val doc = (deletable as? DocumentNode)?.uri?.toString() ?: run { file.delete(); return }
+        file.also { it.parentFile?.mkdirs() }.writeText(doc)
     }
 
     private fun work(env: ImportEnv) = File(env.paths.staging, "$gameId-work")

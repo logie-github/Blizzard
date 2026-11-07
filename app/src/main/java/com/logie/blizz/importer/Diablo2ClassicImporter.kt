@@ -42,7 +42,7 @@ class Diablo2ClassicImporter : GameImporter {
         val roots = env.searchRoots()
         val install = roots.firstNotNullOfOrNull { root -> findInstall(root, 4) }
         if (install != null) found["install"] = install
-        scan.matching(Regex("diablo.?ii.*\\.zip|d2.*\\.zip")).firstOrNull()?.let { found.putIfAbsent("install", it) }
+        scan.matching(Regex("diablo.?ii(?!.*resurrect).*\\.zip|d2(?!r).*\\.zip")).firstOrNull()?.let { found.putIfAbsent("install", it) }
         return Detection(validateDir(env.paths.game(gameId)).filesOk, found)
     }
 
@@ -201,7 +201,7 @@ class Diablo2ClassicImporter : GameImporter {
         products = listOf("D2DV", "D2XP"),
         clientVersion = validation.clientVersion ?: "",
         installPath = env.paths.game(gameId).path,
-        executable = EXE,
+        executable = FileValidator.find(env.paths.game(gameId), EXE)?.name ?: EXE,
         runtime = LibraryEntry.RUNTIME_WINLATOR,
         arguments = "",
         stage = Stage.READY,

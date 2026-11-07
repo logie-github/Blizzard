@@ -140,7 +140,8 @@ class StarCraftRemasteredImporter : GameImporter {
         checks += Check("Game data (Data)", data != null && data.isDirectory && data.walkTopDown().any { it.isFile }, if (data == null) "missing" else "present")
         if (exe != null && pe != null) {
             val missing = Dependencies.missing(exe)
-            checks += Check("Game libraries", missing.isEmpty(), if (missing.isEmpty()) "present" else "missing ${missing.joinToString()}")
+            // Wine provides many libraries a 2023 Direct3D 11 program imports, more than Dependencies lists: said, never refused for (as StarCraft II's).
+            checks += Check("Game libraries", true, if (missing.isEmpty()) "present" else "not beside the program (Wine may provide them): ${missing.joinToString()}")
         }
         checks += Check("Executable started under Winlator", false, "not tested")
         checks += Check("Campaign menu accessible", false, "not tested")

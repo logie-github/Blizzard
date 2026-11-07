@@ -191,7 +191,7 @@ abstract class WargusImporter(conversion: ConversionTools?) : GameImporter {
             env.progress(Progress(Stage.VALIDATING, "Checking $what"))
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "$what's converted data didn't check out.")
-            keepUserData(File(env.paths.game(gameId), game.key), File(staging, game.key))
+            keepUserData(asm, File(env.paths.game(gameId), game.key), File(staging, game.key))
             asm.commit()
         } catch (e: Throwable) {
             asm.abandon()
@@ -216,13 +216,12 @@ abstract class WargusImporter(conversion: ConversionTools?) : GameImporter {
     }
 
     /** The preferences and saves of the installed game moved into the new one; nothing of the new one's overwritten. */
-    private fun keepUserData(from: File, to: File) {
+    private fun keepUserData(asm: Assembler, from: File, to: File) {
         if (!from.isDirectory) return
         for (f in from.walkTopDown().filter { it.isFile }) {
             val target = File(to, f.relativeTo(from).path)
             if (target.exists()) continue
-            target.parentFile?.mkdirs()
-            if (!f.renameTo(target)) f.copyTo(target, overwrite = false)
+            asm.move(f, target)
         }
     }
 

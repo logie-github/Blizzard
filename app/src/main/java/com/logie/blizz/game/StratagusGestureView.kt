@@ -129,7 +129,10 @@ class StratagusGestureView(
     }
 
     override fun keyUp(key: String) {
-        StratagusKeys.code(key)?.let { SdlBridge.keyUp(it) }
+        StratagusKeys.code(key)?.let { code ->
+            // A modifier is let go after the click it goes with: the click's mouse-up is sent 40 ms later, and the engine reads Shift and Ctrl then.
+            if (key == "Shift" || key == "Ctrl" || key == "Alt") postDelayed({ SdlBridge.keyUp(code) }, CLICK_MS * 4) else SdlBridge.keyUp(code)
+        }
     }
 
     override fun openKeyboard() = askText(chat = true)

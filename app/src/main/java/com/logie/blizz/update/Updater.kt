@@ -62,7 +62,7 @@ object Updater {
                 _state.value = State.Downloading(update, 0, update.size)
                 val apk = download(app, update) { done, total -> _state.value = State.Downloading(update, done, total) }
                 ready(app, update, apk)
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 com.logie.blizz.reports.BugReports.report(
                     app, "App update download", e.message ?: "IOException",
                     listOf("Update" to update.title, "Size" to update.size.toString()), log = e.stackTraceToString(),
@@ -81,6 +81,8 @@ object Updater {
     /** Back from Android's "install unknown apps" setting: on to the installer if it's allowed now. */
     fun retryInstall(context: Context) {
         val s = _state.value as? State.Ready ?: return
+        // Only the return from the "install unknown apps" setting starts the installer again: after a cancel it would otherwise pop up at every resume.
+        if (!s.needsPermission) return
         ready(context.applicationContext, s.update, s.apk)
     }
 

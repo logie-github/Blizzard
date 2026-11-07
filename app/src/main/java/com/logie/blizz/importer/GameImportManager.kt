@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -117,12 +118,15 @@ object GameImportManager {
     private val keys = HashMap<String, LegacyDownloader.Keys>()
 
     fun paths(context: Context) = GamePaths(context.applicationContext.filesDir)
-    fun repo(context: Context) = ImportStateRepository(paths(context))
-    fun library(context: Context) = Library(paths(context))
+    // One of each for the whole app: their locks guard the files, and a new one per call guarded nothing.
+    @Volatile private var repoOnce: ImportStateRepository? = null
+    @Volatile private var libraryOnce: Library? = null
+    fun repo(context: Context): ImportStateRepository = repoOnce ?: synchronized(this) { repoOnce ?: ImportStateRepository(paths(context)).also { repoOnce = it } }
+    fun library(context: Context): Library = libraryOnce ?: synchronized(this) { libraryOnce ?: Library(paths(context)).also { libraryOnce = it } }
 
     /** The game's state as stored (an import interrupted by the app closing is shown where it stopped). */
     fun refresh(context: Context, gameId: String) {
-        if (cancels.containsKey(gameId)) return
+        if (synchronized(cancels) { cancels.containsKey(gameId) }) return
         val record = repo(context).load(gameId)
         val before = _states.value[gameId]
         publish(WizardState(gameId, record, entry = library(context).get(gameId), missing = before?.missing ?: emptyList(), installer = before?.installer))
@@ -130,7 +134,8 @@ object GameImportManager {
     }
 
     private fun publish(state: WizardState) {
-        _states.value = _states.value + (state.gameId to state)
+        // (from the import threads and the main thread at once: one atomic step, never read-then-write)
+        _states.update { it + (state.gameId to state) }
     }
 
     fun setKeys(gameId: String, classic: String?, expansion: String?, owner: String?) {

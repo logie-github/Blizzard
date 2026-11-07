@@ -254,7 +254,8 @@ class StarCraft2OfflineImporter : GameImporter {
 
     /** The offline launcher, else the game's own program (relative to its folder). */
     fun launchProgram(dir: File): String {
-        FileValidator.find(dir, LAUNCHER)?.let { return it.name }
+        // (only a launcher that is a Windows program: a junk file of that name would be run in place of the game's own)
+        FileValidator.find(dir, LAUNCHER)?.takeIf { PeInfo.read(it)?.isWindowsX86Family == true }?.let { return it.name }
         for (base in baseFolders(dir)) {
             GAME_EXES.firstNotNullOfOrNull { FileValidator.find(base, it) }?.let { return "Versions/${base.name}/${it.name}" }
         }

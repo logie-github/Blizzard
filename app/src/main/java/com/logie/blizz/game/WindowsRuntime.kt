@@ -70,7 +70,8 @@ object WindowsRuntime {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 _state.value = State.Idle
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // (also an Error: Winlator's native libraries failing to load is an UnsatisfiedLinkError, and Play would stay "preparing" for good)
                 _state.value = State.Failed(app.getString(R.string.game_error, e.message ?: e.javaClass.simpleName))
                 com.logie.blizz.reports.BugReports.report(
                     app, "${entry.title} launch", e.message ?: e.javaClass.simpleName,
@@ -206,8 +207,9 @@ object WindowsRuntime {
 
     /** The games' Windows: made the first time, its screen, drives and launch options set every time. */
     private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved): Container {
-        val manager = ContainerManager(context)
-        val drives = drives(context)
+        // (disk: the manager reads every container's file, the drives make their folders)
+        val manager = withContext(Dispatchers.IO) { ContainerManager(context) }
+        val drives = withContext(Dispatchers.IO) { drives(context) }
         val screenSize = "${width}x$height"
         val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
         if (existing != null) {
@@ -288,7 +290,8 @@ object WindowsRuntime {
             if (!from.isDirectory) continue
             from.walkTopDown().filter { it.isFile }.forEach { f ->
                 val target = File(to, f.relativeTo(from).path)
-                if (!target.exists()) f.copyTo(target)
+                // (the imported copy is consumed as it is placed: a character the player deletes later must not come back at the next start)
+                if (!target.exists()) { f.copyTo(target); f.delete() }
             }
         }
     }

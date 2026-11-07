@@ -70,14 +70,15 @@ object BugReports {
     fun report(context: Context, what: String, message: String, details: List<Pair<String, String?>> = emptyList(), log: String? = null, files: String? = null) {
         val app = context.applicationContext
         val report = Report("$what: ${message.lineSequence().first().take(140)}", body(what, message, details, log, files))
-        if (queue(dir(app), report)) sendSoon(app)
+        // (a full phone is the usual reason an import failed: the report must not be what crashes the app)
+        if (runCatching { queue(dir(app), report) }.getOrDefault(false)) sendSoon(app)
     }
 
     /** A report that is sent whatever came before (the launch test's): kept on the phone until GitHub takes it. False when this build has no token. */
     fun submit(context: Context, report: Report): Boolean {
         val app = context.applicationContext
         val d = dir(app).also { it.mkdirs() }
-        File(d, "${report.key}-${System.currentTimeMillis()}.json").writeText(report.toJson().toString())
+        runCatching { File(d, "${report.key}-${System.currentTimeMillis()}.json").writeText(report.toJson().toString()) }
         sendSoon(app)
         return configured(app)
     }
@@ -175,6 +176,8 @@ object BugReports {
                 code in 200..299 -> Outcome.SENT
                 // A token that may not open issues there, or a repository that's gone: nothing a retry fixes.
                 code == 401 || code == 403 && c.getHeaderField("X-RateLimit-Remaining") != "0" || code == 404 || code == 410 -> Outcome.NOT_CONFIGURED
+                // A report GitHub refuses as it is (too long, malformed) is dropped: sent again every minute it would hold back every later one.
+                code == 400 || code == 413 || code == 422 -> Outcome.SENT
                 else -> Outcome.RETRY
             }
         } catch (e: IOException) {

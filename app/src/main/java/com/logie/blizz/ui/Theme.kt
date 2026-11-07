@@ -189,7 +189,7 @@ fun Snow(modifier: Modifier = Modifier, flakes: Int = 70, alpha: Float = 1f, col
     }
     Canvas(modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }) {
         for (seed in seeds) {
-            val (x0, y0, depth, phase) = seed.toList()
+            val x0 = seed[0]; val y0 = seed[1]; val depth = seed[2]; val phase = seed[3]
             val travel = (y0 + time * (1f + 2f * depth)) % 1f
             val fall = if (rising) 1f - travel else travel
             val sway = sin((time * 6f + phase) * 2 * PI).toFloat() * 0.012f

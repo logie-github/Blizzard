@@ -261,7 +261,7 @@ class Diablo1DevilutionXImporter : GameImporter {
         val hellfire = HELLFIRE.map { FileValidator.find(dir, it) }
         val hfCount = hellfire.count { it != null && Mpq.isArchive(it) }
         checks += Check("Hellfire (optional)", hfCount == 0 || hfCount == 4, when (hfCount) { 0 -> "not imported"; 4 -> "all four archives"; else -> "$hfCount of 4 archives" })
-        val engineOk = checks.first().passed && checks[1].passed
+        val engineOk = checks.first().passed && checks[1].passed && mpq != null
         val dataOk = checks.first { it.name == DATA }.passed
         val problem = when {
             !engineOk -> Problem.MISSING_RUNTIME_DEPENDENCY

@@ -15,7 +15,7 @@ class Warcraft2Importer(conversion: ConversionTools? = null) : WargusImporter(co
     override val what = "Warcraft II: Battle.net Edition"
     override val products = listOf("WAR2")
     override val required = (1..4).map { "Support/TOMES/TOME.$it" } + "Install.mpq"
-    override val installerName = Regex("(?i)^setup.*(warcraft_?(ii|2)|tides|bne)")
+    override val installerName = Regex("(?i)^setup.*(warcraft_?(ii|2)(?![a-z0-9])|tides|bne)")
 
     override val prompt = "Select your Warcraft II: Battle.net Edition files from GOG: the installed game's folder, a zip of it, or the offline installer (the setup .exe with its .bin files in the same folder)."
 
