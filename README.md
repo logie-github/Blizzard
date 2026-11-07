@@ -24,6 +24,7 @@ Diablo, Diablo II, StarCraft and StarCraft II are imported into the app and play
 Winlator (Wine and Box64), offline, with the touch gestures of YeaBwoi's Warcraft app. On a game's
 page, **Auto Import** opens the wizard: Detect, Acquire, Request (only what it can't get itself),
 Install, Validate. Then the button becomes **Play**; the status line under it opens the wizard
+Every button gives a small press (a shrink and a tick of haptic feedback); the wizard's steps and progress bars fade and glide, and when the game is ready **Play** takes the full width above Reset and Repair.
 again for **Repair**.
 
 Where it looks: the app's import folder (`Android/data/com.logie.blizz/files/import`, which a

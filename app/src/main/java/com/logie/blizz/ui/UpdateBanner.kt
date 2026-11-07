@@ -56,7 +56,8 @@ fun UpdateBanner() {
                     is Updater.State.Downloading -> {
                         Text("Updating to ${s.update.title}", style = MaterialTheme.typography.titleMedium)
                         if (s.total > 0) {
-                            LinearProgressIndicator(progress = { (s.done.toFloat() / s.total).coerceIn(0f, 1f) }, color = Colors.Ice, trackColor = Colors.Frost, modifier = Modifier.fillMaxWidth())
+                            val smooth by androidx.compose.animation.core.animateFloatAsState((s.done.toFloat() / s.total).coerceIn(0f, 1f), androidx.compose.animation.core.tween(400), label = "update")
+                            LinearProgressIndicator(progress = { smooth }, color = Colors.Ice, trackColor = Colors.Frost, modifier = Modifier.fillMaxWidth())
                             Text("${FileValidator.gb(s.done)} / ${FileValidator.gb(s.total)}", style = MaterialTheme.typography.bodySmall)
                         } else {
                             LinearProgressIndicator(color = Colors.Ice, trackColor = Colors.Frost, modifier = Modifier.fillMaxWidth())

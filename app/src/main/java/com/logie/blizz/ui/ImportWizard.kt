@@ -159,7 +159,8 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     val p = state.progress
                     Text(p?.label ?: "Working…", style = MaterialTheme.typography.titleMedium)
                     if (p != null && p.total > 0) {
-                        LinearProgressIndicator(progress = { (p.done.toFloat() / p.total).coerceIn(0f, 1f) }, color = Colors.Ice, trackColor = Colors.Frost, modifier = Modifier.fillMaxWidth())
+                        val smooth by androidx.compose.animation.core.animateFloatAsState((p.done.toFloat() / p.total).coerceIn(0f, 1f), androidx.compose.animation.core.tween(400), label = "progress")
+                        LinearProgressIndicator(progress = { smooth }, color = Colors.Ice, trackColor = Colors.Frost, modifier = Modifier.fillMaxWidth())
                         Text(if (p.stage == Stage.DOWNLOADING && p.label.contains("Blizzard")) "${p.done} / ${p.total} pieces" else "${FileValidator.gb(p.done)} / ${FileValidator.gb(p.total)}", style = MaterialTheme.typography.bodySmall)
                     } else {
                         LinearProgressIndicator(color = Colors.Ice, trackColor = Colors.Frost, modifier = Modifier.fillMaxWidth())
@@ -215,6 +216,10 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                 if (game.id.startsWith("warcraft3") && !state.running) Wc3Keys()
             }
 
+            // Play stands alone on top at full width; the housekeeping buttons sit below it.
+            if (!state.running && !confirmReset && (record.stage == Stage.READY || record.stage == Stage.IMPORTED_UNTESTED)) {
+                FrameButton("Play", Modifier.fillMaxWidth()) { onDismiss(); onPlay() }
+            }
             // The buttons wrap onto a second line where they don't fit (Retry was pushed off a phone's width).
             androidx.compose.foundation.layout.FlowRow(
                 Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -251,7 +256,6 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                                 }
                             } else FrameButton("Delete the export", primary = false) { confirmDeleteExport = true }
                         }
-                        FrameButton("Play") { onDismiss(); onPlay() }
                     }
                     record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton("Auto Import") { GameImportManager.start(context, game.id) }
                     record.problem == Problem.INSTALLER_MUST_RUN || state.installer != null -> {
@@ -285,10 +289,11 @@ private fun Steps(current: Int, done: Boolean, failed: Boolean) {
                 active -> Colors.Glow
                 else -> Colors.Steel
             }
+            val shown by androidx.compose.animation.animateColorAsState(color, androidx.compose.animation.core.tween(350), label = "step")
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.fillMaxWidth().height(3.dp).background(color))
+                Box(Modifier.fillMaxWidth().height(3.dp).background(shown))
                 Spacer(Modifier.height(4.dp))
-                Text(name, style = MaterialTheme.typography.bodySmall.copy(color = color, fontSize = 11.sp), maxLines = 1)
+                Text(name, style = MaterialTheme.typography.bodySmall.copy(color = shown, fontSize = 11.sp), maxLines = 1)
             }
         }
     }

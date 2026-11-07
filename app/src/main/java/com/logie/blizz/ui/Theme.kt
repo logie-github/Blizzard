@@ -138,8 +138,10 @@ fun FrameButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
     val pressed by interaction.collectIsPressedAsState()
     val focused by interaction.collectIsFocusedAsState()
     val lit by animateFloatAsState(if (pressed || focused) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 900f), label = "lit")
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     Box(
         modifier
+            .graphicsLayer { val k = 1f - 0.04f * lit; scaleX = k; scaleY = k }
             .heightIn(min = 48.dp)
             .drawBehind {
                 if (primary) {
@@ -151,7 +153,10 @@ fun FrameButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
                     drawFrame(corner = Colors.Mist, alpha = 0.7f + 0.3f * lit, arm = 7.dp.toPx())
                 }
             }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, onClick = {
+                haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                onClick()
+            })
             .padding(horizontal = 22.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
