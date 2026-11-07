@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
@@ -61,6 +63,13 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     val pickLogo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) Splashes.set(context, game.id, Splashes.Kind.LOGO, uri)
     }
+    val tiles by TileSettings.state.collectAsState()
+    val pickBoxArt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) TileSettings.setArt(context, game.id, false, uri)
+    }
+    val boxArtShown = remember(game.id, tiles.artVersion) {
+        TileSettings.artFile(context, game.id, false)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    }
     var layout by remember { mutableStateOf(Splashes.layout(context, game.id)) }
     var grid by remember { mutableStateOf(true) }
     // Saved a moment after the last change.
@@ -72,6 +81,16 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FrameTitle(game.fullTitle)
+            // The box art of this game (each mode of World of Warcraft has its own).
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                val art = Modifier.width(72.dp).aspectRatio(3f / 4f).border(1.dp, Colors.Steel)
+                if (boxArtShown != null) androidx.compose.foundation.Image(boxArtShown, null, art, contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                else androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(game.cover), null, art, contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FrameButton("Box art") { pickBoxArt.launch(arrayOf("image/*")) }
+                    if (boxArtShown != null) FrameButton("Original", primary = false) { TileSettings.clearArt(context, game.id, false) }
+                }
+            }
             // The loading screen itself, at half the size: pinch to zoom the picture, drag to move it.
             BoxWithConstraints(
                 Modifier.fillMaxWidth().aspectRatio(16f / 9f).clipToBounds().border(1.dp, Colors.Steel).background(Colors.Abyss)

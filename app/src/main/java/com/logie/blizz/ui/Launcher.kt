@@ -471,7 +471,7 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
             ),
     ) {
         Image(
-            painterResource(effectiveGame(game).cover),
+            boxArt(game),
             contentDescription = effectiveGame(game).fullTitle,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().drawWithContent {
@@ -496,7 +496,7 @@ private fun GamePage(game: Game, linkKey: Int, onBack: (() -> Unit)?, onPlay: ()
         val wide = maxWidth > maxHeight
         // The box art, blown up and dimmed, behind everything.
         Image(
-            painterResource(effectiveGame(game).cover), contentDescription = null, contentScale = ContentScale.Crop,
+            boxArt(game), contentDescription = null, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.55f; scaleX = 1.15f; scaleY = 1.15f }
                 .let { if (Build.VERSION.SDK_INT >= 31) it.blur(28.dp) else it },
         )
@@ -532,7 +532,7 @@ private fun BigCover(game: Game, modifier: Modifier) {
     val float = rememberInfiniteTransition(label = "float")
     val y by float.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "y")
     Image(
-        painterResource(effectiveGame(game).cover), contentDescription = effectiveGame(game).fullTitle, contentScale = ContentScale.Crop,
+        boxArt(game), contentDescription = effectiveGame(game).fullTitle, contentScale = ContentScale.Crop,
         modifier = modifier
             .aspectRatio(COVER_RATIO)
             .graphicsLayer { translationY = -6.dp.toPx() * y }
@@ -638,6 +638,18 @@ private fun TabletopPage(game: Game, fold: Fold, linkKey: Int, onSelect: (Game) 
 
 // Imported games
 
+/** The picture of [game]'s box: the person's own for this mode (set in its long-press dialog or the tile layout's Change art), else the built-in cover. */
+@Composable
+internal fun boxArt(game: Game): androidx.compose.ui.graphics.painter.Painter {
+    val context = LocalContext.current
+    val state by TileSettings.state.collectAsState()
+    val shown = effectiveGame(game)
+    val custom = remember(shown.id, state.artVersion) {
+        TileSettings.artFile(context, shown.id, false)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    }
+    return custom?.let { androidx.compose.ui.graphics.painter.BitmapPainter(it) } ?: painterResource(shown.cover)
+}
+
 /** The World of Warcraft modes: each plays through [com.logie.blizz.game.WowPlay], whatever runtime an earlier import recorded (Legion's and OctoWoW's said "not ported"). */
 private val WOW_MODES = setOf("wow", "wow_legion", "wow_octowow")
 
@@ -677,6 +689,19 @@ private fun ImportStatus(shown: Game) {
     }
 }
 
+/** A line from [com.logie.blizz.game.LoadingLines], another every few seconds while the dialog is up. */
+@Composable
+private fun rememberLoadingLine(): String {
+    var line by remember { mutableStateOf(com.logie.blizz.game.LoadingLines.next()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3500)
+            line = com.logie.blizz.game.LoadingLines.next(line)
+        }
+    }
+    return line
+}
+
 /** Starting an imported game: the runtime's install and Windows' first start, or what went wrong. */
 @Composable
 private fun RuntimeOverlay() {
@@ -685,8 +710,7 @@ private fun RuntimeOverlay() {
         is com.logie.blizz.game.WowPlay.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Column(Modifier.fillMaxSize().background(Colors.Abyss.copy(alpha = 0.92f)).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
                 Spinner(44.dp)
-                Text(w.message + (w.progress?.let { " ${(it * 100).toInt()}%" } ?: ""), style = MaterialTheme.typography.titleMedium, color = Colors.Mist)
-                Text("The realm starts first; the first start can take a few minutes.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+                Text(rememberLoadingLine(), style = MaterialTheme.typography.titleMedium, color = Colors.Mist)
             }
         }
         is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -708,14 +732,9 @@ private fun RuntimeOverlay() {
         is WindowsRuntime.State.Preparing -> Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Column(Modifier.fillMaxSize().background(Colors.Abyss.copy(alpha = 0.92f)), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically)) {
                 Spinner(44.dp)
-                Text(
-                    when (s.step) {
-                        WindowsRuntime.Step.RUNTIME -> "Installing the Windows runtime" + (s.progress?.let { " ${(it * 100).toInt()}%" } ?: "")
-                        WindowsRuntime.Step.WINDOWS -> "Preparing Windows"
-                        WindowsRuntime.Step.STARTING -> "Starting"
-                    },
-                    style = MaterialTheme.typography.titleMedium, color = Colors.Mist,
-                )
+                Text(rememberLoadingLine(), style = MaterialTheme.typography.titleMedium, color = Colors.Mist)
+                // The runtime's install is the one wait with a number to show.
+                if (s.step == WindowsRuntime.Step.RUNTIME) s.progress?.let { Text("${(it * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = Colors.Mist) }
             }
         }
         is WindowsRuntime.State.Failed -> Dialog(onDismissRequest = { WindowsRuntime.dismiss() }) {
