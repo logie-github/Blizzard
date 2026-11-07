@@ -11,6 +11,7 @@ import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.IBinder
 import android.provider.DocumentsContract
+import com.logie.blizz.Games
 import com.logie.blizz.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -183,6 +184,8 @@ object GameImportManager {
                             if (outcome.deleted.isNotEmpty()) File(paths(app).state, "export-source-$gameId.txt").delete()
                             outcome.summary?.let { note -> record = repo.update(gameId) { it.copy(detail = note) } }
                         }
+                        // And what the import itself left behind goes too: the unpacked archive, the installer's copy and what it made, the downloads kept for a second try.
+                        runCatching { freeLeftovers(app, gameId) }
                         state.copy(record = record, validation = result.validation, entry = result.entry, missing = emptyList())
                     }
                     is ImportPipeline.Result.Failed -> {
@@ -319,6 +322,35 @@ object GameImportManager {
             GameReset.reset(paths(app), gameId, factory().keptInGame)
             publish(WizardState(gameId, repo(app).load(gameId), entry = null))
         }
+    }
+
+    /** The folders of the games' Windows an installer filled with what it unpacked, in the one Windows all the games share. */
+    private fun windowsTemp(app: Context): List<File> = runCatching {
+        val container = com.winlator.container.ContainerManager(app).containers.firstOrNull { it.name == "Blizzard" } ?: return emptyList()
+        Leftovers.windowsTemp(File(container.rootDir, ".wine/drive_c"))
+    }.getOrDefault(emptyList())
+
+    /** Deletes what [gameId]'s import left behind (never the game, its saves or state); the bytes freed. */
+    fun freeLeftovers(app: Context, gameId: String): Long {
+        val others = synchronized(cancels) { cancels.keys.any { it != gameId } }
+        return Leftovers.clean(paths(app), gameId, othersImporting = others, extra = windowsTemp(app).takeIf { !others } ?: emptyList())
+    }
+
+    /** What the installed games' imports left behind, in bytes (nothing for a game being imported now). */
+    fun leftoverBytes(app: Context): Long {
+        val busy = synchronized(cancels) { cancels.keys.toSet() }
+        val paths = paths(app)
+        val library = library(app)
+        val files = Games.all.flatMap { listOf(it) + it.variants }.map { it.id }.filter { it !in busy && library.get(it) != null }.flatMap { Leftovers.of(paths, it) } +
+            (if (busy.isEmpty()) Leftovers.shared(paths) + windowsTemp(app) else emptyList())
+        return Leftovers.size(files)
+    }
+
+    /** Deletes the leftovers of every installed game that isn't being imported; the bytes freed. */
+    fun freeAllLeftovers(app: Context): Long {
+        val busy = synchronized(cancels) { cancels.keys.toSet() }
+        val library = library(app)
+        return Games.all.flatMap { listOf(it) + it.variants }.map { it.id }.filter { it !in busy && library.get(it) != null }.sumOf { freeLeftovers(app, it) }
     }
 
     fun cancel(gameId: String) {

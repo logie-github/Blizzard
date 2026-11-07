@@ -56,6 +56,7 @@ object Updater {
         lastCheck = now
         val app = context.applicationContext
         scope.launch {
+            runCatching { clearInstalledUpdate(app) }
             // Offline or GitHub unreachable: carry on, and look again next time.
             val update = runCatching { findUpdate() }.getOrNull() ?: return@launch
             try {
@@ -70,6 +71,14 @@ object Updater {
                 _state.value = State.Failed("The update couldn't be downloaded (${e.message}). It'll be tried again next time.")
             }
         }
+    }
+
+    /** The downloaded update of the version that is running now (or half a download of one) is 230 MB of nothing: it goes. */
+    fun clearInstalledUpdate(context: Context) {
+        val dir = File(context.cacheDir, "updates")
+        val apk = dir.listFiles { f -> f.name.endsWith(".apk") }?.firstOrNull()
+        val code = apk?.let { runCatching { context.packageManager.getPackageArchiveInfo(it.path, 0)?.longVersionCode }.getOrNull() }
+        if (dir.isDirectory && (apk == null || code == null || code <= BuildConfig.VERSION_CODE)) dir.deleteTree()
     }
 
     private fun ready(context: Context, update: Update, apk: File) {

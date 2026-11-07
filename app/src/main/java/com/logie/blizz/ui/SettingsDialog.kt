@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import com.logie.blizz.Game
 import com.logie.blizz.Games
 import com.logie.blizz.game.GameSettings
@@ -200,6 +201,24 @@ private fun LauncherPage(onDismiss: () -> Unit) {
         var deleteSources by remember { mutableStateOf(GameSettings.deleteSources(context)) }
         ToggleRow("Delete the files I picked after a successful import", deleteSources) { deleteSources = it; GameSettings.setDeleteSources(context, it) }
         Text("Only files, never a folder, and never your console keys.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+        // What imports left in the app's storage (unpacked archives, installer copies, kept downloads): cleared after each import, and here.
+        var left by remember { mutableStateOf<Long?>(null) }
+        var freed by remember { mutableStateOf<Long?>(null) }
+        androidx.compose.runtime.LaunchedEffect(freed) { left = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.logie.blizz.importer.GameImportManager.leftoverBytes(context) } }
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        val mb = (left ?: 0L) / (1024 * 1024)
+        Text(
+            when {
+                freed != null -> "Freed ${freed!! / (1024 * 1024)} MB."
+                left == null -> "Looking for leftovers…"
+                left == 0L -> "No leftovers from imports."
+                else -> "$mb MB of leftovers from imports."
+            },
+            style = MaterialTheme.typography.bodyMedium, color = if (freed != null) Colors.Ice else Colors.Text,
+        )
+        if ((left ?: 0L) > 0L) FrameButton("Free the space", primary = false, modifier = Modifier.fillMaxWidth()) {
+            scope.launch { freed = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.logie.blizz.importer.GameImportManager.freeAllLeftovers(context) } }
+        }
     }
 
     SettingCard("Maintenance") {
