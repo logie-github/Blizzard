@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sun, 8 Nov 2026 16:18:27 +0000
+Subject: [PATCH] bnetserver: a .battle.net name that doesn't resolve is this
+ phone
+
+Android has no hosts file an app can write, so bnetserver couldn't resolve
+LoginREST.ExternalAddress / LocalAddress (trinity.actual.battle.net) and stopped.
+The client's own hosts file (in its Windows) points that name at the phone.
+---
+ src/server/bnetserver/REST/LoginRESTService.cpp | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/server/bnetserver/REST/LoginRESTService.cpp b/src/server/bnetserver/REST/LoginRESTService.cpp
+index 1af5d309..49dd0a7c 100644
+--- a/src/server/bnetserver/REST/LoginRESTService.cpp
++++ b/src/server/bnetserver/REST/LoginRESTService.cpp
+@@ -50,6 +50,11 @@ bool LoginRESTService::StartNetwork(Trinity::Asio::IoContext& ioContext, std::st
+         std::back_inserter(_addresses),
+         [](boost::asio::ip::tcp::endpoint const& endpoint) { return endpoint.address(); });
+ 
++    // Blizzard app (Android): the phone has no hosts file the app can write, so the name the client logs in to
++    // (trinity.actual.battle.net, which its hosts file points at this phone) is this phone itself.
++    if (_addresses.empty() && _externalHostname.ends_with(".battle.net"))
++        _addresses.push_back(boost::asio::ip::make_address("127.0.0.1"));
++
+     if (_addresses.empty())
+     {
+         TC_LOG_ERROR("server.http.login", "Could not resolve LoginREST.ExternalAddress {}", _externalHostname);
+@@ -63,6 +68,11 @@ bool LoginRESTService::StartNetwork(Trinity::Asio::IoContext& ioContext, std::st
+         std::back_inserter(_addresses),
+         [](boost::asio::ip::tcp::endpoint const& endpoint) { return endpoint.address(); });
+ 
++    // Blizzard app (Android): the phone has no hosts file the app can write, so the name the client logs in to
++    // (trinity.actual.battle.net, which its hosts file points at this phone) is this phone itself.
++    if (_addresses.size() == _firstLocalAddressIndex && _localHostname.ends_with(".battle.net"))
++        _addresses.push_back(boost::asio::ip::make_address("127.0.0.1"));
++
+     if (_addresses.size() == _firstLocalAddressIndex)
+     {
+         TC_LOG_ERROR("server.http.login", "Could not resolve LoginREST.LocalAddress {}", _localHostname);

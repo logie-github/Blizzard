@@ -1,0 +1,78 @@
+name: Build the Forever realm
+
+# The Forever realm (TrinityCore's community "forever" branch, realm/forever/server-version.env) compiled for the
+# phone (Linux arm64, musl) on GitHub's arm64 runner, packed with MariaDB and a seed database (the branch's world and
+# hotfixes release, its updates applied), and attached to the release "forever-server" as forever-server.tar.xz with
+# forever-server.json (size and SHA-256), which the app downloads. The compile is cached (ccache) by the pins and
+# patches: a change to ctl.sh or the package script only packs again.
+on:
+  push:
+    paths:
+      - realm/forever/**
+      - realm/scripts/*trinity-forever*
+      - realm/warcraft/server/android_compat.c
+      - .github/workflows/build-forever-server.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forever-server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    defaults:
+      run:
+        working-directory: realm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Look for the compile cache
+        uses: actions/cache/restore@v4
+        with:
+          path: realm/build/ccache-trinity-forever
+          key: forever-ccache-v1-${{ hashFiles('realm/forever/server-version.env', 'realm/forever/patches/**', 'realm/scripts/compile-trinity-forever.sh') }}-${{ github.run_id }}
+          restore-keys: |
+            forever-ccache-v1-${{ hashFiles('realm/forever/server-version.env', 'realm/forever/patches/**', 'realm/scripts/compile-trinity-forever.sh') }}-
+            forever-ccache-v1-
+
+      - name: Compile (TrinityCore forever, arm64 musl)
+        run: scripts/compile-trinity-forever.sh
+
+      - name: Save the compile cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: realm/build/ccache-trinity-forever
+          key: forever-ccache-v1-${{ hashFiles('realm/forever/server-version.env', 'realm/forever/patches/**', 'realm/scripts/compile-trinity-forever.sh') }}-${{ github.run_id }}
+
+      - name: Download the branch's database release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . forever/server-version.env
+          mkdir -p build/trinity-forever-db
+          gh release download "$TRINITY_DB_TAG" -R "$TRINITY_DB_REPO" -D build/trinity-forever-db --clobber
+          ls -la build/trinity-forever-db
+
+      - name: Package (MariaDB, seed database, ctl.sh)
+        run: scripts/package-trinity-forever.sh
+
+      - name: Publish (release forever-server)
+        working-directory: realm/build/forever
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo="${{ github.repository }}"
+          if ! gh release view forever-server -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/forever-server" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create forever-server -R "$repo" --verify-tag --prerelease \
+              --title "Forever realm (server package)" \
+              --notes "The Forever realm for the phone (TrinityCore forever branch, arm64). Downloaded by the app; not an app release."
+          fi
+          gh release upload forever-server forever-server.tar.xz forever-server.json -R "$repo" --clobber
+          cat forever-server.json
