@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sun, 8 Nov 2026 18:50:20 +0000
+Subject: [PATCH] Forward-declare SkillLineEntry in Player.h
+ (clang/libc++/musl)
+
+IsClassicProfessionChildSkill(SkillLineEntry const*) uses SkillLineEntry,
+which Player.h never forward-declares. It compiles where another header
+pulls in DB2Structure.h before Player.h (the maintainer's glibc/gcc build),
+but not with clang/libc++/musl, which parse Player.h without it. Adds the
+missing forward declaration, like the other DB2 structs above it.
+---
+ src/server/game/Entities/Player/Player.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/server/game/Entities/Player/Player.h b/src/server/game/Entities/Player/Player.h
+index d87f3ab8..451ea32b 100644
+--- a/src/server/game/Entities/Player/Player.h
++++ b/src/server/game/Entities/Player/Player.h
+@@ -63,6 +63,7 @@ struct MapEntry;
+ struct PvpTalentEntry;
+ struct QuestPackageItemEntry;
+ struct RewardPackEntry;
++struct SkillLineEntry;
+ struct SkillRaceClassInfoEntry;
+ struct SpellCastRequest;
+ struct TalentEntry;
