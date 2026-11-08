@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -102,7 +106,7 @@ fun CropDialog(title: String, source: File, aspect: Float, onSave: (Bitmap) -> U
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Sheet(title, onDismiss, maxWidth = 560.dp) {
             val bmp = bitmap
-            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (bmp == null) {
                     Text("Opening the picture…", style = MaterialTheme.typography.bodyMedium, color = Colors.Mist)
                     return@Column
@@ -113,8 +117,10 @@ fun CropDialog(title: String, source: File, aspect: Float, onSave: (Bitmap) -> U
                 // Kept inside the picture whatever the gesture does.
                 val r = CropMath.rect(bmp.width, bmp.height, aspect, zoom, cx, cy)
                 val image = remember(bmp) { bmp.asImageBitmap() }
+                // The frame is as big as fits: never taller than 45 % of the screen, so the slider and the buttons stay in sight.
+                val maxFrameHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.45f
                 Canvas(
-                    Modifier.fillMaxWidth().aspectRatio(aspect).clip(RoundedCornerShape(14.dp)).clipToBounds()
+                    Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally).width(minOf(maxFrameHeight * aspect, 520.dp)).aspectRatio(aspect).clip(RoundedCornerShape(14.dp)).clipToBounds()
                         .pointerInput(bmp, aspect) {
                             detectTransformGestures { _, pan, z, _ ->
                                 zoom = (zoom * z).coerceIn(1f, CropMath.MAX_ZOOM)
@@ -136,7 +142,10 @@ fun CropDialog(title: String, source: File, aspect: Float, onSave: (Bitmap) -> U
                     FrameButton("Reset", primary = false) { zoom = 1f; cx = bmp.width / 2f; cy = bmp.height / 2f }
                     FrameButton("Save") {
                         val cut = CropMath.rect(bmp.width, bmp.height, aspect, zoom, cx, cy)
-                        onSave(Bitmap.createBitmap(bmp, cut.x, cut.y, cut.w, cut.h))
+                        // (never past the picture's edge, whatever rounding did)
+                        val w = cut.w.coerceAtMost(bmp.width - cut.x).coerceAtLeast(1)
+                        val h = cut.h.coerceAtMost(bmp.height - cut.y).coerceAtLeast(1)
+                        onSave(Bitmap.createBitmap(bmp, cut.x.coerceIn(0, bmp.width - 1), cut.y.coerceIn(0, bmp.height - 1), w, h))
                     }
                 }
             }

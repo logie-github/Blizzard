@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
@@ -36,6 +37,7 @@ import com.logie.blizz.Game
 internal val LocalOpenOptions = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenAddons = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenModules = staticCompositionLocalOf<() -> Unit> { {} }
+internal val LocalOpenMusic = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenControls = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalChooseApp = staticCompositionLocalOf<(Game) -> Unit> { {} }
 
@@ -68,6 +70,8 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             if (hasAddons(effective.id)) HoldItem(Icons.Default.Extension, "Add-ons") { onDismiss(); openAddons(game) }
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
             HoldItem(Icons.Default.Image, "Art") { onDismiss(); openSplash(game) }
+            val openMusic = LocalOpenMusic.current
+            HoldItem(Icons.Default.MusicNote, "Music") { onDismiss(); openMusic(game) }
             if (importable) HoldItem(Icons.Default.Build, "Install & repair") { onDismiss(); openWizard(effective) }
             else HoldItem(Icons.Default.Apps, "App") { onDismiss(); chooseApp(game) }
         }

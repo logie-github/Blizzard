@@ -184,7 +184,7 @@ fun FrameButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
         Box(
             modifier
                 .graphicsLayer { val k = 1f - 0.03f * lit; scaleX = k; scaleY = k }
-                .heightIn(min = 46.dp)
+                .heightIn(min = 44.dp)
                 .clip(shape)
                 .then(if (primary) Modifier.background(Modern.AccentBrush) else Modifier.background(Color.White.copy(alpha = 0.07f)).border(1.dp, Modern.Outline, shape))
                 .drawBehind { drawRect(Color.White.copy(alpha = 0.10f * lit)) }
@@ -192,10 +192,10 @@ fun FrameButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
                     haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                     onClick()
                 })
-                .padding(horizontal = 20.dp, vertical = 11.dp),
+                .padding(horizontal = 18.dp, vertical = 10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(modernLabel(text), style = MaterialTheme.typography.labelLarge.copy(color = if (primary) Color.White else Modern.Text, fontSize = if (primary) 16.sp else 15.sp), maxLines = 1)
+            Text(modernLabel(text), style = MaterialTheme.typography.labelLarge.copy(color = if (primary) Color.White else Modern.Text, fontSize = if (primary) 15.sp else 14.sp), maxLines = 1)
         }
         return
     }

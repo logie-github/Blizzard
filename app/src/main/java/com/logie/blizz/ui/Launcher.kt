@@ -156,17 +156,20 @@ fun Launcher() {
     var addonsFor by remember { mutableStateOf<Game?>(null) }
     var modulesOpen by remember { mutableStateOf(false) }
     var controlsFor by remember { mutableStateOf<Game?>(null) }
+    var musicFor by remember { mutableStateOf<Game?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
     remember { TileSettings.load(context) }
     LaunchedEffect(Unit) { Variants.load(context) }
     // Music: the launcher's track on the shelf, a game's from the moment its page is open (the version chosen: Warcraft III's, StarCraft's).
     val chosenVersions by Variants.selection.collectAsState()
-    val musicKey = com.logie.blizz.music.MusicCatalog.keyFor(open?.let { Variants.effective(it, chosenVersions).id })
+    // The home always shows a game (the first until one is chosen): its music plays, not the launcher's.
+    val shown = open ?: Games.all.first()
+    val musicKey = com.logie.blizz.music.MusicCatalog.keyFor(Variants.effective(shown, chosenVersions).id)
     LaunchedEffect(Unit) { com.logie.blizz.music.MusicDownloads.startIfMissing(context) }
     // The launch test no longer runs by itself (the user: "turn off the launch test"); the settings' button starts it.
     // A test the app died in is still reported at start.
     LaunchedEffect(Unit) { com.logie.blizz.selftest.SelfTest.reportInterruptedOnly(context) }
-    val musicGame = open?.let { Variants.effective(it, chosenVersions).id }
+    val musicGame = Variants.effective(shown, chosenVersions).id
     val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
     LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } } }
@@ -204,6 +207,7 @@ fun Launcher() {
             LocalOpenAddons provides { g: Game -> addonsFor = Variants.effective(g) },
             LocalOpenModules provides { modulesOpen = true },
             LocalOpenControls provides { g: Game -> controlsFor = Variants.effective(g) },
+            LocalOpenMusic provides { g: Game -> musicFor = Variants.effective(g) },
             LocalChooseApp provides { g: Game -> chooseApp(g) },
             LocalOpenSettings provides { settingsOpen = true },
         ) {
@@ -217,6 +221,7 @@ fun Launcher() {
         addonsFor?.let { WowAddonManager(it.id, onDismiss = { addonsFor = null }) }
         if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
         controlsFor?.let { ControlsScreen(it, onDismiss = { controlsFor = null }) }
+        musicFor?.let { MusicDialog(it, onDismiss = { musicFor = null }) }
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()

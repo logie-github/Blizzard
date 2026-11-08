@@ -21,6 +21,10 @@ object MusicCustom {
     fun file(context: Context, gameId: String): File? =
         File(dir(context), "$gameId.audio").takeIf { it.isFile && it.length() >= MusicStore.MIN_BYTES }
 
+    /** The name of the person's song for [gameId] (the file's name), or null. */
+    fun label(context: Context, gameId: String): String? =
+        runCatching { File(dir(context), "$gameId.name").takeIf { it.isFile }?.readText()?.trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
+
     /** [uri]'s song as [gameId]'s music; false (and nothing changed) when it can't be read or isn't audio. */
     fun set(context: Context, gameId: String, uri: Uri): Boolean = runCatching {
         val target = File(dir(context), "$gameId.audio")
@@ -30,6 +34,10 @@ object MusicCustom {
         if (part.length() < MusicStore.MIN_BYTES || !MusicStore.looksLikeAudio(part)) { part.delete(); return false }
         target.delete()
         if (!part.renameTo(target)) { part.delete(); return false }
+        val name = runCatching {
+            context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+        }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/')
+        runCatching { File(target.parentFile, "$gameId.name").writeText(name?.take(120) ?: "") }
         _version.value++
         true
     }.getOrDefault(false)
@@ -37,6 +45,7 @@ object MusicCustom {
     /** Back to the downloaded track. */
     fun clear(context: Context, gameId: String) {
         File(dir(context), "$gameId.audio").delete()
+        File(dir(context), "$gameId.name").delete()
         _version.value++
     }
 }

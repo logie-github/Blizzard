@@ -130,10 +130,7 @@ internal fun ModernHome(
                 Column(Modifier.weight(1f).fillMaxHeight().padding(end = 28.dp, top = 16.dp, bottom = 28.dp)) {
                     TopBar(Modifier.fillMaxWidth(), showLogo = false)
                     Spacer(Modifier.weight(1f))
-                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                        Hero(selected, linkKey, onPlay, onChooseApp, Modifier.weight(1f))
-                        if (this@BoxWithConstraints.maxHeight >= 520.dp) Cover(selected, Modifier.width((this@BoxWithConstraints.maxWidth * 0.2f).coerceIn(170.dp, 260.dp)))
-                    }
+                    Hero(selected, linkKey, onPlay, onChooseApp, Modifier.fillMaxWidth())
                 }
             }
         } else {
@@ -334,7 +331,7 @@ private fun Hero(game: Game, linkKey: Int, onPlay: (Game) -> Unit, onChooseApp: 
         val shown = effectiveGame(g)
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Column {
-                Text(shown.title, style = CinzelStyle.copy(fontSize = 40.sp, lineHeight = 46.sp, color = Modern.Text, letterSpacing = 0.02.sp), maxLines = 2)
+                GameTitle(shown)
                 shown.subtitle?.takeIf { g.variants.isEmpty() }?.let { Text(it, style = MaterialTheme.typography.headlineSmall.copy(color = Modern.Muted, fontWeight = FontWeight.Normal)) }
             }
             if (g.variants.isNotEmpty()) {
@@ -381,14 +378,14 @@ private fun PlayCta(game: Game, modifier: Modifier, onClick: () -> Unit) {
             .combinedClickable(interactionSource = interaction, indication = null, onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick()
             })
-            .heightIn(min = 58.dp)
+            .heightIn(min = 54.dp)
             .padding(horizontal = 28.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(26.dp))
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
         Spacer(Modifier.width(10.dp))
-        Text(label, style = MaterialTheme.typography.titleLarge.copy(color = Color.White, fontSize = 19.sp))
+        Text(label, style = MaterialTheme.typography.titleLarge.copy(color = Color.White, fontSize = 17.sp))
     }
 }
 
@@ -411,29 +408,6 @@ private fun ImportBar(game: Game) {
     }
 }
 
-/** The big box of the version shown, beside the words on the open Fold; holding it opens its menu. */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun Cover(game: Game, modifier: Modifier) {
-    val haptic = LocalHapticFeedback.current
-    val openHold = LocalOpenHold.current
-    val appear = remember(game.id) { Animatable(0f) }
-    LaunchedEffect(game.id) { appear.animateTo(1f, tween(520, easing = FastOutSlowInEasing)) }
-    Crossfade(effectiveGame(game), animationSpec = tween(400), label = "cover", modifier = modifier) { shown ->
-        Image(
-            boxArtOf(shown), shown.fullTitle, contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().aspectRatio(COVER_RATIO)
-                .graphicsLayer { alpha = appear.value; translationY = (1f - appear.value) * 18.dp.toPx(); rotationY = -6f * (1f - appear.value) }
-                .shadow(28.dp, RoundedCornerShape(16.dp))
-                .clip(RoundedCornerShape(16.dp))
-                .border(1.dp, Modern.OutlineStrong, RoundedCornerShape(16.dp))
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {},
-                    onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openHold(game) },
-                ),
-        )
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 private fun Modifier.combinedClickableNoRipple(onClick: () -> Unit): Modifier =
@@ -441,3 +415,22 @@ private fun Modifier.combinedClickableNoRipple(onClick: () -> Unit): Modifier =
 
 @Suppress("unused")
 private val unusedDp: Dp = 0.dp
+
+/**
+ * Where the game's name stands: its logo, the one chosen in Art (or the game's own where it has one), at a fixed height whatever its
+ * shape; a game with no logo has its name in Blizzard's lettering.
+ */
+@Composable
+private fun GameTitle(shown: Game) {
+    val context = LocalContext.current
+    val version by Splashes.version.collectAsState()
+    val own = remember(shown.id, version) {
+        Splashes.file(context, shown.id, Splashes.Kind.LOGO)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+    }
+    val painter: Painter? = own?.let { BitmapPainter(it) } ?: shown.splashLogo?.let { painterResource(it) }
+    if (painter != null) {
+        Image(painter, shown.title, contentScale = ContentScale.Fit, alignment = Alignment.CenterStart, modifier = Modifier.heightIn(max = 110.dp).widthIn(max = 440.dp))
+    } else {
+        Text(shown.title, style = CinzelStyle.copy(fontSize = 40.sp, lineHeight = 46.sp, color = Modern.Text, letterSpacing = 0.02.sp), maxLines = 2)
+    }
+}
