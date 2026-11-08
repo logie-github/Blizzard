@@ -63,6 +63,14 @@ import com.logie.blizz.importer.Problem
 import com.logie.blizz.importer.Stage
 
 /** The five steps the wizard walks through, and which a stage belongs to. */
+/** The games Blizzard's own legacy downloads install whole: the button says Auto Install, with this line above it. */
+private val AUTO_INSTALL_LINE = mapOf(
+    "warcraft3_roc" to "Installs Reign of Chaos and The Frozen Throne together, with every campaign, from Blizzard (about 1.4 GB). Nothing to pick or enter.",
+    "warcraft3_tft" to "Installs Reign of Chaos and The Frozen Throne together, with every campaign, from Blizzard (about 1.4 GB). Nothing to pick or enter.",
+    "diablo2" to "Installs Diablo II and Lord of Destruction from Blizzard (about 2.1 GB). Nothing to pick or enter.",
+    "starcraft" to "Installs StarCraft and Brood War from Blizzard (about 1.3 GB). Nothing to pick or enter.",
+)
+
 private val STEPS = listOf("Detect", "Acquire", "Request", "Install", "Validate")
 
 private fun stepOf(stage: Stage): Int = when (stage) {
@@ -208,13 +216,9 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                         }
                     }
                 }
-                if (game.id == "diablo2" && !state.running && state.entry == null) CdKeys(game.id)
-                // Warcraft III: single player needs no CD key, so none is asked for.
-                if (game.id.startsWith("warcraft3") && !state.running) {
-                    if (record.stage == Stage.NOT_INSTALLED && record.problem == null && state.missing.isEmpty()) {
-                        // One step: both games, whole, in one place.
-                        Text("Installs Reign of Chaos and The Frozen Throne together, with every campaign, from Blizzard (about 1.4 GB). Nothing to pick or enter.", style = MaterialTheme.typography.bodyLarge)
-                    }
+                if (!state.running && record.stage == Stage.NOT_INSTALLED && record.problem == null && state.missing.isEmpty()) {
+                    // One step: the whole game, from Blizzard, nothing to pick or enter.
+                    AUTO_INSTALL_LINE[game.id]?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
                 }
             }
 
@@ -259,7 +263,7 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                             } else FrameButton("Delete the export", primary = false) { confirmDeleteExport = true }
                         }
                     }
-                    record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton(if (game.id.startsWith("warcraft3")) "Auto Install" else "Auto Import") { GameImportManager.start(context, game.id) }
+                    record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton(if (game.id in AUTO_INSTALL_LINE) "Auto Install" else "Auto Import") { GameImportManager.start(context, game.id) }
                     record.problem == Problem.INSTALLER_MUST_RUN || state.installer != null -> {
                         val ended = state.installer is InstallerRun.Status.Finished
                         val partial = state.installer is InstallerRun.Status.PartialCopy
@@ -332,28 +336,6 @@ private fun Details(detail: String?, checks: List<Triple<String, Boolean, String
     if (!detail.isNullOrBlank()) {
         Text(detail, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp), modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.4f)).padding(8.dp))
     }
-}
-
-/** Diablo II's original keys: optional, never needed to play single player, kept on the phone only. */
-@Composable
-private fun CdKeys(gameId: String) {
-    var open by remember { mutableStateOf(false) }
-    var classic by remember { mutableStateOf("") }
-    var expansion by remember { mutableStateOf("") }
-    Text(if (open) "CD keys (optional) ▴" else "CD keys (optional) ▾", style = MaterialTheme.typography.bodySmall.copy(color = Colors.Mist), modifier = Modifier.clickable { open = !open }.padding(vertical = 4.dp))
-    if (!open) return
-    @Composable
-    fun field(value: String, hint: String, onChange: (String) -> Unit) {
-        Box(Modifier.fillMaxWidth().background(Colors.Abyss).padding(10.dp)) {
-            if (value.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyMedium, color = Colors.Steel)
-            BasicTextField(value, { v ->
-                val clean = v.uppercase().filter { it.isLetterOrDigit() }.take(26)
-                onChange(clean)
-            }, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium, cursorBrush = SolidColor(Colors.Ice), modifier = Modifier.fillMaxWidth())
-        }
-    }
-    field(classic, "Diablo II key (16 or 26 characters)") { classic = it; GameImportManager.setKeys(gameId, classic.takeIf { k -> k.length == 16 || k.length == 26 }, expansion.takeIf { k -> k.length == 26 }, null) }
-    field(expansion, "Lord of Destruction key (26 characters)") { expansion = it; GameImportManager.setKeys(gameId, classic.takeIf { k -> k.length == 16 || k.length == 26 }, expansion.takeIf { k -> k.length == 26 }, null) }
 }
 
 /**

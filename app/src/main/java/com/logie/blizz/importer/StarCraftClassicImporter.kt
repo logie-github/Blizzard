@@ -46,7 +46,8 @@ class StarCraftClassicImporter : GameImporter {
         env.progress(Progress(Stage.DETECTING, "Looking for StarCraft"))
         val found = LinkedHashMap<String, SourceNode>()
         val roots = env.searchRoots()
-        roots.firstNotNullOfOrNull { findInstall(it, 4) }?.let { found["install"] = it }
+        // Only a whole one (Brood War's data beside StarCraft's): a half install would stop the import where Blizzard's download gives a good game.
+        roots.firstNotNullOfOrNull { findInstall(it, 4)?.takeIf { n -> n.child("BrooDat.mpq") != null } }?.let { found["install"] = it }
         val scan = Scan(roots)
         scan.named(SC_DISC)?.let { found["scdisc"] = it }
         scan.named(BW_DISC)?.let { found["bwdisc"] = it }
