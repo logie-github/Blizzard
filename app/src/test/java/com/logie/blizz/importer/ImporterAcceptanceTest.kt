@@ -312,6 +312,40 @@ class ImporterAcceptanceTest {
         assertTrue(calls.none { it.contains("--cdkey") })
     }
 
+    @Test fun aHalfInstalledDiabloIIOnThePhoneIsPassedOverForBlizzardsDownload() {
+        setUp()
+        online = true
+        // Without Lord of Destruction's data: what would stop the import.
+        roots += FileNode(Fixtures.diablo2Install(tmp.newFolder("Diablo II"), expansion = false).parentFile!!)
+        assertNull(Diablo2ClassicImporter().detect(env()).found["install"])
+        val base = Fixtures.diablo2Install(tmp.newFolder("template-D2DV"), expansion = false)
+        val expansion = tmp.newFolder("template-D2XP").also { d -> Diablo2ClassicImporter.EXPANSION.forEach { Fixtures.mpq(File(d, it)) } }
+        val log = File(tmp.root, "calls.txt")
+        legacy = LegacyDownloader(fakeTool(mapOf("D2DV" to base, "D2XP" to expansion), log), paths.legacyCache)
+        assertTrue(run(Diablo2ClassicImporter()) is ImportPipeline.Result.Done)
+        assertEquals(2, log.readLines().size)
+    }
+
+    @Test fun aWholeDiabloIIOnThePhoneIsUsedAndNothingIsDownloaded() {
+        setUp()
+        online = true
+        roots += FileNode(Fixtures.diablo2Install(tmp.newFolder("Diablo II")).parentFile!!)
+        assertNotNull(Diablo2ClassicImporter().detect(env()).found["install"])
+        assertTrue(Diablo2ClassicImporter().resolveSources(env(), Diablo2ClassicImporter().detect(env()), emptyMap()).isEmpty())
+    }
+
+    @Test fun aStarCraftWithoutBroodWarOnThePhoneIsPassedOverForBlizzardsDownload() {
+        setUp()
+        online = true
+        val half = Fixtures.starcraftInstall(tmp.newFolder("StarCraft"))
+        File(half, "BrooDat.mpq").delete()
+        roots += FileNode(half.parentFile!!)
+        assertNull(StarCraftClassicImporter().detect(env()).found["install"])
+        val template = Fixtures.starcraftInstall(tmp.newFolder("template-STAR"))
+        legacy = LegacyDownloader(fakeTool(mapOf("STAR" to template)), paths.legacyCache)
+        assertTrue(run(StarCraftClassicImporter()) is ImportPipeline.Result.Done)
+    }
+
     @Test fun aFailedBlizzardDownloadIsReportedAndLeavesNoStaging() {
         setUp()
         online = true

@@ -40,7 +40,8 @@ class Diablo2ClassicImporter : GameImporter {
         val found = LinkedHashMap<String, SourceNode>()
         // A folder with Game.exe and d2data.mpq: an existing installation.
         val roots = env.searchRoots()
-        val install = roots.firstNotNullOfOrNull { root -> findInstall(root, 4) }
+        // Only a whole one: a folder without Lord of Destruction's data would stop the import where Blizzard's download gives a good game.
+        val install = roots.firstNotNullOfOrNull { root -> findInstall(root, 4)?.takeIf { it.child("d2exp.mpq") != null } }
         if (install != null) found["install"] = install
         scan.matching(Regex("diablo.?ii(?!.*resurrect).*\\.zip|d2(?!r).*\\.zip")).firstOrNull()?.let { found.putIfAbsent("install", it) }
         return Detection(validateDir(env.paths.game(gameId)).filesOk, found)
