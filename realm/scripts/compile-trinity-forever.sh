@@ -74,6 +74,10 @@ for prog in bnetserver worldserver mapextractor vmap4extractor vmap4assembler mm
 	[ -n "$found" ] || { echo "$prog wasn't built" >&2; exit 1; }
 	cp "$found" "$DIST/bin/"
 done
+# Project-built shared libraries the programs load at runtime (libopenssl_ed25519.so: the only one with SCRIPTS=static).
+# They install to <prefix>/lib; keep them so the packager can bundle them (they aren't in Alpine).
+mkdir -p "$DIST/lib"
+find "$DIST.install" -type f -name '*.so*' -exec cp -L {} "$DIST/lib/" \;
 cp "$(find "$DIST.install" -name bnetserver.conf.dist | head -1)" "$(find "$DIST.install" -name worldserver.conf.dist | head -1)" "$DIST/etc/"
 rm -rf "$DIST.install"
 llvm-strip "$DIST"/bin/*

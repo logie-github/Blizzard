@@ -35,6 +35,9 @@ rm -rf "$STAGE"
 pkg="$STAGE/server"
 mkdir -p "$pkg/bin" "$pkg/lib" "$pkg/etc" "$pkg/share"
 cp "$DIST"/bin/* "$pkg/bin/"
+# Project-built shared libraries the programs load (libopenssl_ed25519.so); they aren't in Alpine, so stage them from
+# the build before resolving dependencies, and resolve their own deps (openssl) below.
+[ -d "$DIST/lib" ] && [ -n "$(ls -A "$DIST/lib" 2>/dev/null)" ] && cp -L "$DIST"/lib/*.so* "$pkg/lib/"
 for prog in mariadbd mariadb mariadb-admin mariadb-dump openssl; do
 	cp "$(command -v "$prog")" "$pkg/bin/"
 done
@@ -63,7 +66,8 @@ copy_deps() {
 		copy_deps "$pkg/lib/$name"
 	done
 }
-for prog in "$pkg"/bin/* "$pkg/lib/ossl-modules/legacy.so" "$pkg/lib/libandroidcompat.so"; do
+for prog in "$pkg"/bin/* "$pkg"/lib/*.so* "$pkg/lib/ossl-modules/legacy.so" "$pkg/lib/libandroidcompat.so"; do
+	[ -e "$prog" ] || continue
 	copy_deps "$prog"
 done
 cp -L /lib/ld-musl-aarch64.so.1 "$pkg/lib/ld-musl-aarch64.so.1"
