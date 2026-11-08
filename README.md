@@ -241,3 +241,9 @@ Play starts MariaDB, the auth server and the world server of the realm you last 
 - The server programs were built with the old app's folder as their loader path, so they're started through the musl loader (`server/ctl.blizz.sh`, made from `ctl.sh`, which is left as it was), and the old app's folder in the text configs and scripts is rewritten to this one (never in binaries or databases; `files/.blizz-paths` records it).
 - A realm that fails to start reports its log tail as an issue. The first start can take minutes.
 - Not verified on a phone: the programs running through the loader from this folder, MariaDB opening the imported InnoDB files, the world server reaching ready, and Wow.exe under DXVK/Box64.
+
+## Warcraft III: Warsmash mode
+
+Warcraft III's chooser has a third option, **Warsmash**, alongside Reign of Chaos and The Frozen Throne. It launches the embedded Android Warsmash engine, without Wine or a separate Warsmash app. Install imports classic MPQ files (both `war3.mpq` and `war3x.mpq`, patches 1.22–1.29), reusing either existing Warcraft III mode's compatible installation when available. CASC-only installations need a separate classic import for this mode. Its own import, settings and state use `warcraft3_warsmash`; existing Windows modes keep their launch behavior.
+
+Before Gradle, run `scripts/prepare-warsmash.sh` in addition to the existing preparation scripts. It fetches and verifies the F-Droid 1.0.4 source; see [warsmash/README.md](warsmash/README.md) for provenance, library structure and limitations. The Android port needs OpenGL ES 3.2. Touch buttons provide a right-click order at the last touched game position, Escape and exit; the engine also supports mouse/keyboard and gamepad. This integration must still be tested on a phone with actual game files; a successful import or build does not establish campaign/custom-map compatibility.

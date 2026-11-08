@@ -1,0 +1,7 @@
+plugins { id 'java-library'; id 'antlr' }
+def upstream = rootProject.file('app/warsmash/fdfparser')
+sourceSets.main.java.srcDirs = [new File(upstream, 'src')]
+sourceSets.main.antlr.srcDirs = [new File(upstream, 'antlr-src')]
+dependencies { antlr 'org.antlr:antlr4:4.7' }
+generateGrammarSource { arguments += ['-visitor', '-no-listener'] }
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

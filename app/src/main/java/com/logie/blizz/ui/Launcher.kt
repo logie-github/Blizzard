@@ -185,6 +185,7 @@ fun Launcher() {
             } else if (entry != null && java.io.File(entry.installPath, entry.executable).isFile) {
                 // Warcraft I and II run natively (Stratagus); the rest on the app's Winlator.
                 when (entry.runtime) {
+                    com.logie.blizz.warsmash.WarsmashRuntime.RUNTIME -> com.logie.blizz.warsmash.WarsmashRuntime.play(context, entry)
                     com.logie.blizz.game.StratagusRuntime.RUNTIME -> com.logie.blizz.game.StratagusRuntime.play(context, entry)
                     // Diablo II: Resurrected: its files are imported; the native host isn't in the app yet ([com.logie.blizz.d2r.D2r]).
                     com.logie.blizz.importer.LibraryEntry.RUNTIME_D2R, com.logie.blizz.importer.LibraryEntry.RUNTIME_PENDING ->
