@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push origin HEAD:main)",
+      "Bash(git push -u origin HEAD:main)",
+      "Bash(git push origin HEAD:claude/blizzard-game-launcher-dqzz1j)"
+    ]
+  }
+}
