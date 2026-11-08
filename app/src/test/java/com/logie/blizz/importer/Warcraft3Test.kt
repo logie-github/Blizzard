@@ -347,6 +347,20 @@ class Warcraft3Test {
         assertEquals(2, log.readLines().size)
     }
 
+    @Test fun aHalfFolderPickedEarlierDoesNotBlockTheDownloadOnRetry() {
+        setUp()
+        online = true
+        val half = casc130(tmp.newFolder("picked"))
+        File(half, "Data/config").deleteRecursively()
+        val base = mpq127(tmp.newFolder("template-WAR3"), expansion = false)
+        val exp = tmp.newFolder("template-W3XP").also { d -> Fixtures.mpq(File(d, "war3x.mpq")); Fixtures.pe(File(d, "Frozen Throne.exe"), "1.27.0.52240") }
+        val log = File(tmp.root, "calls.txt")
+        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base, "W3XP" to exp), log), paths.legacyCache)
+        // The first import's picked folder is still in the record when Retry runs.
+        assertDone(run(roc, half))
+        assertEquals(2, log.readLines().size)
+    }
+
     @Test fun aWholeFolderOnThePhoneIsFoundAndNothingIsDownloaded() {
         setUp()
         online = true
