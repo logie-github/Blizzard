@@ -50,6 +50,8 @@ TC
 # _LARGEFILE64_SOURCE: Alpine musl exposes stat64/lstat64 (g3dlite uses them) only with it defined.
 	# -include ctime/cstdint/cstring: musl + libc++ do not pull these in transitively the way glibc does, so some
 	# headers (Util.h: time_t) fail to compile; force-including them fixes it without touching the sources.
+	# NOJEM: jemalloc's bundled copy clashes with musl (JEMALLOC_SYS_NOTHROW on malloc/calloc vs musl's
+	# declarations); the core runs on musl's own allocator, so leave jemalloc out (dep/CMakeLists gates it on NOT NOJEM).
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
 	-DCMAKE_BUILD_TYPE=Release \
@@ -58,6 +60,7 @@ cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -Wl,-z,stack-size=8388608" \
 	-DSERVERS=1 -DTOOLS=1 -DSCRIPTS=static -DWITH_WARNINGS=0 -DWITHOUT_GIT=1 -DUSE_COREPCH=1 -DUSE_SCRIPTPCH=1 \
+	-DNOJEM=1 \
 	> "$BUILD.cmake.log" 2>&1 || { tail -80 "$BUILD.cmake.log"; exit 1; }
 ccache -z > /dev/null
 ninja -C "$BUILD" -j "$JOBS" -k 0 > "$BUILD.ninja.log" 2>&1 || { grep -B5 -A25 -m5 "error:" "$BUILD.ninja.log" | head -250; tail -40 "$BUILD.ninja.log"; exit 1; }

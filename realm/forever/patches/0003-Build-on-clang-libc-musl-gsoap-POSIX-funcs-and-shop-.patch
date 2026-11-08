@@ -1,0 +1,71 @@
+From 82eab9fa079b838943d461375dafaa3b50eba159 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sun, 8 Nov 2026 20:44:56 +0000
+Subject: [PATCH] Build on clang/libc++/musl: gsoap POSIX funcs and
+ shop-purchase emplace
+
+Three portability gaps the maintainer's glibc/gcc toolchain hides:
+
+- dep/gsoap/stdsoap2.cpp selects the Solaris-style 5-arg gethostbyname_r
+  and the GNU char*-returning strerror_r because libstdc++ force-defines
+  _GNU_SOURCE while no _POSIX_C_SOURCE/_XOPEN_SOURCE is set. On musl both
+  are the POSIX forms (6-arg gethostbyname_r, int-returning XSI
+  strerror_r). Add '|| defined(__linux__)' to the three branch conditions
+  so Linux (musl or glibc) takes the POSIX forms.
+- TokenHandler.cpp used Optional::emplace() with no args, which libstdc++
+  constrains on is_constructible_v<ShopPendingPurchase>; clang evaluates
+  that false here. Assign an aggregate-initialized value instead (same
+  result: a default-valued pending purchase).
+---
+ dep/gsoap/stdsoap2.cpp                    | 6 +++---
+ src/server/game/Handlers/TokenHandler.cpp | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/dep/gsoap/stdsoap2.cpp b/dep/gsoap/stdsoap2.cpp
+index be9cdcea..be10d08a 100644
+--- a/dep/gsoap/stdsoap2.cpp
++++ b/dep/gsoap/stdsoap2.cpp
+@@ -5460,7 +5460,7 @@ tcp_gethostbyname(struct soap *soap, const char *addr, struct hostent *hostent,
+ {
+ #if (defined(_AIX43) || defined(TRU64) || defined(HP_UX)) && defined(HAVE_GETHOSTBYNAME_R)
+   struct hostent_data ht_data;
+-#elif (!defined(_GNU_SOURCE) || (!(~_GNU_SOURCE+1) && !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || _POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600 || defined(__ANDROID__) || defined(FREEBSD) || defined(__FreeBSD__)) && !defined(SUN_OS) && !defined(__QNX__) && !defined(QNX) && defined(HAVE_GETHOSTBYNAME_R)
++#elif (!defined(_GNU_SOURCE) || (!(~_GNU_SOURCE+1) && !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || _POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600 || defined(__ANDROID__) || defined(FREEBSD) || defined(__FreeBSD__) || defined(__linux__)) && !defined(SUN_OS) && !defined(__QNX__) && !defined(QNX) && defined(HAVE_GETHOSTBYNAME_R)
+   int r;
+   char *tmpbuf = soap->tmpbuf;
+   size_t tmplen = sizeof(soap->tmpbuf);
+@@ -5493,7 +5493,7 @@ tcp_gethostbyname(struct soap *soap, const char *addr, struct hostent *hostent,
+     hostent = NULL;
+     soap->errnum = h_errno;
+   }
+-#elif (!defined(_GNU_SOURCE) || (!(~_GNU_SOURCE+1) && !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || _POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600 || defined(__ANDROID__) || defined(FREEBSD) || defined(__FreeBSD__)) && !defined(SUN_OS) && !defined(__QNX__) && !defined(QNX) && defined(HAVE_GETHOSTBYNAME_R)
++#elif (!defined(_GNU_SOURCE) || (!(~_GNU_SOURCE+1) && !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || _POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600 || defined(__ANDROID__) || defined(FREEBSD) || defined(__FreeBSD__) || defined(__linux__)) && !defined(SUN_OS) && !defined(__QNX__) && !defined(QNX) && defined(HAVE_GETHOSTBYNAME_R)
+   while ((r = gethostbyname_r(addr, hostent, tmpbuf, tmplen, &hostent, &soap->errnum)) < 0)
+   {
+     if (tmpbuf != soap->tmpbuf)
+@@ -23258,7 +23258,7 @@ soap_strerror(struct soap *soap)
+   {
+ #ifndef WIN32
+ # ifdef HAVE_STRERROR_R
+-#  if !defined(_GNU_SOURCE) || (!(~_GNU_SOURCE+1) && ((!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600))) || defined(WITH_POSIX_STRERROR_R)
++#  if !defined(_GNU_SOURCE) || (!(~_GNU_SOURCE+1) && ((!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600))) || defined(WITH_POSIX_STRERROR_R) || defined(__linux__)
+     err = strerror_r(err, soap->msgbuf, sizeof(soap->msgbuf)); /* XSI-compliant */
+     if (err != 0)
+       soap_strcpy(soap->msgbuf, sizeof(soap->msgbuf), "unknown error");
+diff --git a/src/server/game/Handlers/TokenHandler.cpp b/src/server/game/Handlers/TokenHandler.cpp
+index 9ff8c3d4..96721082 100644
+--- a/src/server/game/Handlers/TokenHandler.cpp
++++ b/src/server/game/Handlers/TokenHandler.cpp
+@@ -884,7 +884,8 @@ void WorldSession::StartShopPurchase(uint32 clientToken, uint32 productId, Objec
+         return;
+     }
+ 
+-    ShopPendingPurchase& pending = _shopPendingPurchase.emplace();
++    _shopPendingPurchase = ShopPendingPurchase{};
++    ShopPendingPurchase& pending = *_shopPendingPurchase;
+     pending.PurchaseID = response.PurchaseID;
+     pending.ProductID = product->ID;
+     pending.ServerToken = urand(1, std::numeric_limits<int32>::max());
+-- 
+2.43.0
+
