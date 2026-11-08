@@ -42,6 +42,18 @@ object MusicCustom {
         true
     }.getOrDefault(false)
 
+    /** [file] (a song fetched from khinsider, already checked) as [gameId]'s music, named [name]; the file is moved in. */
+    fun setFile(context: Context, gameId: String, file: File, name: String): Boolean = runCatching {
+        if (file.length() < MusicStore.MIN_BYTES || !MusicStore.looksLikeAudio(file)) return false
+        val target = File(dir(context), "$gameId.audio")
+        target.parentFile?.mkdirs()
+        target.delete()
+        if (!file.renameTo(target)) { file.copyTo(target, overwrite = true); file.delete() }
+        File(target.parentFile, "$gameId.name").writeText(name.take(120))
+        _version.value++
+        true
+    }.getOrDefault(false)
+
     /** Back to the downloaded track. */
     fun clear(context: Context, gameId: String) {
         File(dir(context), "$gameId.audio").delete()

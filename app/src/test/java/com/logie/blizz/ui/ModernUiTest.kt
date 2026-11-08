@@ -125,4 +125,33 @@ class ModernUiTest {
         rule.onNodeWithText("API key").assertExists()
         UiShots.saveAll("modern-settings-steamgrid", rule)
     }
+
+    private fun albumPage() = com.logie.blizz.music.Khinsider.AlbumPage(
+        "Diablo II: Lord of Destruction", null,
+        listOf(
+            com.logie.blizz.music.Khinsider.Song(1, "Act 0 - Intro", "https://downloads.khinsider.com/game-soundtracks/album/d2/01.mp3", "3:36", 216, "5.4 MB"),
+            com.logie.blizz.music.Khinsider.Song(2, "Act 1 - Tristram", "https://downloads.khinsider.com/game-soundtracks/album/d2/02.mp3", "2:10", 130, "3.1 MB"),
+            com.logie.blizz.music.Khinsider.Song(3, "Act 2 - Lut Gholein, with a long name that has to be cut off somewhere", "https://downloads.khinsider.com/game-soundtracks/album/d2/03.mp3", "4:05", 245, "6.0 MB"),
+        ),
+    )
+
+    @Test fun khinsiderAlbums() {
+        val albums = listOf(
+            com.logie.blizz.music.Khinsider.Album("d2", "Diablo II: Lord of Destruction", "https://downloads.khinsider.com/game-soundtracks/album/d2", null),
+            com.logie.blizz.music.Khinsider.Album("d1", "Diablo", "https://downloads.khinsider.com/game-soundtracks/album/d1", null),
+        )
+        rule.setContent { BlizzTheme { KhinsiderPicker(Games.find("diablo")!!, onMyFiles = {}, onDismiss = {}, preset = KhinsiderPreset(albums)) } }
+        settle()
+        rule.onNodeWithText("Diablo II: Lord of Destruction").assertExists()
+        UiShots.saveAll("modern-khinsider-albums", rule)
+    }
+
+    @Test fun khinsiderSongs() {
+        val album = com.logie.blizz.music.Khinsider.Album("d2", "Diablo II: Lord of Destruction", "https://downloads.khinsider.com/game-soundtracks/album/d2", null)
+        rule.setContent { BlizzTheme { KhinsiderPicker(Games.find("diablo")!!, onMyFiles = {}, onDismiss = {}, preset = KhinsiderPreset(listOf(album), album, albumPage())) } }
+        settle()
+        rule.onNodeWithText("Act 1 - Tristram").assertExists()
+        rule.onNodeWithText("3:36").assertExists()
+        UiShots.saveAll("modern-khinsider-songs", rule)
+    }
 }

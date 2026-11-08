@@ -45,6 +45,8 @@ object MusicPlayer {
     private var wanted: String = MusicCatalog.LAUNCHER
     private var wantedGame: String? = null
     private var foreground = false
+    /** A preview in the music picker is playing: the background music waits (fades out, paused) and goes on after. */
+    private var previewing = false
     private var appContext: Context? = null
 
     private val _enabled = MutableStateFlow(true)
@@ -84,6 +86,11 @@ object MusicPlayer {
         worker.post { appContext = app; foreground = on; sync() }
     }
 
+    /** The music picker's preview starts ([on]) or ends: the background music stands aside meanwhile. */
+    fun previewing(on: Boolean) {
+        worker.post { previewing = on; sync() }
+    }
+
     /** A download finished: a track that was missing may play now. */
     fun refresh() {
         worker.post { sync() }
@@ -102,7 +109,7 @@ object MusicPlayer {
             now?.let { fadeTo(it, 0f, Crossfade.MS, release = true) }
             return
         }
-        if (!foreground) {
+        if (!foreground || previewing) {
             // Away: the song fades and pauses where it is, to go on from there when the launcher is back.
             now?.let { fadeTo(it, 0f, Crossfade.MS, pause = true) }
             return

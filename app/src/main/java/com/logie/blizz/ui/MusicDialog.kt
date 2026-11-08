@@ -41,9 +41,11 @@ fun MusicDialog(game: Game, onDismiss: () -> Unit) {
     val own = remember(game.id, changed) { MusicCustom.file(context, game.id) != null }
     val ownName = remember(game.id, changed) { MusicCustom.label(context, game.id) }
     val track = MusicCatalog.track(MusicCatalog.keyFor(game.id))
+    var khinsider by remember { mutableStateOf(false) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) message = if (MusicCustom.set(context, game.id, uri)) null else "That isn't an audio file this app can play."
     }
+    if (khinsider) KhinsiderPicker(game, onMyFiles = { pick.launch(arrayOf("audio/*")) }, onDismiss = { khinsider = false })
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Sheet("${game.fullTitle} · Music", onDismiss, maxWidth = 520.dp) {
             Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -59,7 +61,7 @@ fun MusicDialog(game: Game, onDismiss: () -> Unit) {
                     Text(if (own) "In place of the downloaded track on this page." else if (track != null) "The downloaded track." else "", style = MaterialTheme.typography.bodySmall)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                    MusicAction("Change") { pick.launch(arrayOf("audio/*")) }
+                    MusicAction("Change") { khinsider = true }
                     if (own) MusicAction("Original", Colors.Mist) { MusicCustom.clear(context, game.id) }
                 }
                 message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Colors.Gold) }
