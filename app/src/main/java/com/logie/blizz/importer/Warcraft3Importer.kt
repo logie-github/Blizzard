@@ -154,7 +154,9 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
     }
 
     override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> {
-        if (supplied["install"] is Supplied.Picked || detection.found["install"] != null || detection.installed) return emptyList()
+        // A folder picked earlier that isn't whole (a Retry after "missing Data/config") no longer blocks the download.
+        val picked = (supplied["install"] as? Supplied.Picked)?.source
+        if ((picked != null && usable(picked)) || detection.found["install"] != null || detection.installed) return emptyList()
         if (programFor(env.paths.game(gameId), product) != null) return emptyList()
         if (env.legacy == null || !env.online()) return emptyList()
         return listOf(AutoSource("blizzard", "Warcraft III: Reign of Chaos and The Frozen Throne from Blizzard's servers", SIZE_BOTH))

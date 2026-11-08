@@ -308,7 +308,7 @@ class ImporterAcceptanceTest {
         val calls = log.readLines()
         assertEquals(2, calls.size)
         assertTrue(calls[0].startsWith("install D2DV"))
-        assertTrue(calls[1].startsWith("install D2XP --no-base"))
+        assertTrue(calls[1].startsWith("install D2XP 1.13c --no-base"))
         assertTrue(calls.none { it.contains("--cdkey") })
     }
 
@@ -324,6 +324,14 @@ class ImporterAcceptanceTest {
         legacy = LegacyDownloader(fakeTool(mapOf("D2DV" to base, "D2XP" to expansion), log), paths.legacyCache)
         assertTrue(run(Diablo2ClassicImporter()) is ImportPipeline.Result.Done)
         assertEquals(2, log.readLines().size)
+    }
+
+    @Test fun diabloIIVersionsThePlayPlaysAre113And114() {
+        assertTrue(Diablo2ClassicImporter.supported("1.0.13.60"))
+        assertTrue(Diablo2ClassicImporter.supported("1.14.1.68"))
+        assertFalse(Diablo2ClassicImporter.supported("1.0.12.0"))
+        assertEquals("1.13c", Diablo2ClassicImporter.label("1.0.13.60"))
+        assertEquals("1.14.1.68", Diablo2ClassicImporter.label("1.14.1.68"))
     }
 
     @Test fun aWholeDiabloIIOnThePhoneIsUsedAndNothingIsDownloaded() {

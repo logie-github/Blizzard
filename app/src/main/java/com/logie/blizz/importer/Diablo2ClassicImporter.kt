@@ -3,7 +3,10 @@ package com.logie.blizz.importer
 import java.io.File
 
 /**
- * Diablo II with Lord of Destruction, the original 1.14 client. From Blizzard's own legacy servers
+ * Diablo II with Lord of Destruction: 1.13c, which Blizzard's download is patched back to, or a 1.14 installation the person has.
+ * 1.13 draws with DirectDraw, which the classic games' cnc-ddraw wrapper handles; 1.14 draws with Direct3D and stopped at
+ * "Error 25: initializing Direct3D" under Winlator (the screenshot of 8 November 2026).
+ * The original text: From Blizzard's own legacy servers
  * (blizzard-legacy-dl: the base game, then the expansion over it, as Blizzard's installers do; each
  * piece checked against its hash), or an installation the person has (a folder or a zip of it).
  * No CD key is asked for: single player doesn't need one. Saved games live in the games' Windows
@@ -12,6 +15,8 @@ import java.io.File
 class Diablo2ClassicImporter : GameImporter {
     override val gameId = "diablo2"
     override val title = "Diablo II"
+    /** 1.13 keeps characters and saved games in the game's own Save folder: a reset leaves them. */
+    override val keptInGame = listOf("Save")
 
     companion object {
         const val EXE = "Game.exe"
@@ -24,8 +29,16 @@ class Diablo2ClassicImporter : GameImporter {
          * the JPEGs), and the language file; 1.14 folded the older D2*.dll files into Game.exe.
          */
         val NATIVE = listOf("binkw32.dll", "smackw32.dll", "ijl11.dll", "D2.LNG")
-        /** 1.14 (1.14b is what Blizzard serves, 1.14.1.68; 1.14d is 1.14.3.71). */
-        fun supported(version: String?): Boolean = version != null && version.startsWith("1.14.")
+        /** What the download is patched to: the last release that draws with DirectDraw (1.14 is Direct3D only). */
+        const val VERSION = "1.13c"
+        /** 1.13 (Game.exe 1.0.13.x; 1.13c is 1.0.13.60) or 1.14 (1.14b is 1.14.1.68, 1.14d is 1.14.3.71). */
+        fun supported(version: String?): Boolean = version != null && (version.startsWith("1.14.") || version.startsWith("1.0.13."))
+        /** The version as players name it. */
+        fun label(version: String?): String? = when {
+            version == null -> null
+            version.startsWith("1.0.13.") -> "1.13" + if (version == "1.0.13.60") "c" else ""
+            else -> version
+        }
         const val SIZE = 2_150L shl 20
         const val PROMPT_INSTALL = "Select your Diablo II folder (with Game.exe and d2data.mpq) or a zip of it — or connect to the internet and retry to download it from Blizzard."
         const val PROMPT_EXPANSION = "Lord of Destruction data is missing (d2exp.mpq). Select your Diablo II folder with Lord of Destruction installed, or retry online to download it from Blizzard."
@@ -57,9 +70,12 @@ class Diablo2ClassicImporter : GameImporter {
     private fun installed(env: ImportEnv) = validateDir(env.paths.game(gameId)).filesOk
 
     override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> {
-        if (supplied["install"] is Supplied.Picked || detection.found["install"] != null || installed(env)) return emptyList()
+        // A folder picked earlier that is missing Lord of Destruction's data no longer blocks the download.
+        val picked = (supplied["install"] as? Supplied.Picked)?.source
+        val pickedWhole = picked != null && (!picked.isDirectory || findInstall(picked, 4)?.child("d2exp.mpq") != null)
+        if (pickedWhole || detection.found["install"] != null || installed(env)) return emptyList()
         if (env.legacy == null || !env.online()) return emptyList()
-        return listOf(AutoSource("blizzard", "Diablo II + Lord of Destruction 1.14b from Blizzard's servers", SIZE))
+        return listOf(AutoSource("blizzard", "Diablo II + Lord of Destruction 1.13c from Blizzard's servers", SIZE))
     }
 
     override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) {
@@ -72,7 +88,7 @@ class Diablo2ClassicImporter : GameImporter {
         staging.mkdirs()
         try {
             legacy.install("D2DV", staging, noBase = true, keys = env.keys?.copy(expansion = null), cancel = env.cancel, onProgress = env.progress)
-            legacy.install("D2XP", staging, noBase = true, keys = env.keys?.copy(classic = null), cancel = env.cancel, onProgress = env.progress)
+            legacy.install("D2XP", staging, noBase = true, keys = env.keys?.copy(classic = null), cancel = env.cancel, onProgress = env.progress, version = VERSION)
             File(staging, MARK).writeText("D2DV D2XP\n")
         } catch (e: Throwable) {
             staging.deleteTree()
@@ -165,7 +181,7 @@ class Diablo2ClassicImporter : GameImporter {
         val (program, pe) = programChecks(dir, EXE)
         val checks = program.toMutableList()
         val versionOk = supported(pe?.version)
-        checks += Check("Version 1.14", versionOk, pe?.version ?: "unknown")
+        checks += Check("Version 1.13 or 1.14", versionOk, pe?.version ?: "unknown")
         val base = FileValidator.requireArchives(dir, BASE)
         val expansion = FileValidator.requireArchives(dir, EXPANSION)
         checks += base + expansion
@@ -184,7 +200,7 @@ class Diablo2ClassicImporter : GameImporter {
             else -> null
         }
         val message = when (problem) {
-            Problem.UNSUPPORTED_VERSION -> "This Diablo II is version ${pe?.version}; the app plays 1.14 (1.14b is what Blizzard serves). Select a 1.14 installation, or retry online to download it from Blizzard."
+            Problem.UNSUPPORTED_VERSION -> "This Diablo II is version ${pe?.version}; the app plays 1.13 and 1.14. Select one of those, or retry online to download it from Blizzard."
             Problem.MISSING_EXPANSION -> PROMPT_EXPANSION
             Problem.CORRUPT_ARCHIVE -> "Some of Diablo II's archives are damaged: ${base.filter { !it.passed }.joinToString { it.name }}. Repair to download or copy them again."
             Problem.MISSING_RUNTIME_DEPENDENCY ->
@@ -193,7 +209,7 @@ class Diablo2ClassicImporter : GameImporter {
             Problem.MISSING_SOURCE_DATA -> "Diablo II game data is missing. $PROMPT_INSTALL"
             else -> null
         }
-        return Validation(checks, pe?.version?.let { "Diablo II + Lord of Destruction $it" }, problem == null, problem, message)
+        return Validation(checks, label(pe?.version)?.let { "Diablo II + Lord of Destruction $it" }, problem == null, problem, message)
     }
 
     override fun registerLaunchEntry(env: ImportEnv, validation: Validation) = LibraryEntry(

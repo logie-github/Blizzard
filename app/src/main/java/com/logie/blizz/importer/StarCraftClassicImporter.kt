@@ -78,7 +78,10 @@ class StarCraftClassicImporter : GameImporter {
     private fun installed(env: ImportEnv) = validateDir(env.paths.game(gameId)).filesOk
 
     override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> {
-        if (supplied["install"] is Supplied.Picked || detection.found["install"] != null || installed(env)) return emptyList()
+        // A folder picked earlier that has no Brood War data no longer blocks the download.
+        val picked = (supplied["install"] as? Supplied.Picked)?.source
+        val pickedWhole = picked != null && (!picked.isDirectory || findInstall(picked, 4)?.child("BrooDat.mpq") != null)
+        if (pickedWhole || detection.found["install"] != null || installed(env)) return emptyList()
         if (env.legacy == null || !env.online()) return emptyList()
         return listOf(AutoSource("blizzard", "StarCraft + Brood War 1.15.2 from Blizzard's servers", SIZE))
     }
