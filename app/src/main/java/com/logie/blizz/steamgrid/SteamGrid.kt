@@ -35,6 +35,10 @@ object SteamGrid {
         val hasMore: Boolean get() = (page + 1) * limit < total
     }
 
+    /** "600 × 900", and the style where it has one ("alternate"). */
+    fun resolution(p: Picture): String =
+        (if (p.width > 0 && p.height > 0) "${p.width} × ${p.height}" else "size unknown") + (if (p.style.isNotEmpty()) " · ${p.style}" else "")
+
     class SteamGridException(message: String, val code: Int = 0) : IOException(message)
 
     // The key ------------------------------------------------------------------------------------

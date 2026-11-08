@@ -79,4 +79,11 @@ class SteamGridTest {
         assertEquals("Diablo", SteamGrid.searchTerm("Diablo", null))
         assertEquals("World of Warcraft", SteamGrid.searchTerm("World of Warcraft", "Wrath+"))
     }
+
+    @Test fun theResolutionIsSaidUnderEachPicture() {
+        fun pic(w: Int, h: Int, style: String) = SteamGrid.Picture(1, "https://cdn2.steamgriddb.com/a.png", "https://cdn2.steamgriddb.com/t.jpg", w, h, style, "", 0, "image/png")
+        assertEquals("600 × 900 · alternate", SteamGrid.resolution(pic(600, 900, "alternate")))
+        assertEquals("1920 × 620", SteamGrid.resolution(pic(1920, 620, "")))
+        assertEquals("size unknown", SteamGrid.resolution(pic(0, 0, "")))
+    }
 }

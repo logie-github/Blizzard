@@ -114,6 +114,7 @@ class ModernUiTest {
         rule.onNodeWithText("Box").assertExists()
         rule.onNodeWithText("Home picture").assertExists()
         rule.onNodeWithText("Loading picture").assertExists()
+        rule.onNodeWithText("Box").assertExists()
         rule.onNodeWithText("Logo").assertExists()
         UiShots.saveAll("modern-art", rule)
     }

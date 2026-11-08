@@ -58,6 +58,23 @@ object TileSettings {
         true
     }.getOrDefault(false)
 
+    /** [bitmap] (a crop the person made) as [id]'s box picture, scaled down to what a screen needs. */
+    fun setArtBitmap(context: Context, id: String, bitmap: Bitmap): Boolean = runCatching {
+        val max = 1400
+        val scaled = if (maxOf(bitmap.width, bitmap.height) > max) {
+            val f = max.toFloat() / maxOf(bitmap.width, bitmap.height)
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * f).toInt().coerceAtLeast(1), (bitmap.height * f).toInt().coerceAtLeast(1), true)
+        } else bitmap
+        val target = File(dir(context), "$id-tall.jpg")
+        target.parentFile?.mkdirs()
+        val temp = File(target.parentFile, ".${target.name}.tmp")
+        temp.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, 92, it) }
+        target.delete()
+        temp.renameTo(target)
+        _state.value = _state.value.copy(artVersion = _state.value.artVersion + 1)
+        true
+    }.getOrDefault(false)
+
     /** Back to the original picture of one orientation. */
     fun clearArt(context: Context, id: String, wide: Boolean) {
         File(dir(context), "$id-${if (wide) "wide" else "tall"}.jpg").delete()

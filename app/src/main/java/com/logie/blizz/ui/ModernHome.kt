@@ -166,7 +166,7 @@ private fun Backdrop(game: Game) {
         val painter: Painter = own?.let { BitmapPainter(it) } ?: painterResource(g.wide ?: g.splash ?: g.cover)
         val artIsCover = own == null && g.wide == null && g.splash == null
         Image(
-            painter, null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0.3f, -0.4f),
+            painter, null, contentScale = ContentScale.Crop, alignment = if (own != null) Alignment.Center else BiasAlignment(0.3f, -0.4f),
             modifier = Modifier.fillMaxSize().graphicsLayer {
                 val z = 1.06f + 0.06f * drift
                 scaleX = z; scaleY = z

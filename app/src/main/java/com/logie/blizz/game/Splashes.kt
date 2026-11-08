@@ -72,6 +72,22 @@ object Splashes {
         true
     }.onFailure { lastError = it; android.util.Log.w("Splashes", "couldn't use the picture", it) }.getOrDefault(false)
 
+    /** [bitmap] (a crop the person made) as [kind] of [gameId]'s splash, scaled down to what a screen needs; false if it can't be saved. */
+    fun setBitmap(context: Context, gameId: String, kind: Kind, bitmap: Bitmap): Boolean = runCatching {
+        val scaled = if (maxOf(bitmap.width, bitmap.height) > kind.maxSide) {
+            val f = kind.maxSide.toFloat() / maxOf(bitmap.width, bitmap.height)
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * f).toInt().coerceAtLeast(1), (bitmap.height * f).toInt().coerceAtLeast(1), true)
+        } else bitmap
+        val target = File(dir(context, gameId), kind.file)
+        target.parentFile?.mkdirs()
+        val temp = File(target.parentFile, ".${target.name}.tmp")
+        temp.outputStream().use { scaled.compress(if (kind == Kind.LOGO) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG, 92, it) }
+        target.delete()
+        temp.renameTo(target)
+        _version.value++
+        true
+    }.getOrDefault(false)
+
     /** Why the last [set] failed (for the person's report and for tests). */
     @Volatile var lastError: Throwable? = null
         private set

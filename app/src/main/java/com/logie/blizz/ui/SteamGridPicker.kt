@@ -147,23 +147,27 @@ fun SteamGridPicker(game: Game, slot: SteamGrid.Slot, slotName: String, onPicked
                     horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(pictures, key = { it.id }) { pic ->
-                        Box(
-                            Modifier.fillMaxWidth().aspectRatio(if (portrait) 2f / 3f else if (slot == SteamGrid.Slot.LOGO) 1.6f else 3.1f / 1f)
-                                .clip(RoundedCornerShape(12.dp)).background(if (slot == SteamGrid.Slot.LOGO) Color.Black.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.05f))
-                                .border(1.dp, if (taking == pic.id) Colors.Ice else Colors.Steel.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                                .clickable(enabled = taking == null) {
-                                    taking = pic.id; message = null
-                                    scope.launch {
-                                        val dest = File(context.cacheDir, "steamgrid/${pic.id}-${slot.name.lowercase()}.img")
-                                        runCatching { withContext(Dispatchers.IO) { SteamGrid.download(pic.url, dest) } }
-                                            .onSuccess { onPicked(dest); onDismiss() }
-                                            .onFailure { message = it.message ?: "Couldn't download that picture."; taking = null }
-                                    }
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            RemoteThumb(pic.thumb, Modifier.fillMaxSize(), if (slot == SteamGrid.Slot.LOGO) ContentScale.Fit else ContentScale.Crop)
-                            if (taking == pic.id) Text("Downloading…", style = MaterialTheme.typography.bodySmall.copy(color = Color.White), modifier = Modifier.background(Color.Black.copy(alpha = 0.6f)).padding(6.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Box(
+                                Modifier.fillMaxWidth().aspectRatio(if (portrait) 2f / 3f else if (slot == SteamGrid.Slot.LOGO) 1.6f else 3.1f / 1f)
+                                    .clip(RoundedCornerShape(12.dp)).background(if (slot == SteamGrid.Slot.LOGO) Color.Black.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.05f))
+                                    .border(1.dp, if (taking == pic.id) Colors.Ice else Colors.Steel.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                                    .clickable(enabled = taking == null) {
+                                        taking = pic.id; message = null
+                                        scope.launch {
+                                            val dest = File(context.cacheDir, "steamgrid/${pic.id}-${slot.name.lowercase()}.img")
+                                            runCatching { withContext(Dispatchers.IO) { SteamGrid.download(pic.url, dest) } }
+                                                .onSuccess { onPicked(dest); onDismiss() }
+                                                .onFailure { message = it.message ?: "Couldn't download that picture."; taking = null }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                RemoteThumb(pic.thumb, Modifier.fillMaxSize(), if (slot == SteamGrid.Slot.LOGO) ContentScale.Fit else ContentScale.Crop)
+                                if (taking == pic.id) Text("Downloading…", style = MaterialTheme.typography.bodySmall.copy(color = Color.White), modifier = Modifier.background(Color.Black.copy(alpha = 0.6f)).padding(6.dp))
+                            }
+                            // Its size, under it: how sharp it will be.
+                            Text(SteamGrid.resolution(pic), style = MaterialTheme.typography.bodySmall, maxLines = 1)
                         }
                     }
                     if (hasMore) item(span = { GridItemSpan(maxLineSpan) }) {
