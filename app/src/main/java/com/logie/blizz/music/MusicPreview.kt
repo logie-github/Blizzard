@@ -55,10 +55,11 @@ object MusicPreview {
 
     private fun start(context: Context, pageUrl: String, title: String, album: String, cover: String?) {
         release()
+        Khinsider.attach(context)
         MusicPlayer.previewing(true)
         _state.value = State(pageUrl, title, album, cover, loading = true)
         job = scope.launch {
-            val url = try { withContext(Dispatchers.IO) { Khinsider.audioUrl(pageUrl) } } catch (e: Exception) {
+            val url = try { Khinsider.audioUrl(pageUrl) } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, error = e.message ?: "Couldn't find that song.")
                 return@launch
@@ -67,7 +68,7 @@ object MusicPreview {
             player = p
             runCatching {
                 p.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-                p.setDataSource(context.applicationContext, Uri.parse(url), mapOf("User-Agent" to Khinsider.AGENT))
+                p.setDataSource(context.applicationContext, Uri.parse(url), mapOf("User-Agent" to Khinsider.AGENT, "Referer" to "https://downloads.khinsider.com/"))
                 p.setOnPreparedListener { mp ->
                     if (player !== mp) return@setOnPreparedListener
                     mp.start()

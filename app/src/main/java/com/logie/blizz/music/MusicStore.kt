@@ -39,6 +39,8 @@ class MusicStore(
                 connection.connectTimeout = 15_000
                 connection.readTimeout = 30_000
                 connection.setRequestProperty("User-Agent", AGENT)
+                // khinsider's file servers answer a request that says it came from the site.
+                if (URL(url).host.let { it.endsWith("khinsider.com") || it.endsWith("vgmtreasurechest.com") || it.endsWith("vgmsite.com") }) connection.setRequestProperty("Referer", "https://downloads.khinsider.com/")
                 val code = connection.responseCode
                 if (code !in 200..299) throw IOException("${URL(url).host} answered $code")
                 if (connection.contentType.orEmpty().lowercase().startsWith("text/html")) {

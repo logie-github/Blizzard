@@ -1,5 +1,7 @@
 package com.logie.blizz.music
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -18,7 +20,15 @@ object Khinsider {
     class Song(val number: Int, val title: String, val pageUrl: String, val length: String?, val seconds: Int?, val size: String?)
     class AlbumPage(val title: String, val cover: String?, val songs: List<Song>)
 
-    class KhinsiderException(message: String) : IOException(message)
+    open class KhinsiderException(message: String) : IOException(message)
+
+    /** A plain request was turned away by the site's browser check: [fetch] then reads the page as a browser does. */
+    class BrowserCheckException : KhinsiderException("khinsider asked for a browser check.")
+
+    @Volatile private var appContext: android.content.Context? = null
+
+    /** The app's context, for reading a page in a WebView when a plain request is turned away. */
+    fun attach(context: android.content.Context) { appContext = context.applicationContext }
 
     /** Only the site's own addresses, over https, are fetched (pages, pictures, songs). */
     fun isSiteUrl(url: String): Boolean = runCatching {
@@ -114,7 +124,7 @@ object Khinsider {
             c.setRequestProperty("Accept", "text/html,application/xhtml+xml")
             val code = c.responseCode
             val body = (if (code in 200..299) c.inputStream else c.errorStream)?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
-            if (looksLikeBrowserCheck(body)) throw KhinsiderException("khinsider asked for a browser check and won't show its pages to the app right now. Try again later, or use a file on the phone.")
+            if (looksLikeBrowserCheck(body) || (code == 403 && body.contains("cloudflare", true))) throw BrowserCheckException()
             if (code !in 200..299) throw KhinsiderException("khinsider answered $code.")
             return body
         } finally { c.disconnect() }
@@ -123,13 +133,27 @@ object Khinsider {
     /** Cloudflare's "Just a moment..." page, which is what the site gives a client it takes for a robot. */
     fun looksLikeBrowserCheck(html: String): Boolean = html.contains("Just a moment...") && html.contains("challenge", true)
 
-    fun albums(): List<Album> = parseAlbums(get(PUBLISHER), PUBLISHER)
+    /** A page's HTML: a plain request first, and, where the site's browser check turns that away, the page as a browser reads it. */
+    suspend fun fetch(url: String): String = try {
+        withContext(Dispatchers.IO) { get(url) }
+    } catch (e: BrowserCheckException) {
+        val context = appContext ?: throw KhinsiderException("khinsider asked for a browser check and the app can't pass it here.")
+        BrowserFetch.html(context, url)
+    }
 
-    fun album(album: Album): AlbumPage = parseAlbum(get(album.url), album.url)
+    suspend fun albums(): List<Album> = fetch(PUBLISHER).let { html -> parseAlbums(html, PUBLISHER).also { if (it.isEmpty()) throw Unreadable(PUBLISHER, html, "no albums") } }
+
+    suspend fun album(album: Album): AlbumPage = fetch(album.url).let { html -> parseAlbum(html, album.url).also { if (it.songs.isEmpty()) throw Unreadable(album.url, html, "no songs") } }
+
+    /** A page that came but had nothing the app could read in it: what the page said is kept for a report. */
+    class Unreadable(val url: String, val html: String, what: String) : KhinsiderException("khinsider's page had $what the app could read (it said: \"${title(html)}\").")
+
+    private fun title(html: String): String =
+        Regex("""<title[^>]*>(.*?)</title>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(html)?.groupValues?.get(1)?.let { text(it) }?.take(80) ?: "no title"
 
     /** The address of the audio file of the song page [pageUrl]. */
-    fun audioUrl(pageUrl: String): String {
-        val html = get(pageUrl)
+    suspend fun audioUrl(pageUrl: String): String {
+        val html = fetch(pageUrl)
         val url = MusicStore.audioUrlFromHtml(html, pageUrl) ?: throw KhinsiderException("That song's page has no audio file.")
         if (!isSiteUrl(url)) throw KhinsiderException("That song's file isn't on khinsider's servers.")
         return url

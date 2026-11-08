@@ -89,13 +89,18 @@ fun KhinsiderPicker(game: Game, onMyFiles: () -> Unit, onDismiss: () -> Unit, pr
     var loading by remember { mutableStateOf(false) }
     var taking by remember { mutableStateOf<String?>(null) }
     val preview by MusicPreview.state.collectAsState()
+    androidx.compose.runtime.remember { Khinsider.attach(context) }
 
+    // A page the app couldn't read goes to the developer (once a day): what it said, to fit the reading to the real page.
+    fun reportUnreadable(e: Throwable) {
+        if (e is Khinsider.Unreadable) com.logie.blizz.reports.BugReports.report(context, "khinsider picker", e.message ?: "unreadable page", listOf("Page" to e.url), log = e.html.take(7000))
+    }
     fun loadAlbums() {
         scope.launch {
             loading = true; error = null
-            runCatching { withContext(Dispatchers.IO) { Khinsider.albums() } }
-                .onSuccess { albums = it; if (it.isEmpty()) error = "khinsider's page listed no albums." }
-                .onFailure { error = it.message ?: "Couldn't reach khinsider." }
+            runCatching { Khinsider.albums() }
+                .onSuccess { albums = it }
+                .onFailure { error = it.message ?: "Couldn't reach khinsider."; reportUnreadable(it) }
             loading = false
         }
     }
@@ -103,9 +108,9 @@ fun KhinsiderPicker(game: Game, onMyFiles: () -> Unit, onDismiss: () -> Unit, pr
         open = a; page = null
         scope.launch {
             loading = true; error = null
-            runCatching { withContext(Dispatchers.IO) { Khinsider.album(a) } }
-                .onSuccess { page = it; if (it.songs.isEmpty()) error = "That album's page lists no songs." }
-                .onFailure { error = it.message ?: "Couldn't reach khinsider." }
+            runCatching { Khinsider.album(a) }
+                .onSuccess { page = it }
+                .onFailure { error = it.message ?: "Couldn't reach khinsider."; reportUnreadable(it) }
             loading = false
         }
     }
@@ -113,9 +118,11 @@ fun KhinsiderPicker(game: Game, onMyFiles: () -> Unit, onDismiss: () -> Unit, pr
         taking = song.pageUrl; error = null
         scope.launch {
             runCatching {
+                // The song's file address from its page (read as a browser if need be), then the file itself.
+                val audio = Khinsider.audioUrl(song.pageUrl)
                 withContext(Dispatchers.IO) {
                     val dir = File(context.cacheDir, "khinsider").also { it.mkdirs(); it.listFiles()?.forEach { f -> f.delete() } }
-                    val file = MusicStore(dir).download(MusicCatalog.Track("pick", song.title, song.pageUrl))
+                    val file = MusicStore(dir).download(MusicCatalog.Track("pick", song.title, audio))
                     check(MusicCustom.setFile(context, game.id, file, "${song.title} · $album")) { "That wasn't an audio file." }
                 }
             }.onSuccess { MusicPreview.stop(); onDismiss() }
