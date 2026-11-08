@@ -45,11 +45,12 @@ TC
 [ "${FETCH:-1}" = 0 ] || sh /repo/scripts/fetch-trinity-forever.sh "$SRC"
 
 # armv8-a, every arm64 phone. musl gives new threads 128 KiB of stack unless the program asks for more: 8 MiB.
+# _LARGEFILE64_SOURCE: Alpine musl exposes stat64/lstat64 (g3dlite uses them) only with it defined.
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
-	-DCMAKE_C_FLAGS="-march=armv8-a" -DCMAKE_CXX_FLAGS="-march=armv8-a" \
+	-DCMAKE_C_FLAGS="-march=armv8-a -D_LARGEFILE64_SOURCE" -DCMAKE_CXX_FLAGS="-march=armv8-a -D_LARGEFILE64_SOURCE" \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -Wl,-z,stack-size=8388608" \
 	-DSERVERS=1 -DTOOLS=1 -DSCRIPTS=static -DWITH_WARNINGS=0 -DWITHOUT_GIT=1 -DUSE_COREPCH=0 -DUSE_SCRIPTPCH=0 \
