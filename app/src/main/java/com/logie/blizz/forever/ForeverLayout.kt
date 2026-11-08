@@ -19,6 +19,21 @@ class ForeverLayout(val root: File) {
     /** The game's map data, made from the client (dbc and maps at least). */
     fun hasServerData() = listOf("dbc", "maps").all { File(data, it).list()?.isNotEmpty() == true }
 
+    /** The Forever client folder (the one with .build.info and _forever_), copied or installed here. */
+    val client = File(root, "client")
+
+    /** Whether the client is present (its _forever_ folder with a Wow program). */
+    fun hasClient() = clientExe() != null
+
+    /** The program to start: the Forever Launcher if the user placed one (it sets the server key), else the client exe. */
+    fun clientExe(): File? {
+        val names = listOf(
+            "ForeverLauncher.exe", "Forever Launcher.exe", "forever-launcher.exe",
+            "_forever_/Wow.exe", "_forever_/WowB.exe", "Wow.exe", "WowB.exe", "World of Warcraft Launcher.exe",
+        )
+        return names.map { File(client, it) }.firstOrNull { it.isFile }
+    }
+
     /** A [WowLayout] view of the same folder, for the shared process runner's leftover cleanup. */
     val wowLayout get() = WowLayout(root, root)
 

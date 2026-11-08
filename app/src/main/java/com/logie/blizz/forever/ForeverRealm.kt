@@ -88,6 +88,22 @@ object ForeverRealm {
         }
     }
 
+    /**
+     * Makes the server's map data from the client (dbc, maps, vmaps), off the main thread. Pathfinding (mmaps) is
+     * skipped: it takes hours on a phone, and the realm runs without it (MoveMaps off in ctl.sh configure). [onStep]
+     * gets a short line per step. Throws on failure.
+     */
+    fun extractData(context: Context, clientDir: File, onStep: (String) -> Unit) {
+        val layout = ForeverLayout.of(context)
+        ForeverCtl.makeExecutable(layout)
+        onStep("Reading the game data (maps)")
+        run(layout, "maps", clientDir.path)
+        onStep("Reading the game data (collision)")
+        run(layout, "vmaps", clientDir.path)
+        onStep("Putting the game data in place")
+        run(layout, "data-done")
+    }
+
     /** Makes a game account (its name is an e-mail), or sets its password. Off the main thread. */
     fun account(context: Context, name: String, password: String) {
         run(ForeverLayout.of(context), "account", name, password)

@@ -104,7 +104,8 @@ object GameImportManager {
         "wow" to { WowImporter() },
         "wow_legion" to { WowImporter(WowImporter.WowMode.LEGION) },
         "wow_octowow" to { WowImporter(WowImporter.WowMode.OCTOWOW) },
-        "wow_forever" to { WowImporter(WowImporter.WowMode.FOREVER) },
+        // World of Warcraft: Forever is not imported from the WoW app: it runs its own offline realm on the phone
+        // ([com.logie.blizz.forever.ForeverPlay]), so it is not registered here (Play handles it, not the import wizard).
         // Diablo II: Resurrected: the player's own Switch packages (a 7z of the .nsp files, base game and update), unpacked with hactool.
         "diablo2_resurrected" to { Diablo2ResurrectedImporter() },
     )
