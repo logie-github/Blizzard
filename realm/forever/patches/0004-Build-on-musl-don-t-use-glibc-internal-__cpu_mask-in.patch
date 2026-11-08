@@ -1,0 +1,30 @@
+From 146118e6e034c32a73cb807f2850d353d3c67fdf Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sun, 8 Nov 2026 21:13:05 +0000
+Subject: [PATCH] Build on musl: don't use glibc-internal __cpu_mask in
+ ProcessPriority
+
+ProcessPriority.cpp logs the CPU affinity bitmask by casting &mask to
+__cpu_mask*, a glibc-internal typedef (unsigned long) that musl does not
+define. cpu_set_t is an array of unsigned long on both glibc and musl, so
+cast to unsigned long* to read the same first word portably.
+---
+ src/common/Threading/ProcessPriority.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/common/Threading/ProcessPriority.cpp b/src/common/Threading/ProcessPriority.cpp
+index 135c6396..31d5953c 100644
+--- a/src/common/Threading/ProcessPriority.cpp
++++ b/src/common/Threading/ProcessPriority.cpp
+@@ -77,7 +77,7 @@ void SetProcessPriority(std::string const& logChannel, uint32 affinity, bool hig
+         {
+             CPU_ZERO(&mask);
+             sched_getaffinity(0, sizeof(mask), &mask);
+-            TC_LOG_INFO(logChannel, "Using processors (bitmask, hex): {:x}", *(__cpu_mask*)(&mask));
++            TC_LOG_INFO(logChannel, "Using processors (bitmask, hex): {:x}", *(unsigned long*)(&mask));
+         }
+     }
+ 
+-- 
+2.43.0
+

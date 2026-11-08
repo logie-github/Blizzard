@@ -1,0 +1,8 @@
+# Minimal OpenSSL configuration for the realm's openssl (ctl.sh configure: the phone's certificate authority).
+openssl_conf = openssl_init
+[openssl_init]
+[req]
+distinguished_name = req_dn
+prompt = no
+[req_dn]
+CN = Blizzard app Forever realm

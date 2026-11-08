@@ -301,7 +301,7 @@ private fun GameRow(game: Game, label: String?, onClick: () -> Unit) {
     val music = remember(game.id, customMusic) { MusicCustom.file(context, game.id) != null }
     val own = listOfNotNull("art".takeIf { art }, "loading screen".takeIf { loading }, "music".takeIf { music })
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Image(boxArtOf(game), null, Modifier.width(46.dp).aspectRatio(3f / 4f).border(1.dp, Colors.Steel), contentScale = ContentScale.Crop)
+        Image(boxArtOf(game), null, Modifier.width(46.dp).aspectRatio(2f / 3f).border(1.dp, Colors.Steel), contentScale = ContentScale.Crop)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label ?: game.fullTitle, style = MaterialTheme.typography.titleMedium, color = Colors.Text)
             Text(if (own.isEmpty()) "Original art and music" else "Your own: ${own.joinToString(", ")}", style = MaterialTheme.typography.bodySmall, color = if (own.isEmpty()) Colors.Mist else Colors.Ice)
@@ -345,7 +345,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                 message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Colors.Gold) }
                 SettingCard("Box art") {
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Image(boxArtOf(game), null, Modifier.width(96.dp).aspectRatio(3f / 4f).border(1.dp, Colors.Steel), contentScale = ContentScale.Crop)
+                        Image(boxArtOf(game), null, Modifier.width(96.dp).aspectRatio(2f / 3f).border(1.dp, Colors.Steel), contentScale = ContentScale.Crop)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(if (hasArt) "Your picture" else "The original", style = MaterialTheme.typography.bodyMedium, color = Colors.Mist)
                             FrameButton("Choose", primary = false) { pickArt.launch(arrayOf("image/*")) }

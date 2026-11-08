@@ -176,6 +176,9 @@ fun Launcher() {
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
+        // World of Warcraft: Forever runs its own offline realm on the phone (its own server package and client),
+        // not the WoW-app import; its Play/Install is handled apart ([com.logie.blizz.forever.ForeverPlay]).
+        if (game.id == "wow_forever") { com.logie.blizz.forever.ForeverPlay.play(context); return }
         // Diablo, Diablo II, StarCraft and StarCraft II: imported into the app and played on its Winlator.
         if (GameImportManager.importable(game.id)) {
             val entry = GameImportManager.library(context).get(game.id)
@@ -242,8 +245,8 @@ fun Launcher() {
     }
 }
 
-/** The box art's shape: 3:4. */
-const val COVER_RATIO = 3f / 4f
+/** The box art's shape: 2:3 (the SteamGridDB grid scale). */
+const val COVER_RATIO = 2f / 3f
 
 // The inner screen: one row of boxes
 
@@ -288,12 +291,15 @@ private fun rememberLoadingLine(gameId: String?): String {
 @Composable
 private fun RuntimeOverlay() {
     val wow by com.logie.blizz.game.WowPlay.state.collectAsState()
+    val forever by com.logie.blizz.forever.ForeverPlay.state.collectAsState()
     val state by WindowsRuntime.state.collectAsState()
+    val context = LocalContext.current
     // One loading screen from the realm's start to the game's own window: World of Warcraft's realm, then Windows, then the
     // game, with no blink back to the launcher between them. It stays up until the game's screen has taken over.
     val running = state as? WindowsRuntime.State.Preparing
-    val loadingId = running?.gameId ?: (wow as? com.logie.blizz.game.WowPlay.State.Preparing)?.gameId
-    val busy = running != null || wow is com.logie.blizz.game.WowPlay.State.Preparing
+    val foreverBusy = forever as? com.logie.blizz.forever.ForeverPlay.State.Preparing
+    val loadingId = running?.gameId ?: (wow as? com.logie.blizz.game.WowPlay.State.Preparing)?.gameId ?: foreverBusy?.let { "wow_forever" }
+    val busy = running != null || wow is com.logie.blizz.game.WowPlay.State.Preparing || foreverBusy != null
     var held by remember { mutableStateOf<String?>(null) }
     var holding by remember { mutableStateOf(false) }
     if (busy) { held = loadingId ?: held; holding = true }
@@ -304,12 +310,18 @@ private fun RuntimeOverlay() {
         while (com.logie.blizz.MainActivity.visible && System.currentTimeMillis() < until && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) delay(100)
         holding = false
     }
-    if (holding && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) {
+    if (holding && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed && forever !is com.logie.blizz.forever.ForeverPlay.State.Failed) {
         Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
             Box(Modifier.fillMaxSize()) {
                 // The runtime's install is the one wait with a number to show.
                 val percent = if (running?.step == WindowsRuntime.Step.RUNTIME) running.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty() else ""
-                com.logie.blizz.game.Loading(held, rememberLoadingLine(held) + percent)
+                val fb = forever as? com.logie.blizz.forever.ForeverPlay.State.Preparing
+                if (fb != null) {
+                    val fp = fb.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty()
+                    com.logie.blizz.game.Loading(held, fb.message + fp)
+                } else {
+                    com.logie.blizz.game.Loading(held, rememberLoadingLine(held) + percent)
+                }
             }
         }
     }
@@ -333,6 +345,34 @@ private fun RuntimeOverlay() {
             Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(s.message, style = MaterialTheme.typography.bodyLarge)
                 FrameButton("OK", Modifier.align(Alignment.End)) { WindowsRuntime.dismiss() }
+            }
+        }
+        else -> {}
+    }
+    when (val f = forever) {
+        is com.logie.blizz.forever.ForeverPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+            Column(Modifier.padding(16.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) { Text(f.message, style = MaterialTheme.typography.bodyLarge) }
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FrameButton("Copy", primary = false) { clipboard.setText(androidx.compose.ui.text.AnnotatedString(f.message)) }
+                    FrameButton("OK") { com.logie.blizz.forever.ForeverPlay.dismiss() }
+                }
+            }
+        }
+        is com.logie.blizz.forever.ForeverPlay.State.NeedsClient -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            val clientPath = remember { com.logie.blizz.forever.ForeverLayout.of(context).client.path }
+            Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                FrameTitle("The Forever client is needed")
+                Text(
+                    "World of Warcraft: Forever runs its own offline realm here, but it needs the game client once. " +
+                        "Install Forever through Battle.net on a PC (or on this phone with the WoW Forever app), then copy its " +
+                        "folder (the one with .build.info and _forever_) into:\n\n$clientPath\n\n" +
+                        "To connect the client to the local realm, also place the Forever Launcher there (it sets the server key). " +
+                        "Then press Play again.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                FrameButton("OK", Modifier.align(Alignment.End)) { com.logie.blizz.forever.ForeverPlay.dismiss() }
             }
         }
         else -> {}
