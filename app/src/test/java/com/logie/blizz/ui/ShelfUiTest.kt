@@ -15,6 +15,10 @@ import org.robolectric.annotation.GraphicsMode
 class ShelfUiTest {
     @get:Rule val rule = createComposeRule()
 
+    /** These are the classic look's screens (the shelf and the tiles). */
+    @org.junit.Before fun classic() { Look.set(androidx.test.core.app.ApplicationProvider.getApplicationContext(), false) }
+    @org.junit.After fun modern() { Look.set(androidx.test.core.app.ApplicationProvider.getApplicationContext(), true) }
+
     @Test fun shelfOnPhone() {
         rule.mainClock.autoAdvance = false
         rule.setContent { Launcher(fold = null) }

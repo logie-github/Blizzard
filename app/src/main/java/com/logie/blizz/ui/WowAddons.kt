@@ -199,10 +199,7 @@ fun WowAddonManager(gameId: String, onDismiss: () -> Unit) {
                 Modifier
                     .widthIn(max = 920.dp)
                     .fillMaxSize()
-                    .drawBehind {
-                        drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep)))
-                        drawFrame()
-                    },
+                    .panel(),
             ) {
                 val slug = open
                 if (slug != null) {
@@ -283,10 +280,7 @@ private val CardShape = RoundedCornerShape(4.dp)
 
 @Composable
 private fun AddonCloseIcon(onClose: () -> Unit) {
-    Icon(
-        Icons.Default.Close, "Close", tint = Colors.Mist,
-        modifier = Modifier.clip(CircleShape).clickable(onClick = onClose).padding(12.dp).size(24.dp),
-    )
+    CloseButton(onClose)
 }
 
 @Composable
@@ -498,7 +492,7 @@ private fun AddonInstallButton(status: AddonStatus, onInstall: () -> Unit) {
         AddonStatus.Outdated -> FrameButton("Update", width, onClick = onInstall)
         AddonStatus.Failed -> FrameButton("Try again", width, onClick = onInstall)
         AddonStatus.Current -> Box(
-            width.heightIn(min = 48.dp).drawBehind { drawFrame(corner = Colors.Steel, alpha = 0.5f, arm = 7.dp.toPx()) }.padding(horizontal = 16.dp),
+            width.heightIn(min = 48.dp).then(if (Look.modern) Modifier.box(selected = false) else Modifier.drawBehind { drawFrame(corner = Colors.Steel, alpha = 0.5f, arm = 7.dp.toPx()) }).padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text("INSTALLED", style = DisplayStyle.copy(fontSize = 13.sp, color = Colors.Mist, letterSpacing = 0.18.sp), maxLines = 1)
@@ -506,7 +500,7 @@ private fun AddonInstallButton(status: AddonStatus, onInstall: () -> Unit) {
         is AddonStatus.Busy -> Row(
             width
                 .heightIn(min = 48.dp)
-                .drawBehind { drawFrame(corner = Colors.Mist, alpha = 0.7f, arm = 7.dp.toPx()) }
+                .then(if (Look.modern) Modifier.box(selected = false) else Modifier.drawBehind { drawFrame(corner = Colors.Mist, alpha = 0.7f, arm = 7.dp.toPx()) })
                 .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,

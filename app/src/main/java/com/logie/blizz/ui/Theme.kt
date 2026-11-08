@@ -10,6 +10,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -53,18 +55,19 @@ import com.logie.blizz.R
 import kotlin.math.PI
 import kotlin.math.sin
 
+/** The palette. Each colour follows the look that is on ([Look]): Classic's Northrend frost and gold, or Modern's ([Modern]). */
 object Colors {
-    val Abyss = Color(0xFF02070D)
-    val Night = Color(0xFF061320)
-    val Deep = Color(0xFF0B2233)
-    val Frost = Color(0xFF123A52)
-    val Steel = Color(0xFF2E5670)
+    val Abyss: Color get() = if (Look.modern) Modern.Background else Color(0xFF02070D)
+    val Night: Color get() = if (Look.modern) Modern.Surface else Color(0xFF061320)
+    val Deep: Color get() = if (Look.modern) Modern.SurfaceHigh else Color(0xFF0B2233)
+    val Frost: Color get() = if (Look.modern) Modern.SurfaceTop else Color(0xFF123A52)
+    val Steel: Color get() = if (Look.modern) Color(0xFF2A3546) else Color(0xFF2E5670)
     /** The logo's blue: what's selected. */
-    val Ice = Color(0xFF3CC4FF)
-    val Glow = Color(0xFFDDF7FF)
-    val Gold = Color(0xFFE8B34A)
-    val Text = Color(0xFFE6F1F7)
-    val Mist = Color(0xFF8FA9BC)
+    val Ice: Color get() = if (Look.modern) Modern.AccentBright else Color(0xFF3CC4FF)
+    val Glow: Color get() = if (Look.modern) Color(0xFFE6F3FF) else Color(0xFFDDF7FF)
+    val Gold: Color get() = if (Look.modern) Modern.Gold else Color(0xFFE8B34A)
+    val Text: Color get() = if (Look.modern) Modern.Text else Color(0xFFE6F1F7)
+    val Mist: Color get() = if (Look.modern) Modern.Muted else Color(0xFF8FA9BC)
 }
 
 @OptIn(ExperimentalTextApi::class)
@@ -80,13 +83,45 @@ val BodyFont = FontFamily(
     Font(R.font.blizz_jost_medium, FontWeight.Medium),
 )
 
-val DisplayStyle = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, color = Colors.Text, letterSpacing = 0.08.em)
+/** Cinzel, the Blizzard titles' face, whatever the look (the modern home's game names). */
+val CinzelStyle = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.SemiBold, color = Color(0xFFE6F1F7), letterSpacing = 0.08.em)
+
+/** The display face of the look that is on: Cinzel (Classic), or Jost medium (Modern). */
+val DisplayStyle: TextStyle
+    get() = if (Look.modern) TextStyle(fontFamily = BodyFont, fontWeight = FontWeight.Medium, color = Modern.Text, letterSpacing = 0.02.em) else CinzelStyle
 val GoldShadow = Shadow(Color.Black.copy(alpha = 0.85f), Offset(0f, 2f), 6f)
-val IceGlow = Shadow(Colors.Ice.copy(alpha = 0.8f), Offset.Zero, 16f)
-private val Body = TextStyle(fontFamily = BodyFont, color = Colors.Text)
+val IceGlow = Shadow(Color(0xFF3CC4FF).copy(alpha = 0.8f), Offset.Zero, 16f)
+private val Body = TextStyle(fontFamily = BodyFont, color = Color(0xFFE6F1F7))
+
+/** The modern look's type: Jost throughout, titles medium and white. */
+private val ModernTypography = Typography(
+    headlineLarge = Body.copy(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium, color = Modern.Text),
+    headlineSmall = Body.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Medium, color = Modern.Text),
+    titleLarge = Body.copy(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium, color = Modern.Text),
+    titleMedium = Body.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.Medium, color = Modern.Text),
+    bodyLarge = Body.copy(fontSize = 16.sp, lineHeight = 23.sp, color = Modern.Text),
+    bodyMedium = Body.copy(fontSize = 15.sp, lineHeight = 21.sp, color = Modern.Text),
+    bodySmall = Body.copy(fontSize = 13.sp, lineHeight = 18.sp, color = Modern.Muted),
+    labelLarge = Body.copy(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Modern.Text),
+    labelMedium = Body.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Modern.Muted),
+    titleSmall = Body.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Modern.Text),
+)
 
 @Composable
 fun BlizzTheme(content: @Composable () -> Unit) {
+    if (Look.modern) {
+        MaterialTheme(
+            colorScheme = darkColorScheme(
+                primary = Modern.Accent, onPrimary = Color.White, secondary = Modern.Gold,
+                background = Modern.Background, onBackground = Modern.Text, surface = Modern.Surface, onSurface = Modern.Text,
+                surfaceVariant = Modern.SurfaceHigh, onSurfaceVariant = Modern.Muted, outline = Modern.OutlineStrong,
+                surfaceContainer = Modern.SurfaceHigh, surfaceContainerHigh = Modern.SurfaceTop,
+            ),
+            typography = ModernTypography,
+            content = content,
+        )
+        return
+    }
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Colors.Ice, onPrimary = Colors.Abyss, secondary = Colors.Gold,
@@ -117,6 +152,11 @@ fun DrawScope.drawFrame(
 ) {
     val w = size.width
     val h = size.height
+    // The modern look: a quiet hairline, no brackets (its panels are rounded by [panel] and [box]).
+    if (Look.modern) {
+        drawRect(Color.White.copy(alpha = 0.12f * alpha), style = Stroke(1.dp.toPx()))
+        return
+    }
     if (line != null) drawRect(line, style = Stroke(1.dp.toPx()), alpha = 0.75f * alpha)
     val corners = listOf(Offset(0f, 0f) to Offset(1f, 1f), Offset(w, 0f) to Offset(-1f, 1f), Offset(0f, h) to Offset(1f, -1f), Offset(w, h) to Offset(-1f, -1f))
     val d = 3.dp.toPx()
@@ -139,6 +179,26 @@ fun FrameButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
     val focused by interaction.collectIsFocusedAsState()
     val lit by animateFloatAsState(if (pressed || focused) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 900f), label = "lit")
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    if (Look.modern) {
+        val shape = androidx.compose.foundation.shape.RoundedCornerShape(Modern.ButtonCorner)
+        Box(
+            modifier
+                .graphicsLayer { val k = 1f - 0.03f * lit; scaleX = k; scaleY = k }
+                .heightIn(min = 46.dp)
+                .clip(shape)
+                .then(if (primary) Modifier.background(Modern.AccentBrush) else Modifier.background(Color.White.copy(alpha = 0.07f)).border(1.dp, Modern.Outline, shape))
+                .drawBehind { drawRect(Color.White.copy(alpha = 0.10f * lit)) }
+                .clickable(interactionSource = interaction, indication = null, onClick = {
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    onClick()
+                })
+                .padding(horizontal = 20.dp, vertical = 11.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(modernLabel(text), style = MaterialTheme.typography.labelLarge.copy(color = if (primary) Color.White else Modern.Text, fontSize = if (primary) 16.sp else 15.sp), maxLines = 1)
+        }
+        return
+    }
     Box(
         modifier
             .graphicsLayer { val k = 1f - 0.04f * lit; scaleX = k; scaleY = k }
@@ -173,15 +233,23 @@ fun FrameButton(text: String, modifier: Modifier = Modifier, primary: Boolean = 
     }
 }
 
-/** A title in Cinzel with a hairline running off to its right. */
+/** A title in Cinzel with a hairline running off to its right (the modern look: plain, medium weight). */
 @Composable
 fun FrameTitle(text: String, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.headlineSmall) {
+    if (Look.modern) {
+        Text(text, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = modifier)
+        return
+    }
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(text, style = style, maxLines = 1)
         Spacer(Modifier.width(12.dp))
         Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(Colors.Steel, Color.Transparent))))
     }
 }
+
+/** A button's words in the modern look: as written, but a label written all in capitals is put in sentence case. */
+internal fun modernLabel(text: String): String =
+    if (text.length > 1 && text == text.uppercase() && text.any { it.isLetter() }) text.lowercase().replaceFirstChar { it.uppercase() } else text
 
 /** Snow drifting down over the picture ([rising]: embers going up). */
 @Composable

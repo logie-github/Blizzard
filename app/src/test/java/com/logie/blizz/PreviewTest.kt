@@ -28,6 +28,10 @@ import org.robolectric.annotation.Config
 class PreviewTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    /** The classic look's shelf and pages. */
+    @org.junit.Before fun classicLook() { com.logie.blizz.ui.Look.set(androidx.test.core.app.ApplicationProvider.getApplicationContext(), false) }
+    @org.junit.After fun modernLook() { com.logie.blizz.ui.Look.set(androidx.test.core.app.ApplicationProvider.getApplicationContext(), true) }
+
     private fun screenshot(name: String) {
         compose.mainClock.advanceTimeBy(3000)
         compose.waitForIdle()

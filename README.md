@@ -5,6 +5,12 @@ An Android launcher for Blizzard's games, styled after the World of Warcraft app
 frames and the drifting snow, in Blizzard's blue. Package `com.logie.blizz`, Android 8 or later,
 arm64 phones. Made for the Galaxy Z Fold.
 
+## The look
+
+**Modern** is the default: the chosen game's art fills the screen, with its name (in Blizzard's Cinzel), its year and whether it's installed, its versions as a sliding switch (World of Warcraft's Wrath+, Legion, OctoWoW, Forever; StarCraft's Classic and Remastered...), a big **Play** (or **Install**), and one-tap chips for what can be set for it: Launch options, Controls, Add-ons and Modules (World of Warcraft), Art & loading screen, Install & repair. On the open Fold the library is a panel down the left (each game's box, its name, a dot when it's in the app) and the box stands beside Play; on the cover screen the library is a row of boxes under the game. The gear at the top opens the settings. Every popup (settings, the import wizard, launch options, add-ons, modules, the art editor, controls, the menus) is a rounded dark sheet in the same style: sans-serif type, one accent blue, pill switches.
+
+**Classic** is the Northrend look the app had (the shelf or the tiles, Cinzel and gold corners), kept whole. **Hold the Blizzard logo** to switch: in Modern it goes to Classic; in Classic it offers the settings or Modern. The settings' **Look** card switches too. Holding a game's box opens its menu in either look.
+
 ## The shelf
 
 The ice field and the Blizzard logo over the games' box art (3:4), in alphabetical order:

@@ -73,14 +73,11 @@ fun SettingsDialog(onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(14.dp).widthIn(max = 600.dp).fillMaxWidth().heightIn(max = 760.dp)
-                .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep)))
-                    drawFrame()
-                },
+                .panel(),
         ) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 FrameTitle("Settings", Modifier.weight(1f))
-                Icon(Icons.Default.Close, "Close", tint = Colors.Mist, modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).clickable(onClick = onDismiss).padding(12.dp).size(24.dp))
+                CloseButton(onDismiss)
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                 Tab("Launcher", page == 0) { page = 0 }
@@ -100,6 +97,15 @@ fun SettingsDialog(onDismiss: () -> Unit) {
 
 @Composable
 private fun Tab(text: String, on: Boolean, onClick: () -> Unit) {
+    if (Look.modern) {
+        val color by androidx.compose.animation.animateColorAsState(if (on) Modern.Text else Modern.Muted, label = "tab")
+        Column(Modifier.clickable(onClick = onClick).padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text, style = MaterialTheme.typography.titleMedium.copy(color = color))
+            Spacer(Modifier.size(6.dp))
+            Box(Modifier.size(width = 28.dp, height = 3.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (on) Modern.Accent else Color.Transparent))
+        }
+        return
+    }
     Column(Modifier.clickable(onClick = onClick).padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text.uppercase(), style = DisplayStyle.copy(fontSize = 15.sp, color = if (on) Colors.Gold else Colors.Mist, letterSpacing = 0.16.sp))
         Spacer(Modifier.size(5.dp))
@@ -110,6 +116,18 @@ private fun Tab(text: String, on: Boolean, onClick: () -> Unit) {
 /** A titled panel: a hairline-framed block, its title in gold. */
 @Composable
 internal fun SettingCard(title: String?, content: @Composable () -> Unit) {
+    if (Look.modern) {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            title?.let { SectionLabel(it, Modifier.padding(start = 4.dp)) }
+            Column(
+                Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(Modern.Corner))
+                    .background(Color.White.copy(alpha = 0.04f)).border(1.dp, Modern.Outline, androidx.compose.foundation.shape.RoundedCornerShape(Modern.Corner))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) { content() }
+        }
+        return
+    }
     Column(
         Modifier.fillMaxWidth().background(Colors.Abyss.copy(alpha = 0.55f)).border(1.dp, Colors.Steel.copy(alpha = 0.7f)).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -122,6 +140,7 @@ internal fun SettingCard(title: String?, content: @Composable () -> Unit) {
 /** One choice of a few, side by side; the chosen one lit. */
 @Composable
 internal fun <T> Segmented(options: List<Pair<String, T>>, selected: T, onSelect: (T) -> Unit) {
+    if (Look.modern) { PillSegmented(options, selected, onSelect = onSelect); return }
     Row(Modifier.fillMaxWidth().border(1.dp, Colors.Steel)) {
         options.forEachIndexed { index, (label, value) ->
             val on = value == selected
@@ -143,7 +162,8 @@ internal fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> U
         Text(label, style = MaterialTheme.typography.bodyLarge, color = Colors.Text, modifier = Modifier.weight(1f))
         Switch(
             checked, onChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = Colors.Glow, checkedTrackColor = Colors.Ice.copy(alpha = 0.55f), uncheckedThumbColor = Colors.Mist, uncheckedTrackColor = Colors.Frost, uncheckedBorderColor = Colors.Steel),
+            colors = if (Look.modern) SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Modern.Accent, uncheckedThumbColor = Modern.Muted, uncheckedTrackColor = Modern.SurfaceTop, uncheckedBorderColor = Modern.OutlineStrong)
+                else SwitchDefaults.colors(checkedThumbColor = Colors.Glow, checkedTrackColor = Colors.Ice.copy(alpha = 0.55f), uncheckedThumbColor = Colors.Mist, uncheckedTrackColor = Colors.Frost, uncheckedBorderColor = Colors.Steel),
         )
     }
 }
@@ -156,7 +176,15 @@ private fun LauncherPage(onDismiss: () -> Unit) {
     var vibration by remember { mutableStateOf(GameSettings.vibration(context)) }
     var confirmReset by remember { mutableStateOf(false) }
 
-    SettingCard("Layout") {
+    SettingCard("Look") {
+        Segmented(listOf("Modern" to true, "Classic" to false), Look.modern) { Look.set(context, it) }
+        Text(
+            if (Look.modern) "The launcher of today: the game's art up front, your library beside it. Hold the Blizzard logo for the classic look."
+            else "The Northrend look: the shelf or the tiles below. Hold the Blizzard logo for the modern look.",
+            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+        )
+    }
+    if (!Look.modern) SettingCard("Layout") {
         Segmented(listOf("Classic shelf" to TileSettings.Mode.SHELF, "Tiles" to TileSettings.Mode.TILES), s.mode) { TileSettings.setMode(context, it) }
         if (s.mode == TileSettings.Mode.TILES) {
             val auto = TileLayout.autoColumns(360f)
@@ -291,11 +319,11 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(14.dp).widthIn(max = 560.dp).fillMaxWidth().heightIn(max = 760.dp)
-                .drawBehind { drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep))); drawFrame() },
+                .panel(),
         ) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 FrameTitle(game.fullTitle, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                Icon(Icons.Default.Close, "Close", tint = Colors.Mist, modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).clickable(onClick = onDismiss).padding(12.dp).size(24.dp))
+                CloseButton(onDismiss)
             }
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Colors.Gold) }

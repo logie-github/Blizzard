@@ -59,14 +59,14 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(14.dp).widthIn(max = 560.dp).fillMaxWidth().heightIn(max = 760.dp)
-                .drawBehind { drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep))); drawFrame() },
+                .panel(),
         ) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     FrameTitle("Launch options", style = MaterialTheme.typography.titleLarge)
                     Text(game.fullTitle, style = MaterialTheme.typography.bodyMedium, color = Colors.Mist, modifier = Modifier.padding(top = 2.dp))
                 }
-                Icon(Icons.Default.Close, "Close", tint = Colors.Mist, modifier = Modifier.clip(androidx.compose.foundation.shape.CircleShape).clickable(onClick = onDismiss).padding(12.dp).size(24.dp))
+                CloseButton(onDismiss)
             }
             Column(
                 Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(18.dp).animateContentSize(),

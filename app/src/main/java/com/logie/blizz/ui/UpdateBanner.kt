@@ -48,7 +48,7 @@ fun UpdateBanner() {
         AnimatedVisibility(state !is Updater.State.Idle, enter = fadeIn() + slideInVertically { it }, exit = fadeOut() + slideOutVertically { it }) {
             Column(
                 Modifier.padding(12.dp).widthIn(max = 520.dp).fillMaxWidth()
-                    .drawBehind { drawRect(Colors.Deep.copy(alpha = 0.95f)); drawFrame(arm = 6.dp.toPx()) }
+                    .panel()
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {

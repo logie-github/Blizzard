@@ -331,7 +331,7 @@ private fun Tile(
 private fun MenuItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     DropdownMenuItem(
         text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = Colors.Text) },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = Colors.Gold) },
+        leadingIcon = { Icon(icon, contentDescription = null, tint = if (Look.modern) Modern.Muted else Colors.Gold) },
         onClick = onClick,
     )
 }

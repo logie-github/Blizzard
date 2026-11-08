@@ -111,10 +111,7 @@ fun WowModuleManager(onDismiss: () -> Unit) {
     ) {
         Column(
             Modifier.padding(14.dp).widthIn(max = 620.dp).fillMaxWidth().fillMaxHeight(0.94f).heightIn(max = 820.dp)
-                .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep)))
-                    drawFrame()
-                },
+                .panel(),
         ) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 val details = open
@@ -127,10 +124,7 @@ fun WowModuleManager(onDismiss: () -> Unit) {
                 } else {
                     FrameTitle("Modules", Modifier.weight(1f))
                 }
-                Icon(
-                    Icons.Default.Close, "Close", tint = Colors.Mist,
-                    modifier = Modifier.clip(CircleShape).clickable(onClick = onDismiss).padding(12.dp).size(24.dp),
-                )
+                CloseButton(onDismiss)
             }
             val unavailable = remember(tab, open) { ModuleStore.unavailableReason(context) }
             if (open == null) {
@@ -837,10 +831,7 @@ private fun TokenDialog(onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(14.dp).widthIn(max = 560.dp).fillMaxWidth()
-                .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep)))
-                    drawFrame()
-                }
+                .panel()
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

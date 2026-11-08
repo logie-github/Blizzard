@@ -136,17 +136,14 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                 .padding(18.dp)
                 .widthIn(max = 620.dp)
                 .fillMaxWidth()
-                .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(Colors.Deep, Colors.Night)))
-                    drawFrame()
-                }
+                .panel()
                 .padding(20.dp)
                 .animateContentSize(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 FrameTitle(game.fullTitle, Modifier.weight(1f))
-                if (!state.running) Icon(Icons.Default.Close, null, tint = Colors.Mist, modifier = Modifier.clip(CircleShape).clickable(onClick = onDismiss).padding(6.dp))
+                if (!state.running) CloseButton(onDismiss)
             }
             Steps(stepOf(record.stage), done = record.stage == Stage.READY || record.stage == Stage.IMPORTED_UNTESTED, failed = record.stage == Stage.FAILED)
 
@@ -180,7 +177,7 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     val label = statusLabel(record.stage, record.outcome, record.launchTest, game.id)
                     if (label.isNotEmpty()) {
                         val good = record.stage == Stage.READY
-                        Text(label, style = DisplayStyle.copy(fontSize = 20.sp, color = if (good) Colors.Ice else Colors.Gold, shadow = if (good) IceGlow else GoldShadow))
+                        Text(label, style = DisplayStyle.copy(fontSize = 20.sp, color = if (good) Colors.Ice else Colors.Gold, shadow = if (Look.modern) null else if (good) IceGlow else GoldShadow))
                     }
                     state.entry?.let { e ->
                         Text(e.clientVersion, style = MaterialTheme.typography.bodyMedium, color = Colors.Mist)
@@ -195,7 +192,7 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                 if (installer != null && !state.running) {
                     val (headline, more) = InstallerRun.describe(installer)
                     if (headline.isNotEmpty()) {
-                        Column(Modifier.fillMaxWidth().drawBehind { drawFrame(corner = Colors.Ice, arm = 6.dp.toPx()) }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.fillMaxWidth().then(if (Look.modern) Modifier.box() else Modifier.drawBehind { drawFrame(corner = Colors.Ice, arm = 6.dp.toPx()) }).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(headline, style = MaterialTheme.typography.bodyLarge)
                             more?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Colors.Mist) }
                             if (installer is InstallerRun.Status.Waiting && installer.log.isNotBlank()) Details(installer.log, null)
@@ -302,7 +299,7 @@ private fun Steps(current: Int, done: Boolean, failed: Boolean) {
 @Composable
 private fun MissingInputCard(input: MissingInput, onPick: (PickKind) -> Unit, onSkip: () -> Unit) {
     Column(
-        Modifier.fillMaxWidth().drawBehind { drawFrame(corner = Colors.Ice, arm = 6.dp.toPx()) }.padding(14.dp),
+        Modifier.fillMaxWidth().then(if (Look.modern) Modifier.box() else Modifier.drawBehind { drawFrame(corner = Colors.Ice, arm = 6.dp.toPx()) }).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(input.prompt, style = MaterialTheme.typography.bodyLarge)

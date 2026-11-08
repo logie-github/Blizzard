@@ -17,6 +17,8 @@ class MainActivity : ComponentActivity() {
         com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
         com.logie.blizz.wow.WowCtl.nativeWrapper = java.io.File(applicationInfo.nativeLibraryDir, "libblizzmaria.so")
         com.logie.blizz.music.MusicPlayer.load(this)
+        // The look: modern unless the person went back to the classic one (hold the Blizzard logo).
+        com.logie.blizz.ui.Look.load(this)
         setContent { Launcher() }
     }
 

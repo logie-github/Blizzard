@@ -207,6 +207,8 @@ fun Launcher(fold: Fold? = rememberFold()) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
             val wide = maxWidth >= 600.dp && maxWidth > maxHeight * 0.75f
             when {
+                // The modern look (the default): one screen, the game chosen and the library beside it.
+                Look.modern -> ModernHome(linkKey, open ?: Games.all.first(), onSelect = { openId = it.id }, onPlay = ::play, onChooseApp = ::chooseApp)
                 !tileMode && fold?.tabletop == true && maxHeight >= 480.dp -> {
                     val game = open ?: Games.all.first()
                     TabletopPage(game, fold, linkKey, onSelect = { openId = it.id }, onPlay = { play(game) }, onChooseApp = { chooseApp(game) })
@@ -223,7 +225,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
                             GamePage(game, linkKey, onBack = { openId = null }, onPlay = { play(game) }, onChooseApp = { chooseApp(game) })
                         }
                     }
-                    BackHandler(enabled = open != null) { openId = null }
+                    BackHandler(enabled = open != null && !Look.modern) { openId = null }
                 }
             }
         }
@@ -248,6 +250,19 @@ fun Launcher(fold: Fold? = rememberFold()) {
                     if (app != null && launchAfterPick) Links.launch(context, game)
                 },
             )
+        }
+    }
+}
+
+/** The classic look's logo menu: its settings, or the modern look. */
+@Composable
+private fun LogoMenu(onSettings: () -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.widthIn(max = 380.dp).fillMaxWidth().panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            FrameTitle("Blizzard")
+            FrameButton("Modern look", Modifier.fillMaxWidth()) { onDismiss(); Look.set(context, true) }
+            FrameButton("Settings", Modifier.fillMaxWidth(), primary = false, onClick = onSettings)
         }
     }
 }
@@ -387,6 +402,8 @@ private fun Shelf(linkKey: Int, selectedId: String?, onOpen: (Game) -> Unit) {
 internal fun Header(screenWidth: Dp, screenHeight: Dp) {
     val openSettings = LocalOpenSettings.current
     val hapticLogo = LocalHapticFeedback.current
+    var logoMenu by remember { mutableStateOf(false) }
+    if (logoMenu) LogoMenu(onSettings = { logoMenu = false; openSettings() }, onDismiss = { logoMenu = false })
     val headerHeight = min((screenWidth * 0.62f).coerceIn(200.dp, 420.dp), screenHeight * 0.42f)
     val logoWidth = min(min(screenWidth * 0.52f, headerHeight * 1.05f), 340.dp)
     val logoHeight = logoWidth * (1041f / 2000f)
@@ -425,8 +442,8 @@ internal fun Header(screenWidth: Dp, screenHeight: Dp) {
                 .offset(y = headerHeight - logoHeight * 0.55f)
                 .width(logoWidth)
                 .height(logoHeight)
-                // Hold the logo: the settings.
-                .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}, onLongClick = { hapticLogo.performHapticFeedback(HapticFeedbackType.LongPress); openSettings() })
+                // Hold the logo: the settings, or back to the modern look.
+                .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}, onLongClick = { hapticLogo.performHapticFeedback(HapticFeedbackType.LongPress); logoMenu = true })
                 .graphicsLayer {
                     val v = reveal.value
                     alpha = ((v - 0.2f) / 0.8f).coerceIn(0f, 1f)
@@ -753,7 +770,7 @@ private fun RuntimeOverlay() {
     when (val w = wow) {
         is com.logie.blizz.game.WowPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.game.WowPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-            Column(Modifier.padding(16.dp).drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.padding(16.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
                     Text(w.message, style = if (w.message.length > 160) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyLarge)
                 }
@@ -767,7 +784,7 @@ private fun RuntimeOverlay() {
     }
     when (val s = state) {
         is WindowsRuntime.State.Failed -> Dialog(onDismissRequest = { WindowsRuntime.dismiss() }) {
-            Column(Modifier.drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(s.message, style = MaterialTheme.typography.bodyLarge)
                 FrameButton("OK", Modifier.align(Alignment.End)) { WindowsRuntime.dismiss() }
             }
@@ -791,16 +808,13 @@ private fun AppPicker(game: Game, onDismiss: () -> Unit, onPick: (InstalledApp?)
                 .widthIn(max = 520.dp)
                 .fillMaxWidth()
                 .fillMaxHeight(0.8f)
-                .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(Colors.Deep, Colors.Night)))
-                    drawFrame()
-                }
+                .panel()
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FrameTitle(stringResource(R.string.choose_app))
             Row(
-                Modifier.fillMaxWidth().drawBehind { drawFrame(corner = Colors.Mist, arm = 6.dp.toPx()) }.padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier.fillMaxWidth().then(if (Look.modern) Modifier.box(selected = false) else Modifier.drawBehind { drawFrame(corner = Colors.Mist, arm = 6.dp.toPx()) }).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search), tint = Colors.Mist, modifier = Modifier.size(20.dp))
@@ -833,7 +847,7 @@ private fun PickerRow(packageName: String?, label: String, selected: Boolean, on
     Row(
         Modifier
             .fillMaxWidth()
-            .drawBehind { if (selected) { drawRect(Colors.Ice.copy(alpha = 0.1f)); drawFrame(arm = 6.dp.toPx(), line = null) } }
+            .then(if (Look.modern) Modifier.box(selected = selected) else Modifier.drawBehind { if (selected) { drawRect(Colors.Ice.copy(alpha = 0.1f)); drawFrame(arm = 6.dp.toPx(), line = null) } })
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,

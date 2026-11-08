@@ -86,6 +86,7 @@ import com.logie.blizz.ui.FrameButton
 import com.logie.blizz.ui.FrameTitle
 import com.logie.blizz.ui.Snow
 import com.logie.blizz.ui.drawFrame
+import com.logie.blizz.ui.panel
 
 /**
  * The app's own screens over the game, in the launcher's look: the loading screen while Windows
@@ -263,10 +264,7 @@ fun Spinner(size: Dp, modifier: Modifier = Modifier, accent: Color = Colors.Ice)
 private fun Panel(modifier: Modifier, content: @Composable () -> Unit) {
     Box(
         modifier
-            .drawBehind {
-                drawRect(Brush.verticalGradient(listOf(Colors.Deep, Colors.Night)))
-                drawFrame()
-            }
+            .panel()
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
             .padding(20.dp),
     ) { content() }

@@ -29,6 +29,7 @@ class DialogsUiTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Before fun fresh() {
+        Look.set(context, true)
         TileSettings.load(context)
         rule.mainClock.autoAdvance = false
     }
@@ -67,6 +68,8 @@ class DialogsUiTest {
     }
 
     @Test fun settingsTilesMode() {
+        // The tiles' settings are the classic look's.
+        Look.set(context, false)
         TileSettings.setMode(context, TileSettings.Mode.TILES)
         TileSettings.setColumns(context, 3)
         rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
@@ -79,6 +82,8 @@ class DialogsUiTest {
     }
 
     @Test fun settingsMinusMeansFewerAcross() {
+        // The tiles' settings are the classic look's.
+        Look.set(context, false)
         TileSettings.setMode(context, TileSettings.Mode.TILES)
         TileSettings.setColumns(context, 3)
         rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }

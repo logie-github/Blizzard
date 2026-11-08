@@ -184,7 +184,7 @@ private fun Tab(text: String, selected: Boolean, onClick: () -> Unit) {
         text.uppercase(),
         style = DisplayStyle.copy(fontSize = 13.sp, color = if (selected) Colors.Gold else Colors.Mist),
         modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onClick)
-            .drawBehind { if (selected) drawFrame(arm = 6.dp.toPx(), line = null) }.padding(horizontal = 14.dp, vertical = 10.dp),
+            .then(if (Look.modern) Modifier.box(selected = selected) else Modifier.drawBehind { if (selected) drawFrame(arm = 6.dp.toPx(), line = null) }).padding(horizontal = 14.dp, vertical = 10.dp),
     )
 }
 
@@ -234,7 +234,7 @@ private fun HotkeyRow(function: GameFunction, bindings: Bindings, catalog: Catal
 @Composable
 private fun RuleRow(rule: Rule, catalog: Catalog.Game, onChange: (Rule) -> Unit, onArea: () -> Unit, onDelete: () -> Unit) {
     var pick by remember { mutableStateOf(0) }
-    Row(Modifier.fillMaxWidth().drawBehind { drawFrame(corner = Colors.Steel, arm = 5.dp.toPx(), line = null) }.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().then(if (Look.modern) Modifier.box(selected = false) else Modifier.drawBehind { drawFrame(corner = Colors.Steel, arm = 5.dp.toPx(), line = null) }).padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("If", color = Colors.Mist, style = MaterialTheme.typography.bodyMedium)
         Chip(rule.trigger.label, Colors.Ice) { pick = 1 }
         Chip(catalog.area(rule.area)?.label ?: "?", Colors.Ice, onArea)
@@ -249,7 +249,7 @@ private fun RuleRow(rule: Rule, catalog: Catalog.Game, onChange: (Rule) -> Unit,
 @Composable
 private fun PanelDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.padding(18.dp).widthIn(max = 640.dp).fillMaxWidth().drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(16.dp)) { content() }
+        Box(Modifier.padding(18.dp).widthIn(max = 640.dp).fillMaxWidth().panel().padding(16.dp)) { content() }
     }
 }
 

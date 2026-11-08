@@ -48,7 +48,7 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.widthIn(max = 360.dp).fillMaxWidth()
-                .drawBehind { drawRect(Brush.verticalGradient(listOf(Colors.Night, Colors.Deep))); drawFrame() }
+                .panel()
                 .padding(vertical = 12.dp),
         ) {
             FrameTitle(effective.fullTitle, Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp), style = MaterialTheme.typography.titleMedium)
@@ -63,7 +63,7 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
 @Composable
 private fun HoldItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = Colors.Gold)
+        Icon(icon, null, tint = if (Look.modern) Modern.Muted else Colors.Gold)
         Spacer(Modifier.width(16.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge, color = Colors.Text)
     }

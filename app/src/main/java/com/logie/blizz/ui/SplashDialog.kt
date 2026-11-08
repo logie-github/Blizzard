@@ -77,7 +77,7 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(18.dp).widthIn(max = 620.dp).fillMaxWidth().verticalScroll(rememberScrollState())
-                .drawBehind { drawRect(Colors.Deep); drawFrame() }.padding(16.dp),
+                .panel().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FrameTitle(game.fullTitle)
