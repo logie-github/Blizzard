@@ -15,6 +15,7 @@ dependencies {
     api project(':warsmash:fdfparser')
     api project(':warsmash:jassparser')
     api project(':warsmash:awt')
+    api 'org.antlr:antlr4-runtime:4.7'
     api 'com.badlogicgames.gdx:gdx:1.13.0'
     api 'com.badlogicgames.gdx:gdx-box2d:1.13.0'
     api 'com.badlogicgames.gdx:gdx-freetype:1.13.0'

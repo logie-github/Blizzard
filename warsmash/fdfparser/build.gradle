@@ -5,3 +5,8 @@ sourceSets.main.antlr.srcDirs = [new File(upstream, 'antlr-src')]
 dependencies { antlr 'org.antlr:antlr4:4.7' }
 generateGrammarSource { arguments += ['-visitor', '-no-listener'] }
 java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+
+// Explicit source directory: replacing java.srcDirs above removes ANTLR's default source entry.
+generateGrammarSource { outputDirectory = layout.buildDirectory.dir('generated-src/antlr/main').get().asFile }
+sourceSets.main.java.srcDir layout.buildDirectory.dir('generated-src/antlr/main')
+compileJava.dependsOn generateGrammarSource
