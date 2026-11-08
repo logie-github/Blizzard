@@ -44,7 +44,9 @@ TC
 
 [ "${FETCH:-1}" = 0 ] || sh /repo/scripts/fetch-trinity-forever.sh "$SRC"
 
-# armv8-a, every arm64 phone. musl gives new threads 128 KiB of stack unless the program asks for more: 8 MiB.
+# Precompiled headers ON (USE_*PCH=1): the core and its scripts rely on the PCH to pull common headers (Map.h, Spell.h,
+# Util.h...) into every file; without it, clang/libc++ fails them (incomplete type Map, undeclared ByteArrayToHexStr...).
+# ccache caches PCH builds with CCACHE_SLOPPINESS (set above). armv8-a, every arm64 phone. musl gives new threads 128 KiB of stack unless the program asks for more: 8 MiB.
 # _LARGEFILE64_SOURCE: Alpine musl exposes stat64/lstat64 (g3dlite uses them) only with it defined.
 	# -include ctime/cstdint/cstring: musl + libc++ do not pull these in transitively the way glibc does, so some
 	# headers (Util.h: time_t) fail to compile; force-including them fixes it without touching the sources.
@@ -55,7 +57,7 @@ cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_C_FLAGS="-march=armv8-a -D_LARGEFILE64_SOURCE" -DCMAKE_CXX_FLAGS="-march=armv8-a -D_LARGEFILE64_SOURCE -include cstdint -include ctime -include cstring" \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -Wl,-z,stack-size=8388608" \
-	-DSERVERS=1 -DTOOLS=1 -DSCRIPTS=static -DWITH_WARNINGS=0 -DWITHOUT_GIT=1 -DUSE_COREPCH=0 -DUSE_SCRIPTPCH=0 \
+	-DSERVERS=1 -DTOOLS=1 -DSCRIPTS=static -DWITH_WARNINGS=0 -DWITHOUT_GIT=1 -DUSE_COREPCH=1 -DUSE_SCRIPTPCH=1 \
 	> "$BUILD.cmake.log" 2>&1 || { tail -80 "$BUILD.cmake.log"; exit 1; }
 ccache -z > /dev/null
 ninja -C "$BUILD" -j "$JOBS" -k 0 > "$BUILD.ninja.log" 2>&1 || { grep -B5 -A25 -m5 "error:" "$BUILD.ninja.log" | head -250; tail -40 "$BUILD.ninja.log"; exit 1; }
