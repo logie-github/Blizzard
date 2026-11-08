@@ -45,13 +45,14 @@ class LoopbackResolver(private val lookup: (String) -> List<String> = { name -> 
 class LegacyDownloader(private val program: File, private val cache: File) {
     data class Keys(val classic: String?, val expansion: String?, val owner: String?)
 
-    /** `install <product> [--no-base] --game <dir>`, its progress to [onProgress]. */
-    fun install(product: String, game: File, noBase: Boolean, keys: Keys?, cancel: CancelToken, onProgress: (Progress) -> Unit) {
+    /** `install <product> [version] [--no-base] --game <dir>`, its progress to [onProgress]. A [version] older than Blizzard's is made by patching what the payload carries. */
+    fun install(product: String, game: File, noBase: Boolean, keys: Keys?, cancel: CancelToken, onProgress: (Progress) -> Unit, version: String? = null) {
         if (!program.canExecute()) throw ImportException(Problem.MISSING_RUNTIME_DEPENDENCY, "blizzard-legacy-dl is missing from this build of the app.")
         cache.mkdirs()
         game.mkdirs()
         val command = buildList {
             add(program.path); add("install"); add(product)
+            if (version != null) add(version)
             if (noBase) add("--no-base")
             add("--game"); add(game.path)
             add("--jobs"); add("4")
