@@ -54,7 +54,11 @@ class WarsmashImporter : GameImporter {
             val check = validateDir(root)
             if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: PROMPT)
             asm.begin()
-            root.copyRecursively(asm.staging, overwrite = true)
+            for (child in root.listFiles().orEmpty()) {
+                env.cancel.check()
+                val target = File(asm.staging, child.name)
+                if (!child.renameTo(target)) child.copyRecursively(target, overwrite = true)
+            }
             // Preserve saves and user maps during repair; never move another mode's installation.
             for (name in keptInGame) {
                 FileValidator.find(asm.game, name)?.let { old ->

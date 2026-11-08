@@ -173,5 +173,5 @@ def extractWarsmashNatives = tasks.register('extractWarsmashNatives', Sync) {
     from({ configurations.warsmashNatives.collect { zipTree(it) } }) { include '*.so'; into 'arm64-v8a' }
     into warsmashJni
 }
-android.sourceSets.main.jniLibs.srcDir warsmashJni
+android.sourceSets.main.jniLibs.srcDir warsmashJni.get().asFile
 tasks.named('preBuild').configure { dependsOn extractWarsmashNatives }
