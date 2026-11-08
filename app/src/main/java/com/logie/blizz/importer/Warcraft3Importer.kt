@@ -199,31 +199,44 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         val scratch = File(env.paths.staging, "$gameId-scratch")
         try {
             val picked = (supplied["install"] as? Supplied.Picked)?.source
-            val downloaded = File(asm.staging, MARK).exists()
+            var downloaded = File(asm.staging, MARK).exists()
             if (!downloaded) {
                 // Playing from the other product's install and no files given: nothing to do.
                 if (picked == null && isShared(env.paths)) return
                 val install = picked ?: detection.found["install"]
                 var root: File? = null
                 if (install != null) {
-                    root = Packages.materialize(install, env, asm.staging, scratch, "Warcraft III", PROMPT_INSTALL, ::isGameRoot, ::precheck, ::precheckVersion, looseRoot = ::looseGameRoot)
-                    // Before anything of the installed game is touched.
-                    val check = validateDir(root, product)
-                    if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "Warcraft III's files didn't check out.", check.checks.filter { !it.passed }.joinToString { "${it.name}: ${it.detail}" })
-                }
-                asm.begin()
-                if (root != null) {
-                    // Moved, not copied: it was just unpacked beside staging.
-                    for (f in root.listFiles().orEmpty()) {
-                        val target = File(asm.staging, f.name)
-                        target.deleteTree()
-                        if (!f.renameTo(target)) f.copyRecursively(target, true)
+                    try {
+                        root = Packages.materialize(install, env, asm.staging, scratch, "Warcraft III", PROMPT_INSTALL, ::isGameRoot, ::precheck, ::precheckVersion, looseRoot = ::looseGameRoot)
+                        // Before anything of the installed game is touched.
+                        val check = validateDir(root, product)
+                        if (!check.filesOk) throw ImportException(check.problem ?: Problem.MISSING_SOURCE_DATA, check.message ?: "Warcraft III's files didn't check out.", check.checks.filter { !it.passed }.joinToString { "${it.name}: ${it.detail}" })
+                    } catch (e: ImportException) {
+                        // Files on the phone that don't play (an archive of a half-copied 1.30, a Reforged install, a damaged zip) are not the end of it:
+                        // Blizzard's own download goes in their place, whatever was found or picked.
+                        if (e.problem == Problem.CANCELLED || env.legacy == null || !env.online()) throw e
+                        root = null
+                        scratch.deleteTree()
+                        env.progress(Progress(Stage.DOWNLOADING, "Those files don't work here; downloading Warcraft III from Blizzard instead"))
+                        downloadAvailableFiles(env, listOf(AutoSource("blizzard", "Warcraft III from Blizzard's servers", SIZE_BOTH)))
+                        downloaded = true
                     }
                 }
-                // What was there and isn't in the new files stays. With new files given, only the player's own folders (saves, maps, replays):
-                // another version's program and archives would mix two installs (1.30 over 1.27 kept the old war3.exe). A repair with none given keeps it all.
-                val current = env.paths.game(gameId).list()?.toList() ?: emptyList()
-                asm.reuse(if (root != null) current.filter { n -> n.lowercase() in setOf("save", "maps", "replay", "replays") } else current) { true }
+                if (!downloaded) {
+                    asm.begin()
+                    if (root != null) {
+                        // Moved, not copied: it was just unpacked beside staging.
+                        for (f in root.listFiles().orEmpty()) {
+                            val target = File(asm.staging, f.name)
+                            target.deleteTree()
+                            if (!f.renameTo(target)) f.copyRecursively(target, true)
+                        }
+                    }
+                    // What was there and isn't in the new files stays. With new files given, only the player's own folders (saves, maps, replays):
+                    // another version's program and archives would mix two installs (1.30 over 1.27 kept the old war3.exe). A repair with none given keeps it all.
+                    val current = env.paths.game(gameId).list()?.toList() ?: emptyList()
+                    asm.reuse(if (root != null) current.filter { n -> n.lowercase() in setOf("save", "maps", "replay", "replays") } else current) { true }
+                }
             }
             File(asm.staging, MARK).delete()
             env.progress(Progress(Stage.VALIDATING, "Checking Warcraft III"))

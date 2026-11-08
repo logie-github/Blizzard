@@ -361,6 +361,32 @@ class Warcraft3Test {
         assertEquals(2, log.readLines().size)
     }
 
+    @Test fun anArchiveThatDoesNotPlayFallsBackToBlizzardsDownload() {
+        setUp()
+        online = true
+        // A zip of a half-copied 1.30 (no Data/config): it can't be told from a good one until it is opened.
+        val half = casc130(tmp.newFolder("src"))
+        File(half, "Data/config").deleteRecursively()
+        val zip = Fixtures.zip(tmp.newFile("wc3.zip"), filesOf(half))
+        val base = mpq127(tmp.newFolder("template-WAR3"), expansion = false)
+        val exp = tmp.newFolder("template-W3XP").also { d -> Fixtures.mpq(File(d, "war3x.mpq")); Fixtures.pe(File(d, "Frozen Throne.exe"), "1.27.0.52240") }
+        val log = File(tmp.root, "calls.txt")
+        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base, "W3XP" to exp), log), paths.legacyCache)
+        val done = assertDone(run(roc, zip))
+        assertEquals(2, log.readLines().size)
+        assertTrue(done.validation.clientVersion!!.contains("1.27"))
+        assertNotNull(entry("warcraft3_tft"))
+    }
+
+    @Test fun anArchiveThatDoesNotPlayStillFailsWhenOffline() {
+        setUp()
+        online = false
+        val half = casc130(tmp.newFolder("src"))
+        File(half, "Data/config").deleteRecursively()
+        val zip = Fixtures.zip(tmp.newFile("wc3.zip"), filesOf(half))
+        assertTrue(run(roc, zip) is ImportPipeline.Result.Failed)
+    }
+
     @Test fun aWholeFolderOnThePhoneIsFoundAndNothingIsDownloaded() {
         setUp()
         online = true
