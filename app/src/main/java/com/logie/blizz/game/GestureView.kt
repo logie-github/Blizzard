@@ -346,11 +346,19 @@ class GestureView(
     }
 
     private fun leave() {
+        left = true
         gestures.cancel()
         onLeave.run()
     }
 
+    /** The person left the game by the menu or the gesture (a game that ends by itself within a minute is reported). */
+    private var left = false
+    private val attachedAt = android.os.SystemClock.uptimeMillis()
+
     override fun onDetachedFromWindow() {
+        // A game that closed by itself in its first minute (a crash back to the launcher): its log is sent, as a black screen leaves nothing else.
+        val seconds = (android.os.SystemClock.uptimeMillis() - attachedAt) / 1000
+        if (!left && seconds < 60 && gameId != null && gameId != "installer" && gameId != "wow-client") sendReport("closed itself after $seconds s")
         removeCallbacks(noWindowReport)
         removeCallbacks(minuteReport)
         removeCallbacks(typeNext)
