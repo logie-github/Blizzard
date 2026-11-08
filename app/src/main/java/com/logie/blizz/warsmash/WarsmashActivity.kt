@@ -80,6 +80,11 @@ class WarsmashActivity : AndroidApplication() {
     }
 
     private fun error(message: String) {
+        // AndroidApplication's lifecycle needs a backend even when preflight fails.
+        if (!started) {
+            initialize(object : com.badlogic.gdx.ApplicationAdapter() {}, AndroidApplicationConfiguration())
+            started = true
+        }
         AlertDialog.Builder(this).setTitle("Warsmash").setMessage(message)
             .setPositiveButton("Return") { _, _ -> finish() }.setOnCancelListener { finish() }.show()
     }
