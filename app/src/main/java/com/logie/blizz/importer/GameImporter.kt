@@ -57,6 +57,8 @@ interface GameImporter {
     fun importFiles(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>)
     fun validate(env: ImportEnv): Validation
     fun registerLaunchEntry(env: ImportEnv, validation: Validation): LibraryEntry
+    /** Other games this import's files also play (Warcraft III's two products share one install): put in the library with it. */
+    fun companions(env: ImportEnv): List<LibraryEntry> = emptyList()
     /** Readiness once the files validated: READY, or IMPORTED_UNTESTED where files can't prove it plays. */
     fun readyStage(validation: Validation): Stage = Stage.READY
 

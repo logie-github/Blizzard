@@ -22,6 +22,7 @@ class Warcraft3Test {
     private var innoextract: Innoextract? = null
     private var legacy: LegacyDownloader? = null
     private var online = false
+    private var roots: List<SourceNode> = emptyList()
 
     private val roc get() = Warcraft3Importer(Warcraft3Importer.Product.ROC)
     private val tft get() = Warcraft3Importer(Warcraft3Importer.Product.TFT)
@@ -29,7 +30,7 @@ class Warcraft3Test {
     private fun setUp() { if (!::paths.isInitialized) paths = GamePaths(tmp.newFolder("files")) }
 
     private fun env() = ImportEnv(
-        paths = paths, searchRoots = { emptyList() }, online = { online }, downloads = DownloadManager(), releases = GitHubReleases(),
+        paths = paths, searchRoots = { roots }, online = { online }, downloads = DownloadManager(), releases = GitHubReleases(),
         legacy = legacy, innoextract = innoextract, cancel = CancelToken(), progress = {},
     )
 
@@ -311,15 +312,48 @@ class Warcraft3Test {
         assertFalse(File(paths.game("warcraft3_tft"), Warcraft3Importer.MARK).exists())
     }
 
-    @Test fun reignOfChaosFromBlizzardIsTheBaseGameOnly() {
+    @Test fun reignOfChaosFromBlizzardBringsBothCampaignsAndBothTiles() {
         setUp()
         online = true
         val base = mpq127(tmp.newFolder("template-WAR3"), expansion = false)
+        val exp = tmp.newFolder("template-W3XP").also { d -> Fixtures.mpq(File(d, "war3x.mpq")); Fixtures.pe(File(d, "Frozen Throne.exe"), "1.27.0.52240") }
         val log = File(tmp.root, "calls.txt")
-        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base), log), paths.legacyCache)
+        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base, "W3XP" to exp), log), paths.legacyCache)
+        val waitingLabel = roc.resolveSources(env(), roc.detect(env()), emptyMap()).single()
+        assertTrue(waitingLabel.label.contains("The Frozen Throne"))
         assertDone(run(roc))
-        assertEquals(1, log.readLines().size)
+        assertEquals(2, log.readLines().size)
         assertNotNull(entry("warcraft3_roc"))
+        // The Frozen Throne is in the library without a second tap, from the same folder, with its own program.
+        val other = entry("warcraft3_tft")!!
+        assertEquals(paths.game("warcraft3_roc").path, other.installPath)
+        assertEquals("Frozen Throne.exe", other.executable)
+        assertFalse(paths.game("warcraft3_tft").exists())
+    }
+
+    @Test fun aHalfCopiedFolderOnThePhoneIsIgnoredAndBlizzardsDownloadRuns() {
+        setUp()
+        online = true
+        // 1.30's Data folder without config: what stopped the import before.
+        val half = casc130(tmp.newFolder("Warcraft III"))
+        File(half, "Data/config").deleteRecursively()
+        roots = listOf(FileNode(half.parentFile!!))
+        assertNull(roc.detect(env()).found["install"])
+        val base = mpq127(tmp.newFolder("template-WAR3"), expansion = false)
+        val exp = tmp.newFolder("template-W3XP").also { d -> Fixtures.mpq(File(d, "war3x.mpq")); Fixtures.pe(File(d, "Frozen Throne.exe"), "1.27.0.52240") }
+        val log = File(tmp.root, "calls.txt")
+        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base, "W3XP" to exp), log), paths.legacyCache)
+        assertDone(run(roc))
+        assertEquals(2, log.readLines().size)
+    }
+
+    @Test fun aWholeFolderOnThePhoneIsFoundAndNothingIsDownloaded() {
+        setUp()
+        online = true
+        val whole = casc130(tmp.newFolder("Warcraft III"))
+        roots = listOf(FileNode(whole.parentFile!!))
+        assertNotNull(roc.detect(env()).found["install"])
+        assertTrue(roc.resolveSources(env(), roc.detect(env()), emptyMap()).isEmpty())
     }
 
     @Test fun aPickedFolderIsUsedInsteadOfDownloading() {

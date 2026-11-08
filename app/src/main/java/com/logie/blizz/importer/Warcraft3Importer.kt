@@ -63,9 +63,10 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         const val MARK = ".from-blizzard"
         /** Inside the games' Windows: where 1.28 and later keep saved games and replays. */
         const val DOCUMENTS = "C:\\users\\xuser\\Documents\\Warcraft III"
-        /** Blizzard's RoC + TFT downloads, about. */
-        private const val SIZE_ROC = 1_000L shl 20
-        private const val SIZE_TFT = 1_800L shl 20
+        /** Blizzard's 1.27a2 downloads, Reign of Chaos (759 MB) and The Frozen Throne (596 MB): both come with either product, so one tap gives both campaigns. */
+        private const val SIZE_BOTH = 1_360L shl 20
+        /** What the download fetches, in order. */
+        val DOWNLOAD_CODES = listOf("WAR3", "W3XP")
         const val PROMPT_INSTALL = "Select your Warcraft III installation: its folder, a zip, 7z, tar or disc image of it, or its installer (Setup.exe, with its data files in the same folder). 1.30 and 1.2x both work."
         const val PROMPT_EXPANSION = "The Frozen Throne's data is missing (war3x.mpq, or 1.30's Data folder). Select your Warcraft III folder with The Frozen Throne installed."
         const val PROMPT_VERSION = "This is not a Warcraft III version this app plays (1.0 to 1.31, the original game; 1.30 is the one tried). Reforged (1.32 and later) is not supported. Select an older installation."
@@ -109,11 +110,11 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
      * The folder this product plays from: its own when that holds a valid install for it, else the
      * other product's if that does (the shared install), else its own (nothing yet).
      */
-    fun installDir(paths: GamePaths): File {
-        val own = paths.game(gameId)
-        if (validateDir(own, product).filesOk) return own
-        val other = paths.game(product.sibling.id)
-        if (other.isDirectory && validateDir(other, product).filesOk) return other
+    fun installDir(paths: GamePaths, of: Product = product): File {
+        val own = paths.game(of.id)
+        if (validateDir(own, of).filesOk) return own
+        val other = paths.game(of.sibling.id)
+        if (other.isDirectory && validateDir(other, of).filesOk) return other
         return own
     }
 
@@ -126,7 +127,9 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         env.progress(Progress(Stage.DETECTING, "Looking for Warcraft III"))
         val found = LinkedHashMap<String, SourceNode>()
         val roots = env.searchRoots()
-        roots.firstNotNullOfOrNull { Packages.findRoot(it, 4, ::isGameRoot) }?.let { found["install"] = it }
+        // A folder only counts when it is whole for this product: a half-copied 1.30 (a Data folder without config) or a base-only
+        // folder for The Frozen Throne would stop the import with an error, where Blizzard's download gives a good one.
+        roots.firstNotNullOfOrNull { Packages.findRoot(it, 4) { names -> isGameRoot(names) } }?.takeIf { usable(it) }?.let { found["install"] = it }
         if (found["install"] == null) {
             Scan(roots, 5).matching(Regex("(?i)(war3|warcraft.?(iii|3)|frozen.?throne|reign.?of.?chaos|w3).*\\.(zip|7z|iso|tar|tar\\.gz|tgz|tar\\.xz|tar\\.bz2|tar\\.zst)"))
                 .firstOrNull()?.let { found["install"] = it }
@@ -136,27 +139,39 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         return Detection(validateDir(dir, product).filesOk, found, notes)
     }
 
+    /**
+     * Whether a folder found on the phone can be imported as it is: whole for this product. A file (an archive, a disc image) can't be
+     * looked into cheaply and is tried.
+     */
+    fun usable(node: SourceNode): Boolean {
+        if (!node.isDirectory) return true
+        val names = Packages.names(node.children())
+        val mpq = "war3.mpq" in names && (!product.expansion || "war3x.mpq" in names)
+        if (mpq) return true
+        if (".build.info" !in names) return false
+        val data = node.child("Data") ?: return false
+        return listOf("data", "indices", "config").all { part -> data.child(part)?.children()?.isNotEmpty() == true }
+    }
+
     override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> {
         if (supplied["install"] is Supplied.Picked || detection.found["install"] != null || detection.installed) return emptyList()
         if (programFor(env.paths.game(gameId), product) != null) return emptyList()
         if (env.legacy == null || !env.online()) return emptyList()
-        val label = if (product.expansion) "Warcraft III + The Frozen Throne from Blizzard's servers" else "Warcraft III: Reign of Chaos from Blizzard's servers"
-        return listOf(AutoSource("blizzard", label, if (product.expansion) SIZE_TFT else SIZE_ROC))
+        return listOf(AutoSource("blizzard", "Warcraft III: Reign of Chaos and The Frozen Throne from Blizzard's servers", SIZE_BOTH))
     }
 
     override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) {
         if (sources.none { it.id == "blizzard" }) return
         val legacy = env.legacy ?: return
         val staging = env.paths.staging(gameId)
-        FileValidator.requireSpace(env.paths.downloads, (if (product.expansion) SIZE_TFT else SIZE_ROC) * 2)
+        FileValidator.requireSpace(env.paths.downloads, SIZE_BOTH * 2)
         staging.deleteTree()
         staging.mkdirs()
         try {
-            // The base game, then the expansion over it, as Blizzard's installers do. No key: single
-            // player needs none, and none is passed to the tool.
-            legacy.install("WAR3", staging, noBase = true, keys = null, cancel = env.cancel, onProgress = env.progress)
-            if (product.expansion) legacy.install("W3XP", staging, noBase = true, keys = null, cancel = env.cancel, onProgress = env.progress)
-            File(staging, MARK).writeText(product.codes.joinToString(" ") + "\n")
+            // The base game, then the expansion over it, as Blizzard's installers do: both campaigns whichever tile was tapped.
+            // No key: single player needs none, and none is passed to the tool.
+            for (code in DOWNLOAD_CODES) legacy.install(code, staging, noBase = true, keys = null, cancel = env.cancel, onProgress = env.progress)
+            File(staging, MARK).writeText(DOWNLOAD_CODES.joinToString(" ") + "\n")
         } catch (e: Throwable) {
             staging.deleteTree()
             throw e
@@ -316,10 +331,19 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
 
     override fun readyStage(validation: Validation) = Stage.IMPORTED_UNTESTED
 
-    override fun registerLaunchEntry(env: ImportEnv, validation: Validation): LibraryEntry {
-        val dir = installDir(env.paths)
+    /** The other product when the one install plays it too: it is in the library without a second tap. */
+    override fun companions(env: ImportEnv): List<LibraryEntry> {
+        val dir = installDir(env.paths, product.sibling)
+        val v = validateDir(dir, product.sibling)
+        if (!v.filesOk) return emptyList()
+        return listOf(entryFor(product.sibling, dir, v).copy(stage = Stage.IMPORTED_UNTESTED))
+    }
+
+    override fun registerLaunchEntry(env: ImportEnv, validation: Validation): LibraryEntry = entryFor(product, installDir(env.paths), validation)
+
+    private fun entryFor(product: Product, dir: File, validation: Validation): LibraryEntry {
         return LibraryEntry(
-            gameId = gameId,
+            gameId = product.id,
             title = product.title,
             products = product.codes,
             clientVersion = validation.clientVersion ?: "",

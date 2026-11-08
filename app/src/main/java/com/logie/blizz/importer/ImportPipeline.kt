@@ -43,6 +43,10 @@ class ImportPipeline(private val repo: ImportStateRepository, private val librar
             val ready = importer.readyStage(validation)
             val entry = importer.registerLaunchEntry(env, validation).copy(stage = ready)
             library.put(entry)
+            for (other in runCatching { importer.companions(env) }.getOrDefault(emptyList())) {
+                library.put(other)
+                repo.update(other.gameId) { it.copy(stage = other.stage, outcome = Outcome.IMPORTED_LAUNCH_UNTESTED, problem = null, message = null, detail = null, supplied = emptyMap(), skipped = emptySet()) }
+            }
             val record = repo.update(id) {
                 it.copy(
                     stage = ready,
