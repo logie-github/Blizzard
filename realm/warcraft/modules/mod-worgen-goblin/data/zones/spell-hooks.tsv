@@ -1,0 +1,18 @@
+# Cataclysm's spell effects and auras 3.3.5a hasn't, made dummies the module answers (tools/zones/spells.py):
+# Cataclysm's spell id, the spell's id here, effect index, what, Cataclysm's value
+72829	72829	2	phases	0
+91847	91847	1	movie	18039
+81040	81040	0	phases	0
+81040	81040	1	phases	0
+94293	94293	0	altered_form	0
+93477	93477	1	movie	18040
+93477	93477	2	phases	0
+68643	68643	1	phases	0
+68638	68638	0	phases	0
+68638	68638	2	phases	0
+68639	68639	2	teleport	0
+78107	78107	1	teleport	0
+98274	98274	0	worgen_form	0
+72788	72788	0	teleport	0
+68992	80869	1	worgen_form	0
+68630	68630	0	teleport	0

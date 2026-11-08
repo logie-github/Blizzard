@@ -1,0 +1,24 @@
+[worldserver]
+
+########################################
+# The allied races (mod-allied-races): void elves, nightborne, Lightforged Draenei, Zandalari Trolls
+########################################
+#
+#    AlliedRaces.Enable
+#        Description: Whether this realm has the races. ChromieCraft's has them, Wrath Remix's
+#                     doesn't: the app's ctl.sh sets this for each realm as it starts. Off: the
+#                     game's patch is taken out (whatever AlliedRaces.ClientPatch says), and the
+#                     realm's world database has none of their SQL (ctl.sh puts it in
+#                     ChromieCraft's alone, data/sql/chromiecraft).
+#        Default:     1
+#
+#    AlliedRaces.ClientPatch
+#        Description: Makes the game's patch for the races (Data/patch-V.MPQ in the client
+#                     WOW_CLIENT_DIR names) as the world server starts, when the client, the
+#                     module or the races' files changed: their tables, models, textures, voices,
+#                     character creation screen and intros. Off: the patch is taken out, and the
+#                     game doesn't know them.
+#        Default:     1
+
+AlliedRaces.Enable = 1
+AlliedRaces.ClientPatch = 1

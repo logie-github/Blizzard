@@ -1,0 +1,4 @@
+# SkillLine: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiissssssssssssssssissssssssssssssssiissssssssssssssssii
+put	789	9	0	Racial - Worgen																16712190																	16712172	132203																	16712172	0
+put	790	9	0	Racial - Goblin																16712190																	16712172	133032																	16712172	0

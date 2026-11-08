@@ -1,0 +1,84 @@
+# Brill: A Place Among the Forsaken, The Last Customer (mod-brill-home, ChromieCraft's realm): Ambrose
+# Wicke's stall behind Brill's town hall, cleaned and its ledger found; the order read with him, the parcel
+# found, Magistrate Sevren asked; the Balnir Farmstead's three signs; Agnes Balnir at the Sepulcher; her
+# letter, the candlesticks lit in his window (a choice), and the stall open: its goods out (the line's
+# phase) and his wares for sale.
+# (The phase's bit is the generator's: 0x400000 while the house's line has four phases before it; check
+# it against brill_town_phase's R970604 row when the lines before this one change.)
+cmd .levelup 11
+cmd .modify money 100000
+# At the stall: closed, the goods not out.
+go 0 2341.4 279.6 34.9
+wait 2
+cmd .brilltown state
+expect-not [0x4000000]
+talk 970600
+accept 970600 970600
+# Business as Usual: the rug, the crate, the shelf, and the ledger under the counter.
+go 0 2342.1 279.4 34.9
+cmd .brilltown use
+expect Brill town: used 970602
+go 0 2345.8 280.9 35.1
+cmd .brilltown use
+expect Brill town: used 970603
+go 0 2347.9 279.5 35.4
+cmd .brilltown use
+expect Brill town: used 970604
+go 0 2343.1 277.2 35.0
+cmd .brilltown use
+expect Brill town: used 970605
+go 0 2341.4 279.6 34.9
+talk 970600
+reward 970600 970600
+# An Outstanding Order: the ledger's last entry read with him, the parcel, the Magistrate.
+talk 970600
+accept 970600 970601
+talk 970600
+select 970600 last entry
+go 0 2345.6 275.1 35.4
+cmd .brilltown use
+expect Brill town: used 970606
+go 0 2304.5 266.0 38.9
+talk 1499
+select 1499 Balnir family
+go 0 2341.4 279.6 34.9
+talk 970600
+reward 970600 970601
+# No Forwarding Address: the Balnir Farmstead's notice, family book and stone.
+talk 970600
+accept 970600 970602
+go 0 1998.0 -455.0 35.0
+cmd .brilltown use
+expect Brill town: used 970607
+go 0 1948.0 -442.0 35.9
+cmd .brilltown use
+expect Brill town: used 970608
+go 0 2041.0 -517.0 44.1
+cmd .brilltown use
+expect Brill town: used 970609
+go 0 2341.4 279.6 34.9
+talk 970600
+reward 970600 970602
+# The Gift Never Given: Agnes Balnir at the Sepulcher; her letter (Closing the Ledger).
+talk 970600
+accept 970600 970603
+go 0 548.5 1589.5 130.4
+talk 970601
+reward 970601 970603
+talk 970601
+accept 970601 970604
+# Back at the stall: the candlesticks lit in the window, the ledger closed.
+go 0 2341.4 279.6 34.9
+talk 970600
+select 970600 Light them
+talk 970600
+reward 970600 970604
+wait 2
+cmd .brilltown state
+has [0x4000000]
+expect q970605
+# Open: his wares for sale.
+talk 970600
+select 970600 what you're selling
+buy 970600 755
+expect bought 755

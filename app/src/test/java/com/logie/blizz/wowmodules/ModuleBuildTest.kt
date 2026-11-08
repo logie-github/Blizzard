@@ -28,7 +28,6 @@ class ModuleBuildTest {
         assertFalse(ModuleBuild.isRequest("UPPERCASE123"))
         assertFalse(ModuleBuild.isRequest("with space 12"))
         assertEquals("server-abc123def456.tar.xz", ModuleBuild.assetName("abc123def456"))
-        assertEquals("wow-build-46", ModuleBuild.release("wow-build", 46))
         assertEquals("46:modules:abc123def456", ModuleBuild.stamp(ModuleBuild.Built(46, "abc123def456", emptyList())))
     }
 
@@ -41,10 +40,10 @@ class ModuleBuildTest {
             "azerothcore/mod-transmog@$sha1\nazerothcore/mod-ah-bot@$sha2",
             ModuleBuild.modulesInput(listOf(transmog, playerbots, unpinned, ahbot, twice), setOf("mod-playerbots")),
         )
-        val body = JSONObject(ModuleBuild.dispatchBody("ccr-branch", "wow-build-46", "abc123def456", "a/b@$sha1"))
-        assertEquals("ccr-branch", body.getString("ref"))
+        val body = JSONObject(ModuleBuild.dispatchBody("main", "abc123def456", "a/b@$sha1"))
+        assertEquals("main", body.getString("ref"))
         val inputs = body.getJSONObject("inputs")
-        assertEquals("wow-build-46", inputs.getString("release"))
+        assertFalse(inputs.has("release"))
         assertEquals("abc123def456", inputs.getString("request"))
         assertEquals("a/b@$sha1", inputs.getString("modules"))
     }

@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 03:31:12 +0000
+Subject: [PATCH] Read module configs from WOW_MODULES_CONF_DIR when it's set
+
+The World of Warcraft app runs a second realm, Wrath Remix, from the same programs as its
+ChromieCraft realm, each with configs of its own. The main config comes from -c, but module configs
+always came from the compiled-in config folder's modules/. WOW_MODULES_CONF_DIR, when set, names the
+folder they're read from instead; unset, nothing changes.
+---
+ src/common/Configuration/Config.cpp | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/common/Configuration/Config.cpp b/src/common/Configuration/Config.cpp
+index 79c58af7d6..a4d290c8f3 100644
+--- a/src/common/Configuration/Config.cpp
++++ b/src/common/Configuration/Config.cpp
+@@ -762,8 +762,11 @@ bool ConfigMgr::LoadModulesConfigs(bool isReload /*= false*/, bool isNeedPrintIn
+         LOG_INFO("server.loading", "Loading Modules Configuration...");
+     }
+ 
+-    // Start loading module configs
+-    std::string const& moduleConfigPath = GetConfigPath() + "modules/";
++    // Start loading module configs. The Android app runs a second realm (Wrath Remix) from the
++    // same programs with configs of its own: WOW_MODULES_CONF_DIR names that realm's folder.
++    std::string moduleConfigPath = GetConfigPath() + "modules/";
++    if (char const* dir = std::getenv("WOW_MODULES_CONF_DIR"); dir && *dir)
++        moduleConfigPath = std::string(dir) + "/";
+ 
+     for (auto const& fileName : _additonalFiles)
+     {

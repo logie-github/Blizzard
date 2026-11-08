@@ -1,0 +1,9 @@
+# Map: the starting areas (tools/zones/build_tables.py)
+types	isiiissssssssssssssssiissssssssssssssssissssssssssssssssiififfiiii
+put	638	Gilneas	0	0	0	Gilneas2																0	0																	0																	0	8800	1.0	4294967295	0.0	0.0	4294967295	0	0	0
+put	648	LostIsles	0	0	0	LostIsles																0	0																	0																	0	8801	1.0	4294967295	0.0	0.0	4294967295	0	0	0
+put	654	Gilneas2	0	0	0	Gilneas2																0	0																	0																	0	8800	1.0	4294967295	0.0	0.0	4294967295	0	0	0
+put	655	GilneasPhase1	0	0	0	Gilneas2																0	0																	0																	0	8800	1.0	4294967295	0.0	0.0	4294967295	0	0	0
+put	656	GilneasPhase2	0	0	0	Gilneas2																0	0																	0																	0	8800	1.0	4294967295	0.0	0.0	4294967295	0	0	0
+put	659	LostIslesPhase1	0	0	0	LostIsles																0	0																	0																	0	8801	1.0	4294967295	0.0	0.0	4294967295	0	0	0
+put	661	LostIslesPhase2	0	0	0	LostIsles																0	0																	0																	0	8801	1.0	4294967295	0.0	0.0	4294967295	0	0	0

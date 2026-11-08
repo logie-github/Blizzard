@@ -569,9 +569,9 @@ private fun RealmPane(unavailable: String?) {
     ) {
         item {
             Line(
-                "The realm's world server is built with its modules in it, so a realm with yours is built again: by the World of Warcraft app's repository on GitHub " +
-                    "(its workflow build-warcraft-modules.yml: about 20 minutes, longer with many modules), from the release of the app your realm came from, then tested " +
-                    "the way that app's own realm is. Blizzard then downloads it, checks it and puts it in place of the realm, which stops for it. " +
+                "The realm's world server is built with its modules in it, so a realm with yours is built again: by this app's repository on GitHub " +
+                    "(its workflow build-realm-modules.yml: about an hour the first time, less after), from the realm's sources kept there, then tested " +
+                    "the way the realm is tested. Blizzard then downloads it, checks it and puts it in place of the realm, which stops for it. " +
                     "Characters, accounts, bots and settings stay; each module's database changes are made at the realm's next start.",
                 color = Colors.Mist, small = true,
             )
@@ -799,7 +799,7 @@ private fun SavedRealm(built: ModuleBuild.Built, inNow: Boolean, working: Boolea
         Line(
             when {
                 usable -> "Built ${DateUtils.getRelativeTimeSpanString(built.builtAt)} · ${Formatter.formatShortFileSize(context, built.size)}"
-                built.versionCode != version -> "Built for another version of the World of Warcraft app: build it again to use it."
+                built.versionCode != version -> "Built from older realm sources: build it again to use it."
                 else -> "That realm isn't on the phone any more: build it again."
             },
             color = Colors.Mist, small = true,

@@ -7,10 +7,10 @@ import kotlin.random.Random
 
 /**
  * A realm built with the user's modules: what's asked of the build (.github/workflows/
- * build-warcraft-modules.yml), how its run on GitHub goes, and what's kept of it in the app.
+ * build-realm-modules.yml), how its run on GitHub goes, and what's kept of it in the app.
  */
 object ModuleBuild {
-    const val WORKFLOW = "build-warcraft-modules.yml"
+    const val WORKFLOW = "build-realm-modules.yml"
 
     /** At most this many modules in one build (the workflow's limit too). */
     const val MAX_MODULES = 40
@@ -54,7 +54,7 @@ object ModuleBuild {
     /** A build asked for and followed on GitHub: what came of it, as last seen. */
     data class Pending(
         val request: String,
-        /** The app's release the realm is built from (wow-build-N). */
+        /** The release the package is attached to ([ModuleSource.RELEASE]). */
         val release: String,
         val versionCode: Int,
         val modules: List<Chosen>,
@@ -93,9 +93,6 @@ object ModuleBuild {
 
     private val MODULE_NAME = Regex("[A-Za-z0-9_.-]{1,100}")
 
-    /** The app's release for [versionCode], as CI tags it ([prefix]-N). */
-    fun release(prefix: String, versionCode: Int) = "$prefix-$versionCode"
-
     /** A branch name that's safe in a URL's path and as git's ref. */
     fun isBranch(text: String): Boolean =
         text.isNotEmpty() && text.length <= 200 && Regex("[A-Za-z0-9._/-]+").matches(text) &&
@@ -108,10 +105,10 @@ object ModuleBuild {
             .joinToString("\n") { "${it.fullName}@${it.commit}" }
 
     /** The workflow's inputs, as GitHub's dispatch wants them. */
-    fun dispatchBody(branch: String, release: String, request: String, modules: String): String =
+    fun dispatchBody(branch: String, request: String, modules: String): String =
         JSONObject()
             .put("ref", branch)
-            .put("inputs", JSONObject().put("release", release).put("request", request).put("modules", modules))
+            .put("inputs", JSONObject().put("request", request).put("modules", modules))
             .toString()
 
     // How the run goes ------------------------------------------------------------------------------

@@ -1,0 +1,275 @@
+# The original quests the Wrath Remix guide names for its campaign (section 6.3), by chapter and
+# group, with the game's spelling. tools/quest_audit.py resolves them against the world database.
+chapter	group	title
+I	Borean — Alliance MAIN anchors	Enlistment Day
+I	Borean — Alliance MAIN anchors	A Time for Heroes
+I	Borean — Alliance MAIN anchors	The Siege
+I	Borean — Alliance MAIN anchors	Death From Above
+I	Borean — Alliance MAIN anchors	Plug the Sinkholes
+I	Borean — Alliance MAIN anchors	Thassarian, My Brother
+I	Borean — Alliance MAIN anchors	Thassarian, the Death Knight
+I	Borean — Alliance MAIN anchors	Finding the Phylactery
+I	Borean — Alliance MAIN anchors	Buying Some Time
+I	Borean — Alliance MAIN anchors	Words of Power
+I	Borean — Alliance MAIN anchors	Last Rites
+I	Borean — Horde MAIN anchors	Hellscream's Vigil
+I	Borean — Horde MAIN anchors	The Defense of Warsong Hold
+I	Borean — Horde MAIN anchors	Taking Back Mightstone Quarry
+I	Borean — Horde MAIN anchors	Cutting Off the Source
+I	Borean — Horde MAIN anchors	Wind Master To'bor
+I	Borean — Horde MAIN anchors	Magic Carpet Ride
+I	Borean — Horde MAIN anchors	Tank Ain't Gonna Fix Itself
+I	Borean — Horde MAIN anchors	Tanks a lot...
+I	Borean — Horde MAIN anchors	The Plains of Nasam
+I	Howling Fjord — Alliance MAIN anchors	Hell Has Frozen Over...
+I	Howling Fjord — Alliance MAIN anchors	If Valgarde Falls...
+I	Howling Fjord — Alliance MAIN anchors	Rescuing the Rescuers
+I	Howling Fjord — Alliance MAIN anchors	Prisoners of Wyrmskull
+I	Howling Fjord — Alliance MAIN anchors	Dragonflayer Battle Plans
+I	Howling Fjord — Alliance MAIN anchors	To Westguard Keep!
+I	Howling Fjord — Alliance MAIN anchors	Operation: Skornful Wrath
+I	Howling Fjord — Alliance MAIN anchors	Burn Skorn, Burn!
+I	Howling Fjord — Alliance MAIN anchors	Gruesome, But Necessary
+I	Howling Fjord — Alliance MAIN anchors	Towers of Certain Doom
+I	Howling Fjord — Alliance MAIN anchors	All Hail the Conqueror of Skorn!
+I	Howling Fjord — Horde MAIN anchors	The New Plague
+I	Howling Fjord — Horde MAIN anchors	Spiking the Mix
+I	Howling Fjord — Horde MAIN anchors	Test at Sea
+I	Howling Fjord — Horde MAIN anchors	New Agamand
+I	Howling Fjord — Horde MAIN anchors	A Tailor-Made Formula
+I	Howling Fjord — Horde MAIN anchors	Apply Heat and Stir
+I	Howling Fjord — Horde MAIN anchors	Field Test
+I	Howling Fjord — Horde MAIN anchors	Time for Cleanup
+I	Howling Fjord — Horde MAIN anchors	Parts for the Job
+I	Howling Fjord — Horde MAIN anchors	Warning: Some Assembly Required
+I	FUN side quests	Help Those That Cannot Help Themselves
+I	FUN side quests	Kaw the Mammoth Destroyer
+I	FUN side quests	The Assassination of Harold Lane
+I	FUN side quests	It Goes to 11...
+I	FUN side quests	Let's Go Surfing Now
+I	FUN side quests	The Slumbering King
+I	FUN side quests	The Frost Wyrm and its Master
+II	Alliance MAIN anchors	Naxxramas and the Fall of Wintergarde
+II	Alliance MAIN anchors	Flight of the Wintergarde Defender
+II	Alliance MAIN anchors	Return to the High Commander
+II	Alliance MAIN anchors	Rescue from Town Square
+II	Alliance MAIN anchors	Find Durkon!
+II	Alliance MAIN anchors	Into Hostile Territory
+II	Alliance MAIN anchors	Steamtank Surprise
+II	Alliance MAIN anchors	Scattered To The Wind
+II	Alliance MAIN anchors	Breaking Off A Piece
+II	Alliance MAIN anchors	The Chain Gun And You
+II	Alliance MAIN anchors	Plunderbeard Must Be Found!
+II	Alliance MAIN anchors	Plunderbeard's Journal
+II	Alliance MAIN anchors	Chasing Icestorm: The 7th Legion Front
+II	Alliance MAIN anchors	Chasing Icestorm: Thel'zan's Phylactery
+II	Alliance MAIN anchors	Finality
+II	Alliance MAIN anchors	An End And A Beginning
+II	Alliance MAIN anchors	To Fordragon Hold!
+II	Horde MAIN anchors	Into the Fold
+II	Horde MAIN anchors	Victory Nears...
+II	Horde MAIN anchors	Strength of Icemist
+II	Horde MAIN anchors	The Forsaken Blight and You: How Not to Die
+II	Horde MAIN anchors	Emerald Dragon Tears
+II	Horde MAIN anchors	Spread the Good Word
+II	Horde MAIN anchors	The Forsaken Blight
+II	Horde MAIN anchors	The Kor'kron Vanguard!
+II	Shared fixed-point MAIN	Audience With The Dragon Queen
+II	Shared fixed-point MAIN	Galakrond and the Scourge
+II	Shared fixed-point MAIN	On Ruby Wings
+II	Shared fixed-point MAIN	Return To Angrathar
+II	Alliance post-Wrathgate MAIN	Reborn From The Ashes
+II	Alliance post-Wrathgate MAIN	Fate, Up Against Your Will
+II	Alliance post-Wrathgate MAIN	A Royal Coup
+II	Alliance post-Wrathgate MAIN	The Killing Time
+II	Alliance post-Wrathgate MAIN	The Battle For The Undercity
+II	Horde post-Wrathgate MAIN	Darkness Stirs
+II	Horde post-Wrathgate MAIN	Herald of War
+II	Horde post-Wrathgate MAIN	A Life Without Regret
+II	Horde post-Wrathgate MAIN	The Battle For The Undercity
+II	FUN	The Demo-gnome
+II	FUN	Leave Nothing to Chance
+II	FUN	Frostmourne Cavern
+III	Alliance Silverbrook MAIN	Local Support
+III	Alliance Silverbrook MAIN	Close the Deal
+III	Alliance Silverbrook MAIN	A Tentative Pact
+III	Alliance Silverbrook MAIN	An Exercise in Diplomacy
+III	Alliance Silverbrook MAIN	Wolfsbane Root
+III	Alliance Silverbrook MAIN	Northern Hospitality
+III	Alliance Silverbrook MAIN	Test of Mettle
+III	Alliance Silverbrook MAIN	Words of Warning
+III	Alliance Silverbrook MAIN	Escape from Silverbrook
+III	Alliance Silverbrook MAIN	A Swift Response
+III	Alliance Silverbrook MAIN	Descent into Darkness
+III	Alliance Ursoc MAIN	The Failed World Tree
+III	Alliance Ursoc MAIN	A Dark Influence
+III	Alliance Ursoc MAIN	A Possible Link
+III	Alliance Ursoc MAIN	Children of Ursoc
+III	Alliance Ursoc MAIN	Vordrassil's Sapling
+III	Alliance Ursoc MAIN	Vordrassil's Seeds
+III	Alliance Ursoc MAIN	Ursoc, the Bear God
+III	Horde Ursoc MAIN	Vordrassil's Fall
+III	Horde Ursoc MAIN	The Darkness Beneath
+III	Horde Ursoc MAIN	The Bear God's Offspring
+III	Horde Ursoc MAIN	A Possible Link
+III	Horde Ursoc MAIN	Vordrassil's Seeds
+III	Horde Ursoc MAIN	Destroy the Sapling
+III	Horde Ursoc MAIN	Ursoc, the Bear God
+III	Shared Drakuru MAIN	Filling the Cages
+III	Shared Drakuru MAIN	Truce?
+III	Shared Drakuru MAIN	Vial of Visions
+III	Shared Drakuru MAIN	Subject to Interpretation
+III	Shared Drakuru MAIN	Sacrifices Must be Made
+III	Shared Drakuru MAIN	Heart of the Ancients
+III	Shared Drakuru MAIN	My Heart is in Your Hands
+III	Shared Drakuru MAIN	Voices From the Dust
+III	Shared Drakuru MAIN	Cleansing Drak'Tharon
+III	FUN	Dun-da-Dun-tah!
+III	FUN	Scourgekabob
+III	FUN	Seared Scourge
+IV	Drakuru MAIN candidate chain	In Search Of Answers
+IV	Drakuru MAIN candidate chain	Orders From Drakuru
+IV	Drakuru MAIN candidate chain	The Ebon Watch
+IV	Drakuru MAIN candidate chain	An Invitation, of Sorts...
+IV	Drakuru MAIN candidate chain	Darkness Calling
+IV	Drakuru MAIN candidate chain	Near Miss
+IV	Drakuru MAIN candidate chain	Close Call
+IV	Drakuru MAIN candidate chain	You Can Run, But You Can't Hide
+IV	Drakuru MAIN candidate chain	Silver Lining
+IV	Drakuru MAIN candidate chain	Dressing Down
+IV	Drakuru MAIN candidate chain	Suit Up!
+IV	Drakuru MAIN candidate chain	Infiltrating Voltarus
+IV	Drakuru MAIN candidate chain	Dark Horizon
+IV	Drakuru MAIN candidate chain	Reunited
+IV	Drakuru MAIN candidate chain	So Far, So Bad
+IV	Drakuru MAIN candidate chain	It Rolls Downhill
+IV	Drakuru MAIN candidate chain	Hazardous Materials
+IV	Drakuru MAIN candidate chain	Zero Tolerance
+IV	Drakuru MAIN candidate chain	Sabotage
+IV	Drakuru MAIN candidate chain	Fuel for the Fire
+IV	Drakuru MAIN candidate chain	Disclosure
+IV	Drakuru MAIN candidate chain	Betrayal
+IV	Drakkari/Loa MAIN candidate selection	Strange Mojo
+IV	Drakkari/Loa MAIN candidate selection	Precious Elemental Fluids
+IV	Drakkari/Loa MAIN candidate selection	Preparations for the Underworld
+IV	Drakkari/Loa MAIN candidate selection	Seek the Wind Serpent Goddess
+IV	Drakkari/Loa MAIN candidate selection	Setting the Stage
+IV	Drakkari/Loa MAIN candidate selection	Foundation for Revenge
+IV	Drakkari/Loa MAIN candidate selection	Hell Hath a Fury
+IV	Drakkari/Loa MAIN candidate selection	Blood of a Dead God
+IV	Drakkari/Loa MAIN candidate selection	You Reap What You Sow
+IV	Drakkari/Loa MAIN candidate selection	The Gods Have Spoken
+IV	Drakkari/Loa MAIN candidate selection	Convocation at Zol'Heb
+IV	Drakkari/Loa MAIN candidate selection	Unfinished Business
+IV	FUN	Troll Patrol
+IV	FUN	Wooly Justice
+IV	FUN	Enchanted Tiki Warriors
+V	MAIN candidate anchors	Where in the World is Hemet Nesingwary?
+V	MAIN candidate anchors	Welcome to Sholazar Basin
+V	MAIN candidate anchors	Force of Nature
+V	MAIN candidate anchors	An Issue of Trust
+V	MAIN candidate anchors	Returned Sevenfold
+V	MAIN candidate anchors	The Fallen Pillar
+V	MAIN candidate anchors	Cultist Incursion
+V	MAIN candidate anchors	Exterminate the Intruders
+V	MAIN candidate anchors	Weapons of Destruction
+V	MAIN candidate anchors	The Lifewarden's Wrath
+V	MAIN candidate anchors	Freya's Pact
+V	MAIN candidate anchors	Powering the Waygate - The Maker's Perch
+V	MAIN candidate anchors	Powering the Waygate - The Maker's Overlook
+V	MAIN candidate anchors	The Etymidian
+V	MAIN candidate anchors	The Activation Rune
+V	MAIN candidate anchors	Back Through the Waygate
+V	MAIN candidate anchors	Reclamation
+V	FUN	The Great Hunter's Challenge
+V	FUN	Some Make Lemonade, Some Make Liquor
+V	FUN	Still At It
+V	FUN	The Taste Test
+V	FUN	A Hero's Burden
+VI	Thorim/Sons of Hodir MAIN candidate anchors	They Took Our Men!
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Leave No Goblin Behind
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Crone's Bargain
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Mildred the Cruel
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Discipline
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Examples to be Made
+VI	Thorim/Sons of Hodir MAIN candidate anchors	A Certain Prisoner
+VI	Thorim/Sons of Hodir MAIN candidate anchors	A Change of Scenery
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Is That Your Goblin?
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Hyldsmeet
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Taking on All Challengers
+VI	Thorim/Sons of Hodir MAIN candidate anchors	You'll Need a Bear
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Bearly Hanging On
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Cold Hearted
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Deemed Worthy
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Making a Harness
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Last of Her Kind
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Warm-Up
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Into the Pit
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Prepare for Glory
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Lok'lira's Parting Gift
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Drakkensryd
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Sibling Rivalry
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Mending Fences
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Refiner's Fire
+VI	Thorim/Sons of Hodir MAIN candidate anchors	A Spark of Hope
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Forging an Alliance
+VI	Thorim/Sons of Hodir MAIN candidate anchors	A New Beginning
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Veranus
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Territorial Trespass
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Krolmir, Hammer of Storms
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Terrace of the Makers
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Earthen Oath
+VI	Thorim/Sons of Hodir MAIN candidate anchors	Loken's Lackeys
+VI	Thorim/Sons of Hodir MAIN candidate anchors	The Reckoning
+VI	FUN	Data Mining
+VI	FUN	The Library Console
+VI	FUN	Fate of the Titans
+VI	FUN	The Brothers Bronzebeard
+VI	FUN	Distortions in Time
+VII	Argent Crusade MAIN candidate anchors	Preparations for War
+VII	Argent Crusade MAIN candidate anchors	Judgment Day Comes!
+VII	Argent Crusade MAIN candidate anchors	Honor Above All Else
+VII	Argent Crusade MAIN candidate anchors	Scourge Tactics
+VII	Argent Crusade MAIN candidate anchors	Curing The Incurable
+VII	Argent Crusade MAIN candidate anchors	Defending The Vanguard
+VII	Argent Crusade MAIN candidate anchors	If There Are Survivors...
+VII	Argent Crusade MAIN candidate anchors	Into The Wild Green Yonder
+VII	Argent Crusade MAIN candidate anchors	A Cold Front Approaches
+VII	Argent Crusade MAIN candidate anchors	The Last Line Of Defense
+VII	Argent Crusade MAIN candidate anchors	Once More Unto The Breach, Hero
+VII	Argent Crusade MAIN candidate anchors	The Purging Of Scourgeholme
+VII	Argent Crusade MAIN candidate anchors	The Scourgestone
+VII	Argent Crusade MAIN candidate anchors	The Air Stands Still
+VII	Argent Crusade MAIN candidate anchors	Into The Frozen Heart Of Northrend
+VII	Argent Crusade MAIN candidate anchors	The Battle For Crusaders' Pinnacle
+VII	Argent Crusade MAIN candidate anchors	The Crusaders' Pinnacle
+VII	Ebon Blade MAIN candidate anchors	It's All Fun and Games
+VII	Ebon Blade MAIN candidate anchors	I Have an Idea, But First...
+VII	Ebon Blade MAIN candidate anchors	Free Your Mind
+VII	Ebon Blade MAIN candidate anchors	If He Cannot Be Turned
+VII	Ebon Blade MAIN candidate anchors	The Shadow Vault
+VII	Ebon Blade MAIN candidate anchors	The Duke
+VII	Ebon Blade MAIN candidate anchors	Honor Challenge
+VII	Ebon Blade MAIN candidate anchors	Shadow Vault Decree
+VII	Ebon Blade MAIN candidate anchors	Get the Key
+VII	Ebon Blade MAIN candidate anchors	Let the Baron Know
+VII	FUN — preserve complete Bridenbrad story	A Tale of Valor
+VII	FUN — preserve complete Bridenbrad story	A Hero Remains
+VII	FUN — preserve complete Bridenbrad story	The Keeper's Favor
+VII	FUN — preserve complete Bridenbrad story	Hope Within the Emerald Nightmare
+VII	FUN — preserve complete Bridenbrad story	The Boon of Remulos
+VII	FUN — preserve complete Bridenbrad story	Time Yet Remains
+VII	FUN — preserve complete Bridenbrad story	The Touch of an Aspect
+VII	FUN — preserve complete Bridenbrad story	Dahlia's Tears
+VII	FUN — preserve complete Bridenbrad story	The Boon of Alexstrasza
+VII	FUN — preserve complete Bridenbrad story	Hope Yet Remains
+VII	FUN — preserve complete Bridenbrad story	The Will of the Naaru
+VII	FUN — preserve complete Bridenbrad story	The Boon of A'dal
+VII	FUN — preserve complete Bridenbrad story	Light Within the Darkness
+VII	Frozen Halls MAIN finale chain	Inside the Frozen Citadel
+VII	Frozen Halls MAIN finale chain	Echoes of Tortured Souls
+VII	Frozen Halls MAIN finale chain	The Pit of Saron
+VII	Frozen Halls MAIN finale chain	The Path to the Citadel
+VII	Frozen Halls MAIN finale chain	Deliverance from the Pit
+VII	Frozen Halls MAIN finale chain	Frostmourne
+VII	Frozen Halls MAIN finale chain	Wrath of the Lich King

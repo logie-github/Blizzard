@@ -1,0 +1,256 @@
+# Brill: The Caravan Office (mod-brill-home, tools/town/caravan.py), ChromieCraft's realm: Brill Endures granted
+# (the project's stage 1, <8:1>: the caravan's stages are invisibility kind 8), Quartermaster Irena Sable at her
+# field desk on the Undercity road. The Road Isn't Empty (the three stranded drivers, the ruts and two broken
+# wagons, the Magistrate, the stakes); A Place to Unload (six dumped crates down the road, Rudd Carver's winch, the
+# yard's timber, Abe Winters's iron, the platform and the crates stowed); The Missing Manifest (the wagon and the
+# records on the trail, Bartle Kemp's camp, his cargo, Selwyn heard, and the choice: Selwyn exposed, the mark
+# q971514); Licenses and Liabilities (the Exchange in the Undercity, the Sepulcher's factor at the Gallows' End,
+# Zygand's Deathguard and Bastian, and the first road: the Undercity, the mark q971518); The First Departure (the
+# wagon and its crates, the guards, the ambushers, the receipt at the crossroads). Each quest moves the stage on;
+# then the office open (<8:6>, Irena behind its counter, the daily offered) and the house's furniture bought from
+# her (<8:7>, the mark q971507).
+cmd .levelup 11
+cmd .modify money 100000
+cmd .brilltown grant 971000
+# Stage 1: Irena at her field desk by the road.
+go 0 2199.5 259.5 36.8
+wait 2
+cmd .brilltown state
+has <8:1>
+talk 971500
+accept 971500 971500
+# The Road Isn't Empty: the drivers stranded on the verge.
+go 0 2189.0 228.0 36.3
+talk 971506
+select 971506 gone wrong on the road
+expect credit 971500 971531 1/3
+go 0 2197.5 232.5 34.7
+talk 971507
+select 971507 why you're stuck here
+expect credit 971500 971531 2/3
+go 0 2205.0 237.0 34.4
+talk 971508
+select 971508 asking the drivers
+expect credit 971500 971531 3/3
+# The ruts, and the two broken wagons south of the yard.
+go 0 2192.0 238.0 35.2
+cmd .brilltown use
+has Brill town: used 971507
+expect credit 971500 971532 1/3
+go 0 2178.0 222.5 38.7
+cmd .brilltown use
+has Brill town: used 971508
+expect credit 971500 971532 2/3
+go 0 2156.0 222.0 42.8
+cmd .brilltown use
+has Brill town: used 971508
+expect credit 971500 971532 3/3
+# The Magistrate's leave, and the stakes driven.
+go 0 2304.5 266.0 38.9
+talk 1499
+select 1499 ground for a caravan office
+expect credit 971500 971533 1/1
+go 0 2193.0 274.0 41.1
+cmd .brilltown use
+has Brill town: used 971509
+expect credit 971500 971534 1/1
+go 0 2199.5 259.5 36.8
+talk 971500
+reward 971500 971500
+expect rewarded 971500
+wait 2
+cmd .brilltown state
+has <8:2>
+# A Place to Unload: Dren, by his wagon from stage 2.
+go 0 2189.5 254.0 38.1
+talk 971502
+accept 971502 971501
+# The crates dumped along the Undercity road.
+go 0 2158.0 196.0 42.9
+cmd .brilltown use
+has Brill town: used 971515
+expect credit 971501 971535 1/6
+go 0 2152.5 181.0 41.5
+cmd .brilltown use
+expect credit 971501 971535 2/6
+go 0 2140.0 163.5 38.3
+cmd .brilltown use
+expect credit 971501 971535 3/6
+go 0 2117.0 165.5 38.0
+cmd .brilltown use
+expect credit 971501 971535 4/6
+go 0 2104.0 161.0 36.7
+cmd .brilltown use
+expect credit 971501 971535 5/6
+go 0 2071.5 160.5 35.1
+cmd .brilltown use
+expect credit 971501 971535 6/6
+# Rudd Carver's winch and the yard's timber; Abe Winters's iron.
+go 0 2297.0 459.0 34.5
+talk 971000
+select 971000 owes him a loading winch
+expect credit 971501 971536 1/1
+go 0 2307.0 466.0 34.9
+cmd .brilltown use
+has Brill town: used 971512
+expect credit 971501 971537 1/2
+go 0 2237.0 311.0 37.0
+talk 2135
+select 2135 iron fittings
+expect credit 971501 971537 2/2
+# The platform raised, and the crates carried into the big tent.
+go 0 2179.34 247.58 38.4
+cmd .brilltown use
+has Brill town: used 971513
+expect credit 971501 971538 1/4
+go 0 2168.73 243.9 41.3
+cmd .brilltown use
+has Brill town: used 971514
+expect credit 971501 971538 2/4
+go 0 2166.86 246.9 42.5
+cmd .brilltown use
+expect credit 971501 971538 3/4
+go 0 2169.3 246.33 41.5
+cmd .brilltown use
+expect credit 971501 971538 4/4
+go 0 2189.5 254.0 38.1
+talk 971502
+reward 971502 971501
+expect rewarded 971501
+wait 2
+cmd .brilltown state
+has <8:3>
+# The Missing Manifest: the wagon by the road, the records on the trail up the hill.
+go 0 2199.5 259.5 36.8
+talk 971500
+accept 971500 971502
+go 0 2143.5 174.0 39.9
+cmd .brilltown use
+has Brill town: used 971519
+expect credit 971502 971539 1/3
+go 0 2133.0 190.0 49.6
+cmd .brilltown use
+has Brill town: used 971520
+expect credit 971502 971539 2/3
+go 0 2124.5 206.5 54.3
+cmd .brilltown use
+expect credit 971502 971539 3/3
+# Bartle Kemp's camp: his cutthroats and Kemp killed, and Brill's cargo (a bill of sale in Selwyn's hand).
+go 0 2114.0 226.0 62.0
+kill 971513
+kill 971513
+kill 971513
+kill 971513
+kill 971512
+expect credit 971502 971512 1/1
+go 0 2111.5 233.0 62.3
+cmd .brilltown use
+has Brill town: used 971524
+expect credit 971502 971540 1/1
+# Selwyn heard; then the choice, with Irena: Selwyn exposed.
+go 0 2203.0 263.0 36.4
+talk 971503
+select 971503 bill of sale in a bandit camp
+go 0 2199.5 259.5 36.8
+talk 971500
+select 971500 sold the route to the bandits
+expect credit 971502 971541 1/1
+talk 971500
+reward 971500 971502
+expect rewarded 971502
+wait 2
+cmd .brilltown state
+has <8:4>
+has q971514
+# Licenses and Liabilities: the Merchants' Exchange in the Undercity's Trade Quarter.
+talk 971500
+accept 971500 971503
+go 0 1639.7 250.9 -42.6
+talk 971509
+select 971509 agree terms for a regular caravan
+expect credit 971503 971542 1/1
+# The Sepulcher's factor at the Gallows' End.
+go 0 2262.0 251.0 34.6
+talk 971510
+select 971510 agreement with the Sepulcher
+expect credit 971503 971543 1/1
+# Executor Zygand's Deathguard (Garth Molt), and Bastian at the yard (there from stage 4).
+go 0 2278.1 295.6 35.6
+talk 1515
+select 1515 escort its wagons
+expect credit 971503 971544 1/2
+go 0 2184.5 246.5 36.9
+talk 971505
+select 971505 Still interested
+expect credit 971503 971544 2/2
+# Dren: the first wagon to the Undercity.
+go 0 2189.5 254.0 38.1
+talk 971502
+select 971502 to the Undercity
+expect credit 971503 971545 1/1
+go 0 2199.5 259.5 36.8
+talk 971500
+reward 971500 971503
+expect rewarded 971503
+wait 2
+cmd .brilltown state
+has <8:5>
+has q971518
+# The First Departure: the wagon's three marked crates and its harness.
+go 0 2189.5 254.0 38.1
+talk 971502
+accept 971502 971504
+go 0 2174.69 243.02 38.6
+cmd .brilltown use
+has Brill town: used 971532
+expect credit 971504 971546 1/4
+go 0 2178.6 239.13 37.3
+cmd .brilltown use
+expect credit 971504 971546 2/4
+go 0 2183.14 242.28 36.6
+cmd .brilltown use
+expect credit 971504 971546 3/4
+go 0 2178.91 242.65 37.4
+cmd .brilltown use
+has Brill town: used 971531
+expect credit 971504 971546 4/4
+# Garth (there from stage 5) and Bastian briefed.
+go 0 2193.0 249.0 35.9
+talk 971504
+select 971504 road ahead cleared
+expect credit 971504 971547 1/2
+go 0 2184.5 246.5 36.9
+talk 971505
+select 971505 bell, Bastian
+expect credit 971504 971547 2/2
+# The ambush on the Undercity road.
+go 0 2091.0 146.0 35.2
+kill 971514
+expect credit 971504 971514 1/4
+kill 971514
+expect credit 971504 971514 2/4
+kill 971514
+expect credit 971504 971514 3/4
+kill 971514
+expect credit 971504 971514 4/4
+# The receipt signed at the crossroads (the Undercity's wording).
+go 0 2049.5 167.0 34.9
+talk 971511
+select 971511 first caravan
+expect credit 971504 971548 1/1
+go 0 2199.5 259.5 36.8
+talk 971500
+reward 971500 971504
+expect rewarded 971504
+wait 2
+cmd .brilltown state
+has <8:6>
+# The office open: Irena behind its counter, her daily offered; the house's furniture bought.
+go 0 2188.0 281.0 42.4
+talk 971501
+has quest 971505
+select 971501 furniture delivered
+wait 2
+cmd .brilltown state
+has <8:7>
+has q971507

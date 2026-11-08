@@ -1,0 +1,150 @@
+# Brill: The New House (mod-brill-home, tools/town/house.py), ChromieCraft's realm: the house inherited
+# (Cedric Harrow's quest and Jamie Nore's deed), then Oswin Thatcher's six quests: the inspection (the
+# debris in the house for this character), the timber, Cedric's things, the cellar's rats and wall, the
+# furnishings (two given free) and the housewarming (its guests in the house).
+cmd .levelup 11
+cmd .modify money 100000
+go 0 2265.9 479.2 34.2
+wait 2
+talk 970110
+accept 970110 970120
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970120
+talk 2310
+accept 2310 970121
+reward 2310 970121
+# The house is theirs: its debris (the town's first phase, 0x40000) is there for them.
+go 0 2264.5 479.9 34.4
+wait 2
+cmd .brilltown state
+has [0x40000]
+talk 970200
+accept 970200 970200
+# The inspection: the broken furniture, the floor, the roof and the cellar hatch (looked into, not gone down).
+go 0 2274.3 480.6 34.2
+cmd .brilltown use
+expect Brill town: used 970200
+go 0 2279.1 480.7 34.2
+cmd .brilltown use
+expect Brill town: used 970201
+go 0 2272.1 480.9 34.2
+cmd .brilltown use
+expect Brill town: used 970202
+go 0 2275.2 477.8 34.2
+cmd .brilltown use
+expect Brill town: used 970203
+go 0 2264.5 479.9 34.4
+talk 970200
+reward 970200 970200
+talk 970200
+accept 970200 970201
+# Timber: five piles at the abandoned farms, and the nails at Solliden Farmstead.
+go 0 2828.0 1049.0 111.5
+cmd .brilltown use
+go 0 2750.0 780.0 113.8
+cmd .brilltown use
+go 0 2258.0 1308.0 34.0
+cmd .brilltown use
+go 0 2446.0 488.0 45.0
+cmd .brilltown use
+go 0 2060.0 560.0 39.6
+cmd .brilltown use
+go 0 2268.0 1306.0 34.0
+cmd .brilltown use
+expect Brill town: used
+go 0 2264.5 479.9 34.4
+talk 970200
+reward 970200 970201
+# The debris gone with the repairs.
+wait 2
+cmd .brilltown state
+expect-not [0x40000]
+expect done q970200 q970201
+talk 970200
+accept 970200 970202
+# Cedric's letters, the portrait (over the mantel), the chest.
+go 0 2275.5 476.0 34.2
+cmd .brilltown use
+expect Brill town: used 970208
+go 0 2279.6 480.8 34.2
+cmd .brilltown use
+expect Brill town: used 970209
+go 0 2275.8 475.3 34.2
+cmd .brilltown use
+expect Brill town: used 970210
+go 0 2264.5 479.9 34.4
+talk 970200
+reward 970200 970202
+talk 970200
+accept 970200 970203
+# Down the hatch to the cellar (deep under the house); its rats (their phase, 0x80000, while the quest's in
+# the log), the bricked-up stair behind their nest, then up the ladder to the house by the hatch.
+go 0 2275.2 477.8 34.2
+wait 2
+cmd .brilltown use
+expect Brill town: used 970203
+wait 2
+cmd .brillhome state
+expect at 2268.4 486.8 -2.4
+cmd .brilltown state
+has [0x80000]
+go 0 2265.7 484.1 -2.4
+cmd .brilltown use
+expect Brill town: used 970207
+cmd .quest complete 970203
+go 0 2268.4 486.8 -2.4
+cmd .brilltown use
+expect Brill town: used 970205
+wait 2
+cmd .brillhome state
+expect at 2276.7 478.4 34.3
+go 0 2264.5 479.9 34.4
+talk 970200
+reward 970200 970203
+talk 970200
+accept 970200 970204
+# The furnishings: candles, linens, straw from Brill's merchants; two pieces chosen with Oswin.
+go 0 2259.7 275.6 34.9
+talk 2118
+select 2118 candles and lamp oil
+go 0 2252.8 269.7 34.4
+talk 2134
+select 2134 linens
+go 0 2266.1 320.7 34.4
+talk 10055
+select 10055 clean straw
+go 0 2264.5 479.9 34.4
+talk 970200
+select 970200 wardrobe
+talk 970200
+select 970200 bookshelf
+talk 970200
+reward 970200 970204
+cmd .brillhome state
+expect upgrades 0x3000
+cmd .brilltown state
+has [0x100000]
+talk 970200
+accept 970200 970205
+# The invitations, then the guests in the house (their phase while it's done, 0x200000).
+go 0 2269.5 244.9 34.3
+talk 5688
+select 5688 housewarming
+go 0 2259.0 347.0 36.1
+talk 1518
+select 1518 housewarming
+go 0 2282.4 343.5 34.2
+talk 3547
+select 3547 housewarming
+go 0 2287.7 403.4 34.0
+talk 1496
+select 1496 housewarming
+go 0 2264.5 479.9 34.4
+wait 2
+cmd .brilltown state
+has [0x200000]
+talk 970200
+reward 970200 970205
+cmd .brilltown state
+expect done q970200 q970201 q970202 q970203 q970204 q970205

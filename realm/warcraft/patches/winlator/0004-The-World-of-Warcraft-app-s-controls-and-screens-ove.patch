@@ -1,0 +1,90 @@
+From 6650cf3f02bc00b08ecad0589de6aed236ce956b Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 02:24:10 +0000
+Subject: [PATCH] The World of Warcraft app's controls and screens over the
+ game
+
+With the extra "gestures", the game screen puts the app's GestureView over Winlator's touchpad
+and tells it when the game's first window is up (the login screen, where its keyboard comes up),
+Back is the game's Escape, and four fingers open the app's own menu (keyboard, leave the game)
+instead of Winlator's. The loading screen is the app's too.
+---
+ .../com/winlator/XServerDisplayActivity.java  | 20 ++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 2e2526d..4167992 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -106,6 +106,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     private XServerView xServerView;
+     private InputControlsView inputControlsView;
+     private TouchpadView touchpadView;
++    // World of Warcraft app: its touch gestures over the game (extra "gestures").
++    private com.logie.warcraft.game.GestureView gestureView;
+     private XEnvironment environment;
+     private DrawerLayout drawerLayout;
+     private Container container;
+@@ -146,7 +148,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         setContentView(R.layout.xserver_display_activity);
+         ForegroundService.startSession(this);
+ 
+-        final PreloaderDialog preloaderDialog = new PreloaderDialog(this);
++        // World of Warcraft app: its own loading screen.
++        final com.logie.warcraft.game.GameLoading preloaderDialog = new com.logie.warcraft.game.GameLoading(this);
+         preferences = PreferenceManager.getDefaultSharedPreferences(this);
+         boolean useAndroidClipboardOnWine = preferences.getBoolean("use_android_clipboard_on_wine", false);
+         clipboardManager = useAndroidClipboardOnWine ? (ClipboardManager)getSystemService(CLIPBOARD_SERVICE) : null;
+@@ -172,7 +175,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+ 
+             boolean wineprefixNeedsUpdate = container.getExtra("wineprefixNeedsUpdate").equals("t");
+             if (wineprefixNeedsUpdate) {
+-                preloaderDialog.show(R.string.updating_system_files);
++                preloaderDialog.show(R.string.wow_game_loading_update);
+                 WineUtils.updateWineprefix(this, (status) -> {
+                     if (status == 0) {
+                         container.putExtra("wineprefixNeedsUpdate", null);
+@@ -230,7 +233,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             this.dxwrapperConfig = DXWrappers.parseConfigs(dxwrapper, dxwrapperConfig);
+         }
+ 
+-        preloaderDialog.show(R.string.starting_up);
++        preloaderDialog.show(R.string.wow_game_loading);
+ 
+         inputControlsManager = new InputControlsManager(this);
+         xServer = new XServer(this, screenInfo);
+@@ -247,6 +250,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+                 if (!flags[0] && window.isRenderable() && !window.getClassName().isEmpty()) {
+                     xServerView.getRenderer().setCursorVisible(true);
+                     preloaderDialog.closeOnUiThread();
++                    if (gestureView != null) runOnUiThread(() -> gestureView.onGameWindowShown());
+                     flags[0] = true;
+                 }
+ 
+@@ -345,6 +349,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+ 
+     @Override
+     public void onBackPressed() {
++        // With the gestures, Back is the game's Escape; four fingers open the app's menu.
++        if (gestureView != null && environment != null && !drawerLayout.isDrawerOpen(GravityCompat.START)) {
++            gestureView.escape();
++            return;
++        }
+         if (environment != null) {
+             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                 drawerLayout.openDrawer(GravityCompat.START);
+@@ -580,6 +589,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         });
+         rootView.addView(touchpadView);
+ 
++        if (getIntent().getBooleanExtra("gestures", false)) {
++            gestureView = new com.logie.warcraft.game.GestureView(this, xServer, this::exit);
++            rootView.addView(gestureView);
++        }
++
+         inputControlsView = new InputControlsView(this);
+         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
+         inputControlsView.setTouchpadView(touchpadView);
+-- 
+2.43.0
+

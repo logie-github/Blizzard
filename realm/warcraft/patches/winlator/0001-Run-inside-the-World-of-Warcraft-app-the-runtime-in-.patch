@@ -1,0 +1,68 @@
+From 2dfee234bd27acb92574ba1be791a419da944138 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 01:58:26 +0000
+Subject: [PATCH] Run inside the World of Warcraft app: the runtime in the data
+ folder, leaving the game returns to the launcher
+
+---
+ .../main/java/com/winlator/XServerDisplayActivity.java | 10 ++--------
+ .../java/com/winlator/services/ForegroundService.java  |  2 +-
+ .../main/java/com/winlator/xenvironment/RootFS.java    |  7 +++----
+ 3 files changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 53fb456..c759477 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -427,15 +427,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
+ 
+-        Intent intent = getIntent();
+-        if (intent.hasExtra("exec_path")) {
+-            AppUtils.RestartApplicationOptions options = new AppUtils.RestartApplicationOptions();
+-            options.containerId = container.id;
+-            options.startPath = FileUtils.getDirname(intent.getStringExtra("exec_path"));
+-            AppUtils.restartApplication(this, options);
+-        }
+-        else AppUtils.restartApplication(this);
++        // World of Warcraft app: back to the launcher, without restarting the app (its server runs in it).
+         ForegroundService.stopSession(this);
++        finish();
+     }
+ 
+     private void setupWineSystemFiles() {
+diff --git a/app/src/main/java/com/winlator/services/ForegroundService.java b/app/src/main/java/com/winlator/services/ForegroundService.java
+index 0940581..d1aa75f 100644
+--- a/app/src/main/java/com/winlator/services/ForegroundService.java
++++ b/app/src/main/java/com/winlator/services/ForegroundService.java
+@@ -275,7 +275,7 @@ public class ForegroundService extends Service {
+         boolean containerActive = sessionActive.get();
+ 
+         // Determine target activity: Game screen if active, else Main menu
+-        Class<?> targetActivity = containerActive ? XServerDisplayActivity.class : MainActivity.class;
++        Class<?> targetActivity = containerActive ? XServerDisplayActivity.class : com.logie.warcraft.MainActivity.class;
+ 
+         Notification n = notificationUtils.createForegroundNotification(
+                 getNotificationContent(),
+diff --git a/app/src/main/java/com/winlator/xenvironment/RootFS.java b/app/src/main/java/com/winlator/xenvironment/RootFS.java
+index a1aeba7..0d832a5 100644
+--- a/app/src/main/java/com/winlator/xenvironment/RootFS.java
++++ b/app/src/main/java/com/winlator/xenvironment/RootFS.java
+@@ -24,10 +24,9 @@ public class RootFS {
+     }
+ 
+     public static RootFS find(Context context) {
+-        File legacyDir = new File(context.getFilesDir(), "imagefs");
+-        File rootDir = new File(context.getFilesDir(), "rootfs");
+-        if (legacyDir.isDirectory()) legacyDir.renameTo(rootDir);
+-        return new RootFS(rootDir);
++        // World of Warcraft app: in the app's data folder, /data/data/<package>/rootfs, the path the
++        // runtime's programs have compiled in (rewritten from Winlator's at build time).
++        return new RootFS(new File(context.getDataDir(), "rootfs"));
+     }
+ 
+     public File getRootDir() {
+-- 
+2.43.0
+

@@ -1,0 +1,11 @@
+# CharBaseInfo: the Skyborne's changes (tools/build_data.py)
+appendraw	0d01
+appendraw	0d03
+appendraw	0d04
+appendraw	0d08
+appendraw	0d0b
+appendraw	0e01
+appendraw	0e03
+appendraw	0e04
+appendraw	0e07
+appendraw	0e0b

@@ -1,0 +1,17 @@
+# A human hunter (WoW: Forever's pairs, mod-allied-races) in Northshire: Forever's human racials, and
+# Llane Beshere, the warrior trainer, training them as a hunter trainer does (patches/azerothcore/0011,
+# allied_races_class_trainers.sql).
+cmd .list auras
+has Hspell:98801|
+expect-not Hspell:20597|
+cmd .levelup 1
+cmd .modify money 1000
+go 0 -8916.0 -209.0 82.3
+talk 911
+select 911 train
+has trainer type 0
+has trainer spell 1494 state 0
+has trainer spell 1978 state
+expect-not trainer spell 772 state
+train 911 1494
+expect trained 1494

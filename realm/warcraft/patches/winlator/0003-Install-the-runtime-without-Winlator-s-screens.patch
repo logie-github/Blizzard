@@ -1,0 +1,86 @@
+From 4a47e7515fb98366aa0c757840cc3eba29db270e Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 02:08:46 +0000
+Subject: [PATCH] Install the runtime without Winlator's screens
+
+The World of Warcraft app installs it from its own launcher, which shows the progress.
+---
+ .../java/com/winlator/SettingsFragment.java   |  4 +--
+ .../xenvironment/RootFSInstaller.java         | 32 +++++++++++++++++++
+ 2 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/SettingsFragment.java b/app/src/main/java/com/winlator/SettingsFragment.java
+index 3bb2d01..41d65d5 100644
+--- a/app/src/main/java/com/winlator/SettingsFragment.java
++++ b/app/src/main/java/com/winlator/SettingsFragment.java
+@@ -501,8 +501,8 @@ public class SettingsFragment extends Fragment {
+         }
+     }
+ 
+-    public static void resetPreferenceVersions(AppCompatActivity activity) {
+-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
++    public static void resetPreferenceVersions(Context context) {
++        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+         SharedPreferences.Editor editor = preferences.edit();
+         editor.putString("box64_version", DefaultVersion.BOX64);
+         editor.remove("current_box64_version");
+diff --git a/app/src/main/java/com/winlator/xenvironment/RootFSInstaller.java b/app/src/main/java/com/winlator/xenvironment/RootFSInstaller.java
+index 08fbf80..a0b966f 100644
+--- a/app/src/main/java/com/winlator/xenvironment/RootFSInstaller.java
++++ b/app/src/main/java/com/winlator/xenvironment/RootFSInstaller.java
+@@ -10,6 +10,7 @@ import com.winlator.SettingsFragment;
+ import com.winlator.container.Container;
+ import com.winlator.container.ContainerManager;
+ import com.winlator.core.AppUtils;
++import com.winlator.core.Callback;
+ import com.winlator.core.DownloadProgressDialog;
+ import com.winlator.core.FileUtils;
+ import com.winlator.core.PreloaderDialog;
+@@ -23,6 +24,7 @@ import org.json.JSONObject;
+ import java.io.File;
+ import java.util.ArrayList;
+ import java.util.concurrent.Executors;
++import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicLong;
+ 
+ public abstract class RootFSInstaller {
+@@ -77,6 +79,36 @@ public abstract class RootFSInstaller {
+         });
+     }
+ 
++    /**
++     * World of Warcraft app: installs the runtime (if it isn't there at this version) without
++     * Winlator's screens, on the calling thread, telling onProgress how far it is (0-100).
++     */
++    public static boolean installIfNeeded(Context context, Callback<Integer> onProgress) {
++        RootFS rootFS = RootFS.find(context);
++        if (rootFS.isValid() && rootFS.getVersion() >= LATEST_VERSION) return true;
++        final File rootDir = rootFS.getRootDir();
++
++        SettingsFragment.resetPreferenceVersions(context);
++        clearRootDir(rootDir);
++        final long contentLength = TarCompressorUtils.getContentLength(TarCompressorUtils.Type.ZSTD, context, FILENAME, rootDir);
++        AtomicLong totalSizeRef = new AtomicLong();
++        AtomicInteger lastProgress = new AtomicInteger(-1);
++
++        boolean success = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, FILENAME, rootDir, (file, size) -> {
++            if (size > 0 && contentLength > 0) {
++                int progress = (int)((totalSizeRef.addAndGet(size) * 100) / contentLength);
++                if (lastProgress.getAndSet(progress) != progress) onProgress.call(Math.min(progress, 100));
++            }
++            return file;
++        });
++
++        if (success) {
++            rootFS.createRFSVersionFile(LATEST_VERSION);
++            resetContainerRFSVersions(context);
++        }
++        return success;
++    }
++
+     public static void installIfNeeded(final MainActivity activity) {
+         RootFS rootFS = RootFS.find(activity);
+         if (!rootFS.isValid() || rootFS.getVersion() < LATEST_VERSION) install(activity);
+-- 
+2.43.0
+

@@ -1,0 +1,4 @@
+# CinematicSequences: the Skyborne's changes (tools/build_data.py)
+types	iiiiiiiiii
+put	9001	0	9001	0	0	0	0	0	0	0
+put	9002	0	9002	0	0	0	0	0	0	0

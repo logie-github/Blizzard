@@ -1,0 +1,75 @@
+# Brill: The Gravekeeper's Ledger (mod-brill-home, tools/town/grave.py), ChromieCraft's realm: Mortimer
+# Weller's ledger and graves, the opened graves' evidence, the trail to the Lyle mausoleum east of town
+# and the four hiding there, their things and the choice (by daylight, under their own names), the
+# Magistrate's rolls and the last bell; then the four in Brill for this character (the phase
+# "newcomers", 0x400000) and the choice's mark (q970305; the other, q970306, never set).
+cmd .levelup 11
+# Names Among the Stones: the ledgers (an option of the gravekeeper's), a grave, the rest filled.
+go 0 2360.0 342.0 38.1
+talk 970300
+accept 970300 970300
+talk 970300
+select 970300 sort the burial ledgers
+go 0 2352.0 324.0 36.5
+cmd .brilltown use
+expect Brill town: used 970300
+cmd .quest complete 970300
+go 0 2360.0 342.0 38.1
+talk 970300
+reward 970300 970300
+# Fresh Earth: the spade in the first opened grave.
+talk 970300
+accept 970300 970301
+go 0 2372.0 372.0 37.4
+cmd .brilltown use
+expect Brill town: used 970305
+cmd .quest complete 970301
+go 0 2360.0 342.0 38.1
+talk 970300
+reward 970300 970301
+# Those Who Were Forgotten: the trail of grave dirt, then Mercy Hollin at the mausoleum (an option: the
+# gravekeeper sent me), turned in to her.
+talk 970300
+accept 970300 970302
+go 0 2425.0 302.0 36.3
+cmd .brilltown use
+expect Brill town: used 970308
+go 0 2484.0 259.5 47.0
+talk 970301
+select 970301 not here to hurt you
+cmd .quest complete 970302
+talk 970301
+reward 970301 970302
+# A Name of One's Own: Gideon's tool roll by the old smithy, then the choice: by daylight.
+talk 970301
+accept 970301 970303
+go 0 2042.5 154.5 34.3
+cmd .brilltown use
+expect Brill town: used 970310
+go 0 2484.0 259.5 47.0
+talk 970301
+select 970301 by daylight
+cmd .quest complete 970303
+talk 970301
+reward 970301 970303
+# The Last Bell: Magistrate Sevren's rolls, the bell (the gravekeeper's option), turned in to him.
+talk 970301
+accept 970301 970304
+go 0 2304.0 266.5 38.8
+talk 1499
+select 1499 four names be entered
+go 0 2360.0 342.0 38.1
+talk 970300
+select 970300 Ring the bell
+talk 970300
+reward 970300 970304
+# The four in Brill for this character, and the daylight choice's mark alone.
+wait 2
+cmd .brilltown state
+has [0x400000]
+has q970304 q970305
+expect-not q970306
+# Mercy Hollin in Brill (the phase's): there to talk to by the cemetery.
+go 0 2354.0 337.0 38.1
+wait 2
+talk 970305

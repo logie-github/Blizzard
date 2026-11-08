@@ -1,0 +1,500 @@
+From c61005b326ab1d5dfa33814f39afc9128cd25413 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 02:06:07 +0000
+Subject: [PATCH] Resource ids as variables: if chains in place of switch
+ statements on them
+
+Built into the World of Warcraft app's module, Winlator's resource ids aren't constants, so they
+can't be switch cases.
+---
+ .../com/winlator/ContainerDetailFragment.java |  49 ++++----
+ .../ContainerFileManagerFragment.java         |  66 +++++------
+ .../java/com/winlator/ContainersFragment.java |  47 ++++----
+ .../com/winlator/ControlsEditorActivity.java  |  33 +++---
+ .../main/java/com/winlator/MainActivity.java  |  31 +++---
+ .../java/com/winlator/ShortcutsFragment.java  |  27 ++---
+ .../com/winlator/XServerDisplayActivity.java  | 105 ++++++++----------
+ .../winhandler/TaskManagerDialog.java         |  22 ++--
+ 8 files changed, 167 insertions(+), 213 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/ContainerDetailFragment.java b/app/src/main/java/com/winlator/ContainerDetailFragment.java
+index 8b8cd46..a15d2ac 100644
+--- a/app/src/main/java/com/winlator/ContainerDetailFragment.java
++++ b/app/src/main/java/com/winlator/ContainerDetailFragment.java
+@@ -509,33 +509,28 @@ public class ContainerDetailFragment extends Fragment {
+ 
+         popupMenu.setOnMenuItemClickListener((menuItem) -> {
+             int itemId = menuItem.getItemId();
+-            switch (itemId) {
+-                case R.id.menu_item_open_directory:
+-                    openDirectoryCallback = (path) -> {
+-                        drive.path = path;
+-                        editText.setText(path);
+-                    };
+-
+-                    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+-                    intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.fromFile(Environment.getExternalStorageDirectory()));
+-                    activity.startActivityFromFragment($this, intent, MainActivity.OPEN_DIRECTORY_REQUEST_CODE);
+-                    break;
+-                case R.id.menu_item_downloads:
+-                    drive.path = AppUtils.DIRECTORY_DOWNLOADS;
+-                    editText.setText(AppUtils.DIRECTORY_DOWNLOADS);
+-                    break;
+-                case R.id.menu_item_internal_storage:
+-                    drive.path = AppUtils.INTERNAL_STORAGE;
+-                    editText.setText(AppUtils.INTERNAL_STORAGE);
+-                    break;
+-                default:
+-                    Container container = manager.getContainerById(menuItem.getOrder());
+-                    if (container != null) {
+-                        String path = container.getRootDir()+"/.wine/drive_c";
+-                        drive.path = path;
+-                        editText.setText(path);
+-                    }
+-                    break;
++            if (itemId == R.id.menu_item_open_directory) {
++                openDirectoryCallback = (path) -> {
++                    drive.path = path;
++                    editText.setText(path);
++                };
++
++                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
++                intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.fromFile(Environment.getExternalStorageDirectory()));
++                activity.startActivityFromFragment($this, intent, MainActivity.OPEN_DIRECTORY_REQUEST_CODE);
++            } else if (itemId == R.id.menu_item_downloads) {
++                drive.path = AppUtils.DIRECTORY_DOWNLOADS;
++                editText.setText(AppUtils.DIRECTORY_DOWNLOADS);
++            } else if (itemId == R.id.menu_item_internal_storage) {
++                drive.path = AppUtils.INTERNAL_STORAGE;
++                editText.setText(AppUtils.INTERNAL_STORAGE);
++            } else {
++                Container container = manager.getContainerById(menuItem.getOrder());
++                if (container != null) {
++                    String path = container.getRootDir()+"/.wine/drive_c";
++                    drive.path = path;
++                    editText.setText(path);
++                }
+             }
+             return true;
+         });
+diff --git a/app/src/main/java/com/winlator/ContainerFileManagerFragment.java b/app/src/main/java/com/winlator/ContainerFileManagerFragment.java
+index 872621b..4de2a42 100644
+--- a/app/src/main/java/com/winlator/ContainerFileManagerFragment.java
++++ b/app/src/main/java/com/winlator/ContainerFileManagerFragment.java
+@@ -137,21 +137,20 @@ public class ContainerFileManagerFragment extends BaseFileManagerFragment<FileIn
+     @Override
+     public boolean onOptionsItemSelected(MenuItem menuItem) {
+         int itemId = menuItem.getItemId();
+-        switch (itemId) {
+-            case R.id.menu_item_home:
+-                folderStack.clear();
+-                refreshContent();
+-                return true;
+-            case R.id.menu_item_view_style:
+-                setViewStyle(viewStyle == ViewStyle.GRID ? ViewStyle.LIST : ViewStyle.GRID);
+-                preferences.edit().putString("container_file_manager_view_style", viewStyle.name()).apply();
+-                refreshViewStyleMenuItem(menuItem);
+-                return true;
+-            case R.id.menu_item_new_folder:
+-                createFolder();
+-                return true;
+-            default:
+-                return super.onOptionsItemSelected(menuItem);
++        if (itemId == R.id.menu_item_home) {
++            folderStack.clear();
++            refreshContent();
++            return true;
++        } else if (itemId == R.id.menu_item_view_style) {
++            setViewStyle(viewStyle == ViewStyle.GRID ? ViewStyle.LIST : ViewStyle.GRID);
++            preferences.edit().putString("container_file_manager_view_style", viewStyle.name()).apply();
++            refreshViewStyleMenuItem(menuItem);
++            return true;
++        } else if (itemId == R.id.menu_item_new_folder) {
++            createFolder();
++            return true;
++        } else {
++            return super.onOptionsItemSelected(menuItem);
+         }
+     }
+ 
+@@ -343,28 +342,21 @@ public class ContainerFileManagerFragment extends BaseFileManagerFragment<FileIn
+ 
+             listItemMenu.setOnMenuItemClickListener((menuItem) -> {
+                 int itemId = menuItem.getItemId();
+-                switch (itemId) {
+-                    case R.id.menu_item_copy:
+-                    case R.id.menu_item_cut:
+-                        instantiateClipboard(file, itemId == R.id.menu_item_cut);
+-                        break;
+-                    case R.id.menu_item_remove:
+-                        clearClipboard();
+-                        ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_file, () -> removeFile(file.toFile()));
+-                        break;
+-                    case R.id.menu_item_rename:
+-                        clearClipboard();
+-                        ContentDialog.prompt(context, R.string.rename, file.name, (newName) -> {
+-                            file.renameTo(newName);
+-                            refreshContent();
+-                        });
+-                        break;
+-                    case R.id.menu_item_add_favorite:
+-                        addFavorite(file);
+-                        break;
+-                    case R.id.menu_item_info:
+-                        (new FileInfoDialog(context, file, container)).show();
+-                        break;
++                if (itemId == R.id.menu_item_copy || itemId == R.id.menu_item_cut) {
++                    instantiateClipboard(file, itemId == R.id.menu_item_cut);
++                } else if (itemId == R.id.menu_item_remove) {
++                    clearClipboard();
++                    ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_file, () -> removeFile(file.toFile()));
++                } else if (itemId == R.id.menu_item_rename) {
++                    clearClipboard();
++                    ContentDialog.prompt(context, R.string.rename, file.name, (newName) -> {
++                        file.renameTo(newName);
++                        refreshContent();
++                    });
++                } else if (itemId == R.id.menu_item_add_favorite) {
++                    addFavorite(file);
++                } else if (itemId == R.id.menu_item_info) {
++                    (new FileInfoDialog(context, file, container)).show();
+                 }
+                 return true;
+             });
+diff --git a/app/src/main/java/com/winlator/ContainersFragment.java b/app/src/main/java/com/winlator/ContainersFragment.java
+index aab4c0a..b796621 100644
+--- a/app/src/main/java/com/winlator/ContainersFragment.java
++++ b/app/src/main/java/com/winlator/ContainersFragment.java
+@@ -145,34 +145,29 @@ public class ContainersFragment extends Fragment {
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) listItemMenu.setForceShowIcon(true);
+ 
+             listItemMenu.setOnMenuItemClickListener((menuItem) -> {
+-                switch (menuItem.getItemId()) {
+-                    case R.id.menu_item_file_manager:
+-                        activity.showFragment(new ContainerFileManagerFragment(container.id));
+-                        break;
+-                    case R.id.menu_item_edit:
+-                        activity.showFragment(new ContainerDetailFragment(container.id));
+-                        break;
+-                    case R.id.menu_item_duplicate:
+-                        ContentDialog.confirm(getContext(), R.string.do_you_want_to_duplicate_this_container, () -> {
+-                            preloaderDialog.show(R.string.duplicating_container);
+-                            manager.duplicateContainerAsync(container, () -> {
+-                                preloaderDialog.close();
+-                                loadContainersList();
+-                            });
++                int id = menuItem.getItemId();
++                if (id == R.id.menu_item_file_manager) {
++                    activity.showFragment(new ContainerFileManagerFragment(container.id));
++                } else if (id == R.id.menu_item_edit) {
++                    activity.showFragment(new ContainerDetailFragment(container.id));
++                } else if (id == R.id.menu_item_duplicate) {
++                    ContentDialog.confirm(getContext(), R.string.do_you_want_to_duplicate_this_container, () -> {
++                        preloaderDialog.show(R.string.duplicating_container);
++                        manager.duplicateContainerAsync(container, () -> {
++                            preloaderDialog.close();
++                            loadContainersList();
+                         });
+-                        break;
+-                    case R.id.menu_item_remove:
+-                        ContentDialog.confirm(getContext(), R.string.do_you_want_to_remove_this_container, () -> {
+-                            preloaderDialog.show(R.string.removing_container);
+-                            manager.removeContainerAsync(container, () -> {
+-                                preloaderDialog.close();
+-                                loadContainersList();
+-                            });
++                    });
++                } else if (id == R.id.menu_item_remove) {
++                    ContentDialog.confirm(getContext(), R.string.do_you_want_to_remove_this_container, () -> {
++                        preloaderDialog.show(R.string.removing_container);
++                        manager.removeContainerAsync(container, () -> {
++                            preloaderDialog.close();
++                            loadContainersList();
+                         });
+-                        break;
+-                    case R.id.menu_item_info:
+-                        (new StorageInfoDialog(activity, container)).show();
+-                        break;
++                    });
++                } else if (id == R.id.menu_item_info) {
++                    (new StorageInfoDialog(activity, container)).show();
+                 }
+                 return true;
+             });
+diff --git a/app/src/main/java/com/winlator/ControlsEditorActivity.java b/app/src/main/java/com/winlator/ControlsEditorActivity.java
+index 852d708..0b06ff7 100644
+--- a/app/src/main/java/com/winlator/ControlsEditorActivity.java
++++ b/app/src/main/java/com/winlator/ControlsEditorActivity.java
+@@ -114,24 +114,21 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
+ 
+     @Override
+     public void onClick(View v) {
+-        switch (v.getId()) {
+-            case R.id.BTAddElement:
+-                if (!inputControlsView.addElement()) {
+-                    AppUtils.showToast(this, R.string.no_profile_selected);
+-                }
+-                break;
+-            case R.id.BTRemoveElement:
+-                if (!inputControlsView.removeElement()) {
+-                    AppUtils.showToast(this, R.string.no_control_element_selected);
+-                }
+-                break;
+-            case R.id.BTElementSettings:
+-                ControlElement selectedElement = inputControlsView.getSelectedElement();
+-                if (selectedElement != null) {
+-                    showControlElementSettings(v);
+-                }
+-                else AppUtils.showToast(this, R.string.no_control_element_selected);
+-                break;
++        int id = v.getId();
++        if (id == R.id.BTAddElement) {
++            if (!inputControlsView.addElement()) {
++                AppUtils.showToast(this, R.string.no_profile_selected);
++            }
++        } else if (id == R.id.BTRemoveElement) {
++            if (!inputControlsView.removeElement()) {
++                AppUtils.showToast(this, R.string.no_control_element_selected);
++            }
++        } else if (id == R.id.BTElementSettings) {
++            ControlElement selectedElement = inputControlsView.getSelectedElement();
++            if (selectedElement != null) {
++                showControlElementSettings(v);
++            }
++            else AppUtils.showToast(this, R.string.no_control_element_selected);
+         }
+     }
+ 
+diff --git a/app/src/main/java/com/winlator/MainActivity.java b/app/src/main/java/com/winlator/MainActivity.java
+index dd126b1..1df44f1 100644
+--- a/app/src/main/java/com/winlator/MainActivity.java
++++ b/app/src/main/java/com/winlator/MainActivity.java
+@@ -185,24 +185,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
+             fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+         }
+ 
+-        switch (item.getItemId()) {
+-            case R.id.menu_item_shortcuts:
+-                preferences.edit().putBoolean("show_shortcuts_first", true).apply();
+-                showFragment(new ShortcutsFragment());
+-                break;
+-            case R.id.menu_item_containers:
+-                preferences.edit().putBoolean("show_shortcuts_first", false).apply();
+-                showFragment(new ContainersFragment());
+-                break;
+-            case R.id.menu_item_input_controls:
+-                showFragment(new InputControlsFragment(selectedProfileId));
+-                break;
+-            case R.id.menu_item_settings:
+-                showFragment(new SettingsFragment());
+-                break;
+-            case R.id.menu_item_about:
+-                (new AboutDialog(this)).show();
+-                break;
++        int id = item.getItemId();
++        if (id == R.id.menu_item_shortcuts) {
++            preferences.edit().putBoolean("show_shortcuts_first", true).apply();
++            showFragment(new ShortcutsFragment());
++        } else if (id == R.id.menu_item_containers) {
++            preferences.edit().putBoolean("show_shortcuts_first", false).apply();
++            showFragment(new ContainersFragment());
++        } else if (id == R.id.menu_item_input_controls) {
++            showFragment(new InputControlsFragment(selectedProfileId));
++        } else if (id == R.id.menu_item_settings) {
++            showFragment(new SettingsFragment());
++        } else if (id == R.id.menu_item_about) {
++            (new AboutDialog(this)).show();
+         }
+         return true;
+     }
+diff --git a/app/src/main/java/com/winlator/ShortcutsFragment.java b/app/src/main/java/com/winlator/ShortcutsFragment.java
+index ca3c83b..56ebea4 100644
+--- a/app/src/main/java/com/winlator/ShortcutsFragment.java
++++ b/app/src/main/java/com/winlator/ShortcutsFragment.java
+@@ -191,22 +191,17 @@ public class ShortcutsFragment extends BaseFileManagerFragment<Shortcut> {
+ 
+             listItemMenu.setOnMenuItemClickListener((menuItem) -> {
+                 int itemId = menuItem.getItemId();
+-                switch (itemId) {
+-                    case R.id.menu_item_settings:
+-                        clearClipboard();
+-                        (new ShortcutSettingsDialog(ShortcutsFragment.this, shortcut)).show();
+-                        break;
+-                    case R.id.menu_item_copy:
+-                    case R.id.menu_item_cut:
+-                        instantiateClipboard(shortcut, itemId == R.id.menu_item_cut);
+-                        break;
+-                    case R.id.menu_item_remove:
+-                        clearClipboard();
+-                        ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_file, () -> {
+-                            shortcut.remove();
+-                            refreshContent();
+-                        });
+-                        break;
++                if (itemId == R.id.menu_item_settings) {
++                    clearClipboard();
++                    (new ShortcutSettingsDialog(ShortcutsFragment.this, shortcut)).show();
++                } else if (itemId == R.id.menu_item_copy || itemId == R.id.menu_item_cut) {
++                    instantiateClipboard(shortcut, itemId == R.id.menu_item_cut);
++                } else if (itemId == R.id.menu_item_remove) {
++                    clearClipboard();
++                    ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_file, () -> {
++                        shortcut.remove();
++                        refreshContent();
++                    });
+                 }
+                 return true;
+             });
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index c759477..2e2526d 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -356,65 +356,54 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     @Override
+     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+         final GLRenderer renderer = xServerView.getRenderer();
+-        switch (item.getItemId()) {
+-            case R.id.menu_item_keyboard:
+-                AppUtils.showKeyboard(this);
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_input_controls:
+-                showInputControlsDialog();
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_toggle_fullscreen:
+-                renderer.toggleFullscreen();
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_task_manager:
+-                (new TaskManagerDialog(this)).show();
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_active_windows:
+-                (new ActiveWindowsDialog(this)).show();
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_magnifier:
+-                if (magnifierView == null) {
+-                    final FrameLayout container = findViewById(R.id.FLXServerDisplay);
+-                    magnifierView = new MagnifierView(this);
+-                    magnifierView.setZoomButtonCallback((value) -> {
+-                        renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
+-                        magnifierView.setZoomValue(renderer.getMagnifierZoom());
+-                    });
++        int id = item.getItemId();
++        if (id == R.id.menu_item_keyboard) {
++            AppUtils.showKeyboard(this);
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_input_controls) {
++            showInputControlsDialog();
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_toggle_fullscreen) {
++            renderer.toggleFullscreen();
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_task_manager) {
++            (new TaskManagerDialog(this)).show();
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_active_windows) {
++            (new ActiveWindowsDialog(this)).show();
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_magnifier) {
++            if (magnifierView == null) {
++                final FrameLayout container = findViewById(R.id.FLXServerDisplay);
++                magnifierView = new MagnifierView(this);
++                magnifierView.setZoomButtonCallback((value) -> {
++                    renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
+                     magnifierView.setZoomValue(renderer.getMagnifierZoom());
+-                    magnifierView.setHideButtonCallback(() -> {
+-                        container.removeView(magnifierView);
+-                        magnifierView = null;
+-                    });
+-                    container.addView(magnifierView);
+-                }
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_screen_effect:
+-                (new ScreenEffectDialog(this)).show();
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_pip_mode:
+-                PictureInPictureParams pipParams = (new PictureInPictureParams.Builder())
+-                    .setAspectRatio(screenInfo.aspectRatio())
+-                    .build();
+-                enterPictureInPictureMode(pipParams);
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_logs:
+-                debugDialog.show();
+-                drawerLayout.closeDrawers();
+-                break;
+-            case R.id.menu_item_touchpad_help:
+-                showTouchpadHelpDialog();
+-                break;
+-            case R.id.menu_item_exit:
+-                exit();
+-                break;
++                });
++                magnifierView.setZoomValue(renderer.getMagnifierZoom());
++                magnifierView.setHideButtonCallback(() -> {
++                    container.removeView(magnifierView);
++                    magnifierView = null;
++                });
++                container.addView(magnifierView);
++            }
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_screen_effect) {
++            (new ScreenEffectDialog(this)).show();
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_pip_mode) {
++            PictureInPictureParams pipParams = (new PictureInPictureParams.Builder())
++                .setAspectRatio(screenInfo.aspectRatio())
++                .build();
++            enterPictureInPictureMode(pipParams);
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_logs) {
++            debugDialog.show();
++            drawerLayout.closeDrawers();
++        } else if (id == R.id.menu_item_touchpad_help) {
++            showTouchpadHelpDialog();
++        } else if (id == R.id.menu_item_exit) {
++            exit();
+         }
+         return true;
+     }
+diff --git a/app/src/main/java/com/winlator/winhandler/TaskManagerDialog.java b/app/src/main/java/com/winlator/winhandler/TaskManagerDialog.java
+index 28849bf..d34c625 100644
+--- a/app/src/main/java/com/winlator/winhandler/TaskManagerDialog.java
++++ b/app/src/main/java/com/winlator/winhandler/TaskManagerDialog.java
+@@ -190,19 +190,15 @@ public class TaskManagerDialog extends ContentDialog implements OnGetProcessInfo
+         listItemMenu.setOnMenuItemClickListener((menuItem) -> {
+             int itemId = menuItem.getItemId();
+             final WinHandler winHandler = activity.getWinHandler();
+-            switch (itemId) {
+-                case R.id.menu_item_process_affinity:
+-                    showProcessorAffinityDialog(processInfo);
+-                    break;
+-                case R.id.menu_item_bring_to_front:
+-                    winHandler.bringToFront(processInfo.name);
+-                    dismiss();
+-                    break;
+-                case R.id.menu_item_end_process:
+-                    ContentDialog.confirm(activity, R.string.do_you_want_to_end_this_process, () -> {
+-                        winHandler.killProcess(null, processInfo.pid);
+-                    });
+-                    break;
++            if (itemId == R.id.menu_item_process_affinity) {
++                showProcessorAffinityDialog(processInfo);
++            } else if (itemId == R.id.menu_item_bring_to_front) {
++                winHandler.bringToFront(processInfo.name);
++                dismiss();
++            } else if (itemId == R.id.menu_item_end_process) {
++                ContentDialog.confirm(activity, R.string.do_you_want_to_end_this_process, () -> {
++                    winHandler.killProcess(null, processInfo.pid);
++                });
+             }
+             return true;
+         });
+-- 
+2.43.0
+

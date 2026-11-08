@@ -1,0 +1,2 @@
+# Other paths the game loads some of the starting areas' files by (tools/zones/build_world.py: an item's
+# model, textures and icon where 3.3.5a looks for them): id, path

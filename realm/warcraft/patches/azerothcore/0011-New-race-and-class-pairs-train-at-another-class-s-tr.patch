@@ -1,0 +1,151 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 22:22:57 +0000
+Subject: [PATCH] New race and class pairs train at another class's trainers
+
+The app's new race and class pairs (mod-allied-races, on the realm whose
+AlliedRaces.Enable is on) find their own class's trainer in another
+class's trainers: undead paladins and dwarf shamans at the priest
+trainers, human hunters at the warrior trainers, gnome priests and troll
+warlocks at the mage trainers, orc mages at the warlock trainers.
+ObjectMgr::GetTrainer(creature, player) gives them their class's trainer
+whose spells suit them most, in the gossip's trainer option, the trainer
+list, buying a spell, resetting talents and seeing the trainer.
+---
+ .../game/Entities/Creature/Creature.cpp       |  2 +-
+ src/server/game/Entities/Player/Player.cpp    |  2 +-
+ .../game/Entities/Player/PlayerGossip.cpp     |  2 +-
+ src/server/game/Globals/ObjectMgr.cpp         | 41 +++++++++++++++++++
+ src/server/game/Globals/ObjectMgr.h           |  2 +
+ src/server/game/Handlers/NPCHandler.cpp       |  4 +-
+ 6 files changed, 48 insertions(+), 5 deletions(-)
+
+diff --git a/src/server/game/Entities/Creature/Creature.cpp b/src/server/game/Entities/Creature/Creature.cpp
+index 2182bd8d02..397044e988 100644
+--- a/src/server/game/Entities/Creature/Creature.cpp
++++ b/src/server/game/Entities/Creature/Creature.cpp
+@@ -1300,7 +1300,7 @@ bool Creature::isCanInteractWithBattleMaster(Player* player, bool msg) const
+ 
+ bool Creature::CanResetTalents(Player* player) const
+ {
+-    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(GetEntry());
++    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(GetEntry(), player);
+     if (!trainer)
+         return false;
+ 
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index 3297982c2b..d7fd3e4910 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -14752,7 +14752,7 @@ bool Player::CanSeeTrainer(Creature const* creature) const
+     if (!creature->HasNpcFlag(UNIT_NPC_FLAG_TRAINER))
+         return true;
+ 
+-    if (auto trainer = sObjectMgr->GetTrainer(creature->GetEntry()))
++    if (auto trainer = sObjectMgr->GetTrainer(creature->GetEntry(), this))
+         if (!trainer || !trainer->IsTrainerValidForPlayer(this))
+             return false;
+ 
+diff --git a/src/server/game/Entities/Player/PlayerGossip.cpp b/src/server/game/Entities/Player/PlayerGossip.cpp
+index dc6a489247..e5cc26506c 100644
+--- a/src/server/game/Entities/Player/PlayerGossip.cpp
++++ b/src/server/game/Entities/Player/PlayerGossip.cpp
+@@ -118,7 +118,7 @@ void Player::PrepareGossipMenu(WorldObject* source, uint32 menuId /*= 0*/, bool
+                     break;
+                 case GOSSIP_OPTION_TRAINER:
+                 {
+-                    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(creature->GetEntry());
++                    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(creature->GetEntry(), this);
+                     if (!trainer || !trainer->IsTrainerValidForPlayer(this))
+                     {
+                         LOG_ERROR("sql.sql", "GOSSIP_OPTION_TRAINER:: Player {} (GUID: {}) requested wrong gossip menu: {} at Creature: {} (Entry: {})",
+diff --git a/src/server/game/Globals/ObjectMgr.cpp b/src/server/game/Globals/ObjectMgr.cpp
+index 61afa50914..06f8b30711 100644
+--- a/src/server/game/Globals/ObjectMgr.cpp
++++ b/src/server/game/Globals/ObjectMgr.cpp
+@@ -10117,6 +10117,47 @@ Trainer::Trainer* ObjectMgr::GetTrainer(uint32 creatureId)
+     return nullptr;
+ }
+ 
++Trainer::Trainer* ObjectMgr::GetTrainer(uint32 creatureId, Player const* player)
++{
++    Trainer::Trainer* trainer = GetTrainer(creatureId);
++    if (!trainer || !player || trainer->GetTrainerType() != Trainer::Type::Class)
++        return trainer;
++
++    // The app's new race and class pairs (mod-allied-races, on the realm whose AlliedRaces.Enable is on):
++    // another class's trainers train them, as their own class's trainer whose spells suit them most does.
++    uint8 host = 0;
++    switch (player->getRace())
++    {
++        case RACE_UNDEAD_PLAYER: host = player->getClass() == CLASS_PALADIN ? CLASS_PRIEST : 0; break;
++        case RACE_HUMAN:         host = player->getClass() == CLASS_HUNTER ? CLASS_WARRIOR : 0; break;
++        case RACE_DWARF:         host = player->getClass() == CLASS_SHAMAN ? CLASS_PRIEST : 0; break;
++        case RACE_GNOME:         host = player->getClass() == CLASS_PRIEST ? CLASS_MAGE : 0; break;
++        case RACE_ORC:           host = player->getClass() == CLASS_MAGE ? CLASS_WARLOCK : 0; break;
++        case RACE_TROLL:         host = player->getClass() == CLASS_WARLOCK ? CLASS_MAGE : 0; break;
++        default: break;
++    }
++    if (!host || trainer->GetTrainerRequirement() != host || !sConfigMgr->GetOption<bool>("AlliedRaces.Enable", false))
++        return trainer;
++
++    auto own = _classTrainers.find(player->getClass());
++    if (own == _classTrainers.end())
++        return trainer;
++
++    Trainer::Trainer* best = nullptr;
++    std::size_t bestCount = 0;
++    for (Trainer::Trainer const* candidate : own->second)
++    {
++        std::size_t count = std::count_if(candidate->GetSpells().begin(), candidate->GetSpells().end(),
++            [player](Trainer::Spell const& spell) { return player->IsSpellFitByClassAndRace(spell.SpellId); });
++        if (count > bestCount || (count == bestCount && best && candidate->_trainerId < best->_trainerId))
++        {
++            best = Acore::Containers::MapGetValuePtr(_trainers, candidate->_trainerId);
++            bestCount = count;
++        }
++    }
++    return best ? best : trainer;
++}
++
+ int ObjectMgr::LoadReferenceVendor(int32 vendor, int32 item, std::set<uint32>* skip_vendors)
+ {
+     // find all items from the reference vendor
+diff --git a/src/server/game/Globals/ObjectMgr.h b/src/server/game/Globals/ObjectMgr.h
+index 271ea7cb0b..b3fd2d3649 100644
+--- a/src/server/game/Globals/ObjectMgr.h
++++ b/src/server/game/Globals/ObjectMgr.h
+@@ -1443,6 +1443,8 @@ public:
+     bool DeleteGameTele(std::string_view name);
+ 
+     Trainer::Trainer* GetTrainer(uint32 creatureId);
++    /** The trainer [player] finds at the creature: a new race and class pair (mod-allied-races) at its host class's trainer, its own class's. */
++    Trainer::Trainer* GetTrainer(uint32 creatureId, Player const* player);
+     std::vector<Trainer::Trainer const*> const& GetClassTrainers(uint8 classId) const { return _classTrainers.at(classId); }
+ 
+     [[nodiscard]] VendorItemData const* GetNpcVendorItemList(uint32 entry) const
+diff --git a/src/server/game/Handlers/NPCHandler.cpp b/src/server/game/Handlers/NPCHandler.cpp
+index 62f117b9d6..9ce6d60051 100644
+--- a/src/server/game/Handlers/NPCHandler.cpp
++++ b/src/server/game/Handlers/NPCHandler.cpp
+@@ -96,7 +96,7 @@ void WorldSession::SendTrainerList(Creature* npc)
+     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
+         GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
+ 
+-    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(npc->GetEntry());
++    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(npc->GetEntry(), _player);
+     if (!trainer)
+     {
+         LOG_DEBUG("network", "WorldSession: SendTrainerList - trainer spells not found for {}", npc->GetGUID().ToString().c_str());
+@@ -129,7 +129,7 @@ void WorldSession::HandleTrainerBuySpellOpcode(WorldPackets::NPC::TrainerBuySpel
+     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
+         GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
+ 
+-    Trainer::Trainer* trainer = sObjectMgr->GetTrainer(npc->GetEntry());
++    Trainer::Trainer* trainer = sObjectMgr->GetTrainer(npc->GetEntry(), _player);
+     if (!trainer)
+         return;
+ 
+-- 
+2.43.0
+

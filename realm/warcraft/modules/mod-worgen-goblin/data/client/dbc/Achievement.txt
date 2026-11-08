@@ -1,0 +1,4 @@
+# Achievement: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiissssssssssssssssissssssssssssssssiiiiiissssssssssssssssiii
+put	1429	4294967295	4294967295	0	Realm First! Level 80 Goblin																16712190	First goblin on the realm to achieve level 80.																16712190	81	0	161	256	463874																	16712174	0	0
+put	1430	4294967295	4294967295	0	Realm First! Level 80 Worgen																16712190	First worgen on the realm to achieve level 80.																16712190	81	0	162	256	463876																	16712174	0	0

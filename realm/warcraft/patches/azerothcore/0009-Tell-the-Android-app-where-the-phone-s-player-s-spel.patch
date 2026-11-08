@@ -1,0 +1,99 @@
+From ab2909789539f568e86393e3514aace09979ad34 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 00:53:06 +0000
+Subject: [PATCH] Tell the Android app where the phone's player's spellbook is
+
+The World of Warcraft app's touch controls turn a drag that starts on the spellbook into a drag of
+the mouse, so a spell goes onto the action bars the way it does on a PC. The app's add-on in the
+phone's own client says where the spellbook is, in an add-on message to the player itself
+(prefix WowTouch); the world server writes it into the file WOW_INTERFACE_FILE names instead of
+passing it on, and "-" when the player logs out. Only for a session from 127.0.0.1.
+---
+ src/server/game/Handlers/ChatHandler.cpp | 35 ++++++++++++++++++++++++
+ src/server/game/Server/WorldSession.cpp  |  3 ++
+ 2 files changed, 38 insertions(+)
+
+diff --git a/src/server/game/Handlers/ChatHandler.cpp b/src/server/game/Handlers/ChatHandler.cpp
+index 8adb05144c..4ad932752f 100644
+--- a/src/server/game/Handlers/ChatHandler.cpp
++++ b/src/server/game/Handlers/ChatHandler.cpp
+@@ -42,6 +42,9 @@
+ #include "World.h"
+ #include "WorldPacket.h"
+ #include "WorldSession.h"
++#include <cctype>
++#include <cstdio>
++#include <cstdlib>
+ 
+ inline bool isNasty(uint8 c)
+ {
+@@ -58,6 +61,30 @@ inline bool isNasty(uint8 c)
+     return false;
+ }
+ 
++/*
++ * For the Android app's touch controls, when the environment names a file (WOW_INTERFACE_FILE):
++ * what the app's add-on in the phone's own client (127.0.0.1) last said about its windows ("drag
++ * <left> <bottom> <right> <top>", the spellbook's place in fractions of the screen, or "drag -"),
++ * and "-" when the player logs out. Only letters, digits, spaces, dots and dashes go through.
++ */
++void NoteInterfaceForTouch(WorldSession* session, std::string const& note)
++{
++    static char const* path = std::getenv("WOW_INTERFACE_FILE");
++    if (!path || !*path || session->GetRemoteAddress() != "127.0.0.1")
++        return;
++    std::string clean;
++    for (char c : note.substr(0, 200))
++        if (std::isalnum(static_cast<unsigned char>(c)) || c == ' ' || c == '.' || c == '-')
++            clean += c;
++    std::string tmp = std::string(path) + ".tmp";
++    if (FILE* file = std::fopen(tmp.c_str(), "w"))
++    {
++        std::fprintf(file, "%s\n", clean.c_str());
++        std::fclose(file);
++        std::rename(tmp.c_str(), path);
++    }
++}
++
+ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
+ {
+     uint32 type;
+@@ -288,6 +315,14 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
+         return;
+     }
+ 
++    // The Android app's touch controls: its add-on (WowTouch) in the phone's own client says where
++    // the windows whose icons drag are, in an add-on message to itself.
++    if (lang == LANG_ADDON && type == CHAT_MSG_WHISPER && msg.rfind("WowTouch\t", 0) == 0)
++    {
++        NoteInterfaceForTouch(this, msg.substr(9));
++        return;
++    }
++
+     // pussywizard:
+     if (msg.length() > 255 || (lang != LANG_ADDON && msg.find("|0") != std::string::npos))
+         return;
+diff --git a/src/server/game/Server/WorldSession.cpp b/src/server/game/Server/WorldSession.cpp
+index ecae83d4f0..da2a3db472 100644
+--- a/src/server/game/Server/WorldSession.cpp
++++ b/src/server/game/Server/WorldSession.cpp
+@@ -683,6 +683,8 @@ void WorldSession::SendPlayTimeWarning(PlayTimeFlag flag, int32 playTimeRemainin
+ }
+ 
+ /// %Log the player out
++void NoteInterfaceForTouch(WorldSession* session, std::string const& note); // ChatHandler.cpp
++
+ void WorldSession::LogoutPlayer(bool save, bool redirecting)
+ {
+     // finish pending transfers before starting the logout
+@@ -695,6 +697,7 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
+     if (_player)
+     {
+         NoteCutsceneForTouch('-');
++        NoteInterfaceForTouch(this, "-");
+         //! Call script hook before other logout events
+         sScriptMgr->OnPlayerBeforeLogout(_player);
+ 
+-- 
+2.43.0
+

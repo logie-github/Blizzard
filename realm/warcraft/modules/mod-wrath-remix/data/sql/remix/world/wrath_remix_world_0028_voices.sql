@@ -1,0 +1,57 @@
+-- Moratari's own voice (made by tools/voices.py: edit that, not this): her Legion Remix lines
+-- that fit Wrath Remix, the moment each is spoken at, its SoundEntries id and its file in the
+-- module's data/voices (fetched by the server package; never in the repository).
+DROP TABLE IF EXISTS `remix_voice`;
+CREATE TABLE `remix_voice` (
+  `sound` INT UNSIGNED NOT NULL COMMENT 'SoundEntries id (the game patch adds the row)',
+  `moment` VARCHAR(32) NOT NULL COMMENT 'when she says it (RemixVoices.cpp)',
+  `number` TINYINT UNSIGNED NOT NULL COMMENT 'the game file''s number',
+  `file` VARCHAR(64) NOT NULL COMMENT 'its WAV in data/voices',
+  `file_id` INT UNSIGNED NOT NULL COMMENT 'the game''s file id (FileDataID)',
+  `seconds` FLOAT NOT NULL,
+  `words` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`sound`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Wrath Remix: Moratari''s voice';
+
+INSERT INTO `remix_voice` (`sound`, `moment`, `number`, `file`, `file_id`, `seconds`, `words`) VALUES
+(77020, 'greet', 20, 'vo_1125_moratari_20_f.wav', 7074603, 1.61, 'Our endeavor goes on.'),
+(77021, 'greet', 21, 'vo_1125_moratari_21_f.wav', 7074604, 2.05, 'Observe all that surrounds you.'),
+(77022, 'greet', 22, 'vo_1125_moratari_22_f.wav', 7074605, 2.18, 'The possibilities are infinite.'),
+(77023, 'greet', 23, 'vo_1125_moratari_23_f.wav', 7074606, 2.36, 'Never settle for the unknown.'),
+(77024, 'greet', 24, 'vo_1125_moratari_24_f.wav', 7074607, 1.81, 'It''s a pleasure to work with you.'),
+(77025, 'greet', 25, 'vo_1125_moratari_25_f.wav', 7074608, 1.80, 'Who knows what knowledge we''ll acquire?'),
+(77026, 'greet', 26, 'vo_1125_moratari_26_f.wav', 7074609, 3.16, 'What is history, if not a series of variables?'),
+(77027, 'greet', 27, 'vo_1125_moratari_27_f.wav', 7074610, 3.17, 'So much knowledge waiting to be gleaned.'),
+(77015, 'greet', 15, 'vo_1125_moratari_15_f.wav', 7065444, 6.94, 'So take heart in knowing that what you are doing here is important.'),
+(77001, 'welcome_back', 1, 'vo_1125_moratari_01_f.wav', 7065394, 4.02, 'Champion, there you are. I thought we''d lost you.'),
+(77047, 'catch_up', 47, 'vo_1125_moratari_47_f.wav', 7078231, 4.34, 'Timerunner? Come back to the Infinite Bazaar when you can. We should catch up.'),
+(77029, 'milestone', 29, 'vo_1125_moratari_29_f.wav', 7075061, 7.04, 'Congratulations are in order, Timerunner. Come see me at the Infinite Bazaar. We have some things to discuss.'),
+(77030, 'milestone', 30, 'vo_1125_moratari_30_f.wav', 7075064, 6.98, 'Meet me at the Infinite Bazaar at your earliest convenience, Timerunner. We have yet more to learn, and we''re running out of time.'),
+(77028, 'level80', 28, 'vo_1125_moratari_28_f.wav', 7075060, 6.49, 'A monumental achievement, Timerunner! Check in with me back at the Infinite Bazaar as soon as you''re able.'),
+(77034, 'skip', 34, 'vo_1125_moratari_34_f.wav', 7075461, 1.66, 'I think we can gloss over this one.'),
+(77035, 'skip', 35, 'vo_1125_moratari_35_f.wav', 7075462, 0.52, 'Skip.'),
+(77036, 'skip', 36, 'vo_1125_moratari_36_f.wav', 7075463, 1.15, 'Nothing to see here.'),
+(77037, 'skip', 37, 'vo_1125_moratari_37_f.wav', 7075464, 0.86, 'Moving on.'),
+(77038, 'skip', 38, 'vo_1125_moratari_38_f.wav', 7075465, 0.78, 'Jumping ahead!'),
+(77039, 'skip', 39, 'vo_1125_moratari_39_f.wav', 7075466, 0.67, 'Job''s done.'),
+(77040, 'skip_training', 40, 'vo_1125_moratari_40_f.wav', 7075467, 1.69, 'Let''s skip basic training.'),
+(77041, 'skip_study', 41, 'vo_1125_moratari_41_f.wav', 7075888, 3.47, 'No offense, but this isn''t really what we''re here to study.'),
+(77031, 'jump_forward', 31, 'vo_1125_moratari_31_f.wav', 7075458, 5.27, 'Sorry for the interruption, but we''re going to jump you forward in time past this moment.'),
+(77046, 'portal', 46, 'vo_1125_moratari_46_f.wav', 7078201, 1.78, 'I will create a portal for you now.'),
+(77011, 'one_moment', 11, 'vo_1125_moratari_11_f.wav', 7065440, 1.23, 'One moment, please.'),
+(77019, 'watch_step', 19, 'vo_1125_moratari_19_f.wav', 7065448, 1.19, 'Watch your step.'),
+(77010, 'back_to_dalaran', 10, 'vo_1125_moratari_10_f.wav', 7065439, 8.18, 'If you''re all set, let''s get you back to Dalaran so you can rejoin the flow of events. You''re always welcome back here, though.'),
+(77012, 'wings', 12, 'vo_1125_moratari_12_f.wav', 7065441, 8.60, 'Oh, it feels good to stretch my wings. Hang on!'),
+(77017, 'low_profile', 17, 'vo_1125_moratari_17_f.wav', 7065446, 6.08, 'After all, we''re supposed to be keeping a low profile here.'),
+(77009, 'time_we_have', 9, 'vo_1125_moratari_09_f.wav', 7065435, 4.37, 'Well, then we''ll simply have to make the most of the time we have, won''t we?'),
+(77005, 'after_fight', 5, 'vo_1125_moratari_05_f.wav', 7065426, 0.68, 'Are they gone?'),
+(77013, 'eternus_praise', 13, 'vo_1125_moratari_13_f.wav', 7065442, 9.60, 'Don''t let this get to your head, but Eternus almost never gives anyone that much praise.'),
+(77014, 'eternus_praise', 14, 'vo_1125_moratari_14_f.wav', 7065443, 8.40, 'I should know, after all. I''ve known her for... well... forever.'),
+(77008, 'plan_reply', 8, 'vo_1125_moratari_08_f.wav', 7065432, 8.54, 'But not anymore, right? After all, that is what we came here to do. Introduce changes to the past and observe the results as they occur.'),
+(77032, 'plan_ends', 32, 'vo_1125_moratari_32_f.wav', 7075459, 7.41, 'Like Eternus mentioned before, this experiment will eventually end, so we have to be wise about how we spend our time.'),
+(77006, 'back_to_eternus', 6, 'vo_1125_moratari_06_f.wav', 7065427, 7.37, 'As exciting as all that was, I''ll be glad to get back to the Infinite Bazaar. Eternus will surely want to speak with you too.'),
+(77033, 'put_back', 33, 'vo_1125_moratari_33_f.wav', 7075460, 7.62, 'See? Everything is the same. Except now, we are in control of our own time. We''re ready to proceed.'),
+(77042, 'farewell', 42, 'vo_1125_moratari_42_f.wav', 7078189, 8.74, 'This has been quite the experiment, hasn''t it? Now the sands of time slip through the hourglass, waiting to be turned over again.'),
+(77043, 'farewell', 43, 'vo_1125_moratari_43_f.wav', 7078190, 8.06, 'The strange thing about traveling through time is that goodbyes and hellos tend to blur together. It can be hard to tell them apart.'),
+(77044, 'farewell', 44, 'vo_1125_moratari_44_f.wav', 7078191, 8.33, 'And yet, they are, in their own way, so distinct from one another. I wonder why that is. Perhaps they deserve their own experiment.'),
+(77045, 'farewell', 45, 'vo_1125_moratari_45_f.wav', 7078192, 8.75, 'Well, if I ever decide to pursue it, I''d be thrilled to have you as an assistant. Then this goodbye would blur into a hello as well.');

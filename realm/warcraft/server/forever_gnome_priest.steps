@@ -1,0 +1,14 @@
+# A gnome priest (WoW: Forever's pairs, mod-allied-races) in Coldridge Valley: Forever's gnome racials
+# (Expansive Mind's Mana), and Marryk Nurribit, the mage trainer, training them as a priest trainer does.
+cmd .list auras
+has Hspell:98817|
+expect-not Hspell:20592|
+cmd .modify money 1000
+go 0 -6058.6 387.7 392.9
+talk 944
+select 944 train
+has trainer type 0
+has trainer spell 1243 state 0
+expect-not trainer spell 1459 state
+train 944 1243
+expect trained 1243

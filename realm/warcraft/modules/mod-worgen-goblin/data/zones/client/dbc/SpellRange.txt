@@ -1,0 +1,23 @@
+# SpellRange: the starting areas (tools/zones/build_tables.py)
+types	iffffissssssssssssssssissssssssssssssssi
+put	188	0.0	0.0	5.0	5.0	0	Interact Range																0	Interact																0
+put	189	0.0	0.0	0.0	0.0	0	Self Only																0	Self																0
+put	190	0.0	0.0	100.0	100.0	0	Vision Range																0	Vision																0
+put	191	0.0	0.0	50000.0	50000.0	0	Anywhere - Unlimited																0	Anywhere - Unlimited																0
+put	192	0.0	0.0	10.0	10.0	0	Ten yards																0	Very Short																0
+put	193	0.0	0.0	35.0	35.0	0	Medium-Long																0	Medium-Long																0
+put	194	0.0	0.0	15.0	15.0	0	Fifteen yards																0	Shorter																0
+put	195	0.0	0.0	100.0	100.0	0	Tower 100																0	Tower																0
+put	196	0.0	0.0	30.0	30.0	2	Ranged Weapon																0	Ranged																0
+put	197	0.0	0.0	20.0	20.0	0	Twenty yards																0	Short																0
+put	198	0.0	0.0	60.0	60.0	0	Extra Long Range																0	Extra Long																0
+put	199	0.0	0.0	30.0	30.0	0	Medium Range																0	Medium																0
+put	200	0.0	0.0	40.0	40.0	0	Long Range																0	Long																0
+put	201	0.0	0.0	150.0	150.0	0	Super Long																0	Super Long																0
+put	202	0.0	0.0	20.0	30.0	0	Medium/Short Range																0	Medium/Short																0
+put	203	0.0	0.0	90.0	90.0	0	Ninety																0	Ninety																0
+put	204	0.0	0.0	50.0	50.0	0	Extended Range																0	Extended																0
+put	205	0.0	0.0	35.0	35.0	2	Hunter Range																0	Hunter																0
+put	206	0.0	0.0	6.0	6.0	0	Six yards																0	Six yards																0
+put	207	0.0	0.0	45.0	45.0	0	Longer Range																0	Longer																0
+put	208	0.0	0.0	5.0	5.0	1	Combat Range																0	Combat																0

@@ -1,0 +1,4 @@
+# LoadingScreens: the starting areas (tools/zones/build_tables.py)
+types	issi
+put	8800	Cataclysmloadscreeneasternkingdom2	interface\\glues\\loadingscreens\\loadscreeneasternkingdom2.blp	1
+put	8801	Cataclysmloadscreenkalimdor2	interface\\glues\\loadingscreens\\loadscreenkalimdor2.blp	1

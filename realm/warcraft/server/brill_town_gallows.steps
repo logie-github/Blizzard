@@ -1,0 +1,75 @@
+# Brill: Beneath the Gallows (mod-brill-home, tools/town/gallows.py), ChromieCraft's realm: the hidden
+# line. Its clue given as a game master would (The Gravekeeper's Ledger's last quest, q970304, rewarded:
+# Gideon Hale's tale), Deathstalker Isolde Ashcroft by Brill's mausoleum is there for this character (the
+# phase "unlocked"; talking to her fails if she isn't); the Cult's three marks beneath Brill; the
+# refugees' journals in the Agamand Family Crypt; the Bound Sentinels; Aldric Croft's door and letters;
+# Croft killed and his Roll of the Raised taken to Gravekeeper Mortimer Weller. (The house's relic, the
+# phase "relic", needs the house theirs: not this character's.)
+cmd .levelup 11
+cmd .quest add 970304
+cmd .quest complete 970304
+cmd .quest reward 970304
+# The Sealed Passage: Isolde by the mausoleum, the marks in the inn's cellar, on the foundation stone and
+# in the sunken earth.
+go 0 2376.5 335.5 38.6
+wait 2
+cmd .brilltown state
+has q970304
+talk 970900
+accept 970900 970900
+go 0 2293.5 242.0 27.4
+cmd .brilltown use
+expect Brill town: used 970900
+go 0 2378.0 328.0 38.8
+cmd .brilltown use
+expect Brill town: used 970901
+go 0 2406.0 315.0 38.3
+cmd .brilltown use
+expect Brill town: used 970902
+go 0 2376.5 335.5 38.6
+talk 970900
+reward 970900 970900
+# Echoes of Lordaeron: Hester Lyle's journal on the crypt's upper hall, the rest filled; Isolde outside the
+# crypt.
+talk 970900
+accept 970900 970901
+go 0 3045.0 672.5 81.3
+cmd .brilltown use
+expect Brill town: used 970903
+cmd .quest complete 970901
+go 0 2963.0 645.0 100.2
+talk 970901
+reward 970901 970901
+# The Unquiet Dead: a Bound Sentinel on the middle hall, the rest filled.
+talk 970901
+accept 970901 970902
+go 0 3036.0 655.0 75.5
+kill 970902
+cmd .quest complete 970902
+go 0 2963.0 645.0 100.2
+talk 970901
+reward 970901 970902
+# A Master Without a Kingdom: Croft's warded door on the lowest hall, the letters filled.
+talk 970901
+accept 970901 970903
+go 0 3047.0 689.5 66.7
+cmd .brilltown use
+expect Brill town: used 970906
+cmd .quest complete 970903
+go 0 2963.0 645.0 100.2
+talk 970901
+reward 970901 970903
+# No Masters but Ourselves: Croft killed, his roll taken, the gravekeeper in Brill.
+talk 970901
+accept 970901 970904
+go 0 3057.0 693.0 66.6
+kill 970903
+go 0 3061.5 696.0 66.6
+cmd .brilltown use
+expect Brill town: used 970908
+go 0 2360.0 342.0 38.1
+talk 970300
+reward 970300 970904
+wait 2
+cmd .brilltown state
+expect q970904

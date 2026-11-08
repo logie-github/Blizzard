@@ -1,0 +1,6 @@
+# ChrRaces: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiiiisiiiisiissssssssssssssssissssssssssssssssissssssssssssssssisssi
+copyrow	9	28
+copyrow	12	29
+put	9	4	2	4141	6894	6895	Go	1	7	15007	1096	Goblin	141	1	Goblin	고블린	Gobelin	Goblin	地精		Goblin	Goblin	Гоблин								16712190			Gobeline				Goblin	Goblin									16712172			Gobelin	Goblin			Goblin	Goblin	Гоблин								16712172	PIERCINGS	PIERCINGS	NORMAL	0
+put	12	6	1	4143	29422	29423	Wo	7	7	15007	1096	Worgen	61	0	Worgen	늑대인간	Worgen	Worgen	狼人		Huargen	Huargen	Ворген								16712190			Worgen				Huargen	Huargen									16712172			Worgen	Worgen			Huargen	Huargen	Ворген								16712172	FEATURES	EARS	NORMAL	0

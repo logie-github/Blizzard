@@ -1,0 +1,65 @@
+From 23c7ab19da4fd024ba48bb0bf6a06773a79212f4 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 08:44:13 +0000
+Subject: [PATCH] Tell the Android app whether the phone's player selected an
+ enemy
+
+The World of Warcraft app's touch controls select an enemy with a tap and attack it with a second
+one, and talk to friendly NPCs with one tap. The game's cursor doesn't say which is which, the
+server does: with WOW_SELECTION_FILE set, each selection by the client on 127.0.0.1 writes a count
+and whether the selected unit is a living, attackable one.
+---
+ src/server/game/Handlers/MiscHandler.cpp | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/src/server/game/Handlers/MiscHandler.cpp b/src/server/game/Handlers/MiscHandler.cpp
+index 97c40e9365..b2df6b13d6 100644
+--- a/src/server/game/Handlers/MiscHandler.cpp
++++ b/src/server/game/Handlers/MiscHandler.cpp
+@@ -52,6 +52,9 @@
+ #include "World.h"
+ #include "WorldPacket.h"
+ #include "WorldSession.h"
++#include <atomic>
++#include <cstdio>
++#include <cstdlib>
+ #include <zlib.h>
+ 
+ #include "Corpse.h"
+@@ -531,12 +534,33 @@ void WorldSession::HandleZoneUpdateOpcode(WorldPacket& recv_data)
+     //GetPlayer()->SendInitWorldStates(true, newZone);
+ }
+ 
++// World of Warcraft app (Android): the game's touch controls ask whether what the phone's own
++// player just selected is an enemy, to select it with a tap and attack it with a second one. The
++// app names the file (WOW_SELECTION_FILE); each selection writes "<count> <1 if enemy, else 0>".
++static void NoteSelectionForTouch(WorldSession* session, Player* player, ObjectGuid guid)
++{
++    static char const* path = std::getenv("WOW_SELECTION_FILE");
++    static std::atomic<uint32> count{0};
++    if (!path || !*path || session->GetRemoteAddress() != "127.0.0.1")
++        return;
++    Unit* unit = guid ? ObjectAccessor::GetUnit(*player, guid) : nullptr;
++    bool enemy = unit && unit->IsAlive() && player->IsValidAttackTarget(unit);
++    std::string tmp = std::string(path) + ".tmp";
++    if (FILE* file = std::fopen(tmp.c_str(), "w"))
++    {
++        std::fprintf(file, "%u %u\n", ++count, enemy ? 1u : 0u);
++        std::fclose(file);
++        std::rename(tmp.c_str(), path);
++    }
++}
++
+ void WorldSession::HandleSetSelectionOpcode(WorldPacket& recv_data)
+ {
+     ObjectGuid guid;
+     recv_data >> guid;
+ 
+     _player->SetSelection(guid);
++    NoteSelectionForTouch(this, _player, guid);
+ 
+     // Change target of current autoshoot spell
+     if (guid)
+-- 
+2.43.0
+

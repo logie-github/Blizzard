@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 09:18:13 +0000
+Subject: [PATCH] Keep Draconic server and client in one managed Windows
+ session
+
+---
+ .../com/winlator/XServerDisplayActivity.java  | 27 +++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 9ca7803..8e3f5cc 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -127,6 +127,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     private String wincomponents;
+     private WineInfo wineInfo;
+     private final EnvVars envVars = new EnvVars();
++    private boolean rejectedRuntimeSession;
+     private EnvVars overrideEnvVars;
+     private ClipboardManager clipboardManager;
+     private SharedPreferences preferences;
+@@ -143,6 +144,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     public void onCreate(Bundle savedInstanceState) {
+         AppUtils.setActivityTheme(this);
+         super.onCreate(savedInstanceState);
++        // Check before activateContainer changes the shared Wine home or a guest can replace it.
++        if (!com.logie.warcraft.tww.TwwServer.allowRuntimeStart(this)) {
++            rejectedRuntimeSession = true;
++            android.widget.Toast.makeText(this, "Close the active Windows session before opening another realm.", android.widget.Toast.LENGTH_LONG).show();
++            finish();
++            return;
++        }
+         AppUtils.hideSystemUI(this);
+         AppUtils.keepScreenOn(this);
+         setContentView(R.layout.xserver_display_activity);
+@@ -300,6 +308,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     @Override
+     public void onWindowFocusChanged(boolean hasFocus) {
+         super.onWindowFocusChanged(hasFocus);
++        if (rejectedRuntimeSession) return;
+
+         if (hasFocus) {
+             if (capturePointerOnExternalMouse) touchpadView.requestPointerCapture();
+@@ -316,6 +325,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     @Override
+     public void onResume() {
+         super.onResume();
++        if (rejectedRuntimeSession) return;
+         if (environment != null) {
+             xServerView.onResume();
+             environment.onResume();
+@@ -325,10 +335,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+
+     @Override
+     public void onPause() {
+-        ForegroundService.onPauseSession(this);
++        if (!rejectedRuntimeSession) ForegroundService.onPauseSession(this);
+         super.onPause();
++        if (rejectedRuntimeSession) return;
+         if (environment != null && !isInPictureInPictureMode()) {
+-            environment.onPause();
++            // Draconic's database and realm must keep running while its launcher is visible.
++            // All other games keep Winlator's normal pause behavior.
++            if (!getIntent().getBooleanExtra("tww_session", false)) environment.onPause();
+             xServerView.onPause();
+         }
+     }
+@@ -336,11 +349,17 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     @Override
+     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
++        if (rejectedRuntimeSession) return;
+         ForegroundService.setPipMode(isInPictureInPictureMode);
+     }
+
+     @Override
+     protected void onDestroy() {
++        if (rejectedRuntimeSession) {
++            super.onDestroy();
++            return;
++        }
++        com.logie.warcraft.tww.TwwServer.runtimeDetached(this);
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
+         ForegroundService.stopSession(this);
+@@ -558,6 +577,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         environment.startEnvironmentComponents();
+
+         winHandler.start();
++        com.logie.warcraft.tww.TwwServer.runtimeAttached(this);
+         envVars.clear();
+         graphicsDriver = null;
+         dxwrapperConfig = null;
+@@ -959,6 +979,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             Intent intent = getIntent();
+             if (intent.hasExtra("exec_path")) {
+                 execPath = WineUtils.unixToDOSPath(intent.getStringExtra("exec_path"), container);
++                // Separate arguments from the path; a script argument can itself contain slashes.
++                String explicitArgs = intent.getStringExtra("exec_args");
++                execArgs = explicitArgs != null && !explicitArgs.isEmpty() ? " "+explicitArgs : "";
+
+                 if (execPath.endsWith(".lnk")) {
+                     cmdArgs = "\""+execPath+"\"";

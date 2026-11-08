@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 16:19:23 +0000
+Subject: [PATCH 5/6] Build against MariaDB Connector/C
+
+The phone's server is built on Alpine, which has MariaDB's client library rather than MySQL's. Its
+MYSQL_VERSION_ID is the MariaDB server version it was made for (10.8 and up), which reads as
+newer than MySQL 8.3, so the code took MySQL-only paths: SSL modes (Connector/C has
+MYSQL_OPT_SSL_ENFORCE) and mysql_stmt_bind_named_param (Connector/C has mysql_stmt_bind_param).
+Its client version numbers are its own (3.x), so the MySQL client version checks don't apply.
+---
+ src/server/database/Database/DatabaseWorkerPool.cpp |  6 ++++++
+ src/server/database/Database/MySQLConnection.cpp    | 10 ++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/server/database/Database/DatabaseWorkerPool.cpp b/src/server/database/Database/DatabaseWorkerPool.cpp
+index 63b8ac9fe0..f27b346e8e 100644
+--- a/src/server/database/Database/DatabaseWorkerPool.cpp
++++ b/src/server/database/Database/DatabaseWorkerPool.cpp
+@@ -49,8 +49,14 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool() :
+ {
+     WPFatal(mysql_thread_safe(), "Used MySQL library isn't thread-safe.");
+ 
++#ifdef MARIADB_PACKAGE_VERSION_ID
++    // MariaDB Connector/C numbers its versions on its own; any 3.x speaks to MySQL 8 and MariaDB.
++    bool isSupportClientDB = mysql_get_client_version() >= 30000u;
++    bool isSameClientDB = true;
++#else
+     bool isSupportClientDB = mysql_get_client_version() >= MIN_MYSQL_CLIENT_VERSION;
+     bool isSameClientDB = mysql_get_client_version() == MYSQL_VERSION_ID;
++#endif
+ 
+     WPFatal(isSupportClientDB, "AzerothCore does not support MySQL versions below 8.0\n\nFound version: {} / {}. Server compiled with: {}.\nSearch the wiki for ACE00043 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00043).",
+         mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
+diff --git a/src/server/database/Database/MySQLConnection.cpp b/src/server/database/Database/MySQLConnection.cpp
+index e6ed20fa81..ed5be6430a 100644
+--- a/src/server/database/Database/MySQLConnection.cpp
++++ b/src/server/database/Database/MySQLConnection.cpp
+@@ -130,6 +130,11 @@ uint32 MySQLConnection::Open()
+ 
+     if (m_connectionInfo.ssl != "")
+     {
++#ifdef MARIADB_PACKAGE_VERSION_ID
++        // MariaDB Connector/C has no SSL modes, only whether SSL is required.
++        my_bool enforceSsl = m_connectionInfo.ssl == "ssl";
++        mysql_options(mysqlInit, MYSQL_OPT_SSL_ENFORCE, &enforceSsl);
++#else
+         mysql_ssl_mode opt_use_ssl = SSL_MODE_DISABLED;
+         if (m_connectionInfo.ssl == "ssl")
+         {
+@@ -137,6 +142,7 @@ uint32 MySQLConnection::Open()
+         }
+ 
+         mysql_options(mysqlInit, MYSQL_OPT_SSL_MODE, (char const*)&opt_use_ssl);
++#endif
+     }
+ 
+     m_Mysql = reinterpret_cast<MySQLHandle*>(mysql_real_connect(mysqlInit, m_connectionInfo.host.c_str(), m_connectionInfo.user.c_str(),
+@@ -217,7 +223,7 @@ bool MySQLConnection::Execute(PreparedStatementBase* stmt)
+ 
+     uint32 _s = getMSTime();
+ 
+-#if MYSQL_VERSION_ID >= 80300
++#if MYSQL_VERSION_ID >= 80300 && !defined(MARIADB_PACKAGE_VERSION_ID)
+     if (mysql_stmt_bind_named_param(msql_STMT, msql_BIND, m_mStmt->GetParameterCount(), nullptr))
+ #else
+     if (mysql_stmt_bind_param(msql_STMT, msql_BIND))
+@@ -269,7 +275,7 @@ bool MySQLConnection::_Query(PreparedStatementBase* stmt, MySQLPreparedStatement
+ 
+     uint32 _s = getMSTime();
+ 
+-#if MYSQL_VERSION_ID >= 80300
++#if MYSQL_VERSION_ID >= 80300 && !defined(MARIADB_PACKAGE_VERSION_ID)
+     if (mysql_stmt_bind_named_param(msql_STMT, msql_BIND, m_mStmt->GetParameterCount(), nullptr))
+ #else
+     if (mysql_stmt_bind_param(msql_STMT, msql_BIND))

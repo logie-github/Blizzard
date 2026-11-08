@@ -1,0 +1,14 @@
+# CharBaseInfo: the Murlocs' and the Naga's changes (tools/build_data.py)
+appendraw	1301
+appendraw	1303
+appendraw	1304
+appendraw	1305
+appendraw	1307
+appendraw	1308
+appendraw	1401
+appendraw	1403
+appendraw	1404
+appendraw	1405
+appendraw	1407
+appendraw	1408
+appendraw	1409

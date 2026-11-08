@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Thu, 22 Oct 2026 12:35:00 +0000
+Subject: [PATCH] Wait for the managed realm client before enabling game login
+
+The database console shares the client's Windows session. Keep the loading
+listener pending until a WoW window appears so password automation never targets
+cmd.exe or a server console.
+
+---
+ app/src/main/java/com/winlator/XServerDisplayActivity.java | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -250,6 +250,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+                 if (!flags[0] && window.isRenderable() && !window.getClassName().isEmpty()) {
++                    if (getIntent().getBooleanExtra("local_server_session", false)
++                            && !com.logie.warcraft.tww.core.LocalGameWindow.isClient(window.getClassName()))
++                        return;
+                     xServerView.getRenderer().setCursorVisible(true);
+                     preloaderDialog.closeOnUiThread();
+                     if (gestureView != null) runOnUiThread(() -> gestureView.onGameWindowShown());
+                     flags[0] = true;
+                 }

@@ -1,0 +1,13 @@
+# SpellIcon: the starting areas (tools/zones/build_tables.py)
+types	is
+put	4376	interface\\icons\\inv_belt_47
+put	4377	interface\\icons\\inv_misc_ear_nightelf_02
+put	4378	interface\\icons\\inv_misc_enggizmos_swissarmy
+put	4379	interface\\icons\\inv_weapon_shortblade_21
+put	4380	interface\\icons\\inv_misc_food_23
+put	4381	interface\\icons\\inv_shield_70
+put	4382	interface\\icons\\achievement_worganhead
+put	4383	interface\\icons\\inv_helmet_47
+put	4384	interface\\icons\\ability_racial_darkflight
+put	4385	interface\\icons\\inv_tradeskillitem_01
+put	4386	interface\\icons\\inv_sword_24

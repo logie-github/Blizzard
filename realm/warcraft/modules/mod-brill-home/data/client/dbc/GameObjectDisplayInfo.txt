@@ -1,0 +1,4 @@
+# GameObjectDisplayInfo: the house's cellar and its ladder (tools/build_town.py)
+types	isiiiiiiiiiiffffffi
+put	9700	World\\wmo\\Azeroth\\Buildings\\Duskwood_Inn\\Duskwood_Inn.wmo	0	0	0	0	0	0	0	0	0	0	-37.7	-13.5	-6.7	21.9	18.7	23.2	0
+put	9701	World\\Expansion02\\Doodads\\Generic\\Human\\Northrend_HumanLadder\\Final\\HU_HumanLadder.mdx	0	0	0	0	0	0	0	0	0	0	-0.04	-0.18	0.0	0.04	0.37	3.55	0

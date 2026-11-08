@@ -1,0 +1,112 @@
+# Brill: A Deathguard's Duty (mod-brill-home, tools/town/deathguard.py), ChromieCraft's realm: Deathguard
+# Dillinger's five quests. The watch's packs, the north road's ghouls and Gnawbone, Harlan's
+# trail west to the hill above Solliden Farmstead, his living wife and daughter at the cottage, and his
+# choice: back to his post on the north road (the "returned" mark, 970705; his phase in Brill, where
+# the cemetery's Harlan, 970702, isn't).
+cmd .levelup 11
+cmd .modify money 100000
+# The Night Watch: Dillinger on the north road.
+go 0 2287.0 401.5 34.0
+talk 1496
+accept 1496 970700
+# The packs: Abraham by the river, Terrence on the Undercity road (called over), Linnea at the crossroads.
+go 0 2241.5 607.5 33.4
+talk 1735
+select 1735 supplies for your post
+expect credit 970700 970707 1/1
+go 0 2164.0 205.0 42.6
+talk 1738
+select 1738 Supplies from Dillinger
+expect credit 970700 970708 1/1
+go 0 2024.0 76.0 36.5
+talk 1495
+select 1495 whetstones and oil
+expect credit 970700 970709 1/1
+expect complete 970700
+go 0 2287.0 401.5 34.0
+talk 1496
+reward 1496 970700
+expect rewarded 970700
+# Trouble on the Road: four Roadside Ghouls and Gnawbone, and the three wrecked carts.
+talk 1496
+accept 1496 970701
+go 0 2266.0 525.0 34.5
+kill 970705
+kill 970705
+kill 970705
+kill 970705
+kill 970706
+go 0 2268.0 545.0 33.5
+cmd .brilltown use
+expect Brill town: used 970700
+go 0 2248.8 566.0 33.6
+cmd .brilltown use
+expect Brill town: used 970700
+go 0 2254.5 586.0 34.2
+cmd .brilltown use
+expect complete 970701
+go 0 2287.0 401.5 34.0
+talk 1496
+reward 1496 970701
+# An Empty Post: Lawrence and Bartholomew asked, Harlan's tracks west, Harlan on the hill above Solliden.
+talk 1496
+accept 1496 970702
+go 0 2288.5 390.0 34.3
+talk 1743
+select 1743 Harlan's absences
+expect credit 970702 970712 1/1
+talk 1742
+select 1742 Where does Harlan go
+expect credit 970702 970713 1/1
+go 0 2209.5 691.0 34.9
+cmd .brilltown use
+expect Brill town: used 970701
+go 0 2231.5 901.0 48.0
+cmd .brilltown use
+expect Brill town: used 970701
+go 0 2251.5 1151.0 34.2
+cmd .brilltown use
+expect complete 970702
+go 0 2283.5 1233.0 38.6
+talk 970700
+reward 970700 970702
+expect rewarded 970702
+# The House Beyond the Trees: Maren and Lise Ashby at the cottage, and the firewood at the gate.
+talk 970700
+accept 970700 970703
+go 0 2261.0 1290.5 31.9
+talk 970703
+select 970703 only passing
+expect credit 970703 970715 1/1
+talk 970704
+select 970704 her name
+expect credit 970703 970716 1/1
+go 0 2257.5 1288.5 32.1
+cmd .brilltown use
+expect complete 970703
+go 0 2283.5 1233.0 38.6
+talk 970700
+reward 970700 970703
+# Duty and Memory: back to his post. The mark set, then turned in to Dillinger.
+talk 970700
+accept 970700 970704
+talk 970700
+select 970700 Your post is waiting
+expect complete 970704
+cmd .brilltown state
+has q970705
+expect-not q970706
+go 0 2287.0 401.5 34.0
+talk 1496
+reward 1496 970704
+expect rewarded 970704
+# Harlan at his old post on the north road for this character (his greeting, 970724 or 970725), and not
+# at the cemetery (the other choice's phase).
+go 0 2262.0 426.0 35.4
+wait 2
+cmd .remix guid 970701
+expect Wrath Remix guid: 970701
+cmd .remix guid 970702
+expect no creature 970702
+talk 970701
+expect gossip text 97072

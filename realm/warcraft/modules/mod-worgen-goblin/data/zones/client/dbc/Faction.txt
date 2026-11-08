@@ -1,0 +1,6 @@
+# Faction: the starting areas (tools/zones/build_tables.py)
+types	iiiiiiiiiiiiiiiiiiiffiissssssssssssssssissssssssssssssssi
+put	1133	106	946	3149	0	0	0	0	0	0	3100	4294925296	0	0	273	6	0	0	67	1.0	0.25	4	7	Bilgewater Cartel																0	Run by the ruthless Trade Prince Gallywix, the Bilgewater Cartel is the most powerful trading company on the Isle of Kezan. From their headquarters at Bilgewater Port, the cartel dominates trade all over the South Seas.																0
+put	1134	105	3149	946	2048	0	0	0	0	0	0	4294925296	3000	0	273	6	17	0	469	1.0	0.25	4	7	Gilneas																0	The people of Gilneas are a nation of survivors.  Having walled themselves off from the rest of humanity, they must now face new threats from within.																0
+put	1157	4294967295	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0.0	0.0	0	0	Pygmy																0																	0
+put	1161	107	3085	946	64	0	0	0	0	0	3100	4294925296	4000	0	273	6	17	0	469	1.0	0.25	4	7	Gnomeregan																0	The former denizens of Gnomeregan, now living in New Tinkertown and in league with the Alliance.																0

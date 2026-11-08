@@ -1,0 +1,145 @@
+# (Brill's town lines' phases are on for this character in Brill as well: 0x2000000, the Scarlet
+# informant still in town; 0x2 to 0x40, the six Community Projects' sites not yet built; and from the deed
+# on 0x40000, the house's debris, its restoration not begun.)
+# A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house in Brill, Jamie Nore's
+# welcome and bed, the bed's sleep, Corn (the dog) there on waking and made a warrior's hunter pet, and the
+# furniture she has carried over; then Carolai Anise's five quests, as lovers, and her moving in.
+# (Level 12: Mend Pet's first rank comes with the dog.)
+cmd .levelup 11
+cmd .modify money 100000
+# At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
+go 0 2265.9 479.2 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x200017F upgrades 0x0
+talk 970110
+accept 970110 970120
+# Jamie Nore in the town hall: Cedric's quest turned in, the deed signed (done as it's taken), the bed.
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970120
+talk 2310
+accept 2310 970121
+reward 2310 970121
+talk 2310
+accept 2310 970122
+# Back at the house, inside: Cedric gone for this character, the bed there.
+go 0 2274.2 479.7 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x204027F upgrades 0x0
+# Asleep in it: lying down (stand state 3) on the bed, rested experience given.
+cmd .brillhome sleep
+expect Brill home: sleeping.
+wait 4
+cmd .brillhome state
+has stand 3
+has flags 0x1 pet 0
+expect-not rested 0 stand
+# Corn, there after the first night (its phase 0x400 with the bed's): fetch three times, a scratch
+# behind the ears, and it's theirs: a hunter's pet for a warrior, with the pet spells.
+cmd .brillhome state
+expect Brill home: phases 0x204067F
+talk 970112
+accept 970112 970123
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Scratch behind its ears
+reward 970112 970123
+wait 2
+cmd .brillhome state
+has flags 0x7 pet 970115 kind 1 hunterpets 1 callpet 1 mendpet 1 tame 0
+expect Brill home: phases 0x204027F
+# A hunter trainer (Ormak Grimshot, Orgrimmar) teaches the warrior to tame beasts.
+go 1 2098.0 -4606.0 59.5
+talk 3352
+select 3352 tame beasts
+cmd .brillhome state
+expect tame 1
+# The bed quest done: back to Jamie.
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970122
+cmd .brillhome state
+expect quests 111
+# Her furniture: a bearskin rug, bought, in the house for this character.
+talk 2310
+select 2310 more of a home
+select 2310 bearskin rug
+go 0 2274.2 479.7 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x204427F upgrades 0x4000
+# Out of Brill: the world's phase alone.
+go 0 2060.0 560.0 39.6
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x1 upgrades 0x4000
+# Carolai Anise's quests (Corn theirs): the tonic, her locket from Solliden Farmstead, her gift for
+# Jamie, tea in the house (her visit's phase 0x10000), the lily from Brightwater Lake and the answer.
+go 0 2262.0 347.6 36.1
+talk 2132
+accept 2132 970124
+cmd .quest complete 970124
+talk 2132
+reward 2132 970124
+talk 2132
+accept 2132 970125
+go 0 2266.0 1318.0 34.6
+cmd .brillhome use
+expect Brill home: used 970108
+go 0 2262.0 347.6 36.1
+talk 2132
+reward 2132 970125
+talk 2132
+accept 2132 970126
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970126
+go 0 2274.2 479.7 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x205427F
+talk 970118
+accept 970118 970127
+talk 970118
+select 970118 drink the tea
+wait 6
+cmd .brillhome state
+expect Brill home: phases 0x204427F
+go 0 2262.0 347.6 36.1
+talk 2132
+reward 2132 970127
+talk 2132
+accept 2132 970128
+go 0 2497.0 103.0 21.9
+cmd .brillhome use
+expect Brill home: used 970109
+go 0 2262.0 347.6 36.1
+talk 2132
+select 2132 I'm keeping it
+talk 2132
+reward 2132 970128
+cmd .brillhome state
+has flags 0x17
+expect carolai 11111
+# Lovers: asked to move in, she's in the house (phase 0x20000); given time at her shop, she's gone.
+talk 2132
+select 2132 move in with me
+go 0 2274.2 479.7 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x206427F
+talk 970119
+select 970119 time back at your shop
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x204427F

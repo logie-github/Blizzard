@@ -1,0 +1,6 @@
+# CharHairTextures: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiiiiii
+remapfield	1	9	28
+remapfield	1	12	29
+put	102	9	0	0	255	0	1	1
+put	103	9	1	0	255	0	1	1

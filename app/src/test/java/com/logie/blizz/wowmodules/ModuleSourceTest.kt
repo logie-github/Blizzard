@@ -13,26 +13,15 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class ModuleSourceTest {
     @Test
-    fun theReleaseComesFromTheWowAppsVersion() {
-        assertEquals(52, ModuleSource.versionCodeOf("1.0.52"))
-        assertEquals(7, ModuleSource.versionCodeOf(" 1.0.7 "))
-        assertNull(ModuleSource.versionCodeOf("1.0"))
-        assertNull(ModuleSource.versionCodeOf("1.0.0"))
-        assertNull(ModuleSource.versionCodeOf("1.0.x"))
-        assertNull(ModuleSource.versionCodeOf(""))
-        assertNull(ModuleSource.versionCodeOf(null))
-        assertEquals("wow-build-52", ModuleBuild.release(ModuleSource.RELEASE_TAG_PREFIX, 52))
-    }
-
-    @Test
-    fun theWorkflowAndTheReleaseAreInTheWowAppsRepository() {
-        assertEquals("logie-github/YeaBwoi", ModuleSource.REPO)
+    fun theWorkflowAndTheReleaseAreInThisAppsRepository() {
+        assertEquals(com.logie.blizz.BuildConfig.UPDATE_REPO, ModuleSource.REPO)
+        assertEquals("logie-github/Blizzard", ModuleSource.REPO)
         assertEquals(
-            "https://api.github.com/repos/logie-github/YeaBwoi/actions/workflows/build-warcraft-modules.yml",
+            "https://api.github.com/repos/logie-github/Blizzard/actions/workflows/build-realm-modules.yml",
             ModuleSource.workflowUrl(),
         )
-        assertEquals("https://api.github.com/repos/logie-github/YeaBwoi/releases/tags/wow-build-52", ModuleSource.releaseUrl("wow-build-52"))
-        assertEquals("https://api.github.com/repos/logie-github/YeaBwoi/actions/runs/9", ModuleSource.runUrl(9))
+        assertEquals("https://api.github.com/repos/logie-github/Blizzard/releases/tags/realm-modules", ModuleSource.releaseUrl(ModuleSource.RELEASE))
+        assertEquals("https://api.github.com/repos/logie-github/Blizzard/actions/runs/9", ModuleSource.runUrl(9))
         assertTrue(ModuleSource.runsUrl().endsWith("/runs?event=workflow_dispatch&per_page=30"))
     }
 

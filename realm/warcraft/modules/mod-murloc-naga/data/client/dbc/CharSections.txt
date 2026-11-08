@@ -1,0 +1,1014 @@
+# CharSections: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iiiisssiii
+remapfield	1	19	30
+remapfield	1	20	31
+put	860000	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	0
+put	860001	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	1
+put	860002	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	2
+put	860003	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	3
+put	860004	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	4
+put	860005	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	5
+put	860006	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	6
+put	860007	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	7
+put	860008	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	8
+put	860009	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	9
+put	860010	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	10
+put	860011	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	11
+put	860012	19	0	0	Character\\Murloc\\MurlocBase.blp			1	0	12
+put	860013	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes00_00.blp		1	0	0
+put	860014	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes00_01.blp		1	0	1
+put	860015	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes00_02.blp		1	0	2
+put	860016	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes00_03.blp		1	0	3
+put	860017	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes00_04.blp		1	0	4
+put	860018	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes00_05.blp		1	0	5
+put	860019	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes00_06.blp		1	0	6
+put	860020	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes00_07.blp		1	0	7
+put	860021	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes00_08.blp		1	0	8
+put	860022	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes00_09.blp		1	0	9
+put	860023	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes00_10.blp		1	0	10
+put	860024	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes00_11.blp		1	0	11
+put	860025	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes00_12.blp		1	0	12
+put	860026	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes01_00.blp		1	1	0
+put	860027	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes01_01.blp		1	1	1
+put	860028	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes01_02.blp		1	1	2
+put	860029	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes01_03.blp		1	1	3
+put	860030	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes01_04.blp		1	1	4
+put	860031	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes01_05.blp		1	1	5
+put	860032	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes01_06.blp		1	1	6
+put	860033	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes01_07.blp		1	1	7
+put	860034	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes01_08.blp		1	1	8
+put	860035	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes01_09.blp		1	1	9
+put	860036	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes01_10.blp		1	1	10
+put	860037	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes01_11.blp		1	1	11
+put	860038	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes01_12.blp		1	1	12
+put	860039	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes02_00.blp		1	2	0
+put	860040	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes02_01.blp		1	2	1
+put	860041	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes02_02.blp		1	2	2
+put	860042	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes02_03.blp		1	2	3
+put	860043	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes02_04.blp		1	2	4
+put	860044	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes02_05.blp		1	2	5
+put	860045	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes02_06.blp		1	2	6
+put	860046	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes02_07.blp		1	2	7
+put	860047	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes02_08.blp		1	2	8
+put	860048	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes02_09.blp		1	2	9
+put	860049	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes02_10.blp		1	2	10
+put	860050	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes02_11.blp		1	2	11
+put	860051	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes02_12.blp		1	2	12
+put	860052	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes03_00.blp		1	3	0
+put	860053	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes03_01.blp		1	3	1
+put	860054	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes03_02.blp		1	3	2
+put	860055	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes03_03.blp		1	3	3
+put	860056	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes03_04.blp		1	3	4
+put	860057	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes03_05.blp		1	3	5
+put	860058	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes03_06.blp		1	3	6
+put	860059	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes03_07.blp		1	3	7
+put	860060	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes03_08.blp		1	3	8
+put	860061	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes03_09.blp		1	3	9
+put	860062	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes03_10.blp		1	3	10
+put	860063	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes03_11.blp		1	3	11
+put	860064	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes03_12.blp		1	3	12
+put	860065	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes04_00.blp		1	4	0
+put	860066	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes04_01.blp		1	4	1
+put	860067	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes04_02.blp		1	4	2
+put	860068	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes04_03.blp		1	4	3
+put	860069	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes04_04.blp		1	4	4
+put	860070	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes04_05.blp		1	4	5
+put	860071	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes04_06.blp		1	4	6
+put	860072	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes04_07.blp		1	4	7
+put	860073	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes04_08.blp		1	4	8
+put	860074	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes04_09.blp		1	4	9
+put	860075	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes04_10.blp		1	4	10
+put	860076	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes04_11.blp		1	4	11
+put	860077	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes04_12.blp		1	4	12
+put	860078	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes05_00.blp		1	5	0
+put	860079	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes05_01.blp		1	5	1
+put	860080	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes05_02.blp		1	5	2
+put	860081	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes05_03.blp		1	5	3
+put	860082	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes05_04.blp		1	5	4
+put	860083	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes05_05.blp		1	5	5
+put	860084	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes05_06.blp		1	5	6
+put	860085	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes05_07.blp		1	5	7
+put	860086	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes05_08.blp		1	5	8
+put	860087	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes05_09.blp		1	5	9
+put	860088	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes05_10.blp		1	5	10
+put	860089	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes05_11.blp		1	5	11
+put	860090	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes05_12.blp		1	5	12
+put	860091	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes06_00.blp		1	6	0
+put	860092	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes06_01.blp		1	6	1
+put	860093	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes06_02.blp		1	6	2
+put	860094	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes06_03.blp		1	6	3
+put	860095	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes06_04.blp		1	6	4
+put	860096	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes06_05.blp		1	6	5
+put	860097	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes06_06.blp		1	6	6
+put	860098	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes06_07.blp		1	6	7
+put	860099	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes06_08.blp		1	6	8
+put	860100	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes06_09.blp		1	6	9
+put	860101	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes06_10.blp		1	6	10
+put	860102	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes06_11.blp		1	6	11
+put	860103	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes06_12.blp		1	6	12
+put	860104	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes07_00.blp		1	7	0
+put	860105	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes07_01.blp		1	7	1
+put	860106	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes07_02.blp		1	7	2
+put	860107	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes07_03.blp		1	7	3
+put	860108	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes07_04.blp		1	7	4
+put	860109	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes07_05.blp		1	7	5
+put	860110	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes07_06.blp		1	7	6
+put	860111	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes07_07.blp		1	7	7
+put	860112	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes07_08.blp		1	7	8
+put	860113	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes07_09.blp		1	7	9
+put	860114	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes07_10.blp		1	7	10
+put	860115	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes07_11.blp		1	7	11
+put	860116	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes07_12.blp		1	7	12
+put	860117	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes08_00.blp		1	8	0
+put	860118	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes08_01.blp		1	8	1
+put	860119	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes08_02.blp		1	8	2
+put	860120	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes08_03.blp		1	8	3
+put	860121	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes08_04.blp		1	8	4
+put	860122	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes08_05.blp		1	8	5
+put	860123	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes08_06.blp		1	8	6
+put	860124	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes08_07.blp		1	8	7
+put	860125	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes08_08.blp		1	8	8
+put	860126	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes08_09.blp		1	8	9
+put	860127	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes08_10.blp		1	8	10
+put	860128	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes08_11.blp		1	8	11
+put	860129	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes08_12.blp		1	8	12
+put	860130	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes09_00.blp		1	9	0
+put	860131	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes09_01.blp		1	9	1
+put	860132	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes09_02.blp		1	9	2
+put	860133	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes09_03.blp		1	9	3
+put	860134	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes09_04.blp		1	9	4
+put	860135	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes09_05.blp		1	9	5
+put	860136	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes09_06.blp		1	9	6
+put	860137	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes09_07.blp		1	9	7
+put	860138	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes09_08.blp		1	9	8
+put	860139	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes09_09.blp		1	9	9
+put	860140	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes09_10.blp		1	9	10
+put	860141	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes09_11.blp		1	9	11
+put	860142	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes09_12.blp		1	9	12
+put	860143	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes10_00.blp		1	10	0
+put	860144	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes10_01.blp		1	10	1
+put	860145	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes10_02.blp		1	10	2
+put	860146	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes10_03.blp		1	10	3
+put	860147	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes10_04.blp		1	10	4
+put	860148	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes10_05.blp		1	10	5
+put	860149	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes10_06.blp		1	10	6
+put	860150	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes10_07.blp		1	10	7
+put	860151	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes10_08.blp		1	10	8
+put	860152	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes10_09.blp		1	10	9
+put	860153	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes10_10.blp		1	10	10
+put	860154	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes10_11.blp		1	10	11
+put	860155	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes10_12.blp		1	10	12
+put	860156	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes11_00.blp		1	11	0
+put	860157	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes11_01.blp		1	11	1
+put	860158	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes11_02.blp		1	11	2
+put	860159	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes11_03.blp		1	11	3
+put	860160	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes11_04.blp		1	11	4
+put	860161	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes11_05.blp		1	11	5
+put	860162	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes11_06.blp		1	11	6
+put	860163	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes11_07.blp		1	11	7
+put	860164	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes11_08.blp		1	11	8
+put	860165	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes11_09.blp		1	11	9
+put	860166	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes11_10.blp		1	11	10
+put	860167	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes11_11.blp		1	11	11
+put	860168	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes11_12.blp		1	11	12
+put	860169	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes12_00.blp		1	12	0
+put	860170	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes12_01.blp		1	12	1
+put	860171	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes12_02.blp		1	12	2
+put	860172	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes12_03.blp		1	12	3
+put	860173	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes12_04.blp		1	12	4
+put	860174	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes12_05.blp		1	12	5
+put	860175	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes12_06.blp		1	12	6
+put	860176	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes12_07.blp		1	12	7
+put	860177	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes12_08.blp		1	12	8
+put	860178	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes12_09.blp		1	12	9
+put	860179	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes12_10.blp		1	12	10
+put	860180	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes12_11.blp		1	12	11
+put	860181	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes12_12.blp		1	12	12
+put	860182	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes13_00.blp		1	13	0
+put	860183	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes13_01.blp		1	13	1
+put	860184	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes13_02.blp		1	13	2
+put	860185	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes13_03.blp		1	13	3
+put	860186	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes13_04.blp		1	13	4
+put	860187	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes13_05.blp		1	13	5
+put	860188	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes13_06.blp		1	13	6
+put	860189	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes13_07.blp		1	13	7
+put	860190	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes13_08.blp		1	13	8
+put	860191	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes13_09.blp		1	13	9
+put	860192	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes13_10.blp		1	13	10
+put	860193	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes13_11.blp		1	13	11
+put	860194	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes13_12.blp		1	13	12
+put	860195	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes14_00.blp		1	14	0
+put	860196	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes14_01.blp		1	14	1
+put	860197	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes14_02.blp		1	14	2
+put	860198	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes14_03.blp		1	14	3
+put	860199	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes14_04.blp		1	14	4
+put	860200	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes14_05.blp		1	14	5
+put	860201	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes14_06.blp		1	14	6
+put	860202	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes14_07.blp		1	14	7
+put	860203	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes14_08.blp		1	14	8
+put	860204	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes14_09.blp		1	14	9
+put	860205	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes14_10.blp		1	14	10
+put	860206	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes14_11.blp		1	14	11
+put	860207	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes14_12.blp		1	14	12
+put	860208	19	0	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes15_00.blp		1	15	0
+put	860209	19	0	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes15_01.blp		1	15	1
+put	860210	19	0	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes15_02.blp		1	15	2
+put	860211	19	0	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes15_03.blp		1	15	3
+put	860212	19	0	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes15_04.blp		1	15	4
+put	860213	19	0	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes15_05.blp		1	15	5
+put	860214	19	0	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes15_06.blp		1	15	6
+put	860215	19	0	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes15_07.blp		1	15	7
+put	860216	19	0	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes15_08.blp		1	15	8
+put	860217	19	0	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes15_09.blp		1	15	9
+put	860218	19	0	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes15_10.blp		1	15	10
+put	860219	19	0	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes15_11.blp		1	15	11
+put	860220	19	0	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes15_12.blp		1	15	12
+put	860221	19	0	2				1	0	0
+put	860222	19	0	2				1	0	1
+put	860223	19	0	2				1	0	2
+put	860224	19	0	2				1	0	3
+put	860225	19	0	2				1	0	4
+put	860226	19	0	2				1	0	5
+put	860227	19	0	2				1	0	6
+put	860228	19	0	2				1	0	7
+put	860229	19	0	2				1	0	8
+put	860230	19	0	2				1	0	9
+put	860231	19	0	2				1	0	10
+put	860232	19	0	2				1	0	11
+put	860233	19	0	2				1	0	12
+put	860234	19	0	2				1	0	13
+put	860235	19	0	2				1	0	14
+put	860236	19	0	2				1	0	15
+put	860237	19	0	2				1	1	0
+put	860238	19	0	2				1	1	1
+put	860239	19	0	2				1	1	2
+put	860240	19	0	2				1	1	3
+put	860241	19	0	2				1	1	4
+put	860242	19	0	2				1	1	5
+put	860243	19	0	2				1	1	6
+put	860244	19	0	2				1	1	7
+put	860245	19	0	2				1	1	8
+put	860246	19	0	2				1	1	9
+put	860247	19	0	2				1	1	10
+put	860248	19	0	2				1	1	11
+put	860249	19	0	2				1	1	12
+put	860250	19	0	2				1	1	13
+put	860251	19	0	2				1	1	14
+put	860252	19	0	2				1	1	15
+put	860253	19	0	2				1	2	0
+put	860254	19	0	2				1	2	1
+put	860255	19	0	2				1	2	2
+put	860256	19	0	2				1	2	3
+put	860257	19	0	2				1	2	4
+put	860258	19	0	2				1	2	5
+put	860259	19	0	2				1	2	6
+put	860260	19	0	2				1	2	7
+put	860261	19	0	2				1	2	8
+put	860262	19	0	2				1	2	9
+put	860263	19	0	2				1	2	10
+put	860264	19	0	2				1	2	11
+put	860265	19	0	2				1	2	12
+put	860266	19	0	2				1	2	13
+put	860267	19	0	2				1	2	14
+put	860268	19	0	2				1	2	15
+put	860269	19	0	2				1	3	0
+put	860270	19	0	2				1	3	1
+put	860271	19	0	2				1	3	2
+put	860272	19	0	2				1	3	3
+put	860273	19	0	2				1	3	4
+put	860274	19	0	2				1	3	5
+put	860275	19	0	2				1	3	6
+put	860276	19	0	2				1	3	7
+put	860277	19	0	2				1	3	8
+put	860278	19	0	2				1	3	9
+put	860279	19	0	2				1	3	10
+put	860280	19	0	2				1	3	11
+put	860281	19	0	2				1	3	12
+put	860282	19	0	2				1	3	13
+put	860283	19	0	2				1	3	14
+put	860284	19	0	2				1	3	15
+put	860285	19	0	2				1	4	0
+put	860286	19	0	2				1	4	1
+put	860287	19	0	2				1	4	2
+put	860288	19	0	2				1	4	3
+put	860289	19	0	2				1	4	4
+put	860290	19	0	2				1	4	5
+put	860291	19	0	2				1	4	6
+put	860292	19	0	2				1	4	7
+put	860293	19	0	2				1	4	8
+put	860294	19	0	2				1	4	9
+put	860295	19	0	2				1	4	10
+put	860296	19	0	2				1	4	11
+put	860297	19	0	2				1	4	12
+put	860298	19	0	2				1	4	13
+put	860299	19	0	2				1	4	14
+put	860300	19	0	2				1	4	15
+put	860301	19	0	2				1	5	0
+put	860302	19	0	2				1	5	1
+put	860303	19	0	2				1	5	2
+put	860304	19	0	2				1	5	3
+put	860305	19	0	2				1	5	4
+put	860306	19	0	2				1	5	5
+put	860307	19	0	2				1	5	6
+put	860308	19	0	2				1	5	7
+put	860309	19	0	2				1	5	8
+put	860310	19	0	2				1	5	9
+put	860311	19	0	2				1	5	10
+put	860312	19	0	2				1	5	11
+put	860313	19	0	2				1	5	12
+put	860314	19	0	2				1	5	13
+put	860315	19	0	2				1	5	14
+put	860316	19	0	2				1	5	15
+put	860317	19	0	3	Character\\Murloc\\MurlocFins00.blp			1	0	0
+put	860318	19	0	3	Character\\Murloc\\MurlocFins01.blp			1	0	1
+put	860319	19	0	3	Character\\Murloc\\MurlocFins02.blp			1	0	2
+put	860320	19	0	3	Character\\Murloc\\MurlocFins03.blp			1	0	3
+put	860321	19	0	3	Character\\Murloc\\MurlocFins04.blp			1	0	4
+put	860322	19	0	3	Character\\Murloc\\MurlocFins05.blp			1	0	5
+put	860323	19	0	3	Character\\Murloc\\MurlocFins06.blp			1	0	6
+put	860324	19	0	3	Character\\Murloc\\MurlocFins07.blp			1	0	7
+put	860325	19	0	3	Character\\Murloc\\MurlocFins08.blp			1	0	8
+put	860326	19	0	3	Character\\Murloc\\MurlocFins09.blp			1	0	9
+put	860327	19	0	3	Character\\Murloc\\MurlocFins10.blp			1	0	10
+put	860328	19	0	3	Character\\Murloc\\MurlocFins11.blp			1	0	11
+put	860329	19	0	3	Character\\Murloc\\MurlocFins12.blp			1	0	12
+put	860330	19	0	3	Character\\Murloc\\MurlocFins13.blp			1	0	13
+put	860331	19	0	3	Character\\Murloc\\MurlocFins14.blp			1	0	14
+put	860332	19	0	3	Character\\Murloc\\MurlocFins15.blp			1	0	15
+put	860333	19	0	3	Character\\Murloc\\MurlocFins00.blp			1	1	0
+put	860334	19	0	3	Character\\Murloc\\MurlocFins01.blp			1	1	1
+put	860335	19	0	3	Character\\Murloc\\MurlocFins02.blp			1	1	2
+put	860336	19	0	3	Character\\Murloc\\MurlocFins03.blp			1	1	3
+put	860337	19	0	3	Character\\Murloc\\MurlocFins04.blp			1	1	4
+put	860338	19	0	3	Character\\Murloc\\MurlocFins05.blp			1	1	5
+put	860339	19	0	3	Character\\Murloc\\MurlocFins06.blp			1	1	6
+put	860340	19	0	3	Character\\Murloc\\MurlocFins07.blp			1	1	7
+put	860341	19	0	3	Character\\Murloc\\MurlocFins08.blp			1	1	8
+put	860342	19	0	3	Character\\Murloc\\MurlocFins09.blp			1	1	9
+put	860343	19	0	3	Character\\Murloc\\MurlocFins10.blp			1	1	10
+put	860344	19	0	3	Character\\Murloc\\MurlocFins11.blp			1	1	11
+put	860345	19	0	3	Character\\Murloc\\MurlocFins12.blp			1	1	12
+put	860346	19	0	3	Character\\Murloc\\MurlocFins13.blp			1	1	13
+put	860347	19	0	3	Character\\Murloc\\MurlocFins14.blp			1	1	14
+put	860348	19	0	3	Character\\Murloc\\MurlocFins15.blp			1	1	15
+put	860349	19	0	3	Character\\Murloc\\MurlocFins00.blp			1	2	0
+put	860350	19	0	3	Character\\Murloc\\MurlocFins01.blp			1	2	1
+put	860351	19	0	3	Character\\Murloc\\MurlocFins02.blp			1	2	2
+put	860352	19	0	3	Character\\Murloc\\MurlocFins03.blp			1	2	3
+put	860353	19	0	3	Character\\Murloc\\MurlocFins04.blp			1	2	4
+put	860354	19	0	3	Character\\Murloc\\MurlocFins05.blp			1	2	5
+put	860355	19	0	3	Character\\Murloc\\MurlocFins06.blp			1	2	6
+put	860356	19	0	3	Character\\Murloc\\MurlocFins07.blp			1	2	7
+put	860357	19	0	3	Character\\Murloc\\MurlocFins08.blp			1	2	8
+put	860358	19	0	3	Character\\Murloc\\MurlocFins09.blp			1	2	9
+put	860359	19	0	3	Character\\Murloc\\MurlocFins10.blp			1	2	10
+put	860360	19	0	3	Character\\Murloc\\MurlocFins11.blp			1	2	11
+put	860361	19	0	3	Character\\Murloc\\MurlocFins12.blp			1	2	12
+put	860362	19	0	3	Character\\Murloc\\MurlocFins13.blp			1	2	13
+put	860363	19	0	3	Character\\Murloc\\MurlocFins14.blp			1	2	14
+put	860364	19	0	3	Character\\Murloc\\MurlocFins15.blp			1	2	15
+put	860365	19	0	3	Character\\Murloc\\MurlocFins00.blp			1	3	0
+put	860366	19	0	3	Character\\Murloc\\MurlocFins01.blp			1	3	1
+put	860367	19	0	3	Character\\Murloc\\MurlocFins02.blp			1	3	2
+put	860368	19	0	3	Character\\Murloc\\MurlocFins03.blp			1	3	3
+put	860369	19	0	3	Character\\Murloc\\MurlocFins04.blp			1	3	4
+put	860370	19	0	3	Character\\Murloc\\MurlocFins05.blp			1	3	5
+put	860371	19	0	3	Character\\Murloc\\MurlocFins06.blp			1	3	6
+put	860372	19	0	3	Character\\Murloc\\MurlocFins07.blp			1	3	7
+put	860373	19	0	3	Character\\Murloc\\MurlocFins08.blp			1	3	8
+put	860374	19	0	3	Character\\Murloc\\MurlocFins09.blp			1	3	9
+put	860375	19	0	3	Character\\Murloc\\MurlocFins10.blp			1	3	10
+put	860376	19	0	3	Character\\Murloc\\MurlocFins11.blp			1	3	11
+put	860377	19	0	3	Character\\Murloc\\MurlocFins12.blp			1	3	12
+put	860378	19	0	3	Character\\Murloc\\MurlocFins13.blp			1	3	13
+put	860379	19	0	3	Character\\Murloc\\MurlocFins14.blp			1	3	14
+put	860380	19	0	3	Character\\Murloc\\MurlocFins15.blp			1	3	15
+put	860381	19	0	3	Character\\Murloc\\MurlocFinsClassic00.blp			1	4	0
+put	860382	19	0	3	Character\\Murloc\\MurlocFinsClassic01.blp			1	4	1
+put	860383	19	0	3	Character\\Murloc\\MurlocFinsClassic02.blp			1	4	2
+put	860384	19	0	3	Character\\Murloc\\MurlocFinsClassic03.blp			1	4	3
+put	860385	19	0	3	Character\\Murloc\\MurlocFinsClassic04.blp			1	4	4
+put	860386	19	0	3	Character\\Murloc\\MurlocFinsClassic05.blp			1	4	5
+put	860387	19	0	3	Character\\Murloc\\MurlocFinsClassic06.blp			1	4	6
+put	860388	19	0	3	Character\\Murloc\\MurlocFinsClassic07.blp			1	4	7
+put	860389	19	0	3	Character\\Murloc\\MurlocFinsClassic08.blp			1	4	8
+put	860390	19	0	3	Character\\Murloc\\MurlocFinsClassic09.blp			1	4	9
+put	860391	19	0	3	Character\\Murloc\\MurlocFinsClassic10.blp			1	4	10
+put	860392	19	0	3	Character\\Murloc\\MurlocFinsClassic11.blp			1	4	11
+put	860393	19	0	3	Character\\Murloc\\MurlocFinsClassic12.blp			1	4	12
+put	860394	19	0	3	Character\\Murloc\\MurlocFinsClassic13.blp			1	4	13
+put	860395	19	0	3	Character\\Murloc\\MurlocFinsClassic14.blp			1	4	14
+put	860396	19	0	3	Character\\Murloc\\MurlocFinsClassic15.blp			1	4	15
+put	860397	19	0	3	Character\\Murloc\\MurlocFinsSail00.blp			1	5	0
+put	860398	19	0	3	Character\\Murloc\\MurlocFinsSail01.blp			1	5	1
+put	860399	19	0	3	Character\\Murloc\\MurlocFinsSail02.blp			1	5	2
+put	860400	19	0	3	Character\\Murloc\\MurlocFinsSail03.blp			1	5	3
+put	860401	19	0	3	Character\\Murloc\\MurlocFinsSail04.blp			1	5	4
+put	860402	19	0	3	Character\\Murloc\\MurlocFinsSail05.blp			1	5	5
+put	860403	19	0	3	Character\\Murloc\\MurlocFinsSail06.blp			1	5	6
+put	860404	19	0	3	Character\\Murloc\\MurlocFinsSail07.blp			1	5	7
+put	860405	19	0	3	Character\\Murloc\\MurlocFinsSail08.blp			1	5	8
+put	860406	19	0	3	Character\\Murloc\\MurlocFinsSail09.blp			1	5	9
+put	860407	19	0	3	Character\\Murloc\\MurlocFinsSail10.blp			1	5	10
+put	860408	19	0	3	Character\\Murloc\\MurlocFinsSail11.blp			1	5	11
+put	860409	19	0	3	Character\\Murloc\\MurlocFinsSail12.blp			1	5	12
+put	860410	19	0	3	Character\\Murloc\\MurlocFinsSail13.blp			1	5	13
+put	860411	19	0	3	Character\\Murloc\\MurlocFinsSail14.blp			1	5	14
+put	860412	19	0	3	Character\\Murloc\\MurlocFinsSail15.blp			1	5	15
+put	860413	19	0	4				1	0	0
+put	860414	19	0	4				1	0	1
+put	860415	19	0	4				1	0	2
+put	860416	19	0	4				1	0	3
+put	860417	19	0	4				1	0	4
+put	860418	19	0	4				1	0	5
+put	860419	19	0	4				1	0	6
+put	860420	19	0	4				1	0	7
+put	860421	19	0	4				1	0	8
+put	860422	19	0	4				1	0	9
+put	860423	19	0	4				1	0	10
+put	860424	19	0	4				1	0	11
+put	860425	19	0	4				1	0	12
+put	860426	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	0
+put	860427	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	1
+put	860428	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	2
+put	860429	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	3
+put	860430	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	4
+put	860431	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	5
+put	860432	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	6
+put	860433	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	7
+put	860434	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	8
+put	860435	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	9
+put	860436	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	10
+put	860437	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	11
+put	860438	19	1	0	Character\\Murloc\\MurlocBase.blp			1	0	12
+put	860439	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes00_00.blp		1	0	0
+put	860440	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes00_01.blp		1	0	1
+put	860441	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes00_02.blp		1	0	2
+put	860442	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes00_03.blp		1	0	3
+put	860443	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes00_04.blp		1	0	4
+put	860444	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes00_05.blp		1	0	5
+put	860445	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes00_06.blp		1	0	6
+put	860446	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes00_07.blp		1	0	7
+put	860447	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes00_08.blp		1	0	8
+put	860448	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes00_09.blp		1	0	9
+put	860449	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes00_10.blp		1	0	10
+put	860450	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes00_11.blp		1	0	11
+put	860451	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes00_12.blp		1	0	12
+put	860452	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes01_00.blp		1	1	0
+put	860453	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes01_01.blp		1	1	1
+put	860454	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes01_02.blp		1	1	2
+put	860455	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes01_03.blp		1	1	3
+put	860456	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes01_04.blp		1	1	4
+put	860457	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes01_05.blp		1	1	5
+put	860458	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes01_06.blp		1	1	6
+put	860459	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes01_07.blp		1	1	7
+put	860460	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes01_08.blp		1	1	8
+put	860461	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes01_09.blp		1	1	9
+put	860462	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes01_10.blp		1	1	10
+put	860463	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes01_11.blp		1	1	11
+put	860464	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes01_12.blp		1	1	12
+put	860465	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes02_00.blp		1	2	0
+put	860466	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes02_01.blp		1	2	1
+put	860467	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes02_02.blp		1	2	2
+put	860468	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes02_03.blp		1	2	3
+put	860469	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes02_04.blp		1	2	4
+put	860470	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes02_05.blp		1	2	5
+put	860471	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes02_06.blp		1	2	6
+put	860472	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes02_07.blp		1	2	7
+put	860473	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes02_08.blp		1	2	8
+put	860474	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes02_09.blp		1	2	9
+put	860475	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes02_10.blp		1	2	10
+put	860476	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes02_11.blp		1	2	11
+put	860477	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes02_12.blp		1	2	12
+put	860478	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes03_00.blp		1	3	0
+put	860479	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes03_01.blp		1	3	1
+put	860480	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes03_02.blp		1	3	2
+put	860481	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes03_03.blp		1	3	3
+put	860482	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes03_04.blp		1	3	4
+put	860483	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes03_05.blp		1	3	5
+put	860484	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes03_06.blp		1	3	6
+put	860485	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes03_07.blp		1	3	7
+put	860486	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes03_08.blp		1	3	8
+put	860487	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes03_09.blp		1	3	9
+put	860488	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes03_10.blp		1	3	10
+put	860489	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes03_11.blp		1	3	11
+put	860490	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes03_12.blp		1	3	12
+put	860491	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes04_00.blp		1	4	0
+put	860492	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes04_01.blp		1	4	1
+put	860493	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes04_02.blp		1	4	2
+put	860494	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes04_03.blp		1	4	3
+put	860495	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes04_04.blp		1	4	4
+put	860496	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes04_05.blp		1	4	5
+put	860497	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes04_06.blp		1	4	6
+put	860498	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes04_07.blp		1	4	7
+put	860499	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes04_08.blp		1	4	8
+put	860500	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes04_09.blp		1	4	9
+put	860501	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes04_10.blp		1	4	10
+put	860502	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes04_11.blp		1	4	11
+put	860503	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes04_12.blp		1	4	12
+put	860504	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes05_00.blp		1	5	0
+put	860505	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes05_01.blp		1	5	1
+put	860506	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes05_02.blp		1	5	2
+put	860507	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes05_03.blp		1	5	3
+put	860508	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes05_04.blp		1	5	4
+put	860509	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes05_05.blp		1	5	5
+put	860510	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes05_06.blp		1	5	6
+put	860511	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes05_07.blp		1	5	7
+put	860512	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes05_08.blp		1	5	8
+put	860513	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes05_09.blp		1	5	9
+put	860514	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes05_10.blp		1	5	10
+put	860515	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes05_11.blp		1	5	11
+put	860516	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes05_12.blp		1	5	12
+put	860517	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes06_00.blp		1	6	0
+put	860518	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes06_01.blp		1	6	1
+put	860519	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes06_02.blp		1	6	2
+put	860520	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes06_03.blp		1	6	3
+put	860521	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes06_04.blp		1	6	4
+put	860522	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes06_05.blp		1	6	5
+put	860523	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes06_06.blp		1	6	6
+put	860524	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes06_07.blp		1	6	7
+put	860525	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes06_08.blp		1	6	8
+put	860526	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes06_09.blp		1	6	9
+put	860527	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes06_10.blp		1	6	10
+put	860528	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes06_11.blp		1	6	11
+put	860529	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes06_12.blp		1	6	12
+put	860530	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes07_00.blp		1	7	0
+put	860531	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes07_01.blp		1	7	1
+put	860532	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes07_02.blp		1	7	2
+put	860533	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes07_03.blp		1	7	3
+put	860534	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes07_04.blp		1	7	4
+put	860535	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes07_05.blp		1	7	5
+put	860536	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes07_06.blp		1	7	6
+put	860537	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes07_07.blp		1	7	7
+put	860538	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes07_08.blp		1	7	8
+put	860539	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes07_09.blp		1	7	9
+put	860540	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes07_10.blp		1	7	10
+put	860541	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes07_11.blp		1	7	11
+put	860542	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes07_12.blp		1	7	12
+put	860543	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes08_00.blp		1	8	0
+put	860544	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes08_01.blp		1	8	1
+put	860545	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes08_02.blp		1	8	2
+put	860546	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes08_03.blp		1	8	3
+put	860547	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes08_04.blp		1	8	4
+put	860548	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes08_05.blp		1	8	5
+put	860549	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes08_06.blp		1	8	6
+put	860550	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes08_07.blp		1	8	7
+put	860551	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes08_08.blp		1	8	8
+put	860552	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes08_09.blp		1	8	9
+put	860553	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes08_10.blp		1	8	10
+put	860554	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes08_11.blp		1	8	11
+put	860555	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes08_12.blp		1	8	12
+put	860556	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes09_00.blp		1	9	0
+put	860557	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes09_01.blp		1	9	1
+put	860558	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes09_02.blp		1	9	2
+put	860559	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes09_03.blp		1	9	3
+put	860560	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes09_04.blp		1	9	4
+put	860561	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes09_05.blp		1	9	5
+put	860562	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes09_06.blp		1	9	6
+put	860563	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes09_07.blp		1	9	7
+put	860564	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes09_08.blp		1	9	8
+put	860565	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes09_09.blp		1	9	9
+put	860566	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes09_10.blp		1	9	10
+put	860567	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes09_11.blp		1	9	11
+put	860568	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes09_12.blp		1	9	12
+put	860569	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes10_00.blp		1	10	0
+put	860570	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes10_01.blp		1	10	1
+put	860571	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes10_02.blp		1	10	2
+put	860572	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes10_03.blp		1	10	3
+put	860573	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes10_04.blp		1	10	4
+put	860574	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes10_05.blp		1	10	5
+put	860575	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes10_06.blp		1	10	6
+put	860576	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes10_07.blp		1	10	7
+put	860577	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes10_08.blp		1	10	8
+put	860578	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes10_09.blp		1	10	9
+put	860579	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes10_10.blp		1	10	10
+put	860580	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes10_11.blp		1	10	11
+put	860581	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes10_12.blp		1	10	12
+put	860582	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes11_00.blp		1	11	0
+put	860583	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes11_01.blp		1	11	1
+put	860584	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes11_02.blp		1	11	2
+put	860585	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes11_03.blp		1	11	3
+put	860586	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes11_04.blp		1	11	4
+put	860587	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes11_05.blp		1	11	5
+put	860588	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes11_06.blp		1	11	6
+put	860589	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes11_07.blp		1	11	7
+put	860590	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes11_08.blp		1	11	8
+put	860591	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes11_09.blp		1	11	9
+put	860592	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes11_10.blp		1	11	10
+put	860593	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes11_11.blp		1	11	11
+put	860594	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes11_12.blp		1	11	12
+put	860595	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes12_00.blp		1	12	0
+put	860596	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes12_01.blp		1	12	1
+put	860597	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes12_02.blp		1	12	2
+put	860598	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes12_03.blp		1	12	3
+put	860599	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes12_04.blp		1	12	4
+put	860600	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes12_05.blp		1	12	5
+put	860601	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes12_06.blp		1	12	6
+put	860602	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes12_07.blp		1	12	7
+put	860603	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes12_08.blp		1	12	8
+put	860604	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes12_09.blp		1	12	9
+put	860605	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes12_10.blp		1	12	10
+put	860606	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes12_11.blp		1	12	11
+put	860607	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes12_12.blp		1	12	12
+put	860608	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes13_00.blp		1	13	0
+put	860609	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes13_01.blp		1	13	1
+put	860610	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes13_02.blp		1	13	2
+put	860611	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes13_03.blp		1	13	3
+put	860612	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes13_04.blp		1	13	4
+put	860613	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes13_05.blp		1	13	5
+put	860614	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes13_06.blp		1	13	6
+put	860615	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes13_07.blp		1	13	7
+put	860616	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes13_08.blp		1	13	8
+put	860617	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes13_09.blp		1	13	9
+put	860618	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes13_10.blp		1	13	10
+put	860619	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes13_11.blp		1	13	11
+put	860620	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes13_12.blp		1	13	12
+put	860621	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes14_00.blp		1	14	0
+put	860622	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes14_01.blp		1	14	1
+put	860623	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes14_02.blp		1	14	2
+put	860624	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes14_03.blp		1	14	3
+put	860625	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes14_04.blp		1	14	4
+put	860626	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes14_05.blp		1	14	5
+put	860627	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes14_06.blp		1	14	6
+put	860628	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes14_07.blp		1	14	7
+put	860629	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes14_08.blp		1	14	8
+put	860630	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes14_09.blp		1	14	9
+put	860631	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes14_10.blp		1	14	10
+put	860632	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes14_11.blp		1	14	11
+put	860633	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes14_12.blp		1	14	12
+put	860634	19	1	1	Character\\Murloc\\MurlocBody00.blp	Character\\Murloc\\MurlocEyes15_00.blp		1	15	0
+put	860635	19	1	1	Character\\Murloc\\MurlocBody01.blp	Character\\Murloc\\MurlocEyes15_01.blp		1	15	1
+put	860636	19	1	1	Character\\Murloc\\MurlocBody02.blp	Character\\Murloc\\MurlocEyes15_02.blp		1	15	2
+put	860637	19	1	1	Character\\Murloc\\MurlocBody03.blp	Character\\Murloc\\MurlocEyes15_03.blp		1	15	3
+put	860638	19	1	1	Character\\Murloc\\MurlocBody04.blp	Character\\Murloc\\MurlocEyes15_04.blp		1	15	4
+put	860639	19	1	1	Character\\Murloc\\MurlocBody05.blp	Character\\Murloc\\MurlocEyes15_05.blp		1	15	5
+put	860640	19	1	1	Character\\Murloc\\MurlocBody06.blp	Character\\Murloc\\MurlocEyes15_06.blp		1	15	6
+put	860641	19	1	1	Character\\Murloc\\MurlocBody07.blp	Character\\Murloc\\MurlocEyes15_07.blp		1	15	7
+put	860642	19	1	1	Character\\Murloc\\MurlocBody08.blp	Character\\Murloc\\MurlocEyes15_08.blp		1	15	8
+put	860643	19	1	1	Character\\Murloc\\MurlocBody09.blp	Character\\Murloc\\MurlocEyes15_09.blp		1	15	9
+put	860644	19	1	1	Character\\Murloc\\MurlocBody10.blp	Character\\Murloc\\MurlocEyes15_10.blp		1	15	10
+put	860645	19	1	1	Character\\Murloc\\MurlocBody11.blp	Character\\Murloc\\MurlocEyes15_11.blp		1	15	11
+put	860646	19	1	1	Character\\Murloc\\MurlocBody12.blp	Character\\Murloc\\MurlocEyes15_12.blp		1	15	12
+put	860647	19	1	2				1	0	0
+put	860648	19	1	2				1	0	1
+put	860649	19	1	2				1	0	2
+put	860650	19	1	2				1	0	3
+put	860651	19	1	2				1	0	4
+put	860652	19	1	2				1	0	5
+put	860653	19	1	2				1	0	6
+put	860654	19	1	2				1	0	7
+put	860655	19	1	2				1	0	8
+put	860656	19	1	2				1	0	9
+put	860657	19	1	2				1	0	10
+put	860658	19	1	2				1	0	11
+put	860659	19	1	2				1	0	12
+put	860660	19	1	2				1	0	13
+put	860661	19	1	2				1	0	14
+put	860662	19	1	2				1	0	15
+put	860663	19	1	2				1	1	0
+put	860664	19	1	2				1	1	1
+put	860665	19	1	2				1	1	2
+put	860666	19	1	2				1	1	3
+put	860667	19	1	2				1	1	4
+put	860668	19	1	2				1	1	5
+put	860669	19	1	2				1	1	6
+put	860670	19	1	2				1	1	7
+put	860671	19	1	2				1	1	8
+put	860672	19	1	2				1	1	9
+put	860673	19	1	2				1	1	10
+put	860674	19	1	2				1	1	11
+put	860675	19	1	2				1	1	12
+put	860676	19	1	2				1	1	13
+put	860677	19	1	2				1	1	14
+put	860678	19	1	2				1	1	15
+put	860679	19	1	2				1	2	0
+put	860680	19	1	2				1	2	1
+put	860681	19	1	2				1	2	2
+put	860682	19	1	2				1	2	3
+put	860683	19	1	2				1	2	4
+put	860684	19	1	2				1	2	5
+put	860685	19	1	2				1	2	6
+put	860686	19	1	2				1	2	7
+put	860687	19	1	2				1	2	8
+put	860688	19	1	2				1	2	9
+put	860689	19	1	2				1	2	10
+put	860690	19	1	2				1	2	11
+put	860691	19	1	2				1	2	12
+put	860692	19	1	2				1	2	13
+put	860693	19	1	2				1	2	14
+put	860694	19	1	2				1	2	15
+put	860695	19	1	2				1	3	0
+put	860696	19	1	2				1	3	1
+put	860697	19	1	2				1	3	2
+put	860698	19	1	2				1	3	3
+put	860699	19	1	2				1	3	4
+put	860700	19	1	2				1	3	5
+put	860701	19	1	2				1	3	6
+put	860702	19	1	2				1	3	7
+put	860703	19	1	2				1	3	8
+put	860704	19	1	2				1	3	9
+put	860705	19	1	2				1	3	10
+put	860706	19	1	2				1	3	11
+put	860707	19	1	2				1	3	12
+put	860708	19	1	2				1	3	13
+put	860709	19	1	2				1	3	14
+put	860710	19	1	2				1	3	15
+put	860711	19	1	2				1	4	0
+put	860712	19	1	2				1	4	1
+put	860713	19	1	2				1	4	2
+put	860714	19	1	2				1	4	3
+put	860715	19	1	2				1	4	4
+put	860716	19	1	2				1	4	5
+put	860717	19	1	2				1	4	6
+put	860718	19	1	2				1	4	7
+put	860719	19	1	2				1	4	8
+put	860720	19	1	2				1	4	9
+put	860721	19	1	2				1	4	10
+put	860722	19	1	2				1	4	11
+put	860723	19	1	2				1	4	12
+put	860724	19	1	2				1	4	13
+put	860725	19	1	2				1	4	14
+put	860726	19	1	2				1	4	15
+put	860727	19	1	2				1	5	0
+put	860728	19	1	2				1	5	1
+put	860729	19	1	2				1	5	2
+put	860730	19	1	2				1	5	3
+put	860731	19	1	2				1	5	4
+put	860732	19	1	2				1	5	5
+put	860733	19	1	2				1	5	6
+put	860734	19	1	2				1	5	7
+put	860735	19	1	2				1	5	8
+put	860736	19	1	2				1	5	9
+put	860737	19	1	2				1	5	10
+put	860738	19	1	2				1	5	11
+put	860739	19	1	2				1	5	12
+put	860740	19	1	2				1	5	13
+put	860741	19	1	2				1	5	14
+put	860742	19	1	2				1	5	15
+put	860743	19	1	2				1	6	0
+put	860744	19	1	2				1	6	1
+put	860745	19	1	2				1	6	2
+put	860746	19	1	2				1	6	3
+put	860747	19	1	2				1	6	4
+put	860748	19	1	2				1	6	5
+put	860749	19	1	2				1	6	6
+put	860750	19	1	2				1	6	7
+put	860751	19	1	2				1	6	8
+put	860752	19	1	2				1	6	9
+put	860753	19	1	2				1	6	10
+put	860754	19	1	2				1	6	11
+put	860755	19	1	2				1	6	12
+put	860756	19	1	2				1	6	13
+put	860757	19	1	2				1	6	14
+put	860758	19	1	2				1	6	15
+put	860759	19	1	2				1	7	0
+put	860760	19	1	2				1	7	1
+put	860761	19	1	2				1	7	2
+put	860762	19	1	2				1	7	3
+put	860763	19	1	2				1	7	4
+put	860764	19	1	2				1	7	5
+put	860765	19	1	2				1	7	6
+put	860766	19	1	2				1	7	7
+put	860767	19	1	2				1	7	8
+put	860768	19	1	2				1	7	9
+put	860769	19	1	2				1	7	10
+put	860770	19	1	2				1	7	11
+put	860771	19	1	2				1	7	12
+put	860772	19	1	2				1	7	13
+put	860773	19	1	2				1	7	14
+put	860774	19	1	2				1	7	15
+put	860775	19	1	3	Character\\Murloc\\MurlocFins00.blp			1	0	0
+put	860776	19	1	3	Character\\Murloc\\MurlocFins01.blp			1	0	1
+put	860777	19	1	3	Character\\Murloc\\MurlocFins02.blp			1	0	2
+put	860778	19	1	3	Character\\Murloc\\MurlocFins03.blp			1	0	3
+put	860779	19	1	3	Character\\Murloc\\MurlocFins04.blp			1	0	4
+put	860780	19	1	3	Character\\Murloc\\MurlocFins05.blp			1	0	5
+put	860781	19	1	3	Character\\Murloc\\MurlocFins06.blp			1	0	6
+put	860782	19	1	3	Character\\Murloc\\MurlocFins07.blp			1	0	7
+put	860783	19	1	3	Character\\Murloc\\MurlocFins08.blp			1	0	8
+put	860784	19	1	3	Character\\Murloc\\MurlocFins09.blp			1	0	9
+put	860785	19	1	3	Character\\Murloc\\MurlocFins10.blp			1	0	10
+put	860786	19	1	3	Character\\Murloc\\MurlocFins11.blp			1	0	11
+put	860787	19	1	3	Character\\Murloc\\MurlocFins12.blp			1	0	12
+put	860788	19	1	3	Character\\Murloc\\MurlocFins13.blp			1	0	13
+put	860789	19	1	3	Character\\Murloc\\MurlocFins14.blp			1	0	14
+put	860790	19	1	3	Character\\Murloc\\MurlocFins15.blp			1	0	15
+put	860791	19	1	3	Character\\Murloc\\MurlocFins00.blp			1	1	0
+put	860792	19	1	3	Character\\Murloc\\MurlocFins01.blp			1	1	1
+put	860793	19	1	3	Character\\Murloc\\MurlocFins02.blp			1	1	2
+put	860794	19	1	3	Character\\Murloc\\MurlocFins03.blp			1	1	3
+put	860795	19	1	3	Character\\Murloc\\MurlocFins04.blp			1	1	4
+put	860796	19	1	3	Character\\Murloc\\MurlocFins05.blp			1	1	5
+put	860797	19	1	3	Character\\Murloc\\MurlocFins06.blp			1	1	6
+put	860798	19	1	3	Character\\Murloc\\MurlocFins07.blp			1	1	7
+put	860799	19	1	3	Character\\Murloc\\MurlocFins08.blp			1	1	8
+put	860800	19	1	3	Character\\Murloc\\MurlocFins09.blp			1	1	9
+put	860801	19	1	3	Character\\Murloc\\MurlocFins10.blp			1	1	10
+put	860802	19	1	3	Character\\Murloc\\MurlocFins11.blp			1	1	11
+put	860803	19	1	3	Character\\Murloc\\MurlocFins12.blp			1	1	12
+put	860804	19	1	3	Character\\Murloc\\MurlocFins13.blp			1	1	13
+put	860805	19	1	3	Character\\Murloc\\MurlocFins14.blp			1	1	14
+put	860806	19	1	3	Character\\Murloc\\MurlocFins15.blp			1	1	15
+put	860807	19	1	3	Character\\Murloc\\MurlocFins00.blp			1	2	0
+put	860808	19	1	3	Character\\Murloc\\MurlocFins01.blp			1	2	1
+put	860809	19	1	3	Character\\Murloc\\MurlocFins02.blp			1	2	2
+put	860810	19	1	3	Character\\Murloc\\MurlocFins03.blp			1	2	3
+put	860811	19	1	3	Character\\Murloc\\MurlocFins04.blp			1	2	4
+put	860812	19	1	3	Character\\Murloc\\MurlocFins05.blp			1	2	5
+put	860813	19	1	3	Character\\Murloc\\MurlocFins06.blp			1	2	6
+put	860814	19	1	3	Character\\Murloc\\MurlocFins07.blp			1	2	7
+put	860815	19	1	3	Character\\Murloc\\MurlocFins08.blp			1	2	8
+put	860816	19	1	3	Character\\Murloc\\MurlocFins09.blp			1	2	9
+put	860817	19	1	3	Character\\Murloc\\MurlocFins10.blp			1	2	10
+put	860818	19	1	3	Character\\Murloc\\MurlocFins11.blp			1	2	11
+put	860819	19	1	3	Character\\Murloc\\MurlocFins12.blp			1	2	12
+put	860820	19	1	3	Character\\Murloc\\MurlocFins13.blp			1	2	13
+put	860821	19	1	3	Character\\Murloc\\MurlocFins14.blp			1	2	14
+put	860822	19	1	3	Character\\Murloc\\MurlocFins15.blp			1	2	15
+put	860823	19	1	3	Character\\Murloc\\MurlocFins00.blp			1	3	0
+put	860824	19	1	3	Character\\Murloc\\MurlocFins01.blp			1	3	1
+put	860825	19	1	3	Character\\Murloc\\MurlocFins02.blp			1	3	2
+put	860826	19	1	3	Character\\Murloc\\MurlocFins03.blp			1	3	3
+put	860827	19	1	3	Character\\Murloc\\MurlocFins04.blp			1	3	4
+put	860828	19	1	3	Character\\Murloc\\MurlocFins05.blp			1	3	5
+put	860829	19	1	3	Character\\Murloc\\MurlocFins06.blp			1	3	6
+put	860830	19	1	3	Character\\Murloc\\MurlocFins07.blp			1	3	7
+put	860831	19	1	3	Character\\Murloc\\MurlocFins08.blp			1	3	8
+put	860832	19	1	3	Character\\Murloc\\MurlocFins09.blp			1	3	9
+put	860833	19	1	3	Character\\Murloc\\MurlocFins10.blp			1	3	10
+put	860834	19	1	3	Character\\Murloc\\MurlocFins11.blp			1	3	11
+put	860835	19	1	3	Character\\Murloc\\MurlocFins12.blp			1	3	12
+put	860836	19	1	3	Character\\Murloc\\MurlocFins13.blp			1	3	13
+put	860837	19	1	3	Character\\Murloc\\MurlocFins14.blp			1	3	14
+put	860838	19	1	3	Character\\Murloc\\MurlocFins15.blp			1	3	15
+put	860839	19	1	3	Character\\Murloc\\MurlocFinsClassic00.blp			1	4	0
+put	860840	19	1	3	Character\\Murloc\\MurlocFinsClassic01.blp			1	4	1
+put	860841	19	1	3	Character\\Murloc\\MurlocFinsClassic02.blp			1	4	2
+put	860842	19	1	3	Character\\Murloc\\MurlocFinsClassic03.blp			1	4	3
+put	860843	19	1	3	Character\\Murloc\\MurlocFinsClassic04.blp			1	4	4
+put	860844	19	1	3	Character\\Murloc\\MurlocFinsClassic05.blp			1	4	5
+put	860845	19	1	3	Character\\Murloc\\MurlocFinsClassic06.blp			1	4	6
+put	860846	19	1	3	Character\\Murloc\\MurlocFinsClassic07.blp			1	4	7
+put	860847	19	1	3	Character\\Murloc\\MurlocFinsClassic08.blp			1	4	8
+put	860848	19	1	3	Character\\Murloc\\MurlocFinsClassic09.blp			1	4	9
+put	860849	19	1	3	Character\\Murloc\\MurlocFinsClassic10.blp			1	4	10
+put	860850	19	1	3	Character\\Murloc\\MurlocFinsClassic11.blp			1	4	11
+put	860851	19	1	3	Character\\Murloc\\MurlocFinsClassic12.blp			1	4	12
+put	860852	19	1	3	Character\\Murloc\\MurlocFinsClassic13.blp			1	4	13
+put	860853	19	1	3	Character\\Murloc\\MurlocFinsClassic14.blp			1	4	14
+put	860854	19	1	3	Character\\Murloc\\MurlocFinsClassic15.blp			1	4	15
+put	860855	19	1	3	Character\\Murloc\\MurlocFinsSail00.blp			1	5	0
+put	860856	19	1	3	Character\\Murloc\\MurlocFinsSail01.blp			1	5	1
+put	860857	19	1	3	Character\\Murloc\\MurlocFinsSail02.blp			1	5	2
+put	860858	19	1	3	Character\\Murloc\\MurlocFinsSail03.blp			1	5	3
+put	860859	19	1	3	Character\\Murloc\\MurlocFinsSail04.blp			1	5	4
+put	860860	19	1	3	Character\\Murloc\\MurlocFinsSail05.blp			1	5	5
+put	860861	19	1	3	Character\\Murloc\\MurlocFinsSail06.blp			1	5	6
+put	860862	19	1	3	Character\\Murloc\\MurlocFinsSail07.blp			1	5	7
+put	860863	19	1	3	Character\\Murloc\\MurlocFinsSail08.blp			1	5	8
+put	860864	19	1	3	Character\\Murloc\\MurlocFinsSail09.blp			1	5	9
+put	860865	19	1	3	Character\\Murloc\\MurlocFinsSail10.blp			1	5	10
+put	860866	19	1	3	Character\\Murloc\\MurlocFinsSail11.blp			1	5	11
+put	860867	19	1	3	Character\\Murloc\\MurlocFinsSail12.blp			1	5	12
+put	860868	19	1	3	Character\\Murloc\\MurlocFinsSail13.blp			1	5	13
+put	860869	19	1	3	Character\\Murloc\\MurlocFinsSail14.blp			1	5	14
+put	860870	19	1	3	Character\\Murloc\\MurlocFinsSail15.blp			1	5	15
+put	860871	19	1	4				1	0	0
+put	860872	19	1	4				1	0	1
+put	860873	19	1	4				1	0	2
+put	860874	19	1	4				1	0	3
+put	860875	19	1	4				1	0	4
+put	860876	19	1	4				1	0	5
+put	860877	19	1	4				1	0	6
+put	860878	19	1	4				1	0	7
+put	860879	19	1	4				1	0	8
+put	860880	19	1	4				1	0	9
+put	860881	19	1	4				1	0	10
+put	860882	19	1	4				1	0	11
+put	860883	19	1	4				1	0	12
+put	860884	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_00.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_00_Extra.blp		1	0	0
+put	860885	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_01.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_01_Extra.blp		1	0	1
+put	860886	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_02.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_02_Extra.blp		1	0	2
+put	860887	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_03.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_03_Extra.blp		1	0	3
+put	860888	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_04.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_04_Extra.blp		1	0	4
+put	860889	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_00.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_00.blp		1	0	0
+put	860890	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_01.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_01.blp		1	0	1
+put	860891	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_02.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_02.blp		1	0	2
+put	860892	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_03.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_03.blp		1	0	3
+put	860893	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_04.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_04.blp		1	0	4
+put	860894	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_00.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_00.blp		1	0	0
+put	860895	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_01.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_01.blp		1	0	1
+put	860896	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_02.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_02.blp		1	0	2
+put	860897	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_03.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_03.blp		1	0	3
+put	860898	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_04.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_04.blp		1	0	4
+put	860899	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_00.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_00_Extra.blp		1	0	0
+put	860900	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_01.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_01_Extra.blp		1	0	1
+put	860901	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_02.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_02_Extra.blp		1	0	2
+put	860902	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_03.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_03_Extra.blp		1	0	3
+put	860903	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_04.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_04_Extra.blp		1	0	4
+put	860904	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_00.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_00.blp		1	0	0
+put	860905	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_01.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_01.blp		1	0	1
+put	860906	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_02.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_02.blp		1	0	2
+put	860907	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_03.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_03.blp		1	0	3
+put	860908	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_04.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_04.blp		1	0	4
+put	860909	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_00.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_00.blp		1	0	0
+put	860910	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_01.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_01.blp		1	0	1
+put	860911	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_02.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_02.blp		1	0	2
+put	860912	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_03.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_03.blp		1	0	3
+put	860913	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_04.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_04.blp		1	0	4
+put	860914	20	0	3				1	0	0
+put	860915	20	0	3				1	0	1
+put	860916	20	0	3				1	0	2
+put	860917	20	0	3				1	0	3
+put	860918	20	0	3	Character\\Naga_\\Male\\NagaMaleCrown0.blp			1	1	0
+put	860919	20	0	3	Character\\Naga_\\Male\\NagaMaleCrown1.blp			1	1	1
+put	860920	20	0	3	Character\\Naga_\\Male\\NagaMaleCrown2.blp			1	1	2
+put	860921	20	0	3	Character\\Naga_\\Male\\NagaMaleCrown3.blp			1	1	3
+put	860922	20	0	3	Character\\Naga_\\Male\\NagaMaleHelm0.blp			1	2	0
+put	860923	20	0	3	Character\\Naga_\\Male\\NagaMaleHelm1.blp			1	2	1
+put	860924	20	0	3	Character\\Naga_\\Male\\NagaMaleHelm2.blp			1	2	2
+put	860925	20	0	3	Character\\Naga_\\Male\\NagaMaleHelm3.blp			1	2	3
+put	860926	20	0	2				1	0	0
+put	860927	20	0	2				1	0	1
+put	860928	20	0	2				1	0	2
+put	860929	20	0	2				1	0	3
+put	860930	20	0	2				1	1	0
+put	860931	20	0	2				1	1	1
+put	860932	20	0	2				1	1	2
+put	860933	20	0	2				1	1	3
+put	860934	20	0	2				1	2	0
+put	860935	20	0	2				1	2	1
+put	860936	20	0	2				1	2	2
+put	860937	20	0	2				1	2	3
+put	860938	20	0	2				1	3	0
+put	860939	20	0	2				1	3	1
+put	860940	20	0	2				1	3	2
+put	860941	20	0	2				1	3	3
+put	860942	20	0	2				1	4	0
+put	860943	20	0	2				1	4	1
+put	860944	20	0	2				1	4	2
+put	860945	20	0	2				1	4	3
+put	860946	20	0	2				1	5	0
+put	860947	20	0	2				1	5	1
+put	860948	20	0	2				1	5	2
+put	860949	20	0	2				1	5	3
+put	860950	20	0	2				1	6	0
+put	860951	20	0	2				1	6	1
+put	860952	20	0	2				1	6	2
+put	860953	20	0	2				1	6	3
+put	860954	20	0	2				1	7	0
+put	860955	20	0	2				1	7	1
+put	860956	20	0	2				1	7	2
+put	860957	20	0	2				1	7	3
+put	860958	20	1	3				1	0	0
+put	860959	20	1	3				1	0	1
+put	860960	20	1	3				1	0	2
+put	860961	20	1	3				1	0	3
+put	860962	20	1	3	Character\\Naga_\\Female\\NagaFemaleHeaddress0.blp			1	1	0
+put	860963	20	1	3	Character\\Naga_\\Female\\NagaFemaleHeaddress1.blp			1	1	1
+put	860964	20	1	3	Character\\Naga_\\Female\\NagaFemaleHeaddress2.blp			1	1	2
+put	860965	20	1	3	Character\\Naga_\\Female\\NagaFemaleHeaddress3.blp			1	1	3
+put	860966	20	1	2				1	0	0
+put	860967	20	1	2				1	0	1
+put	860968	20	1	2				1	0	2
+put	860969	20	1	2				1	0	3
+put	860970	20	1	2				1	1	0
+put	860971	20	1	2				1	1	1
+put	860972	20	1	2				1	1	2
+put	860973	20	1	2				1	1	3
+put	860974	20	1	2				1	2	0
+put	860975	20	1	2				1	2	1
+put	860976	20	1	2				1	2	2
+put	860977	20	1	2				1	2	3
+put	860978	20	1	2				1	3	0
+put	860979	20	1	2				1	3	1
+put	860980	20	1	2				1	3	2
+put	860981	20	1	2				1	3	3
+put	860982	20	1	2				1	4	0
+put	860983	20	1	2				1	4	1
+put	860984	20	1	2				1	4	2
+put	860985	20	1	2				1	4	3
+put	860986	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_05.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_05_Extra.blp		1	0	5
+put	860987	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_05.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_05.blp		1	0	5
+put	860988	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_05.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_05.blp		1	0	5
+put	860989	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_06.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_06_Extra.blp		1	0	6
+put	860990	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_06.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_06.blp		1	0	6
+put	860991	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_06.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_06.blp		1	0	6
+put	860992	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_07.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_07_Extra.blp		1	0	7
+put	860993	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_07.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_07.blp		1	0	7
+put	860994	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_07.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_07.blp		1	0	7
+put	860995	20	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_08.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_08_Extra.blp		1	0	8
+put	860996	20	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_08.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_08.blp		1	0	8
+put	860997	20	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_08.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_08.blp		1	0	8
+put	860998	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_05.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_05_Extra.blp		1	0	5
+put	860999	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_05.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_05.blp		1	0	5
+put	861000	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_05.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_05.blp		1	0	5
+put	861001	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_06.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_06_Extra.blp		1	0	6
+put	861002	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_06.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_06.blp		1	0	6
+put	861003	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_06.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_06.blp		1	0	6
+put	861004	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_07.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_07_Extra.blp		1	0	7
+put	861005	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_07.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_07.blp		1	0	7
+put	861006	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_07.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_07.blp		1	0	7
+put	861007	20	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_08.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_08_Extra.blp		1	0	8
+put	861008	20	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_08.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_08.blp		1	0	8
+put	861009	20	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_08.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_08.blp		1	0	8

@@ -1,0 +1,15 @@
+# A home in Brill (mod-brill-home), ChromieCraft's realm: a hunter's dog is one more beside their own
+# pet (a companion that follows them and fights with them), never in its place.
+cmd .levelup 11
+go 0 2265.9 479.2 34.2
+cmd .brillhome adopt
+expect Brill home: adopted 1
+wait 3
+cmd .brillhome state
+has flags 0xF pet 0
+expect companions 1
+# Away from the house too: it follows them.
+go 0 2314.0 288.0 37.9
+wait 3
+cmd .brillhome state
+expect companions 1

@@ -1,0 +1,35 @@
+From 8d58077ecd0a681a13d2648d5590815be90e6046 Mon Sep 17 00:00:00 2001
+From: Yang Liu <numbksco@gmail.com>
+Date: Thu, 3 Sep 2026 15:22:21 +0800
+Subject: [PATCH] [SIGNAL] Synchronized deferred flags across signal contexts
+ (#4348)
+
+---
+ src/libtools/signals.c  | 1 +
+ src/libtools/sigtools.c | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/libtools/signals.c b/src/libtools/signals.c
+index 2745893b..ef2e1d18 100644
+--- a/src/libtools/signals.c
++++ b/src/libtools/signals.c
+@@ -714,6 +714,7 @@ void my_sigactionhandler_oldcode(x64emu_t* emu, int32_t sig, int simple, siginfo
+             ARCH_ADJUST(db, emu, ucntx, x64pc);
+     }
+     #endif
++    CHECK_FLAGS(emu);
+     int direct_ret = 0;
+     #ifdef BOX32
+     if(box64_is32bits) {
+diff --git a/src/libtools/sigtools.c b/src/libtools/sigtools.c
+index 8528aea2..f1c25933 100644
+--- a/src/libtools/sigtools.c
++++ b/src/libtools/sigtools.c
+@@ -818,6 +818,7 @@ void mctx2emu(x64emu_t* emu, x64_mcontext_t* ctx)
+     emu->ip.q[0]=ctx->gregs[X64_RIP];
+     // flags
+     emu->eflags.x64=ctx->gregs[X64_EFL];
++    RESET_FLAGS(emu);
+     // get segments
+     uint16_t seg;
+     seg = (ctx->gregs[X64_CSGSFS] >> 0)&0xffff;

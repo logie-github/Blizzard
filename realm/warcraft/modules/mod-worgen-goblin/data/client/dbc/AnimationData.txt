@@ -1,0 +1,3 @@
+# AnimationData: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	isiiiiii
+put	646	MountSelfStart	16	256	3	0	646	0

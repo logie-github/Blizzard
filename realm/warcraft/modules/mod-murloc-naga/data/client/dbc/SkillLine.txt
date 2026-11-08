@@ -1,0 +1,3 @@
+# SkillLine: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iiissssssssssssssssissssssssssssssssiissssssssssssssssii
+put	140	10	0	Language: Nerglish																16712190	The murlocs' tongue.																16712188	1																	16712172	0

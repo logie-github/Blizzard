@@ -1,0 +1,84 @@
+From 85b574e0ecd47f7dddc5501abe38b0946dacd0e6 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 21:55:32 +0000
+Subject: [PATCH] Random bots only of races the server has looks for
+
+A module can add a playable race (playercreateinfo) without the server's
+CharSections.dbc rows for it (mod-worgoblin's Worgen and Goblins, when the
+module's DBC files aren't in the server's data): a bot of it had no face
+or hair to pick, and indexing the empty lists crashed the world server as
+the random bots were made. Such races are left out of the random bots'.
+---
+ src/Bot/Factory/RandomPlayerbotFactory.cpp | 30 ++++++++++++++++++++--
+ src/Bot/Factory/RandomPlayerbotFactory.h   |  1 +
+ 2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/Bot/Factory/RandomPlayerbotFactory.cpp b/src/Bot/Factory/RandomPlayerbotFactory.cpp
+index 23046e1a..b4945aa8 100644
+--- a/src/Bot/Factory/RandomPlayerbotFactory.cpp
++++ b/src/Bot/Factory/RandomPlayerbotFactory.cpp
+@@ -73,7 +73,27 @@ bool RandomPlayerbotFactory::IsValidRaceClassCombination(uint8 race, uint8 cls,
+         return false;
+ 
+     PlayerInfo const* info = sObjectMgr->GetPlayerInfo(race, cls);
+-    return info != nullptr;
++    return info != nullptr && HasLooks(race);
++}
++
++// A race a module added (its playercreateinfo) without the server's CharSections.dbc rows for it
++// has no faces or hair to pick from: a bot of it can't be made.
++bool RandomPlayerbotFactory::HasLooks(uint8 race)
++{
++    for (uint8 gender : {GENDER_MALE, GENDER_FEMALE})
++    {
++        bool face = false, hair = false;
++        for (CharSectionsEntry const* charSection : sCharSectionsStore)
++        {
++            if (charSection->RaceID != race || charSection->SexID != gender)
++                continue;
++            face = face || charSection->BaseSection == SECTION_TYPE_FACE;
++            hair = hair || charSection->BaseSection == SECTION_TYPE_HAIR;
++        }
++        if (!face || !hair)
++            return false;
++    }
++    return true;
+ }
+ 
+ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls, std::unordered_map<NameRaceAndGender, std::vector<std::string>>& nameCache)
+@@ -158,13 +178,19 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
+         }
+     }
+ 
++    if (faces.empty() || hairs.empty())
++    {
++        LOG_ERROR("playerbots", "No faces or hair for race: {} and gender: {}", race, gender);
++        return nullptr;
++    }
++
+     //uint8 skinColor = skinColors[urand(0, skinColors.size() - 1)]; //not used, line marked for removal.
+     std::pair<uint8, uint8> face = faces[urand(0, faces.size() - 1)];
+     std::pair<uint8, uint8> hair = hairs[urand(0, hairs.size() - 1)];
+ 
+     bool excludeCheck = (race == RACE_TAUREN) || (race == RACE_DRAENEI) ||
+                         (gender == GENDER_FEMALE && race != RACE_NIGHTELF && race != RACE_UNDEAD_PLAYER);
+-    uint8 facialHair = excludeCheck ? 0 : facialHairTypes[urand(0, facialHairTypes.size() - 1)];
++    uint8 facialHair = excludeCheck || facialHairTypes.empty() ? 0 : facialHairTypes[urand(0, facialHairTypes.size() - 1)];
+ 
+     std::unique_ptr<CharacterCreateInfo> characterInfo = std::make_unique<CharacterCreateInfo>(
+         name, race, cls, gender, face.second, face.first, hair.first, hair.second, facialHair);
+diff --git a/src/Bot/Factory/RandomPlayerbotFactory.h b/src/Bot/Factory/RandomPlayerbotFactory.h
+index 6e15ab20..57fd8f1f 100644
+--- a/src/Bot/Factory/RandomPlayerbotFactory.h
++++ b/src/Bot/Factory/RandomPlayerbotFactory.h
+@@ -53,6 +53,7 @@ public:
+ 
+     Player* CreateRandomBot(WorldSession* session, uint8 cls, std::unordered_map<NameRaceAndGender, std::vector<std::string>>& names);
+     static void CreateRandomBots();
++    static bool HasLooks(uint8 race);
+     static std::string const CreateRandomGuildName();
+     static uint32 CalculateTotalAccountCount();
+     static uint32 CalculateAvailableCharsPerAccount();
+-- 
+2.43.0
+

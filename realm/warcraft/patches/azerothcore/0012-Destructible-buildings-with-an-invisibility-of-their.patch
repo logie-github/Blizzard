@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 31 Oct 2026 04:22:11 +0000
+Subject: [PATCH] Destructible buildings with an invisibility of their own are
+ seen only by those who detect it
+
+A destructible building (a building as the game's own out in the world
+are) is always seen, whatever detects it. One given an invisibility of its
+own (mod-brill-home's Community Projects: a building that shows from a
+project's stage, carried by an invisibility kind) is seen only by those
+who detect it, as any other object is.
+---
+ src/server/game/Entities/GameObject/GameObject.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/server/game/Entities/GameObject/GameObject.cpp b/src/server/game/Entities/GameObject/GameObject.cpp
+index 931d2a5fde..f6f25f93ac 100644
+--- a/src/server/game/Entities/GameObject/GameObject.cpp
++++ b/src/server/game/Entities/GameObject/GameObject.cpp
+@@ -1250,7 +1250,8 @@ bool GameObject::IsAlwaysVisibleFor(WorldObject const* seer) const
+     if (WorldObject::IsAlwaysVisibleFor(seer))
+         return true;
+ 
+-    if (IsTransport() || IsDestructibleBuilding())
++    // (a destructible building with an invisibility of its own is seen only by those who detect it)
++    if (IsTransport() || (IsDestructibleBuilding() && !m_invisibility.GetFlags()))
+         return true;
+ 
+     if (!seer)
+-- 
+2.43.0
+

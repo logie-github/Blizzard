@@ -1,0 +1,10 @@
+# CreatureDisplayInfo: the void elves' and the nightborne's changes (tools/build_data.py)
+types	iiiifissssiiiiii
+put	33001	3601	0	0	1.0	255					1	0	0	0	0	0
+put	33002	3602	0	0	1.0	255					1	0	0	0	0	0
+put	33003	3603	0	0	1.0	255					1	0	0	0	0	0
+put	33004	3604	0	0	1.0	255					1	0	0	0	0	0
+put	33005	3605	0	0	1.0	255					1	0	0	0	0	0
+put	33006	3606	0	0	1.0	255					1	0	0	0	0	0
+put	33007	3607	0	0	1.0	255					1	0	0	0	0	0
+put	33008	3608	0	0	1.0	255					1	0	0	0	0	0

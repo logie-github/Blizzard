@@ -1,0 +1,16 @@
+# A Zandalari Troll warrior at Camp Narache (mod-allied-races), after its start was checked.
+#
+# Grull Hawkwind offers the Zandalari's The Hunt Begins, never the Tauren's.
+talk 2980
+has quest 960747:
+expect-not quest 747:
+# Regeneratin' and Pterrordax Swoop on the character (the swoop: an aura of type 105,
+# FEATHER_FALL).
+target 0
+cmd .cast 98730
+cmd .list auras
+expect Regeneratin'
+cmd .cast 98733
+cmd .list auras
+has Pterrordax Swoop
+expect auras of type 105

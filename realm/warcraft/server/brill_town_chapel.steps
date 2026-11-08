@@ -1,0 +1,166 @@
+# Brill: The Forgotten Shadow Chapel (mod-brill-home, tools/town/chapel.py), ChromieCraft's realm: Brill
+# Endures granted (the project's stage 1, <2:1>: the chapel's stages are invisibility kind 2), Dark Cleric
+# Mirelle Vane at the meeting house north of the cemetery. A Place for the Unforgotten (the wall of names, a
+# pile of rubble, the altar, the gravekeeper asked); Stone, Timber, and Shadow (a stone block at Cold Hearth
+# Manor, Rudd Carver's lantern frames, the doors); The Book of Names (a page at Garren's Haunt, Willem Vale's
+# grave, Elsbeth Vale's story and the choice: his name added to the wall, the mark q971107; the lectern); The
+# Weight of Faith (a chalk sigil, the Agamands' nursery chest, Corven's question answered: q971109); The Bell
+# for the Forgotten (the bell in Garren's barn, the smithy, the hoist, the opening). Each quest moves the
+# stage on; then the chapel open (<2:6>), the house's chapel set bought from Halden (<2:7>, the mark q971112)
+# and the daily, Names to Remember, offered. (Kills and the long counts are filled with .quest complete.)
+cmd .levelup 11
+cmd .modify money 100000
+cmd .brilltown grant 971000
+# Stage 1: Mirelle at the meeting house's yard.
+go 0 2385.0 392.2 35.9
+wait 2
+cmd .brilltown state
+has <2:1>
+talk 971100
+accept 971100 971100
+# A Place for the Unforgotten.
+go 0 2397.17 394.96 34.4
+cmd .brilltown use
+has Brill town: used 971101
+expect credit 971100 971114 1/1
+go 0 2393.48 393.75 34.4
+cmd .brilltown use
+has Brill town: used 971102
+expect credit 971100 971115 1/6
+go 0 2403.42 401.34 35.3
+cmd .brilltown use
+has Brill town: used 971103
+expect credit 971100 971116 1/3
+go 0 2360.5 342.5 38.5
+talk 970300
+select 970300 meeting house past the cemetery
+expect credit 971100 971117 1/1
+cmd .quest complete 971100
+go 0 2385.0 392.2 35.9
+talk 971100
+reward 971100 971100
+expect rewarded 971100
+wait 2
+cmd .brilltown state
+has <2:2>
+# Stone, Timber, and Shadow: Halden, there from stage 2.
+go 0 2383.5 397.2 36.0
+talk 971101
+accept 971101 971101
+go 0 2140.0 648.0 34.4
+cmd .brilltown use
+has Brill town: used 971114
+expect credit 971101 971118 1/8
+go 0 2297.0 459.0 34.5
+talk 971000
+select 971000 lantern frames
+expect credit 971101 971120 1/1
+go 0 2385.6 401.21 35.5
+cmd .brilltown use
+has Brill town: used 971106
+expect credit 971101 971121 1/1
+cmd .quest complete 971101
+go 0 2383.5 397.2 36.0
+talk 971101
+reward 971101 971101
+expect rewarded 971101
+wait 2
+cmd .brilltown state
+has <2:3>
+# The Book of Names: a torn page at Garren's Haunt, the grave, Elsbeth Vale (there from stage 3: her story,
+# then his name on the wall), the lectern.
+go 0 2385.0 392.2 35.9
+talk 971100
+accept 971100 971102
+go 0 2910.03 380.97 32.0
+cmd .brilltown use
+has Brill town: used 971116
+expect credit 971102 971122 1/3
+go 0 2366.0 385.0 37.2
+cmd .brilltown use
+has Brill town: used 971117
+expect credit 971102 971123 1/1
+go 0 2363.5 387.4 37.1
+talk 971104
+select 971104 restoring the register
+talk 971104
+select 971104 his name belongs
+expect credit 971102 971124 1/1
+go 0 2388.36 401.42 34.9
+cmd .brilltown use
+has Brill town: used 971108
+expect credit 971102 971125 1/1
+cmd .quest complete 971102
+go 0 2385.0 392.2 35.9
+talk 971100
+reward 971100 971102
+expect rewarded 971102
+wait 2
+cmd .brilltown state
+has <2:4>
+expect q971107
+# The Weight of Faith: Corven (there from stage 3), the sigil before the mausoleum, the Agamands' nursery chest
+# upstairs at Agamand Mills, his question answered (power is what you protect with it).
+go 0 2388.6 391.6 35.0
+talk 971102
+accept 971102 971103
+go 0 2384.0 347.0 38.6
+cmd .brilltown use
+has Brill town: used 971118
+expect credit 971103 971126 1/3
+go 0 2751.5 793.5 119.7
+cmd .brilltown use
+has Brill town: used 971122
+expect credit 971103 971127 1/1
+go 0 2388.6 391.6 35.0
+talk 971102
+select 971102 only worth what you protect
+expect credit 971103 971128 1/1
+cmd .quest complete 971103
+talk 971102
+reward 971102 971103
+expect rewarded 971103
+wait 2
+cmd .brilltown state
+has <2:5>
+expect q971109
+# The Bell for the Forgotten: the bell under the hay in Garren's barn, Oliver Dwor at the smithy, the hoist at
+# the meeting house, the opening (Mirelle).
+go 0 2383.5 397.2 36.0
+talk 971101
+accept 971101 971104
+go 0 2840.8 413.4 21.3
+cmd .brilltown use
+has Brill town: used 971123
+expect credit 971104 971129 1/2
+go 0 2229.6 317.3 37.3
+talk 2136
+select 2136 mend the old chapel bell
+expect credit 971104 971130 1/1
+go 0 2383.8 387.12 36.5
+cmd .brilltown use
+has Brill town: used 971112
+expect credit 971104 971131 1/1
+go 0 2385.0 392.2 35.9
+talk 971100
+select 971100 bell's hung
+expect credit 971104 971132 1/1
+cmd .quest complete 971104
+go 0 2383.5 397.2 36.0
+talk 971101
+reward 971101 971104
+expect rewarded 971104
+wait 2
+cmd .brilltown state
+has <2:6>
+# The chapel open: Halden at the memorial wall sells the house's chapel set; Mirelle offers the daily.
+go 0 2397.2 396.4 37.7
+talk 971109
+select 971109 anything for a house
+wait 2
+cmd .brilltown state
+has <2:7>
+expect q971112
+go 0 2401.5 406.5 37.7
+talk 971107
+expect Names to Remember

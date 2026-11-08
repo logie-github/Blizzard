@@ -1,0 +1,1074 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 16:21:07 +0000
+Subject: [PATCH] Local realm sessions join the realm's Wine, which runs
+ without a screen
+
+A local realm's servers run by Wine with no screen, started by the app
+(WinePrefixSetup prepares the container's prefix as the session's screen
+does, with no Activity; its Box64 and environment the session's). A
+realm's game session joins that Wine: it leaves the runtime folder (the
+Wine server's socket and shared memory), the registry and the drives as
+the realm's start made them, carries WINLATOR_SESSION in its programs'
+environment, and its end ends those only, the realm running on. Leave
+ends the session; it leaves Recents with it, the launcher in front. The
+active-container link is replaced in one step, and left when it's
+already that container.
+---
+ .../java/com/winlator/WinePrefixSetup.java    | 433 ++++++++++++++++++
+ .../com/winlator/XServerDisplayActivity.java  | 323 +++----------
+ .../winlator/container/ContainerManager.java  |  17 +-
+ .../java/com/winlator/core/ProcessHelper.java |  44 ++
+ .../GuestProgramLauncherComponent.java        |  27 +-
+ .../components/SysVSharedMemoryComponent.java |   2 +-
+ 6 files changed, 566 insertions(+), 280 deletions(-)
+ create mode 100644 app/src/main/java/com/winlator/WinePrefixSetup.java
+
+diff --git a/app/src/main/java/com/winlator/WinePrefixSetup.java b/app/src/main/java/com/winlator/WinePrefixSetup.java
+new file mode 100644
+index 0000000..dbbd1a3
+--- /dev/null
++++ b/app/src/main/java/com/winlator/WinePrefixSetup.java
+@@ -0,0 +1,433 @@
++package com.winlator;
++
++import android.content.Context;
++import android.content.SharedPreferences;
++
++import androidx.preference.PreferenceManager;
++
++import com.winlator.box64.Box64PresetManager;
++import com.winlator.container.AudioDrivers;
++import com.winlator.container.Container;
++import com.winlator.container.ContainerManager;
++import com.winlator.container.DXWrappers;
++import com.winlator.container.GraphicsDrivers;
++import com.winlator.contentdialog.DXVKConfigDialog;
++import com.winlator.contentdialog.VKD3DConfigDialog;
++import com.winlator.contentdialog.WineD3DConfigDialog;
++import com.winlator.core.AppUtils;
++import com.winlator.core.DefaultVersion;
++import com.winlator.core.EnvVars;
++import com.winlator.core.FileUtils;
++import com.winlator.core.GeneralComponents;
++import com.winlator.core.KeyValueSet;
++import com.winlator.core.LocaleHelper;
++import com.winlator.core.NetworkHelper;
++import com.winlator.core.TarCompressorUtils;
++import com.winlator.core.WineInfo;
++import com.winlator.core.WineRegistryEditor;
++import com.winlator.core.WineStartMenuCreator;
++import com.winlator.core.WineThemeManager;
++import com.winlator.core.WineUtils;
++import com.winlator.xenvironment.RootFS;
++import com.winlator.xenvironment.components.GuestProgramLauncherComponent;
++import com.winlator.xserver.ScreenInfo;
++
++import org.json.JSONArray;
++import org.json.JSONException;
++import org.json.JSONObject;
++
++import java.io.File;
++import java.util.ArrayList;
++import java.util.Iterator;
++import java.util.List;
++
++/**
++ * World of Warcraft app: a container's Wine prefix made ready (its system files, DLLs, registry and
++ * drives), as XServerDisplayActivity did it in its own methods, so the same can be done without a
++ * screen: a local realm's servers run by Wine with no X server, before any Wine process of theirs
++ * starts (WinePrefixSetup#prepareHeadless). Wine keeps the registry in its server while it runs and
++ * writes it back over the files, so the registry is changed only while no server runs: a session that
++ * joins a realm's running Wine (shared) leaves it, and the realm's next start makes the changes.
++ */
++public class WinePrefixSetup {
++    private final Context context;
++    private final Container container;
++    private final RootFS rootFS;
++    private final WineInfo wineInfo;
++    private final ScreenInfo screenInfo;
++    private final String wincomponents;
++    private final String dxwrapper;
++    private final KeyValueSet[] dxwrapperConfig;
++    private final String[] graphicsDriver;
++    private final String audioDriver;
++    private final EnvVars envVars;
++    private final SharedPreferences preferences;
++
++    public WinePrefixSetup(Context context, Container container, RootFS rootFS, WineInfo wineInfo, ScreenInfo screenInfo, String wincomponents,
++                           String dxwrapper, KeyValueSet[] dxwrapperConfig, String[] graphicsDriver, String audioDriver, EnvVars envVars) {
++        this.context = context;
++        this.container = container;
++        this.rootFS = rootFS;
++        this.wineInfo = wineInfo;
++        this.screenInfo = screenInfo;
++        this.wincomponents = wincomponents;
++        this.dxwrapper = dxwrapper;
++        this.dxwrapperConfig = dxwrapperConfig;
++        this.graphicsDriver = graphicsDriver;
++        this.audioDriver = audioDriver;
++        this.envVars = envVars;
++        this.preferences = PreferenceManager.getDefaultSharedPreferences(context);
++    }
++
++    /** For a container's own settings (no shortcut), as XServerDisplayActivity reads them. */
++    public static WinePrefixSetup forContainer(Context context, Container container, EnvVars envVars) {
++        RootFS rootFS = RootFS.find(context);
++        WineInfo wineInfo = WineInfo.fromIdentifier(context, container.getWineVersion());
++        if (wineInfo != WineInfo.MAIN_WINE_INFO) rootFS.setWinePath(wineInfo.path);
++        String dxwrapper = container.getDXWrapper();
++        return new WinePrefixSetup(context, container, rootFS, wineInfo, new ScreenInfo(container.getScreenSize()), container.getWinComponents(),
++            DXWrappers.parseIdentifier(dxwrapper), DXWrappers.parseConfigs(dxwrapper, container.getDXWrapperConfig()),
++            GraphicsDrivers.parseIdentifiers(container.getGraphicsDriver()), container.getAudioDriver(), envVars);
++    }
++
++    /**
++     * The session's system files. [shared]: the session joins a local realm's Wine, running: its
++     * registry and drives are left (the realm's start made them), only the graphics wrapper's files
++     * and settings are made, which the realm's programs don't use.
++     */
++    public void setupWineSystemFiles(boolean shared) {
++        if (shared) {
++            if (extractDXWrapperFiles()) container.saveData();
++            return;
++        }
++        String appVersion = String.valueOf(AppUtils.getVersionCode(context));
++        String rfsVersion = String.valueOf(rootFS.getVersion());
++        boolean containerDataChanged = false;
++
++        boolean wineprefixWasUpdated = WineUtils.isWineprefixWasUpdated(container);
++        if (!container.getExtra("appVersion").equals(appVersion) || !container.getExtra("rfsVersion").equals(rfsVersion) || wineprefixWasUpdated) {
++            applyGeneralPatches();
++            container.putExtra("appVersion", appVersion);
++            container.putExtra("rfsVersion", rfsVersion);
++            containerDataChanged = true;
++        }
++
++        if (verifyUserRegistry()) containerDataChanged = true;
++        if (extractDXWrapperFiles()) containerDataChanged = true;
++
++        if (!wincomponents.equals(container.getExtra("wincomponents"))) {
++            extractWinComponentFiles();
++            container.putExtra("wincomponents", wincomponents);
++            containerDataChanged = true;
++        }
++
++        String desktopTheme = container.getDesktopTheme();
++        if (!(desktopTheme+","+screenInfo).equals(container.getExtra("desktopTheme"))) {
++            WineThemeManager.apply(context, new WineThemeManager.ThemeInfo(desktopTheme), screenInfo);
++            container.putExtra("desktopTheme", desktopTheme+","+screenInfo);
++            containerDataChanged = true;
++        }
++
++        WineStartMenuCreator.create(context, container);
++        WineUtils.createDosdevicesSymlinks(container, true);
++
++        String startupSelection = String.valueOf(container.getStartupSelection());
++        if (!startupSelection.equals(container.getExtra("startupSelection")) || wineprefixWasUpdated) {
++            WineUtils.changeServicesStatus(container, container.getStartupSelection());
++            container.putExtra("startupSelection", startupSelection);
++            containerDataChanged = true;
++        }
++
++        boolean openAndroidBrowserFromWine = preferences.getBoolean("open_android_browser_from_wine", true);
++        String openAndroidBrowserFromWineStr = openAndroidBrowserFromWine ? "t" : "f";
++        if (!openAndroidBrowserFromWineStr.equals(container.getExtra("openAndroidBrowserFromWine")) || wineprefixWasUpdated) {
++            WineUtils.changeBrowsersRegistryKey(container, openAndroidBrowserFromWine);
++            container.putExtra("openAndroidBrowserFromWine", openAndroidBrowserFromWineStr);
++            containerDataChanged = true;
++        }
++
++        if (containerDataChanged) container.saveData();
++    }
++
++    public boolean extractDXWrapperFiles() {
++        String cacheId = "";
++        if (dxwrapper.equals(DXWrappers.DXVK)) {
++            DXVKConfigDialog.setEnvVars(context, dxwrapperConfig[0], envVars);
++            cacheId += dxwrapper+"-"+dxwrapperConfig[0].get("version", DefaultVersion.DXVK(graphicsDriver[0]));
++        }
++        else if (dxwrapper.equals(DXWrappers.WINED3D)) {
++            WineD3DConfigDialog.setEnvVars(dxwrapperConfig[0], envVars);
++            cacheId += dxwrapper+"-"+dxwrapperConfig[0].get("version", DefaultVersion.WINED3D);
++        }
++
++        String ddrawWrapper = dxwrapperConfig[0].get("ddrawWrapper", DXWrappers.WINED3D);
++        cacheId += "-"+DXWrappers.VKD3D+"-"+dxwrapperConfig[1].get("version", DefaultVersion.VKD3D)+"-"+ddrawWrapper;
++        boolean changed = !cacheId.equals(container.getExtra("dxwrapper"));
++        VKD3DConfigDialog.setEnvVars(dxwrapperConfig[1], envVars);
++
++        if (ddrawWrapper.equals(DXWrappers.CNC_DDRAW)) envVars.put("CNC_DDRAW_CONFIG_FILE", "C:\\ProgramData\\cnc-ddraw\\ddraw.ini");
++
++        if (!changed) return false;
++        container.putExtra("dxwrapper", cacheId);
++
++        File rootDir = rootFS.getRootDir();
++        File windowsDir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows");
++
++        if (dxwrapper.equals(DXWrappers.WINED3D)) {
++            String version = dxwrapperConfig[0].get("version", DefaultVersion.WINED3D);
++            if (version.equals(WineInfo.MAIN_WINE_VERSION)) {
++                final String[] dlls = {"d3d8.dll", "d3d9.dll", "d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "d3d12core.dll", "dxgi.dll", "ddraw.dll", "wined3d.dll"};
++                restoreBuiltinDllFiles(dlls);
++            }
++            else GeneralComponents.extractFile(GeneralComponents.Type.WINED3D, context, version, DefaultVersion.WINED3D);
++        }
++        else if (dxwrapper.equals(DXWrappers.DXVK)) {
++            final boolean[] hasD3D8DllFile = {false};
++            final boolean[] hasD3D10DllFile = {false};
++
++            GeneralComponents.extractFile(GeneralComponents.Type.DXVK, context, dxwrapperConfig[0].get("version"), DefaultVersion.DXVK(graphicsDriver[0]), (destination, size) -> {
++                String name = destination.getName();
++                if (name.equals("d3d10.dll")) {
++                    hasD3D10DllFile[0] = true;
++                }
++                else if (name.equals("d3d8.dll")) {
++                    hasD3D8DllFile[0] = true;
++                }
++                return destination;
++            });
++
++            if (!hasD3D8DllFile[0]) {
++                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "dxwrapper/d8vk-"+DefaultVersion.D8VK+".tzst", windowsDir);
++            }
++            if (!hasD3D10DllFile[0]) restoreBuiltinDllFiles("d3d10.dll", "d3d10_1.dll");
++        }
++
++        GeneralComponents.extractFile(GeneralComponents.Type.VKD3D, context, dxwrapperConfig[1].get("version"), DefaultVersion.VKD3D);
++
++        File containerSysWoW64Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/syswow64");
++        FileUtils.delete(new File(containerSysWoW64Dir, "ddraw_.dll"));
++
++        switch (ddrawWrapper) {
++            case DXWrappers.CNC_DDRAW:
++                final String assetDir = "dxwrapper/cnc-ddraw-"+DefaultVersion.CNC_DDRAW;
++                File configFile = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/ProgramData/cnc-ddraw/ddraw.ini");
++                if (!configFile.isFile()) FileUtils.copy(context, assetDir+"/ddraw.ini", configFile);
++                File shadersDir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/ProgramData/cnc-ddraw/Shaders");
++                FileUtils.delete(shadersDir);
++                FileUtils.copy(context, assetDir+"/Shaders", shadersDir);
++                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, assetDir+"/ddraw.tzst", windowsDir);
++                break;
++            case DXWrappers.D7VK:
++                restoreBuiltinDllFiles("ddraw.dll");
++                (new File(containerSysWoW64Dir, "ddraw.dll")).renameTo(new File(containerSysWoW64Dir, "ddraw_.dll"));
++                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "dxwrapper/d7vk-"+DefaultVersion.D7VK+".tzst", windowsDir);
++                break;
++            default:
++                restoreBuiltinDllFiles("ddraw.dll");
++                break;
++        }
++        return true;
++    }
++
++    private void extractWinComponentFiles() {
++        File rootDir = rootFS.getRootDir();
++        File windowsDir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows");
++        File systemRegFile = new File(rootDir, RootFS.WINEPREFIX+"/system.reg");
++
++        try {
++            JSONObject wincomponentsJSONObject = new JSONObject(FileUtils.readString(context, "wincomponents/wincomponents.json"));
++            Iterator<String[]> oldWinComponentsIter = new KeyValueSet(container.getExtra("wincomponents", Container.FALLBACK_WINCOMPONENTS)).iterator();
++            ArrayList<String> builtinDlls = new ArrayList<>();
++
++            for (String[] wincomponent : new KeyValueSet(wincomponents)) {
++                if (wincomponent[1].equals(oldWinComponentsIter.next()[1])) continue;
++                String identifier = wincomponent[0];
++                boolean useNative = wincomponent[1].equals("1");
++
++                if (useNative) {
++                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "wincomponents/"+identifier+".tzst", windowsDir);
++                }
++                else {
++                    JSONObject wincomponentJSONObject = wincomponentsJSONObject.getJSONObject(identifier);
++                    if (wincomponentJSONObject.getBoolean("restoreBuiltinDlls")) {
++                        JSONArray dlnames = wincomponentJSONObject.getJSONArray("dlnames");
++                        for (int i = 0; i < dlnames.length(); i++) {
++                            String dlname = dlnames.getString(i);
++                            builtinDlls.add(!dlname.endsWith(".exe") ? dlname+".dll" : dlname);
++                        }
++                    }
++                    else {
++                        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "wincomponents/"+identifier+".tzst", windowsDir, (destination, size) -> {
++                            String name = destination.getName();
++                            if (name.endsWith(".dll") || name.endsWith(".manifest") || name.endsWith("_deadbeef")) FileUtils.delete(destination);
++                            return null;
++                        });
++                    }
++                }
++
++                WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative);
++            }
++
++            if (!builtinDlls.isEmpty()) restoreBuiltinDllFiles(builtinDlls.toArray(new String[0]));
++            WineUtils.overrideWinComponentDlls(context, container, wincomponents);
++        }
++        catch (JSONException e) {}
++    }
++
++    private void restoreBuiltinDllFiles(final String... dlls) {
++        File rootDir = rootFS.getRootDir();
++        File wineDir = new File(rootDir, rootFS.getWinePath());
++        File wineSystem32Dir = new File(wineDir, "/lib/wine/x86_64-windows");
++        File wineSysWoW64Dir = new File(wineDir, "/lib/wine/i386-windows");
++        File containerSystem32Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/system32");
++        File containerSysWoW64Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/syswow64");;
++
++        for (String dll : dlls) {
++            FileUtils.copy(new File(wineSysWoW64Dir, dll), new File(containerSysWoW64Dir, dll));
++            FileUtils.copy(new File(wineSystem32Dir, dll), new File(containerSystem32Dir, dll));
++        }
++    }
++
++    /** The audio driver in the registry: not in a session that joins a realm's running Wine ([shared]). */
++    public void changeWineAudioDriver(boolean shared) {
++        if (shared) return;
++        if (!audioDriver.equals(container.getExtra("audioDriver"))) {
++            File rootDir = rootFS.getRootDir();
++            File userRegFile = new File(rootDir, RootFS.WINEPREFIX+"/user.reg");
++            try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
++                if (audioDriver.equals(AudioDrivers.ALSA)) {
++                    registryEditor.setStringValue("Software\\Wine\\Drivers", "Audio", "alsa");
++                }
++                else if (audioDriver.equals(AudioDrivers.PULSEAUDIO)) {
++                    registryEditor.setStringValue("Software\\Wine\\Drivers", "Audio", "pulse");
++                }
++            }
++            container.putExtra("audioDriver", audioDriver);
++            container.saveData();
++        }
++    }
++
++    private void applyGeneralPatches() {
++        File rootDir = rootFS.getRootDir();
++        FileUtils.delete(new File(rootDir, "/opt/apps"));
++        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "rootfs_patches.tzst", rootDir);
++        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "pulseaudio.tzst", new File(context.getFilesDir(), "pulseaudio"));
++        WineUtils.applySystemTweaks(context, wineInfo);
++        container.putExtra("dxwrapper", null);
++        container.putExtra("desktopTheme", null);
++        SettingsFragment.resetPreferenceVersions(context);
++    }
++
++    public boolean verifyUserRegistry() {
++        File userRegFile = new File(rootFS.getRootDir(), RootFS.WINEPREFIX+"/user.reg");
++        String lastModified = String.valueOf(userRegFile.lastModified());
++
++        if (!lastModified.equals(container.getExtra("userRegLastModified"))) {
++            try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
++                registryEditor.removeKey("Software\\Wow6432Node\\Wine", true);
++            }
++
++            container.putExtra("userRegLastModified", lastModified);
++            return true;
++        }
++        else return false;
++    }
++
++    /**
++     * Before a local realm's first Wine process, with none of the app's running: the container made
++     * the active one, its prefix as a session's screen makes it (WinePrefixSetup#setupWineSystemFiles,
++     * the audio driver), Box64 [box64Version] in place, Wine's shared memory folder, the network
++     * files Wine reads (the session's NetworkInfoUpdateComponent keeps them while it runs). The
++     * prefix's own update (wineboot -u, after a runtime update) comes first: [needsPrefixUpdate].
++     */
++    public static void prepareHeadless(Context context, Container container, String box64Version) {
++        new ContainerManager(context).activateContainer(container);
++        WinePrefixSetup setup = forContainer(context, container, new EnvVars());
++        setup.setupWineSystemFiles(false);
++        setup.changeWineAudioDriver(false);
++        GuestProgramLauncherComponent.prepareBox64(context, box64Version);
++        RootFS rootFS = RootFS.find(context);
++        File shm = new File(rootFS.getRootDir(), "/tmp/shm");
++        if (!shm.isDirectory()) shm.mkdirs();
++        writeNetworkFiles(context, rootFS);
++    }
++
++    /** After a runtime update Winlator runs wineboot -u in the prefix before anything else. */
++    public static boolean needsPrefixUpdate(Container container) {
++        return container.getExtra("wineprefixNeedsUpdate").equals("t");
++    }
++
++    /** wineboot -u is about to run in the prefix (as WineUtils.updateWineprefix marks it). */
++    public static void prefixUpdateStarting(Context context) {
++        File rootDir = RootFS.find(context).getRootDir();
++        FileUtils.writeString(new File(rootDir, RootFS.WINEPREFIX+"/.update-timestamp"), "0\n");
++    }
++
++    /** wineboot -u ended with [status]; at 0 the prefix is up to date, as the session records it. */
++    public static void prefixUpdateEnded(Context context, Container container, int status) {
++        File rootDir = RootFS.find(context).getRootDir();
++        FileUtils.writeString(new File(rootDir, RootFS.WINEPREFIX+"/.update-timestamp"), "disable\n");
++        if (status == 0) {
++            container.putExtra("wineprefixNeedsUpdate", null);
++            container.putExtra("wincomponents", null);
++            container.saveData();
++        }
++    }
++
++    private static void writeNetworkFiles(Context context, RootFS rootFS) {
++        NetworkHelper networkHelper = new NetworkHelper(context);
++        List<NetworkHelper.IFAddress> ifAddresses = networkHelper.getIFAddresses();
++        String content = "";
++        if (!ifAddresses.isEmpty()) {
++            for (NetworkHelper.IFAddress ifAddress : ifAddresses) {
++                content += (!content.isEmpty() ? "\n" : "")+ifAddress.toString();
++            }
++        }
++        else content = (new NetworkHelper.IFAddress()).toString();
++        FileUtils.writeString(new File(rootFS.getTmpDir(), "ifaddrs"), content);
++        String ip = networkHelper.getIPv4Address();
++        FileUtils.writeString(new File(rootFS.getRootDir(), "etc/hosts"), (ip != null ? ip : "127.0.0.1")+"\tlocalhost\n");
++    }
++
++    /**
++     * The environment of a local realm's Wine programs with no screen: the session's
++     * (GuestProgramLauncherComponent's and XServerDisplayActivity's for the container), without its
++     * display, shared memory, sound and graphics variables, so they join the same Wine server as the
++     * game's session and never depend on its X server. WINEPREFIX and HOME by the container's own
++     * folder (the same Wine server: the same folder), not by the active-container link.
++     */
++    public static EnvVars headlessEnvironment(Context context, Container container) {
++        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
++        RootFS rootFS = RootFS.find(context);
++        WineInfo wineInfo = WineInfo.fromIdentifier(context, container.getWineVersion());
++        if (wineInfo != WineInfo.MAIN_WINE_INFO) rootFS.setWinePath(wineInfo.path);
++        File rootDir = rootFS.getRootDir();
++        File home = new File(rootDir, "/home/"+RootFS.USER+"-"+container.id);
++
++        EnvVars envVars = new EnvVars();
++        GuestProgramLauncherComponent.addBox64EnvVars(context, rootFS, container.getBox64Preset(), envVars);
++        LocaleHelper.setEnvVars(envVars);
++        envVars.put("HOME", home.getPath());
++        envVars.put("USER", RootFS.USER);
++        envVars.put("TMPDIR", rootDir+"/tmp");
++        envVars.put("PATH", rootDir+rootFS.getWinePath()+"/bin:"+rootDir+"/usr/local/bin:"+rootDir+"/usr/bin");
++        envVars.put("LD_LIBRARY_PATH", rootFS.getLibDir().getPath());
++        envVars.put("BOX64_LD_LIBRARY_PATH", rootDir+"/lib/x86_64-linux-gnu");
++
++        envVars.put("WINEPREFIX", home.getPath()+"/.wine");
++        boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
++        String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
++        envVars.put("WINEDEBUG", enableWineDebug && !wineDebugChannels.isEmpty() ? "+"+wineDebugChannels.replace(",", ",+") : "-all");
++        envVars.putAll(container.getEnvVars());
++        if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
++        return envVars;
++    }
++
++    /** The folder of the container's Wine programs (the session's PATH's first). */
++    public static String wineBinDir(Context context, Container container) {
++        RootFS rootFS = RootFS.find(context);
++        WineInfo wineInfo = WineInfo.fromIdentifier(context, container.getWineVersion());
++        if (wineInfo != WineInfo.MAIN_WINE_INFO) rootFS.setWinePath(wineInfo.path);
++        return rootFS.getRootDir()+rootFS.getWinePath()+"/bin";
++    }
++}
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 26d80a6..74d9b3b 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -128,6 +128,16 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     private WineInfo wineInfo;
+     private final EnvVars envVars = new EnvVars();
+     private boolean rejectedRuntimeSession;
++    // World of Warcraft app: this session joins a local realm's Wine, running without a screen (its
++    // servers): its runtime folder, registry and drives are left as the realm's start made them, and
++    // its end ends only its own programs (WINLATOR_SESSION, endSessionProcesses).
++    private boolean sharedRuntime;
++    private final String sessionToken = String.valueOf(System.nanoTime());
++    // World of Warcraft app: the session's start and its end never interleave: a screen closed while
++    // it was being set up starts nothing (its onDestroy found nothing yet to end).
++    private final Object sessionLock = new Object();
++    private boolean sessionEnded;
++    private WinePrefixSetup prefixSetup;
+     private EnvVars overrideEnvVars;
+     private ClipboardManager clipboardManager;
+     private SharedPreferences preferences;
+@@ -147,10 +157,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         // Check before activateContainer changes the shared Wine home or a guest can replace it.
+         if (!com.logie.warcraft.tww.TwwServer.allowRuntimeStart(this)) {
+             rejectedRuntimeSession = true;
+-            android.widget.Toast.makeText(this, "Close the active Windows session before opening another realm.", android.widget.Toast.LENGTH_LONG).show();
++            String rejection = com.logie.warcraft.tww.TwwServer.runtimeRejected(this);
++            android.widget.Toast.makeText(this, rejection != null ? rejection : "Close the active Windows session before opening another realm.", android.widget.Toast.LENGTH_LONG).show();
+             finish();
+             return;
+         }
++        sharedRuntime = com.logie.warcraft.tww.TwwServer.sharedRuntime(this);
+         AppUtils.hideSystemUI(this);
+         AppUtils.keepScreenOn(this);
+         setContentView(R.layout.xserver_display_activity);
+@@ -180,9 +192,18 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         if (!isGenerateWineprefix()) {
+             ContainerManager containerManager = new ContainerManager(this);
+             container = containerManager.getContainerById(getIntent().getIntExtra("container_id", 0));
++            // World of Warcraft app: a screen asked for with no container (a stale notification's or
++            // Recents' intent for a session that has ended) ends at once, as a refused one.
++            if (container == null) {
++                ForegroundService.stopSession(this);
++                closeSessionLog();
++                rejectedRuntimeSession = true;
++                finish();
++                return;
++            }
+             containerManager.activateContainer(container);
+ 
+-            boolean wineprefixNeedsUpdate = container.getExtra("wineprefixNeedsUpdate").equals("t");
++            boolean wineprefixNeedsUpdate = !sharedRuntime && container.getExtra("wineprefixNeedsUpdate").equals("t");
+             if (wineprefixNeedsUpdate) {
+                 preloaderDialog.show(R.string.wow_game_loading_update);
+                 WineUtils.updateWineprefix(this, (status) -> {
+@@ -248,7 +269,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         xServer = new XServer(this, screenInfo);
+         xServer.setWinHandler(winHandler);
+         final boolean[] flags = {false, shortcut != null || getIntent().hasExtra("exec_path")};
+-        windowFlags = flags;
+         xServer.windowManager.addOnWindowModificationListener(new WindowManager.OnWindowModificationListener() {
+             @Override
+             public void onUpdateWindowContent(Window window) {
+@@ -286,9 +306,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+ 
+         Executors.newSingleThreadExecutor().execute(() -> {
+             if (!isGenerateWineprefix()) {
+-                setupWineSystemFiles();
++                prefixSetup = new WinePrefixSetup(this, container, rootFS, wineInfo, xServer.screenInfo, wincomponents, dxwrapper, dxwrapperConfig, graphicsDriver, audioDriver, envVars);
++                prefixSetup.setupWineSystemFiles(sharedRuntime);
+                 extractGraphicsDriverFiles();
+-                changeWineAudioDriver();
++                prefixSetup.changeWineAudioDriver(sharedRuntime);
+             }
+             setupXEnvironment();
+         });
+@@ -363,10 +384,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             super.onDestroy();
+             return;
+         }
++        synchronized (sessionLock) { sessionEnded = true; }
+         com.logie.warcraft.tww.TwwServer.runtimeDetached(this);
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
+-        endLocalRealmProcesses();
++        endSessionProcesses();
+         ForegroundService.stopSession(this);
+         closeSessionLog();
+         super.onDestroy();
+@@ -489,96 +511,40 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         return preferences;
+     }
+ 
+-    // World of Warcraft app: the first-window handling (flags[0]: the game's first window was shown).
+-    private boolean[] windowFlags;
+-
+-    // World of Warcraft app: a local realm's game started again in its session (which outlives the
+-    // game): its first window brings the login again.
+-    public void onRealmClientLaunched() {
+-        runOnUiThread(() -> {
+-            if (windowFlags != null) windowFlags[0] = false;
+-            if (gestureView != null) gestureView.onClientLaunched();
+-        });
+-    }
+-
+-    // World of Warcraft app: Leave in a local realm's session closes its game and goes back to the
+-    // launcher, the realm left running (Stop Server ends it); in a game's, it ends the session.
++    // World of Warcraft app: Leave in a local realm's session closes its game and the session (the
++    // realm runs on without a screen; Stop Server ends it); in a game's, it ends the session.
+     private void leaveGame() {
+-        if (!com.logie.warcraft.tww.TwwServer.leaveGame(this)) exit();
++        com.logie.warcraft.tww.TwwServer.leaveGame(this);
++        exit();
+     }
+ 
+-    // World of Warcraft app: a local realm's servers are Wine processes apart from the runtime's (a
+-    // session of their own), which outlive its end: when it ends, none is left running (the realm has
+-    // shut them down already when it was stopped).
+-    private void endLocalRealmProcesses() {
++    // World of Warcraft app: a local realm's session ends its own programs (WINLATOR_SESSION in their
++    // environment: the game, its console, Winlator's helper), never the realm's, which share its Wine
++    // server and were started apart from it.
++    private void endSessionProcesses() {
+         if (!getIntent().getBooleanExtra("local_server_session", false)) return;
+-        for (ProcessHelper.PStat process : ProcessHelper.getChildProcesses()) {
+-            if (process.guestProcess) ProcessHelper.killProcess(process.pid);
+-        }
++        for (int pid : ProcessHelper.findProcessesWithEnv("WINLATOR_SESSION", sessionToken)) ProcessHelper.killProcess(pid);
+     }
+ 
+     private void exit() {
+         writeSessionLog("[app] Closing the Windows session (the runtime ended, or Leave/Exit was chosen).");
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
+-        endLocalRealmProcesses();
++        endSessionProcesses();
+ 
+         // World of Warcraft app: back to the launcher, without restarting the app (its server runs in it).
+         ForegroundService.stopSession(this);
+-        finish();
+-    }
+-
+-    private void setupWineSystemFiles() {
+-        String appVersion = String.valueOf(AppUtils.getVersionCode(this));
+-        String rfsVersion = String.valueOf(rootFS.getVersion());
+-        boolean containerDataChanged = false;
+-
+-        boolean wineprefixWasUpdated = WineUtils.isWineprefixWasUpdated(container);
+-        if (!container.getExtra("appVersion").equals(appVersion) || !container.getExtra("rfsVersion").equals(rfsVersion) || wineprefixWasUpdated) {
+-            applyGeneralPatches(container);
+-            container.putExtra("appVersion", appVersion);
+-            container.putExtra("rfsVersion", rfsVersion);
+-            containerDataChanged = true;
+-        }
+-
+-        if (verifyUserRegistry()) containerDataChanged = true;
+-        if (extractDXWrapperFiles()) containerDataChanged = true;
+-
+-        if (!wincomponents.equals(container.getExtra("wincomponents"))) {
+-            extractWinComponentFiles();
+-            container.putExtra("wincomponents", wincomponents);
+-            containerDataChanged = true;
+-        }
+-
+-        String desktopTheme = container.getDesktopTheme();
+-        if (!(desktopTheme+","+xServer.screenInfo).equals(container.getExtra("desktopTheme"))) {
+-            WineThemeManager.apply(this, new WineThemeManager.ThemeInfo(desktopTheme), xServer.screenInfo);
+-            container.putExtra("desktopTheme", desktopTheme+","+xServer.screenInfo);
+-            containerDataChanged = true;
+-        }
+-
+-        WineStartMenuCreator.create(this, container);
+-        WineUtils.createDosdevicesSymlinks(container, true);
+-
+-        String startupSelection = String.valueOf(container.getStartupSelection());
+-        if (!startupSelection.equals(container.getExtra("startupSelection")) || wineprefixWasUpdated) {
+-            WineUtils.changeServicesStatus(container, container.getStartupSelection());
+-            container.putExtra("startupSelection", startupSelection);
+-            containerDataChanged = true;
++        if (getIntent().getBooleanExtra("local_server_session", false)) {
++            // (a local realm's session is a task of its own: gone from Recents with it, the launcher in front)
++            startActivity(new Intent(this, com.logie.warcraft.MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
++            finishAndRemoveTask();
+         }
+-
+-        boolean openAndroidBrowserFromWine = preferences.getBoolean("open_android_browser_from_wine", true);
+-        String openAndroidBrowserFromWineStr = openAndroidBrowserFromWine ? "t" : "f";
+-        if (!openAndroidBrowserFromWineStr.equals(container.getExtra("openAndroidBrowserFromWine")) || wineprefixWasUpdated) {
+-            WineUtils.changeBrowsersRegistryKey(container, openAndroidBrowserFromWine);
+-            container.putExtra("openAndroidBrowserFromWine", openAndroidBrowserFromWineStr);
+-            containerDataChanged = true;
+-        }
+-
+-        if (containerDataChanged) container.saveData();
++        else finish();
+     }
+ 
+     private void setupXEnvironment() {
++        // World of Warcraft app: a screen closed while it was being set up starts nothing.
++        if (isFinishing() || isDestroyed()) return;
+         String rootPath = rootFS.getRootDir().getPath();
+         envVars.put("MESA_DEBUG", "silent");
+         envVars.put("MESA_NO_ERROR", "1");
+@@ -589,7 +555,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
+         envVars.put("WINEDEBUG", enableWineDebug && !wineDebugChannels.isEmpty() ? "+"+wineDebugChannels.replace(",", ",+") : "-all");
+ 
+-        FileUtils.clear(rootFS.getTmpDir());
++        // World of Warcraft app: not while a local realm's Wine runs: its server's socket and shared
++        // memory are there (rootfs/tmp/.wine-<uid>, rootfs/tmp/shm), and without them a second Wine
++        // server would start for the same prefix, unable to see the realm's programs.
++        if (!sharedRuntime) FileUtils.clear(rootFS.getTmpDir());
++        else new File(rootFS.getTmpDir(), "shm").mkdirs();
+ 
+         GuestProgramLauncherComponent guestProgramLauncherComponent = new GuestProgramLauncherComponent();
+ 
+@@ -603,6 +573,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             envVars.putAll(container.getEnvVars());
+             if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
+             if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
++            // World of Warcraft app: every program of this session carries it (Wine passes it on to
++            // the programs it starts), so its end can end them and nothing of a realm's.
++            if (getIntent().getBooleanExtra("local_server_session", false)) envVars.put("WINLATOR_SESSION", sessionToken);
+ 
+             guestProgramLauncherComponent.setBox64Preset(shortcut != null ? shortcut.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
+             // World of Warcraft app: a session may ask for its own Box64 (local realms' modern clients).
+@@ -660,10 +633,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             envVars.putAll(overrideEnvVars);
+             overrideEnvVars = null;
+         }
+-        environment.startEnvironmentComponents();
++        synchronized (sessionLock) {
++            if (sessionEnded) return;
++            environment.startEnvironmentComponents();
+ 
+-        winHandler.start();
+-        com.logie.warcraft.tww.TwwServer.runtimeAttached(this);
++            winHandler.start();
++            com.logie.warcraft.tww.TwwServer.runtimeAttached(this);
++        }
+         envVars.clear();
+         graphicsDriver = null;
+         dxwrapperConfig = null;
+@@ -904,145 +880,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         return inputControlsView;
+     }
+ 
+-    private boolean extractDXWrapperFiles() {
+-        String cacheId = "";
+-        if (dxwrapper.equals(DXWrappers.DXVK)) {
+-            DXVKConfigDialog.setEnvVars(this, dxwrapperConfig[0], envVars);
+-            cacheId += dxwrapper+"-"+dxwrapperConfig[0].get("version", DefaultVersion.DXVK(graphicsDriver[0]));
+-        }
+-        else if (dxwrapper.equals(DXWrappers.WINED3D)) {
+-            WineD3DConfigDialog.setEnvVars(dxwrapperConfig[0], envVars);
+-            cacheId += dxwrapper+"-"+dxwrapperConfig[0].get("version", DefaultVersion.WINED3D);
+-        }
+-
+-        String ddrawWrapper = dxwrapperConfig[0].get("ddrawWrapper", DXWrappers.WINED3D);
+-        cacheId += "-"+DXWrappers.VKD3D+"-"+dxwrapperConfig[1].get("version", DefaultVersion.VKD3D)+"-"+ddrawWrapper;
+-        boolean changed = !cacheId.equals(container.getExtra("dxwrapper"));
+-        VKD3DConfigDialog.setEnvVars(dxwrapperConfig[1], envVars);
+-
+-        if (ddrawWrapper.equals(DXWrappers.CNC_DDRAW)) envVars.put("CNC_DDRAW_CONFIG_FILE", "C:\\ProgramData\\cnc-ddraw\\ddraw.ini");
+-
+-        if (!changed) return false;
+-        container.putExtra("dxwrapper", cacheId);
+-
+-        File rootDir = rootFS.getRootDir();
+-        File windowsDir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows");
+-
+-        if (dxwrapper.equals(DXWrappers.WINED3D)) {
+-            String version = dxwrapperConfig[0].get("version", DefaultVersion.WINED3D);
+-            if (version.equals(WineInfo.MAIN_WINE_VERSION)) {
+-                final String[] dlls = {"d3d8.dll", "d3d9.dll", "d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "d3d12core.dll", "dxgi.dll", "ddraw.dll", "wined3d.dll"};
+-                restoreBuiltinDllFiles(dlls);
+-            }
+-            else GeneralComponents.extractFile(GeneralComponents.Type.WINED3D, this, version, DefaultVersion.WINED3D);
+-        }
+-        else if (dxwrapper.equals(DXWrappers.DXVK)) {
+-            final boolean[] hasD3D8DllFile = {false};
+-            final boolean[] hasD3D10DllFile = {false};
+-
+-            GeneralComponents.extractFile(GeneralComponents.Type.DXVK, this, dxwrapperConfig[0].get("version"), DefaultVersion.DXVK(graphicsDriver[0]), (destination, size) -> {
+-                String name = destination.getName();
+-                if (name.equals("d3d10.dll")) {
+-                    hasD3D10DllFile[0] = true;
+-                }
+-                else if (name.equals("d3d8.dll")) {
+-                    hasD3D8DllFile[0] = true;
+-                }
+-                return destination;
+-            });
+-
+-            if (!hasD3D8DllFile[0]) {
+-                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "dxwrapper/d8vk-"+DefaultVersion.D8VK+".tzst", windowsDir);
+-            }
+-            if (!hasD3D10DllFile[0]) restoreBuiltinDllFiles("d3d10.dll", "d3d10_1.dll");
+-        }
+-
+-        GeneralComponents.extractFile(GeneralComponents.Type.VKD3D, this, dxwrapperConfig[1].get("version"), DefaultVersion.VKD3D);
+-
+-        File containerSysWoW64Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/syswow64");
+-        FileUtils.delete(new File(containerSysWoW64Dir, "ddraw_.dll"));
+-
+-        switch (ddrawWrapper) {
+-            case DXWrappers.CNC_DDRAW:
+-                final String assetDir = "dxwrapper/cnc-ddraw-"+DefaultVersion.CNC_DDRAW;
+-                File configFile = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/ProgramData/cnc-ddraw/ddraw.ini");
+-                if (!configFile.isFile()) FileUtils.copy(this, assetDir+"/ddraw.ini", configFile);
+-                File shadersDir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/ProgramData/cnc-ddraw/Shaders");
+-                FileUtils.delete(shadersDir);
+-                FileUtils.copy(this, assetDir+"/Shaders", shadersDir);
+-                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, assetDir+"/ddraw.tzst", windowsDir);
+-                break;
+-            case DXWrappers.D7VK:
+-                restoreBuiltinDllFiles("ddraw.dll");
+-                (new File(containerSysWoW64Dir, "ddraw.dll")).renameTo(new File(containerSysWoW64Dir, "ddraw_.dll"));
+-                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "dxwrapper/d7vk-"+DefaultVersion.D7VK+".tzst", windowsDir);
+-                break;
+-            default:
+-                restoreBuiltinDllFiles("ddraw.dll");
+-                break;
+-        }
+-        return true;
+-    }
+-
+-    private void extractWinComponentFiles() {
+-        File rootDir = rootFS.getRootDir();
+-        File windowsDir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows");
+-        File systemRegFile = new File(rootDir, RootFS.WINEPREFIX+"/system.reg");
+-
+-        try {
+-            JSONObject wincomponentsJSONObject = new JSONObject(FileUtils.readString(this, "wincomponents/wincomponents.json"));
+-            Iterator<String[]> oldWinComponentsIter = new KeyValueSet(container.getExtra("wincomponents", Container.FALLBACK_WINCOMPONENTS)).iterator();
+-            ArrayList<String> builtinDlls = new ArrayList<>();
+-
+-            for (String[] wincomponent : new KeyValueSet(wincomponents)) {
+-                if (wincomponent[1].equals(oldWinComponentsIter.next()[1])) continue;
+-                String identifier = wincomponent[0];
+-                boolean useNative = wincomponent[1].equals("1");
+-
+-                if (useNative) {
+-                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "wincomponents/"+identifier+".tzst", windowsDir);
+-                }
+-                else {
+-                    JSONObject wincomponentJSONObject = wincomponentsJSONObject.getJSONObject(identifier);
+-                    if (wincomponentJSONObject.getBoolean("restoreBuiltinDlls")) {
+-                        JSONArray dlnames = wincomponentJSONObject.getJSONArray("dlnames");
+-                        for (int i = 0; i < dlnames.length(); i++) {
+-                            String dlname = dlnames.getString(i);
+-                            builtinDlls.add(!dlname.endsWith(".exe") ? dlname+".dll" : dlname);
+-                        }
+-                    }
+-                    else {
+-                        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "wincomponents/"+identifier+".tzst", windowsDir, (destination, size) -> {
+-                            String name = destination.getName();
+-                            if (name.endsWith(".dll") || name.endsWith(".manifest") || name.endsWith("_deadbeef")) FileUtils.delete(destination);
+-                            return null;
+-                        });
+-                    }
+-                }
+-
+-                WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative);
+-            }
+-
+-            if (!builtinDlls.isEmpty()) restoreBuiltinDllFiles(builtinDlls.toArray(new String[0]));
+-            WineUtils.overrideWinComponentDlls(this, container, wincomponents);
+-        }
+-        catch (JSONException e) {}
+-    }
+-
+-    private void restoreBuiltinDllFiles(final String... dlls) {
+-        File rootDir = rootFS.getRootDir();
+-        File wineDir = new File(rootDir, rootFS.getWinePath());
+-        File wineSystem32Dir = new File(wineDir, "/lib/wine/x86_64-windows");
+-        File wineSysWoW64Dir = new File(wineDir, "/lib/wine/i386-windows");
+-        File containerSystem32Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/system32");
+-        File containerSysWoW64Dir = new File(rootDir, RootFS.WINEPREFIX+"/drive_c/windows/syswow64");;
+-
+-        for (String dll : dlls) {
+-            FileUtils.copy(new File(wineSysWoW64Dir, dll), new File(containerSysWoW64Dir, dll));
+-            FileUtils.copy(new File(wineSystem32Dir, dll), new File(containerSystem32Dir, dll));
+-        }
+-    }
+-
+     private boolean isGenerateWineprefix() {
+         return getIntent().getBooleanExtra("generate_wineprefix", false);
+     }
+@@ -1157,34 +994,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         this.screenEffectProfile = screenEffectProfile;
+     }
+ 
+-    private void changeWineAudioDriver() {
+-        if (!audioDriver.equals(container.getExtra("audioDriver"))) {
+-            File rootDir = rootFS.getRootDir();
+-            File userRegFile = new File(rootDir, RootFS.WINEPREFIX+"/user.reg");
+-            try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+-                if (audioDriver.equals(AudioDrivers.ALSA)) {
+-                    registryEditor.setStringValue("Software\\Wine\\Drivers", "Audio", "alsa");
+-                }
+-                else if (audioDriver.equals(AudioDrivers.PULSEAUDIO)) {
+-                    registryEditor.setStringValue("Software\\Wine\\Drivers", "Audio", "pulse");
+-                }
+-            }
+-            container.putExtra("audioDriver", audioDriver);
+-            container.saveData();
+-        }
+-    }
+-
+-    private void applyGeneralPatches(Container container) {
+-        File rootDir = rootFS.getRootDir();
+-        FileUtils.delete(new File(rootDir, "/opt/apps"));
+-        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "rootfs_patches.tzst", rootDir);
+-        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "pulseaudio.tzst", new File(getFilesDir(), "pulseaudio"));
+-        WineUtils.applySystemTweaks(this, wineInfo);
+-        container.putExtra("dxwrapper", null);
+-        container.putExtra("desktopTheme", null);
+-        SettingsFragment.resetPreferenceVersions(this);
+-    }
+-
+     public void changeFrameRatingVisibility(Window window, boolean visible) {
+         if (frameRating == null) return;
+         if (visible) {
+@@ -1215,18 +1024,4 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         }
+     }
+ 
+-    public boolean verifyUserRegistry() {
+-        File userRegFile = new File(rootFS.getRootDir(), RootFS.WINEPREFIX+"/user.reg");
+-        String lastModified = String.valueOf(userRegFile.lastModified());
+-
+-        if (!lastModified.equals(container.getExtra("userRegLastModified"))) {
+-            try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+-                registryEditor.removeKey("Software\\Wow6432Node\\Wine", true);
+-            }
+-
+-            container.putExtra("userRegLastModified", lastModified);
+-            return true;
+-        }
+-        else return false;
+-    }
+ }
+\ No newline at end of file
+diff --git a/app/src/main/java/com/winlator/container/ContainerManager.java b/app/src/main/java/com/winlator/container/ContainerManager.java
+index 1708187..77d315a 100644
+--- a/app/src/main/java/com/winlator/container/ContainerManager.java
++++ b/app/src/main/java/com/winlator/container/ContainerManager.java
+@@ -67,8 +67,21 @@ public class ContainerManager {
+     public void activateContainer(Container container) {
+         container.setRootDir(new File(homeDir, RootFS.USER+"-"+container.id));
+         File file = new File(homeDir, RootFS.USER);
+-        file.delete();
+-        FileUtils.symlink(RootFS.USER+"-"+container.id, file.getPath());
++        String target = RootFS.USER+"-"+container.id;
++        // World of Warcraft app: left as it is when it's already this container (a local realm's
++        // programs, running, find their files through it), and otherwise replaced in one step.
++        try {
++            if (target.equals(android.system.Os.readlink(file.getPath()))) return;
++        }
++        catch (android.system.ErrnoException e) {}
++        File temporary = new File(homeDir, "."+RootFS.USER+"-link");
++        temporary.delete();
++        FileUtils.symlink(target, temporary.getPath());
++        if (!temporary.renameTo(file)) {
++            temporary.delete();
++            file.delete();
++            FileUtils.symlink(target, file.getPath());
++        }
+     }
+ 
+     public void createContainerAsync(final JSONObject data, Callback<Container> callback) {
+diff --git a/app/src/main/java/com/winlator/core/ProcessHelper.java b/app/src/main/java/com/winlator/core/ProcessHelper.java
+index 4651b83..1a4df38 100644
+--- a/app/src/main/java/com/winlator/core/ProcessHelper.java
++++ b/app/src/main/java/com/winlator/core/ProcessHelper.java
+@@ -280,6 +280,50 @@ public abstract class ProcessHelper {
+         }
+     }
+ 
++    /**
++     * World of Warcraft app: the processes of this app's user whose environment has [name]=[value]
++     * (one a session or a local realm put in its programs' environment, which Wine passes on to the
++     * programs they start), never this process.
++     */
++    public static List<Integer> findProcessesWithEnv(String name, String value) {
++        ArrayList<Integer> result = new ArrayList<>();
++        byte[] wanted = (name+"="+value).getBytes();
++        File[] entries = new File("/proc").listFiles();
++        if (entries == null) return result;
++        int self = Process.myPid();
++        for (File entry : entries) {
++            String fileName = entry.getName();
++            if (fileName.isEmpty() || !Character.isDigit(fileName.charAt(0))) continue;
++            int pid;
++            try { pid = Integer.parseInt(fileName); }
++            catch (NumberFormatException e) { continue; }
++            if (pid == self) continue;
++            byte[] environ;
++            try (FileInputStream input = new FileInputStream(new File(entry, "environ"))) {
++                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
++                byte[] buffer = new byte[8192];
++                int read;
++                while ((read = input.read(buffer)) > 0) bytes.write(buffer, 0, read);
++                environ = bytes.toByteArray();
++            }
++            catch (IOException | SecurityException e) { continue; }
++            int start = 0;
++            for (int i = 0; i <= environ.length; i++) {
++                if (i == environ.length || environ[i] == 0) {
++                    if (i - start == wanted.length) {
++                        boolean same = true;
++                        for (int j = 0; j < wanted.length; j++) {
++                            if (environ[start + j] != wanted[j]) { same = false; break; }
++                        }
++                        if (same) { result.add(pid); break; }
++                    }
++                    start = i + 1;
++                }
++            }
++        }
++        return result;
++    }
++
+     public static List<PStat> getChildProcesses() {
+         File procFile = new File("/proc");
+         String[] pids = procFile.list((file, name) -> (new File(file, name)).isDirectory() && name.matches("[0-9]+"));
+diff --git a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+index b1bd5ac..20c818c 100644
+--- a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
++++ b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+@@ -37,8 +37,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+     public void start() {
+         synchronized (lock) {
+             stop();
+-            extractBox64File();
+-            copyDefaultBox64RCFile();
++            prepareBox64(environment.getContext(), box64Version);
+             pid = execGuestProgram();
+         }
+     }
+@@ -90,7 +89,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+         File rootDir = rootFS.getRootDir();
+ 
+         EnvVars envVars = new EnvVars();
+-        addBox64EnvVars(envVars);
++        addBox64EnvVars(environment.getContext(), rootFS, box64Preset, envVars);
+         LocaleHelper.setEnvVars(envVars);
+ 
+         envVars.put("HOME", rootDir+RootFS.HOME_PATH);
+@@ -117,31 +116,33 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+         });
+     }
+ 
+-    private void extractBox64File() {
+-        Context context = environment.getContext();
++    /**
++     * World of Warcraft app: Box64 [version] (null: the app-wide one) in the runtime, and its settings
++     * file, before a guest program starts; for a session, or a local realm's programs with no session.
++     */
++    public static void prepareBox64(Context context, String version) {
+         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+-        String box64Version = this.box64Version != null ? this.box64Version : preferences.getString("box64_version", DefaultVersion.BOX64);
++        String box64Version = version != null ? version : preferences.getString("box64_version", DefaultVersion.BOX64);
+         String currentBox64Version = preferences.getString("current_box64_version", "");
+ 
+         if (!box64Version.equals(currentBox64Version)) {
+             GeneralComponents.extractFile(GeneralComponents.Type.BOX64, context, box64Version, DefaultVersion.BOX64);
+-            preferences.edit().putString("current_box64_version", box64Version).apply();
++            preferences.edit().putString("current_box64_version", box64Version).commit();
+         }
++        copyDefaultBox64RCFile(context);
+     }
+ 
+     public void setBox64Version(String box64Version) {
+         this.box64Version = box64Version;
+     }
+ 
+-    private void copyDefaultBox64RCFile() {
+-        Context context = environment.getContext();
+-        RootFS rootFS = environment.getRootFS();
++    private static void copyDefaultBox64RCFile(Context context) {
++        RootFS rootFS = RootFS.find(context);
+         FileUtils.copy(context, "box64/default.box64rc", new File(rootFS.getRootDir(), "/etc/config.box64rc"));
+     }
+ 
+-    private void addBox64EnvVars(EnvVars envVars) {
+-        Context context = environment.getContext();
+-        RootFS rootFS = environment.getRootFS();
++    /** World of Warcraft app: Box64's variables with [box64Preset]'s, for a session or a local realm's programs. */
++    public static void addBox64EnvVars(Context context, RootFS rootFS, String box64Preset, EnvVars envVars) {
+         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+         int box64Logs = preferences.getInt("box64_logs", 0);
+         boolean saveToFile = preferences.getBoolean("save_logs_to_file", false);
+diff --git a/app/src/main/java/com/winlator/xenvironment/components/SysVSharedMemoryComponent.java b/app/src/main/java/com/winlator/xenvironment/components/SysVSharedMemoryComponent.java
+index 4461b71..fc82580 100644
+--- a/app/src/main/java/com/winlator/xenvironment/components/SysVSharedMemoryComponent.java
++++ b/app/src/main/java/com/winlator/xenvironment/components/SysVSharedMemoryComponent.java
+@@ -37,6 +37,6 @@ public class SysVSharedMemoryComponent extends EnvironmentComponent {
+             connector = null;
+         }
+ 
+-        sysVSharedMemory.deleteAll();
++        if (sysVSharedMemory != null) sysVSharedMemory.deleteAll();
+     }
+ }
+-- 
+2.43.0
+
