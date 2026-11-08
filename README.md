@@ -7,7 +7,7 @@ arm64 phones. Made for the Galaxy Z Fold.
 
 ## The look
 
-**Modern** is the default: the game's art, its name, its versions (where it has more than one) and **Play**. Everything else for a game (launch options, controls, add-ons, modules, art, install & repair, the app it plays in) is in its menu: hold its box, or tap the ••• beside Play. On the open Fold the library runs down the left; on the cover screen it is a row of boxes under the game. The gear opens the settings.
+**Modern** is the default: the game's art, its name, its versions (where it has more than one) and **Play**. Everything else for a game (launch options, controls, add-ons, modules, art, install & repair, the app it plays in) is in its menu: hold its box, or tap the ••• beside Play. On the open Fold the library runs down the left; on the cover screen it is a row of boxes under the game. The gear opens the settings. **Art** (in a game's menu) holds all its pictures: its box, its background (behind it on the home screen and on its loading screen) and its logo; tap one to change it, its ↺ to put the original back. Under them is its loading screen as it will look: drag and pinch the background, tap where the logo goes, slide for its size.
 
 **Classic** is the Northrend look the app had (the shelf or the tiles, Cinzel and gold corners), kept whole. **Hold the Blizzard logo** to switch: in Modern it goes to Classic; in Classic it offers the settings or Modern. The settings' **Look** card switches too. Holding a game's box opens its menu in either look.
 

@@ -2,7 +2,9 @@ package com.logie.blizz.ui
 
 import android.content.Context
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
 import com.logie.blizz.Games
@@ -97,5 +99,28 @@ class ModernUiTest {
         rule.setContent { BlizzTheme { ImportWizard(Games.find("diablo")!!, onDismiss = {}, onPlay = {}) } }
         settle()
         UiShots.saveAll("modern-wizard", rule)
+    }
+
+    @Test fun theMenusItemsOpenWhatTheySay() {
+        rule.setContent { Launcher(fold = null) }
+        settle()
+        rule.onNodeWithContentDescription("More").performClick()
+        settle(500)
+        rule.onNodeWithText("Launch options").performClick()
+        settle(500)
+        rule.onNodeWithText("Safe mode", ignoreCase = true).assertExists()
+    }
+
+    @Test fun theMenusArtOpensEveryPicture() {
+        rule.setContent { Launcher(fold = null) }
+        settle()
+        rule.onNodeWithContentDescription("More").performClick()
+        settle(500)
+        rule.onNodeWithText("Art").performClick()
+        settle(500)
+        rule.onNodeWithText("Box").assertExists()
+        rule.onNodeWithText("Background").assertExists()
+        rule.onNodeWithText("Logo").assertExists()
+        UiShots.saveAll("modern-art", rule)
     }
 }

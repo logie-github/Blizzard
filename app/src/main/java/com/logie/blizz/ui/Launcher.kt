@@ -232,7 +232,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
                 }
             }
         }
-        }
+        // (inside the providers: the menus and dialogs open one another through them)
         UpdateBanner()
         splashFor?.let { SplashDialog(it, onDismiss = { splashFor = null }) }
         holdFor?.let { HoldMenu(it, onDismiss = { holdFor = null }) }
@@ -254,6 +254,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
                     if (app != null && launchAfterPick) Links.launch(context, game)
                 },
             )
+        }
         }
     }
 }

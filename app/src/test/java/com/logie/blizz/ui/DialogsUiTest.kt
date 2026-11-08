@@ -39,7 +39,7 @@ class DialogsUiTest {
     @Test fun splashEditor() {
         rule.setContent { BlizzTheme { SplashDialog(Games.find("diablo2")!!, onDismiss = {}) } }
         settle()
-        rule.onNodeWithText("Auto logo", ignoreCase = true).assertExists()
+        rule.onNodeWithText("Background", ignoreCase = true).assertExists()
         UiShots.saveAll("splash-editor", rule)
     }
 
