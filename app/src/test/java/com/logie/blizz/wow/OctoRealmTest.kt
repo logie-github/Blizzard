@@ -4,6 +4,9 @@ import com.logie.blizz.game.OctoClientSetup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -38,11 +41,14 @@ class OctoRealmTest {
         return l
     }
 
-    private fun controller(l: WowLayout, r: RealmControllerTest.FakeRunner, spec: RealmSpec = RealmSpecs.OCTO) = ClassicRealmController(
-        spec = spec, layout = l, runner = r, scope = scope, timeZone = { "<+0000>-00:00" },
+    private fun controller(
+        l: WowLayout, r: RealmControllerTest.FakeRunner, spec: RealmSpec = RealmSpecs.OCTO, account: (() -> Pair<String, String>?)? = null,
+        sleep: suspend (Long) -> Unit = { },
+    ) = ClassicRealmController(
+        spec = spec, layout = l, runner = r, scope = scope, timeZone = { "<+0000>-00:00" }, account = account ?: { null },
         // The login server's ports are open once it has been started.
         portOpen = { port -> r.started.any { it.args.first() == spec.loginProgram } && port in spec.loginPorts },
-        sleep = { }, pollMs = 1,
+        sleep = sleep, pollMs = 1,
     )
 
     @Test fun theRealmComesUpInOrderAndIsStoppedWithTheCharactersSaved() = runBlocking {
@@ -69,6 +75,41 @@ class OctoRealmTest {
         c.shutDown()
         assertTrue(r.find("mangosd").sent.contains("server shutdown 1"))
         assertEquals(WowRealm.Phase.STOPPED, c.status.value.phase)
+    }
+
+    @Test fun theAccountTheVersionLogsInWithIsMadeSureOfBeforeTheLoginServerStarts() = runBlocking {
+        val l = layout()
+        val r = RealmControllerTest.FakeRunner(OctoBehavior())
+        val c = controller(l, r, account = { "Logan" to "Secret1" })
+        c.run()
+        assertEquals(c.status.value.error, WowRealm.Phase.RUNNING, c.status.value.phase)
+        val account = r.started.filter { it.command.env["SQL"]?.contains("INSERT INTO account") == true }
+        assertEquals(1, account.size)
+        assertTrue(account[0].command.env["SQL"]!!.contains(RealmAccounts.octoHash("LOGAN", "SECRET1")))
+        assertTrue(r.started.indexOf(account[0]) < r.started.indexOfFirst { it.args.first() == "realmd" })
+    }
+
+    @Test fun anAccountThatCantBeOneIsLeftToTheGamesOwnPrompt() = runBlocking {
+        val l = layout()
+        val r = RealmControllerTest.FakeRunner(OctoBehavior())
+        controller(l, r, account = { "bad'name" to "pw" }).run()
+        assertTrue(r.started.none { it.command.env["SQL"]?.contains("INSERT INTO account") == true })
+        assertTrue(File(l.logs, "blizzard.log").readText().contains("can't be made"))
+    }
+
+    @Test fun aWorldServerThatEndsCleanlyIsStartedAgain() = runBlocking {
+        val l = layout()
+        val r = RealmControllerTest.FakeRunner(OctoBehavior())
+        val c = controller(l, r, sleep = { delay(1) })
+        c.run()
+        assertEquals(WowRealm.Phase.RUNNING, c.status.value.phase)
+        // The world server's own restart: it ends with code 0.
+        r.find("mangosd").apply { code = 0; alive = false }
+        withTimeout(10_000) { while (r.started.count { it.args.first() == "mangosd" } < 2) delay(5) }
+        withTimeout(10_000) { c.status.first { it.phase == WowRealm.Phase.RUNNING } }
+        assertEquals(2, r.started.count { it.args.first() == "mangosd" })
+        assertEquals(1, r.started.count { it.args.first() == "realmd" })
+        c.shutDown()
     }
 
     @Test fun anIncompleteImportFailsWithAWordForThePerson() = runBlocking {

@@ -29,6 +29,7 @@ internal object RealmSpecs {
         realmSql = { address ->
             "tw_logon" to "UPDATE realmlist SET name = '${com.logie.blizz.game.OctoClientSetup.REALM_NAME}', address = '$address', port = 8090, realmbuilds = '7272' WHERE id = 1;"
         },
+        accountSql = { name, password -> RealmAccounts.octoSql(name, password)?.let { "tw_logon" to it } },
         worldSettings = { vmaps, mmaps ->
             mapOf(
                 "vmap.enableLOS" to flag(vmaps), "vmap.enableHeight" to flag(vmaps), "vmap.enableIndoorCheck" to flag(vmaps),
@@ -69,6 +70,7 @@ internal object RealmSpecs {
             "auth" to "UPDATE realmlist SET name = 'Legion', address = '$address', localAddress = '127.0.0.1', port = 8095, gamePort = 8096, " +
                 "gamebuild = 26972, flag = 0 WHERE id = 1;"
         },
+        accountSql = { name, password -> RealmAccounts.legionSql(name, password)?.let { "auth" to it } },
         worldSettings = { vmaps, mmaps ->
             mapOf(
                 "GameType" to "0", "DungeonFinder.DebugJoin" to "1", "Warden.Enabled" to "0",

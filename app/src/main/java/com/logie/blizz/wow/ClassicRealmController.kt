@@ -48,6 +48,8 @@ internal class RealmSpec(
     val noData: String,
     /** The login database's name for `ctl.sh sql`, and the row that tells the client where the world is. */
     val realmSql: (address: String) -> Pair<String, String>,
+    /** The login database's name and the SQL that makes sure the account (name, password) the version logs in with is there; null when it can't be one of this server's. */
+    val accountSql: (name: String, password: String) -> Pair<String, String>? = { _, _ -> null },
     /** Settings the app owns in the world server's conf (given which data parts exist). */
     val worldSettings: (vmaps: Boolean, mmaps: Boolean) -> Map<String, String>,
     /** Settings for other confs, by file name (relative to etc/), written after `configure`. */
@@ -80,18 +82,21 @@ internal class ClassicRealmController(
     private val clock: () -> Long = System::currentTimeMillis,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val onFailure: (message: String, log: String?) -> Unit = { _, _ -> },
+    /** The name and password the version logs in with by itself (see [RealmAccounts]), or null. */
+    private val account: () -> Pair<String, String>? = { null },
     private val pollMs: Long = 1000,
     private val _status: MutableStateFlow<WowRealm.Status> = MutableStateFlow(WowRealm.Status(realm = spec.realm)),
 ) : RealmRun {
     val status: StateFlow<WowRealm.Status> = _status
 
     private val lock = Mutex()
-    private var db: RealmProcess? = null
-    private var login: RealmProcess? = null
-    private var world: RealmProcess? = null
+    @Volatile private var db: RealmProcess? = null
+    @Volatile private var login: RealmProcess? = null
+    @Volatile private var world: RealmProcess? = null
     @Volatile private var stepProcess: RealmProcess? = null
     @Volatile private var stopping = false
     private var watcher: Job? = null
+    private var restarts = 0
     private lateinit var loader: File
 
     private class StepFailed(message: String, val log: File? = null) : Exception(message)
@@ -150,6 +155,7 @@ internal class ClassicRealmController(
         step(WowRealm.Step.DATABASE, "Starting the database")
         startDatabase()
         setRealmList()
+        ensureAccount()
 
         step(WowRealm.Step.AUTH, "Starting the login server")
         val loginLog = File(layout.logs, spec.loginLog)
@@ -185,6 +191,25 @@ internal class ClassicRealmController(
         if (process.exitValue() != 0) throw StepFailed("Setting the realm list failed (code ${process.exitValue()}).", log)
     }
 
+    /** The account the version logs in with by itself exists in the login database with that password (a failure here never stops the realm). */
+    private suspend fun ensureAccount() {
+        val (name, password) = account() ?: return
+        val (database, sql) = spec.accountSql(name, password) ?: run {
+            logLine("The saved account can't be made on this realm (its name or password doesn't fit): the game will ask for the password.")
+            return
+        }
+        val base = WowCtl.command(layout, loader, timeZone(), "sql", database)
+        val script = "printf '%s\\n' \"\$SQL\" | " + base.argv.joinToString(" ") { "'" + it.replace("'", "'\\''") + "'" }
+        val log = File(layout.logs, "account.log")
+        log.delete()
+        val process = runner.start(WowCtl.Command(listOf("/system/bin/sh", "-c", script), base.env + mapOf("SQL" to sql), base.directory), log, false)
+        val deadline = clock() + 60_000
+        while (!process.waitFor(200)) {
+            if (clock() > deadline) { process.destroyForcibly(); logLine("Making the account took more than a minute."); return }
+        }
+        logLine(if (process.exitValue() == 0) "The account $name is in the login database." else "The account couldn't be made (code ${process.exitValue()}): see logs/account.log.")
+    }
+
     private suspend fun startWorld() {
         step(WowRealm.Step.WORLD, "Loading ${spec.name}")
         val log = File(layout.logs, spec.worldLog)
@@ -212,6 +237,20 @@ internal class ClassicRealmController(
         while (coroutineContext.isActive && !stopping) {
             sleep(pollMs)
             if (stopping) return
+            // A world server that ends cleanly (code 0) was asked to restart (its own scheduled restart, a `server restart`): it is started again, a few times.
+            if (world?.isAlive == false && world!!.exitValue() == 0 && restarts < MAX_RESTARTS && db?.isAlive != false && login?.isAlive != false) {
+                restarts++
+                val restarted = withContext(kotlinx.coroutines.NonCancellable) {
+                    lock.withLock {
+                        if (stopping) return@withLock false
+                        logLine("The world server ended cleanly (a restart): starting it again ($restarts of $MAX_RESTARTS).")
+                        world = null
+                        try { startWorld(); true } catch (e: StepFailed) { fail(e.message ?: "", e.log); true }
+                    }
+                }
+                if (restarted) return
+                continue
+            }
             val dead = when {
                 world?.isAlive == false -> "The world server stopped (code ${world!!.exitValue()})." to worldLog
                 login?.isAlive == false -> "The login server stopped (code ${login!!.exitValue()})." to File(layout.logs, spec.loginLog)
@@ -336,6 +375,9 @@ internal class ClassicRealmController(
     }
 
     companion object {
+        /** How many times a world server that ended cleanly is started again in one run of the realm. */
+        const val MAX_RESTARTS = 3
+
         /** A fatal line of the world server's log, said for the person, or null. */
         fun fatal(spec: RealmSpec, line: String): String? = spec.fatal.firstOrNull { it.first.containsMatchIn(line) }?.second
 

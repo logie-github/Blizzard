@@ -106,6 +106,7 @@ object WowRealm {
             lanAddress = { null },
             portOpen = ::portOpen,
             onFailure = { message, log -> report(app, realm, message, log) },
+            account = { WowLogin.forVersion(app, if (realm == Realm.LEGION) WowLogin.LEGION else WowLogin.OCTO)?.let { it.name to it.password } },
             _status = _status,
         )
         controller = c
