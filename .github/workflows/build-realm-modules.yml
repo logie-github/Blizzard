@@ -49,6 +49,8 @@ jobs:
         working-directory: realm
     steps:
       - name: Check what was asked
+        # (before the checkout: the folder the other steps run in isn't there yet)
+        working-directory: .
         env:
           REQUEST: ${{ inputs.request }}
         run: |
