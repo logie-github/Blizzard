@@ -321,6 +321,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     }
                 }
                 if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
+                    AutoLoginCard(game.id, if (game.id == "wow_legion") "E-mail" else "Account name")
                     SettingCard("Add-ons") {
                         Text("Search warperia.com's add-ons for this version, install them into its client, turn them on and off, update them.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
                         FrameButton("Search add-ons", primary = false, modifier = Modifier.fillMaxWidth()) { addonsOpen = true }

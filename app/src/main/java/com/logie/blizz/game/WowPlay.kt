@@ -86,6 +86,7 @@ object WowPlay {
                     start = { control.start(app, it) },
                     chosenRealm = { when (entry.gameId) { OCTO_ID -> "octo"; LEGION_ID -> "legion"; else -> control.chosenRealm(app) } },
                     dumpClientFiles = { c -> Thread { com.logie.blizz.wowclient.ClientFilesDump.sendOnce(app, c) }.start() },
+                    ownAccount = { com.logie.blizz.wow.WowLogin.own(app, when (entry.gameId) { OCTO_ID -> com.logie.blizz.wow.WowLogin.OCTO; LEGION_ID -> com.logie.blizz.wow.WowLogin.LEGION; else -> com.logie.blizz.wow.WowLogin.WRATH })?.name },
                     octo = entry.gameId == OCTO_ID,
                     legion = entry.gameId == LEGION_ID,
                     launch = { WindowsRuntime.play(app, it, width to height) },
@@ -120,6 +121,8 @@ object WowPlay {
         val timeoutMs: Long = REALM_TIMEOUT_MS,
         /** Hands the client folder to whatever collects its character-creation files (once; off the main thread). */
         val dumpClientFiles: (File) -> Unit = {},
+        /** The account the person gave Blizzard for this version (its own login), which goes in the game's login box before the exported one. */
+        val ownAccount: () -> String? = { null },
     )
 
     fun clientFolder(root: File) = File(root, "files/client")
@@ -143,7 +146,7 @@ object WowPlay {
         env.start(key)
 
         val prefs = File(env.root, ".export/prefs")
-        val account = WowClientSetup.savedAccount(runCatching { File(prefs, "login.json").readText() }.getOrNull())
+        val account = env.ownAccount() ?: WowClientSetup.savedAccount(runCatching { File(prefs, "login.json").readText() }.getOrNull())
         val mods = runCatching { File(prefs, "mods.json").readText() }.getOrNull()
         withContext(Dispatchers.IO) {
             WowClientSetup.apply(client, File(env.root, "files"), env.size.first, env.size.second, key, account)
@@ -188,7 +191,7 @@ object WowPlay {
         }
         env.report(State.Preparing("Starting Legion"))
         env.start("legion")
-        val account = WowClientSetup.savedAccount(runCatching { File(env.root, ".export/prefs/felsong_login.json").readText() }.getOrNull())
+        val account = env.ownAccount() ?: WowClientSetup.savedAccount(runCatching { File(env.root, ".export/prefs/felsong_login.json").readText() }.getOrNull())
         withContext(Dispatchers.IO) { LegionClientSetup.apply(client, env.size.first, env.size.second, account) }
         waitForRealm(env, "Legion")?.let { return it }
         val exe = LegionClientSetup.executable(client, LegionClientSetup.PATCHED_EXE)
@@ -208,7 +211,7 @@ object WowPlay {
         }
         env.report(State.Preparing("Starting OctoWoW"))
         env.start("octo")
-        val account = WowClientSetup.savedAccount(runCatching { File(env.root, ".export/prefs/turtle_login.json").readText() }.getOrNull())
+        val account = env.ownAccount() ?: WowClientSetup.savedAccount(runCatching { File(env.root, ".export/prefs/turtle_login.json").readText() }.getOrNull())
         withContext(Dispatchers.IO) { OctoClientSetup.apply(client, env.size.first, env.size.second, account) }
         waitForRealm(env, "OctoWoW")?.let { return it }
         env.report(State.Preparing("Starting the game"))

@@ -163,11 +163,9 @@ object WindowsRuntime {
             .putExtra(GestureView.EXTRA_PROFILE, profile.id)
             .apply {
                 // World of Warcraft: the account the other app logged in with by itself, typed at the login screen.
-                if (entry.gameId == WowPlay.GAME_ID) (when (entry.clientVersion) {
-                    OctoClientSetup.VERSION -> com.logie.blizz.wow.WowLogin.octo(context)
-                    LegionClientSetup.VERSION -> com.logie.blizz.wow.WowLogin.legion(context)
-                    else -> com.logie.blizz.wow.WowLogin.get(context)
-                })?.let {
+                if (entry.gameId == WowPlay.GAME_ID) com.logie.blizz.wow.WowLogin.forVersion(
+                    context, com.logie.blizz.wow.WowLogin.versionOf(entry.clientVersion),
+                )?.let {
                     putExtra(GestureView.EXTRA_LOGIN_NAME, it.name).putExtra(GestureView.EXTRA_LOGIN_PASSWORD, it.password)
                 }
             }
