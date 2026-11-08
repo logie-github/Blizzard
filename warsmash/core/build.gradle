@@ -1,0 +1,28 @@
+plugins { id 'com.android.library' }
+def upstream = rootProject.file('app/warsmash/core')
+if (!new File(upstream, 'src').isDirectory()) throw new GradleException('Run scripts/prepare-warsmash.sh first')
+android {
+    namespace = 'com.logie.blizz.warsmash.engine'
+    compileSdk = 35
+    defaultConfig { minSdk = 26; ndk { abiFilters 'arm64-v8a' }; consumerProguardFiles 'consumer-rules.pro' }
+    ndkVersion = '24.0.8215888'
+    sourceSets.main { manifest.srcFile new File(upstream, 'AndroidManifest.xml'); java.srcDirs = [new File(upstream, 'src')]; kotlin.srcDirs = [new File(upstream, 'src')]; assets.srcDirs = [rootProject.file('app/warsmash/assets')] }
+    externalNativeBuild { ndkBuild { path = new File(upstream, 'src/jni/Android.mk') } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    api project(':warsmash:shared')
+    api project(':warsmash:fdfparser')
+    api project(':warsmash:jassparser')
+    api project(':warsmash:awt')
+    api 'org.antlr:antlr4-runtime:4.7'
+    api 'com.badlogicgames.gdx:gdx:1.13.0'
+    api 'com.badlogicgames.gdx:gdx-box2d:1.13.0'
+    api 'com.badlogicgames.gdx:gdx-freetype:1.13.0'
+    api 'com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.3'
+    implementation 'org.lwjgl.lwjgl:lwjgl:2.9.3'
+    implementation 'com.google.guava:guava:33.0.0-android'
+    implementation 'org.apache.commons:commons-compress:1.27.1'
+    implementation 'com.google.code.gson:gson:2.11.0'
+    implementation 'commons-io:commons-io:2.18.0'
+}

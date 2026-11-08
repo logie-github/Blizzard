@@ -8,3 +8,5 @@ app/tools/
 build/
 app/.cxx/
 app/stratagus/
+
+app/warsmash/

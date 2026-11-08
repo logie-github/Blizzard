@@ -127,6 +127,10 @@ android {
 }
 
 dependencies {
+    implementation project(':warsmash:core')
+    // The Android port's matching backends, pinned and verified with its source archive.
+    implementation files('warsmash/libgdx/gdx-backend-android-release.aar')
+    implementation files('warsmash/gdx-controllers-android/gdx-controllers-android-2.2.3.aar')
 	implementation platform('androidx.compose:compose-bom:2025.04.00')
 	implementation 'androidx.compose.ui:ui'
 	implementation 'androidx.compose.material3:material3'
@@ -156,3 +160,18 @@ dependencies {
 	testImplementation 'androidx.test:core:1.6.1'
 	debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
+
+// libGDX's ARM64 native libraries, extracted into generated build output.
+configurations { warsmashNatives }
+dependencies {
+    warsmashNatives 'com.badlogicgames.gdx:gdx-platform:1.13.0:natives-arm64-v8a'
+    warsmashNatives 'com.badlogicgames.gdx:gdx-freetype-platform:1.13.0:natives-arm64-v8a'
+    warsmashNatives 'com.badlogicgames.gdx:gdx-box2d-platform:1.13.0:natives-arm64-v8a'
+}
+def warsmashJni = layout.buildDirectory.dir('generated/warsmashJni')
+def extractWarsmashNatives = tasks.register('extractWarsmashNatives', Sync) {
+    from({ configurations.warsmashNatives.collect { zipTree(it) } }) { include '*.so'; into 'arm64-v8a' }
+    into warsmashJni
+}
+android.sourceSets.main.jniLibs.srcDir warsmashJni.get().asFile
+tasks.named('preBuild').configure { dependsOn extractWarsmashNatives }

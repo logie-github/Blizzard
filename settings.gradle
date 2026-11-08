@@ -2,3 +2,5 @@ pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal()
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name = 'Blizzard Launcher'
 include ':app'
+
+include ':warsmash:core', ':warsmash:awt', ':warsmash:shared', ':warsmash:fdfparser', ':warsmash:jassparser'

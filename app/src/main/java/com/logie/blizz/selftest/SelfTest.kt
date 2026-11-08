@@ -172,6 +172,8 @@ object SelfTest {
         override suspend fun launch(entry: LibraryEntry): LaunchOutcome = when {
             entry.runtime == LibraryEntry.RUNTIME_D2R || entry.runtime == LibraryEntry.RUNTIME_PENDING ->
                 LaunchOutcome(Launch.NOT_TESTED, "Imported; running it in the app isn't built yet.")
+            entry.runtime == com.logie.blizz.warsmash.WarsmashRuntime.RUNTIME ->
+                LaunchOutcome(Launch.NOT_TESTED, "Warsmash is embedded; use Play to verify gameplay on this device.")
             entry.runtime == StratagusRuntime.RUNTIME -> stratagus(entry)
             entry.runtime == LibraryEntry.RUNTIME_EXTERNAL -> wow(entry)
             else -> windows(entry)

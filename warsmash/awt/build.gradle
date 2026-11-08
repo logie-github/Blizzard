@@ -1,0 +1,12 @@
+plugins { id 'com.android.library' }
+def upstream = rootProject.file('app/warsmash/android-awt/awtcompat')
+android {
+    namespace = 'org.librepdf.openpdf.android.awtcompat'
+    compileSdk = 35
+    defaultConfig { minSdk = 26; ndk { abiFilters 'arm64-v8a' } }
+    ndkVersion = '24.0.8215888'
+    sourceSets.main { manifest.srcFile new File(upstream, 'src/main/AndroidManifest.xml'); java.srcDirs = [new File(upstream, 'src/main/java')]; resources.srcDirs = [new File(upstream, 'src/main/resources')] }
+    externalNativeBuild { cmake { path = new File(upstream, 'src/main/cpp/CMakeLists.txt'); version = '3.22.1' } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+}
+dependencies { api 'com.jaredrummler:sfntly:1.0.1'; implementation 'com.google.code.findbugs:jsr305:3.0.2' }

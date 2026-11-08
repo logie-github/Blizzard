@@ -68,6 +68,14 @@
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode"
             android:resizeableActivity="true" />
 
+        <activity
+            android:name=".warsmash.WarsmashActivity"
+            android:exported="false"
+            android:process=":warsmash"
+            android:theme="@style/StratagusTheme"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode" />
+
         <!-- The games: Winlator's screen (its X server with Wine and Box64 behind it), its controls
              editor, and the service that keeps the game alive in the background. Its own main
              screen stays, unlisted, for the code that refers to it. -->

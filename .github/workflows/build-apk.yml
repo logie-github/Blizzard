@@ -6,7 +6,7 @@ name: Build Blizzard Launcher
 # release (blizzard-build-N).
 on:
   push:
-    branches: [main]
+    branches: [main, codex/warsmash-integration]
     # (the realm's sources and its module build have a workflow of their own)
     paths-ignore:
       - 'realm/**'
@@ -115,6 +115,9 @@ jobs:
         with:
           path: app/stratagus
           key: ${{ steps.stratagus.outputs.cache-primary-key }}
+
+      - name: Prepare Warsmash Android engine
+        run: scripts/prepare-warsmash.sh
 
       - run: chmod +x gradlew
       - name: Build the APK
