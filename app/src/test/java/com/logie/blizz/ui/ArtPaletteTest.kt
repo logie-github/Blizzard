@@ -45,6 +45,15 @@ class ArtPaletteTest {
         assertTrue(hueOf(p.high) in 190f..235f)
     }
 
+    @Test fun aPictureHalfInFiresHuesRisesEvenWhereABlueIsTheHeaviest() {
+        // Warcraft II's cover: a big blue sea and an orange and red sky of about the same weight.
+        val px = IntArray(4000) { i -> if (i < 2000) argb(30, 90 + (i % 40), 200) else if (i < 3300) argb(240, 120 + (i % 30), 20) else argb(200, 30, 20) }
+        val p = ArtPalette.of(px)
+        assertTrue(p.warm)
+        assertTrue("main colour is the fire: ${hueOf(p.high)}", hueOf(p.high).let { it < 70f || it > 335f })
+        assertTrue("the blue is an accent", p.accents.any { hueOf(it) in 190f..250f })
+    }
+
     @Test fun aPictureWithNoColourKeepsWhiteSnow() {
         val grey = IntArray(500) { i -> val v = 20 + i % 200; argb(v, v, v) }
         val p = ArtPalette.of(grey)

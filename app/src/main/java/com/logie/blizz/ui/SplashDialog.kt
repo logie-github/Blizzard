@@ -1,5 +1,6 @@
 package com.logie.blizz.ui
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -91,6 +92,33 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     var layout by remember(game.id) { mutableStateOf(Splashes.layout(context, game.id)) }
     LaunchedEffect(layout) { delay(300); Splashes.setLayout(context, game.id, layout) }
 
+    // Which picture is being chosen: from SteamGridDB (when the key is in Settings), or from the phone's files.
+    var gallery by remember { mutableStateOf<Slot?>(null) }
+    fun fromPhone(slot: Slot) = when (slot) {
+        Slot.BOX -> pickBox.launch(arrayOf("image/*"))
+        Slot.HOME -> pickHeader.launch(arrayOf("image/*"))
+        Slot.LOADING -> pickBackground.launch(arrayOf("image/*"))
+        Slot.LOGO -> pickLogo.launch(arrayOf("image/*"))
+    }
+    fun choose(slot: Slot) { if (com.logie.blizz.steamgrid.SteamGrid.hasKey(context)) gallery = slot else fromPhone(slot) }
+    gallery?.let { slot ->
+        SteamGridPicker(
+            game, slot.kind, slot.label,
+            onPicked = { file ->
+                val uri = Uri.fromFile(file)
+                when (slot) {
+                    Slot.BOX -> TileSettings.setArt(context, game.id, false, uri)
+                    Slot.HOME -> Splashes.set(context, game.id, Splashes.Kind.HEADER, uri)
+                    Slot.LOADING -> Splashes.set(context, game.id, Splashes.Kind.BACKGROUND, uri)
+                    Slot.LOGO -> Splashes.set(context, game.id, Splashes.Kind.LOGO, uri)
+                }
+                file.delete()
+            },
+            onMyFiles = { fromPhone(slot) },
+            onDismiss = { gallery = null },
+        )
+    }
+
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Sheet(game.fullTitle, onDismiss, maxWidth = 620.dp) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -98,14 +126,14 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
                     ArtSlot(
                         "Box", Modifier.weight(0.75f), 3f / 4f,
-                        own = ownBox != null, onReset = { TileSettings.clearArt(context, game.id, false) }, onPick = { pickBox.launch(arrayOf("image/*")) },
+                        own = ownBox != null, onReset = { TileSettings.clearArt(context, game.id, false) }, onPick = { choose(Slot.BOX) },
                     ) {
                         if (ownBox != null) Image(ownBox, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         else Image(painterResource(game.cover), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     }
                     ArtSlot(
                         "Home picture", Modifier.weight(2.25f), 2.25f,
-                        own = ownHeader != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.HEADER) }, onPick = { pickHeader.launch(arrayOf("image/*")) },
+                        own = ownHeader != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.HEADER) }, onPick = { choose(Slot.HOME) },
                     ) {
                         val art = ownHeader?.let { BitmapPainter(it) } ?: painterResource(game.wide ?: game.splash ?: game.cover)
                         Image(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -115,14 +143,14 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
                     ArtSlot(
                         "Loading picture", Modifier.weight(1.5f), 3f / 2f,
-                        own = ownBackground != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.BACKGROUND) }, onPick = { pickBackground.launch(arrayOf("image/*")) },
+                        own = ownBackground != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.BACKGROUND) }, onPick = { choose(Slot.LOADING) },
                     ) {
                         val art = ownBackground?.let { BitmapPainter(it) } ?: painterResource(game.splash ?: game.wide ?: game.cover)
                         Image(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     }
                     ArtSlot(
                         "Logo", Modifier.weight(0.75f), 3f / 4f,
-                        own = ownLogo != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.LOGO) }, onPick = { pickLogo.launch(arrayOf("image/*")) },
+                        own = ownLogo != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.LOGO) }, onPick = { choose(Slot.LOGO) },
                     ) {
                         val logo = ownLogo?.let { BitmapPainter(it) } ?: game.splashLogo?.let { painterResource(it) } ?: painterResource(com.logie.blizz.R.drawable.blizz_logo)
                         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).padding(8.dp), contentAlignment = Alignment.Center) {
@@ -171,6 +199,14 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+/** The four pictures of a version's art, and where SteamGridDB finds the kind of picture each is. */
+private enum class Slot(val label: String, val kind: com.logie.blizz.steamgrid.SteamGrid.Slot) {
+    BOX("Box", com.logie.blizz.steamgrid.SteamGrid.Slot.BOX),
+    HOME("Home picture", com.logie.blizz.steamgrid.SteamGrid.Slot.HERO),
+    LOADING("Loading picture", com.logie.blizz.steamgrid.SteamGrid.Slot.HERO),
+    LOGO("Logo", com.logie.blizz.steamgrid.SteamGrid.Slot.LOGO),
 }
 
 /** One picture of a version's art: tap to choose another; the ↺ in its corner, shown when it's your own, puts the original back. */

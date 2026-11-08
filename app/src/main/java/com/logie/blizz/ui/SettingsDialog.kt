@@ -200,6 +200,8 @@ private fun LauncherPage(onDismiss: () -> Unit) {
         if (download !is MusicDownloads.State.Running && have < total) FrameButton("Download music", primary = false, modifier = Modifier.fillMaxWidth()) { MusicDownloads.start(context) }
     }
 
+    SettingCard("SteamGridDB") { SteamGridKeyCard() }
+
     SettingCard("Imports") {
         var deleteSources by remember { mutableStateOf(GameSettings.deleteSources(context)) }
         ToggleRow("Delete the files I picked after a successful import", deleteSources) { deleteSources = it; GameSettings.setDeleteSources(context, it) }
@@ -227,6 +229,53 @@ private fun LauncherPage(onDismiss: () -> Unit) {
     SettingCard("Maintenance") {
         FrameButton("Run the launch test", primary = false, modifier = Modifier.fillMaxWidth()) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+/** The person's SteamGridDB key: with it, the Art screen browses a game's pictures on steamgriddb.com instead of asking for a file. */
+@Composable
+private fun SteamGridKeyCard() {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var saved by remember { mutableStateOf(com.logie.blizz.steamgrid.SteamGrid.key(context)) }
+    var text by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf<String?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    Text(
+        if (saved != null) "Connected: the Art screen shows SteamGridDB's pictures for each game." else "Not connected. Art asks for a file on the phone.",
+        style = MaterialTheme.typography.bodyMedium, color = if (saved != null) Colors.Ice else Colors.Mist,
+    )
+    androidx.compose.material3.OutlinedTextField(
+        value = text, onValueChange = { text = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+        label = { Text(if (saved != null) "Replace the key" else "API key", color = Colors.Mist) },
+        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        textStyle = MaterialTheme.typography.bodyLarge,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password, autoCorrectEnabled = false),
+        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Colors.Text, unfocusedTextColor = Colors.Text, focusedBorderColor = Colors.Ice, unfocusedBorderColor = Colors.Steel,
+            cursorColor = Colors.Ice, focusedContainerColor = Colors.Abyss.copy(alpha = 0.55f), unfocusedContainerColor = Colors.Abyss.copy(alpha = 0.55f),
+        ),
+    )
+    status?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = if (it.startsWith("Connected")) Colors.Ice else Colors.Gold) }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FrameButton(if (checking) "Checking…" else "Save", primary = text.isNotBlank()) {
+            if (text.isBlank() || checking) return@FrameButton
+            val key = text.trim()
+            checking = true; status = null
+            scope.launch {
+                // Checked with the site before it is kept.
+                runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.logie.blizz.steamgrid.SteamGrid.search(key, "Diablo") } }
+                    .onSuccess { com.logie.blizz.steamgrid.SteamGrid.setKey(context, key); saved = key; text = ""; status = "Connected." }
+                    .onFailure { status = it.message ?: "Couldn't reach SteamGridDB." }
+                checking = false
+            }
+        }
+        if (saved != null) FrameButton("Remove", primary = false) { com.logie.blizz.steamgrid.SteamGrid.clearKey(context); saved = null; status = "Removed." }
+    }
+    Text(
+        "To get a key: steamgriddb.com, sign in, your name at the top right → Preferences → API → Generate API Key.",
+        style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+    )
 }
 
 /** Every version of every game, one row each: its box art, its name and what is set for it. */

@@ -117,4 +117,11 @@ class ModernUiTest {
         rule.onNodeWithText("Logo").assertExists()
         UiShots.saveAll("modern-art", rule)
     }
+
+    @Test fun settingsHaveASteamGridKeyCard() {
+        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
+        settle()
+        rule.onNodeWithText("API key").assertExists()
+        UiShots.saveAll("modern-settings-steamgrid", rule)
+    }
 }

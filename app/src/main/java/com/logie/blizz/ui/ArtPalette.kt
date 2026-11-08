@@ -31,6 +31,9 @@ class ArtPalette(val high: Color, val low: Color, val accents: List<Color>, val 
     }
 
     companion object {
+        /** The share of a picture's colour in fire's hues from which it counts as a fiery picture. */
+        const val FIERY_SHARE = 0.45
+
         val Snow = ArtPalette(Color(0xFFE6F3FF), Color(0xFF9DB6C9), emptyList(), warm = false)
 
         /** [pixels] as ARGB ints (a few thousand are plenty): the palette of the picture they make. */
@@ -63,7 +66,13 @@ class ArtPalette(val high: Color, val low: Color, val accents: List<Color>, val 
             if (counted == 0 || colourful / counted < 0.06) return Snow
             // The main colour: the heaviest bin with its neighbours (a colour straddles two bins).
             fun smoothed(i: Int) = weight[i] + 0.5 * (weight[(i + 1) % bins] + weight[(i + bins - 1) % bins])
-            val main = (0 until bins).maxBy { smoothed(it) }
+            val heaviest = (0 until bins).maxBy { smoothed(it) }
+            // A picture with half or more of its colour in fire's hues (reds, oranges, yellows) is a fiery one even where one cold colour is
+            // the single heaviest (Warcraft II's blue sea under its orange sky): its main colour is then the heaviest of the fiery ones.
+            fun fiery(i: Int) = (i * 360 / bins + 360 / bins / 2).let { it < 70 || it >= 335 }
+            val total = weight.sum()
+            val fireShare = if (total > 0) (0 until bins).filter { fiery(it) }.sumOf { weight[it] } / total else 0.0
+            val main = if (!fiery(heaviest) && fireShare >= FIERY_SHARE) (0 until bins).filter { fiery(it) }.maxBy { smoothed(it) } else heaviest
             val family = listOf((main + bins - 1) % bins, main, (main + 1) % bins)
             val hue = hueOf(family.sumOf { sinSum[it] }, family.sumOf { cosSum[it] })
             val familyVals = family.flatMap { vals[it] }.sorted()
@@ -80,7 +89,7 @@ class ArtPalette(val high: Color, val low: Color, val accents: List<Color>, val 
                 .fold(mutableListOf<Int>()) { chosen, i -> if (chosen.none { abs(angleBetween(it, i, bins)) <= 3 }) chosen += i; chosen }
                 .take(3)
                 .map { i -> hsvColor(hueOf(sinSum[i], cosSum[i]), 0.75f, 1f) }
-            val warm = hue < 70f || hue >= 335f
+            val warm = hue < 70f || hue >= 335f || fireShare >= FIERY_SHARE
             return ArtPalette(high, low, accents, warm)
         }
 
