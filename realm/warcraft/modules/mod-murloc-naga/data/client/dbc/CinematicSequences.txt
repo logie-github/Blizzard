@@ -1,0 +1,4 @@
+# CinematicSequences: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iiiiiiiiii
+put	9021	0	9021	0	0	0	0	0	0	0
+put	9022	0	9022	0	0	0	0	0	0	0

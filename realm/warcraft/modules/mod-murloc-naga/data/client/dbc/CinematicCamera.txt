@@ -1,0 +1,4 @@
+# CinematicCamera: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	isiffff
+put	9021	Cameras\\FlybyMurloc.mdx	975001	4100.5	1094.0	0.0	0.0
+put	9022	Cameras\\FlybyNaga.mdx	975002	2214.0	-6446.0	0.0	0.0

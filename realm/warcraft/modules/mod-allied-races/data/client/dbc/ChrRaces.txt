@@ -1,0 +1,10 @@
+# ChrRaces: the void elves' and the nightborne's changes (tools/build_data.py)
+types	iiiiiisiiiisiissssssssssssssssissssssssssssssssissssssssssssssssisssi
+copyrow	15	24
+copyrow	16	25
+copyrow	17	26
+copyrow	18	27
+put	15	12	1629	4140	33001	33002	Ve	7	7	15007	1096	VoidElf	9011	0	Void Elf																16712190	Void Elf																16712172	Void Elf																16712172	FEATURES	FEATURES	NORMAL	0
+put	16	12	5	4142	33003	33004	Nb	1	7	15007	1096	Nightborne	9012	1	Nightborne																16712191	Nightborne																16712172	Nightborne																16712172	FEATURES	FEATURES	NORMAL	0
+put	17	12	1629	4140	33005	33006	Ld	7	7	15007	1096	LightforgedDraenei	9013	0	Lightforged Draenei																16712190	Lightforged Draenei																16712172	Lightforged Draenei																16712172	FEATURES	HORNS	NORMAL	0
+put	18	12	6	4143	33007	33008	Za	1	7	15007	1096	ZandalariTroll	9014	1	Zandalari Troll																16712191	Zandalari Troll																16712172	Zandalari Troll																16712172	TUSKS	TUSKS	NORMAL	0

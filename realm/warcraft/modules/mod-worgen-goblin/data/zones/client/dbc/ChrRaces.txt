@@ -1,0 +1,3 @@
+# ChrRaces: the starting areas' changes to rows the game has (tools/zones/build_tables.py)
+set	9	12	172
+set	12	12	170

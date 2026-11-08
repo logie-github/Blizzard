@@ -1,0 +1,102 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 23 Oct 2026 21:52:27 +0000
+Subject: [PATCH] Local realm sessions log the Windows runtime's output and how
+ it ended
+
+A managed local realm names a file (session_log): what Wine and Box64 print, and the
+runtime's exit status, are written there, so a session that ends on a phone can be explained.
+---
+ .../com/winlator/XServerDisplayActivity.java  | 52 ++++++++++++++++++-
+ 1 file changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 9a81f10..9167921 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -170,6 +170,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         ProcessHelper.removeAllDebugCallbacks();
+         boolean enableLogs = preferences.getBoolean("enable_wine_debug", false) || preferences.getInt("box64_logs", 0) >= 1;
+         if (enableLogs) ProcessHelper.addDebugCallback(debugDialog = new DebugDialog(this));
++        openSessionLog();
+         Menu menu = navigationView.getMenu();
+         menu.findItem(R.id.menu_item_logs).setVisible(enableLogs);
+         navigationView.setNavigationItemSelectedListener(this);
+@@ -365,9 +366,53 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
+         ForegroundService.stopSession(this);
++        closeSessionLog();
+         super.onDestroy();
+     }
+ 
++    // A managed local realm's session writes what Wine and Box64 print, and how the runtime ended,
++    // to the file the app names ("session_log"), so a session that ends on a phone can be explained.
++    private java.io.Writer sessionLog;
++    private long sessionLogBytes;
++    private static final long SESSION_LOG_LIMIT = 4L * 1024 * 1024;
++    private final com.winlator.core.Callback<String> sessionLogCallback = this::writeSessionLog;
++
++    private void openSessionLog() {
++        String path = getIntent().getStringExtra("session_log");
++        if (path == null || path.isEmpty()) return;
++        try {
++            java.io.File file = new java.io.File(path);
++            java.io.File parent = file.getParentFile();
++            if (parent != null) parent.mkdirs();
++            sessionLog = new java.io.OutputStreamWriter(new java.io.FileOutputStream(file, false), java.nio.charset.StandardCharsets.UTF_8);
++            sessionLogBytes = 0;
++            ProcessHelper.addDebugCallback(sessionLogCallback);
++            writeSessionLog("[app] Windows session started.");
++        }
++        catch (java.io.IOException e) {
++            sessionLog = null;
++        }
++    }
++
++    private synchronized void writeSessionLog(String line) {
++        if (sessionLog == null || line == null || sessionLogBytes > SESSION_LOG_LIMIT) return;
++        try {
++            sessionLog.write(line);
++            sessionLog.write('\n');
++            sessionLog.flush();
++            sessionLogBytes += line.length() + 1;
++        }
++        catch (java.io.IOException ignored) {}
++    }
++
++    private synchronized void closeSessionLog() {
++        if (sessionLog == null) return;
++        ProcessHelper.removeDebugCallback(sessionLogCallback);
++        writeSessionLog("[app] Windows session closed.");
++        try { sessionLog.close(); } catch (java.io.IOException ignored) {}
++        sessionLog = null;
++    }
++
+     @Override
+     public void onBackPressed() {
+         // With the gestures, Back is the game's Escape; four fingers open the app's menu.
+@@ -443,6 +488,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     }
+ 
+     private void exit() {
++        writeSessionLog("[app] Closing the Windows session (the runtime ended, or Leave/Exit was chosen).");
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
+ 
+@@ -565,7 +611,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         }
+ 
+         guestProgramLauncherComponent.setEnvVars(envVars);
+-        guestProgramLauncherComponent.setTerminationCallback((status) -> exit());
++        guestProgramLauncherComponent.setTerminationCallback((status) -> {
++            writeSessionLog("[app] The Windows runtime (wine explorer) exited with status "+status+
++                (status != null && status >= 128 ? " (signal "+(status-128)+(status == 137 ? ": killed, often by Android for memory" : "")+")" : "")+".");
++            exit();
++        });
+         environment.addComponent(guestProgramLauncherComponent);
+ 
+         if (isGenerateWineprefix()) {
+-- 
+2.43.0
+

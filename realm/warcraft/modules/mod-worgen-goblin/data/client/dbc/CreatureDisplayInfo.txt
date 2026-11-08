@@ -1,0 +1,11 @@
+# CreatureDisplayInfo: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiifissssiiiiii
+put	29422	3141	0	0	1.0	255					3	0	0	0	0	0
+put	29423	3142	0	0	1.0	255					3	0	0	0	0	0
+put	35250	3623	0	0	1.0	255					0	0	0	0	0	0
+put	35249	3624	0	0	1.0	255					0	0	0	0	0	0
+put	39095	65	0	0	1.0	255	HorseSkinBlack				1	0	0	0	0	0
+put	39096	65	0	0	1.0	255	HorseSkinBrown				1	0	0	0	0	0
+put	32385	3194	0	0	0.75	255	Hobgoblin1Red	Hobgoblin2			0	0	0	0	0	0
+put	36445	3141	0	24081	1.0	255					3	0	0	0	0	0
+put	36446	831	0	24082	1.0	255					1	0	0	0	0	0

@@ -1,0 +1,18 @@
+[worldserver]
+
+########################################
+# Quest drops (mod-quest-drops): rare quest items drop more often, and epics in dungeons and from rare spawns
+########################################
+#
+#    QuestDrops.Enable
+#        Description: An item a quest asks for that creatures (or chests, or anything looted) drop
+#                     on their own chance drops, while the quest needs it, 75% of the time where its
+#                     chance was under 75%, 50% where it was 10% or less; 75% and up as it was.
+#                     An epic or better (purple and up) in a dungeon or raid, or from a rare
+#                     spawn, rolls ten times its chance, 10% at least, 100% at most. Every
+#                     other drop keeps the game's own chance. Items in a loot group (one of
+#                     several drops) keep their chances. The app's ctl.sh turns it on once for
+#                     each realm (ChromieCraft and Wrath Remix); a later 0 is kept.
+#        Default:     1
+
+QuestDrops.Enable = 1

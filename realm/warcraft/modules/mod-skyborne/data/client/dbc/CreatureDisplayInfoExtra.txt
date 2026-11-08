@@ -1,0 +1,3 @@
+# CreatureDisplayInfoExtra: the Skyborne's changes (tools/build_data.py)
+remapfield	1	13	22
+remapfield	1	14	23

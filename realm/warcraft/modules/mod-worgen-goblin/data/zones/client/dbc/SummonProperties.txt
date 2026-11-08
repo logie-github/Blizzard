@@ -1,0 +1,10 @@
+# SummonProperties: the starting areas (tools/zones/build_tables.py)
+types	iiiiii
+put	1621	4	0	0	0	256
+put	2161	2	0	1	6	0
+put	2501	1	0	0	0	8194
+put	2841	1	0	0	0	2064
+put	2989	1	0	0	0	133912
+put	3054	0	0	0	0	141592
+put	3090	4	0	0	0	133400
+put	3110	1	0	0	6	133400

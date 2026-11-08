@@ -1,0 +1,128 @@
+From 65427ba8a18d58f6790a04eae68989abefa4193b Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 23:19:38 +0000
+Subject: [PATCH] Tell the Android app when a cutscene plays for the phone's
+ player
+
+The World of Warcraft app's touch controls open the bags with a hold, and skip a cutscene with the
+same hold while one plays (Escape). With WOW_CUTSCENE_FILE set, a cinematic or a movie starting for
+the client on 127.0.0.1 writes its kind and the time; its end (the client's complete-cinematic or
+complete-movie, which the server now takes, or a logout) writes "-".
+---
+ src/server/game/Entities/Player/Player.cpp  |  2 ++
+ src/server/game/Handlers/MiscHandler.cpp    | 24 +++++++++++++++++++++
+ src/server/game/Server/Protocol/Opcodes.cpp |  2 +-
+ src/server/game/Server/WorldSession.cpp     |  1 +
+ src/server/game/Server/WorldSession.h       |  2 ++
+ 5 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index 138e7eab49..3297982c2b 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -5879,6 +5879,7 @@ void Player::SendCinematicStart(uint32 CinematicSequenceId) const
+     WorldPacket data(SMSG_TRIGGER_CINEMATIC, 4);
+     data << uint32(CinematicSequenceId);
+     SendDirectMessage(&data);
++    m_session->NoteCutsceneForTouch('c');
+ }
+ 
+ void Player::SendMovieStart(uint32 MovieId)
+@@ -5886,6 +5887,7 @@ void Player::SendMovieStart(uint32 MovieId)
+     WorldPacket data(SMSG_TRIGGER_MOVIE, 4);
+     data << uint32(MovieId);
+     SendDirectMessage(&data);
++    m_session->NoteCutsceneForTouch('m');
+ }
+ 
+ void Player::CheckAreaExploreAndOutdoor()
+diff --git a/src/server/game/Handlers/MiscHandler.cpp b/src/server/game/Handlers/MiscHandler.cpp
+index b2df6b13d6..555cb29478 100644
+--- a/src/server/game/Handlers/MiscHandler.cpp
++++ b/src/server/game/Handlers/MiscHandler.cpp
+@@ -55,6 +55,7 @@
+ #include <atomic>
+ #include <cstdio>
+ #include <cstdlib>
++#include <ctime>
+ #include <zlib.h>
+ 
+ #include "Corpse.h"
+@@ -554,6 +555,23 @@ static void NoteSelectionForTouch(WorldSession* session, Player* player, ObjectG
+     }
+ }
+ 
++// World of Warcraft app (Android): a hold on the screen opens the bags, or skips a cutscene while one
++// plays (Escape). The app names the file (WOW_CUTSCENE_FILE); a cinematic or a movie starting for the
++// phone's own player writes "<c|m> <unix time>", its end "- <unix time>".
++void WorldSession::NoteCutsceneForTouch(char kind)
++{
++    static char const* path = std::getenv("WOW_CUTSCENE_FILE");
++    if (!path || !*path || GetRemoteAddress() != "127.0.0.1")
++        return;
++    std::string tmp = std::string(path) + ".tmp";
++    if (FILE* file = std::fopen(tmp.c_str(), "w"))
++    {
++        std::fprintf(file, "%c %lld\n", kind, static_cast<long long>(std::time(nullptr)));
++        std::fclose(file);
++        std::rename(tmp.c_str(), path);
++    }
++}
++
+ void WorldSession::HandleSetSelectionOpcode(WorldPacket& recv_data)
+ {
+     ObjectGuid guid;
+@@ -965,6 +983,12 @@ void WorldSession::HandleCompleteCinematic(WorldPacket& /*recv_data*/)
+ {
+     // End the current cinematic and restore the normal player view
+     GetPlayer()->GetCinematicMgr().EndCinematic();
++    NoteCutsceneForTouch('-');
++}
++
++void WorldSession::HandleCompleteMovie(WorldPacket& /*recv_data*/)
++{
++    NoteCutsceneForTouch('-');
+ }
+ 
+ void WorldSession::HandleNextCinematicCamera(WorldPacket& /*recv_data*/)
+diff --git a/src/server/game/Server/Protocol/Opcodes.cpp b/src/server/game/Server/Protocol/Opcodes.cpp
+index c2d99161e6..8a44613589 100644
+--- a/src/server/game/Server/Protocol/Opcodes.cpp
++++ b/src/server/game/Server/Protocol/Opcodes.cpp
+@@ -1253,7 +1253,7 @@ void OpcodeTable::Initialize()
+     /*0x462*/ DEFINE_HANDLER(CMSG_UPDATE_MISSILE_TRAJECTORY,                                        STATUS_LOGGEDIN,   PROCESS_THREADUNSAFE,   &WorldSession::HandleUpdateMissileTrajectory            );
+     /*0x463*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_UPDATE_ACCOUNT_DATA_COMPLETE,                       STATUS_NEVER);
+     /*0x464*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_TRIGGER_MOVIE,                                      STATUS_NEVER);
+-    /*0x465*/ DEFINE_HANDLER(CMSG_COMPLETE_MOVIE,                                                   STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
++    /*0x465*/ DEFINE_HANDLER(CMSG_COMPLETE_MOVIE,                                                   STATUS_LOGGEDIN,   PROCESS_THREADSAFE,     &WorldSession::HandleCompleteMovie                      );
+     /*0x466*/ DEFINE_HANDLER(CMSG_SET_GLYPH_SLOT,                                                   STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+     /*0x467*/ DEFINE_HANDLER(CMSG_SET_GLYPH,                                                        STATUS_NEVER,      PROCESS_INPLACE,        &WorldSession::Handle_NULL                              );
+     /*0x468*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_ACHIEVEMENT_EARNED,                                 STATUS_NEVER);
+diff --git a/src/server/game/Server/WorldSession.cpp b/src/server/game/Server/WorldSession.cpp
+index fc96398079..ecae83d4f0 100644
+--- a/src/server/game/Server/WorldSession.cpp
++++ b/src/server/game/Server/WorldSession.cpp
+@@ -694,6 +694,7 @@ void WorldSession::LogoutPlayer(bool save, bool redirecting)
+ 
+     if (_player)
+     {
++        NoteCutsceneForTouch('-');
+         //! Call script hook before other logout events
+         sScriptMgr->OnPlayerBeforeLogout(_player);
+ 
+diff --git a/src/server/game/Server/WorldSession.h b/src/server/game/Server/WorldSession.h
+index 7b42adca8f..68ef178b5a 100644
+--- a/src/server/game/Server/WorldSession.h
++++ b/src/server/game/Server/WorldSession.h
+@@ -1020,6 +1020,8 @@ public:                                                 // opcodes handlers
+     void HandleClearChannelWatch(WorldPacket& recvPacket);
+ 
+     void HandleCompleteCinematic(WorldPacket& recvPacket);
++    void HandleCompleteMovie(WorldPacket& recvPacket);
++    void NoteCutsceneForTouch(char kind);
+     void HandleNextCinematicCamera(WorldPacket& recvPacket);
+ 
+     void HandlePageTextQueryOpcode(WorldPacket& recvPacket);
+-- 
+2.43.0
+

@@ -1,0 +1,106 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 31 Oct 2026 03:15:21 +0000
+Subject: [PATCH] Skip a window picture that can't be drawn rather than crash
+
+The World of Warcraft app asks for a small picture of the game's window every
+second or so (to know the character creation screen); the phone's driver
+sometimes won't compile the picture's shader, saying nothing why, and the
+uncaught exception took the app down (failure reports #84, #95). Such a
+picture is skipped, the framebuffer and the material let go; the caller asks
+again later.
+---
+ .../com/winlator/renderer/GLRenderer.java     | 76 +++++++++++--------
+ 1 file changed, 44 insertions(+), 32 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/renderer/GLRenderer.java b/app/src/main/java/com/winlator/renderer/GLRenderer.java
+index 48a8344..dde0dd9 100644
+--- a/app/src/main/java/com/winlator/renderer/GLRenderer.java
++++ b/app/src/main/java/com/winlator/renderer/GLRenderer.java
+@@ -429,39 +429,51 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
+     public void takeWindowScreenshot(final Drawable drawable, final Callback<Bitmap> callback) {
+         xServerView.queueEvent(() -> {
+             synchronized (drawable.renderLock) {
+-                Texture texture = drawable.getTexture();
+-                texture.updateFromDrawable();
+-
+-                int[] framebufferSize = ImageUtils.getScaledSize(drawable.width, drawable.height, 0, 256);
+-
+-                RenderTarget renderTarget = new RenderTarget();
+-                renderTarget.allocateFramebuffer(framebufferSize[0], framebufferSize[1]);
+-
+-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, renderTarget.getFramebuffer());
+-                GLES20.glViewport(0, 0, framebufferSize[0], framebufferSize[1]);
+-                viewportNeedsUpdate = true;
+-                GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+-
+-                ScreenMaterial material = new ScreenMaterial();
+-                material.use();
+-                material.setUniformBool(material.uniforms.flipY, texture.isFlipY());
+-                quadVertices.bind(material.programId);
+-
+-                GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
+-                material.setUniformInt(material.uniforms.screenTexture, 0);
+-                GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quadVertices.count());
+-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+-                quadVertices.disable();
+-
+-                int[] colors = getPixelsARGB(0, 0, framebufferSize[0], framebufferSize[1], false);
+-                Bitmap bitmap = Bitmap.createBitmap(colors, framebufferSize[0], framebufferSize[1], Bitmap.Config.ARGB_8888);
+-
+-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+-                renderTarget.destroy();
+-                material.destroy();
++                // A picture that can't be drawn (the phone's driver sometimes won't compile the
++                // material's shader, and says nothing why) is skipped: the app crashed on it
++                // (failure reports #84, #95). The caller asks again later.
++                Bitmap bitmap = null;
++                RenderTarget renderTarget = null;
++                ScreenMaterial material = null;
++                try {
++                    Texture texture = drawable.getTexture();
++                    texture.updateFromDrawable();
++
++                    int[] framebufferSize = ImageUtils.getScaledSize(drawable.width, drawable.height, 0, 256);
++
++                    renderTarget = new RenderTarget();
++                    renderTarget.allocateFramebuffer(framebufferSize[0], framebufferSize[1]);
++
++                    GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, renderTarget.getFramebuffer());
++                    GLES20.glViewport(0, 0, framebufferSize[0], framebufferSize[1]);
++                    viewportNeedsUpdate = true;
++                    GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
++
++                    material = new ScreenMaterial();
++                    material.use();
++                    material.setUniformBool(material.uniforms.flipY, texture.isFlipY());
++                    quadVertices.bind(material.programId);
++
++                    GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
++                    GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture.getTextureId());
++                    material.setUniformInt(material.uniforms.screenTexture, 0);
++                    GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quadVertices.count());
++                    GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
++                    quadVertices.disable();
++
++                    int[] colors = getPixelsARGB(0, 0, framebufferSize[0], framebufferSize[1], false);
++                    bitmap = Bitmap.createBitmap(colors, framebufferSize[0], framebufferSize[1], Bitmap.Config.ARGB_8888);
++                }
++                catch (RuntimeException e) {
++                    android.util.Log.w("GLRenderer", "No picture of the window: " + e.getMessage());
++                }
++                finally {
++                    GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
++                    if (renderTarget != null) renderTarget.destroy();
++                    if (material != null) material.destroy();
++                }
+ 
+-                callback.call(bitmap);
++                if (bitmap != null) callback.call(bitmap);
+             }
+         });
+         xServerView.requestRender();
+-- 
+2.43.0
+

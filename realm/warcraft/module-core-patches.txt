@@ -1,0 +1,4 @@
+# Core patches that modules ship for themselves, applied to the core by scripts/fetch-azerothcore.sh:
+# the module's name, then the patch's path in the module. Only patches known to be the module's
+# current ones are listed.
+mod-two-names patches/azerothcore-name-hooks.patch

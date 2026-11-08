@@ -1,0 +1,91 @@
+# Brill: Something in the Well (mod-brill-home, tools/town/well.py), ChromieCraft's realm: Maudie Fenwick's
+# (970800) five quests, played through: samples from the well in Brill's square and the stream north-east
+# of town, Junior Apothecary Holland's (10665) look at them, the runoff west to the culvert under the
+# covered bridge, the Culvert Broodmother (970801) and her egg sacs, then the Society's cask in the nest and
+# the well cleansed: the well's "restored" phase (0x20000000, Maudie's washing) on, and the well drawn
+# from. A new level-12 undead warrior.
+cmd .levelup 11
+cmd .modify money 100000
+# Water Unfit for the Dead (970800): the well, before; then Maudie's three buckets on the stream.
+go 0 2291.4 313.8 35.6
+cmd .brilltown state
+expect-not [0x20000000]
+talk 970800
+accept 970800 970800
+go 0 2290.0 313.6 35.5
+cmd .brilltown use
+has Brill town: used 970800
+expect credit 970800 970803 1/4
+go 0 2386.0 95.0 22.6
+cmd .brilltown use
+go 0 2418.0 103.0 22.5
+cmd .brilltown use
+go 0 2436.0 106.0 22.9
+cmd .brilltown use
+expect credit 970800 970803 4/4
+go 0 2291.4 313.8 35.6
+talk 970800
+reward 970800 970800
+# A Peculiar Growth (970801): to Holland, at the north end of town.
+talk 970800
+accept 970800 970801
+go 0 2325.0 398.0 34.2
+talk 10665
+reward 10665 970801
+# The Source of the Rot (970802): three patches of gray bloom west of town, then the culvert.
+talk 10665
+accept 10665 970802
+go 0 2262.0 420.0 36.0
+cmd .brilltown use
+go 0 2255.0 480.0 34.9
+cmd .brilltown use
+go 0 2250.0 560.0 34.6
+cmd .brilltown use
+expect credit 970802 970804 3/3
+go 0 2228.5 640.5 25.8
+cmd .brilltown use
+expect credit 970802 970805 1/1
+go 0 2325.0 398.0 34.2
+talk 10665
+reward 10665 970802
+# A Nest Below (970803): the broodmother under the bridge, and four of her sacs.
+talk 10665
+accept 10665 970803
+go 0 2214.0 632.0 25.8
+kill 970801
+expect credit 970803 970801 1/1
+go 0 2208.0 630.0 25.8
+cmd .brilltown use
+go 0 2216.0 641.0 25.8
+cmd .brilltown use
+go 0 2203.0 641.0 25.8
+cmd .brilltown use
+go 0 2219.0 631.0 25.8
+cmd .brilltown use
+expect credit 970803 970806 4/4
+go 0 2325.0 398.0 34.2
+talk 10665
+reward 10665 970803
+# Clear Waters, Dark Memories (970804): the cask in the nest, Holland's quicklime down the well, Maudie.
+talk 10665
+accept 10665 970804
+go 0 2210.0 644.5 25.8
+cmd .brilltown use
+expect credit 970804 970807 1/1
+go 0 2290.0 313.6 35.5
+cmd .brilltown use
+expect credit 970804 970808 1/1
+go 0 2291.4 313.8 35.6
+talk 970800
+reward 970800 970804
+# The well restored for this character: its phase on, the line done, and a bucket drawn.
+wait 2
+cmd .brilltown state
+has [0x20000000]
+expect q970804
+go 0 2290.0 313.6 35.5
+cmd .brilltown use
+expect Brill town: used 970800
+# Maudie back at her washing: her greeting for after (970818).
+talk 970800
+expect gossip text 970818

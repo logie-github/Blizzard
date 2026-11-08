@@ -1,0 +1,150 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 23:19:49 +0000
+Subject: [PATCH] Keep active games and local realms running in the background
+
+---
+ .../com/winlator/XServerDisplayActivity.java  |  5 +-
+ .../winlator/services/ForegroundService.java  | 55 +++++++------------
+ 2 files changed, 23 insertions(+), 37 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 8e3f5cc..06acfc7 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -339,9 +339,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         super.onPause();
+         if (rejectedRuntimeSession) return;
+         if (environment != null && !isInPictureInPictureMode()) {
+-            // Draconic's database and realm must keep running while its launcher is visible.
+-            // All other games keep Winlator's normal pause behavior.
+-            if (!getIntent().getBooleanExtra("tww_session", false)) environment.onPause();
++            // Keep the game and local realm running when another app or the lock screen is up.
++            // Only the renderer pauses; Exit/Stop still shuts the Windows session down.
+             xServerView.onPause();
+         }
+     }
+diff --git a/app/src/main/java/com/winlator/services/ForegroundService.java b/app/src/main/java/com/winlator/services/ForegroundService.java
+index d1aa75f..e909fc5 100644
+--- a/app/src/main/java/com/winlator/services/ForegroundService.java
++++ b/app/src/main/java/com/winlator/services/ForegroundService.java
+@@ -7,7 +7,6 @@ import android.content.BroadcastReceiver;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.content.IntentFilter;
+-import android.content.SharedPreferences;
+ import android.content.pm.ServiceInfo;
+ import android.os.Build;
+ import android.os.Handler;
+@@ -19,7 +18,6 @@ import android.util.Log;
+ 
+ import androidx.annotation.NonNull;
+ import androidx.annotation.Nullable;
+-import androidx.preference.PreferenceManager;
+ 
+ import com.winlator.MainActivity;
+ import com.winlator.R;
+@@ -52,9 +50,6 @@ public class ForegroundService extends Service {
+     private HandlerThread screenReceiverThread;
+     private Handler screenReceiverHandler;
+ 
+-    private static volatile SharedPreferences prefs;
+-    private static final String PREF_USE_WAKELOCK = "enable_background_wakelock";
+-
+     private NotificationUtils notificationUtils;
+     private int notificationId = -1;
+     private static final String NOTIFICATION_ID_NAME = "winlator.FGS";
+@@ -62,18 +57,7 @@ public class ForegroundService extends Service {
+     // ── Container / game session lifecycle ──────────────────────────────────────────────
+     public static void startSession(Context ctx) {
+         if (ctx == null) return;
+-        prefs = PreferenceManager.getDefaultSharedPreferences(ctx.getApplicationContext());
+-        if (prefs != null) {
+-            if (!prefs.getBoolean("enable_background_protection", false)) {
+-                Log.i(TAG, "startSession called with background protection disabled; ignoring");
+-                return;
+-            }
+-        }
+-        else {
+-            Log.w(TAG, "startSession called with null SharedPreferences; aborting protection");
+-            return;
+-        }
+-
++        // Background operation is part of the WoW app, not a hidden Winlator preference.
+         sessionActive.set(true);
+         isSessionInBackground = false;
+         Log.d(TAG, "startSession");
+@@ -272,6 +256,7 @@ public class ForegroundService extends Service {
+     }
+ 
+     private void ensureForeground() {
++        updateWakeLock();
+         boolean containerActive = sessionActive.get();
+ 
+         // Determine target activity: Game screen if active, else Main menu
+@@ -279,7 +264,7 @@ public class ForegroundService extends Service {
+ 
+         Notification n = notificationUtils.createForegroundNotification(
+                 getNotificationContent(),
+-                "Winlator",
++                getString(R.string.app_name),
+                 XServerDisplayActivity.class, // Service class for the 'Exit' action
+                 null, // Exit action here, not used because might cause issues
+                 targetActivity // Activity class for the 'Open' (notification tap) action
+@@ -320,20 +305,14 @@ public class ForegroundService extends Service {
+     @Override
+     public void onTaskRemoved(Intent rootIntent) {
+         super.onTaskRemoved(rootIntent);
+-        Log.i(TAG, "Task removed by user. Tearing down session and exiting process.");
+-
+-        sessionActive.set(false);
+-        isSessionInBackground = false;
+-
+-        new Thread(() -> new Handler(Looper.getMainLooper()).post(() -> {
+-            serviceRunning.set(false);
+-            if (instance != null) {
+-                instance.stopForegroundCompat();
+-                instance.stopSelf();
+-            }
+-            new Handler(Looper.getMainLooper()).postDelayed(
+-                    () -> android.os.Process.killProcess(android.os.Process.myPid()), 500L);
+-        }), "ForegroundServiceCleanup").start();
++        // Closing the launcher task must not kill downloads or the active local realm.
++        // The activity's explicit Exit and stopSession still own runtime shutdown.
++        if (hasReason()) {
++            isSessionInBackground = true;
++            updateForegroundState(this);
++        } else {
++            stopSelf();
++        }
+     }
+ 
+     @Override
+@@ -357,6 +336,11 @@ public class ForegroundService extends Service {
+         if (notificationUtils != null) {
+             notificationUtils.cancel(notificationId);
+         }
++        if (screenReceiverThread != null) {
++            screenReceiverThread.quitSafely();
++            screenReceiverThread = null;
++            screenReceiverHandler = null;
++        }
+ 
+         super.onDestroy();
+     }
+@@ -381,10 +365,13 @@ public class ForegroundService extends Service {
+         return svc.getString(R.string.fgs_notification_content_else);
+     }
+ 
++    private void updateWakeLock() {
++        if (sessionActive.get() && (isSessionInBackground || isAppNotVisible())) acquireWakeLock();
++        else releaseWakeLock();
++    }
++
+     private void acquireWakeLock() {
+         if (wakeLock == null) return;
+-        if (prefs == null) return;
+-        if (!prefs.getBoolean(PREF_USE_WAKELOCK, false)) return;
+         if (!wakeLock.isHeld()) {
+             wakeLock.acquire();
+             Log.d(TAG, "WakeLock acquired");

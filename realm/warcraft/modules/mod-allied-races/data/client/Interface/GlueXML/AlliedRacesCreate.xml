@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<!-- More race buttons for the character creation screen (mod-allied-races): the game has ten. AlliedRacesCreate.lua
+	     gives them the names the screen looks for, where it hasn't a button by that number already. -->
+	<CheckButton name="AlliedRaceButton11" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="11" hidden="true"/>
+	<CheckButton name="AlliedRaceButton12" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="12" hidden="true"/>
+	<CheckButton name="AlliedRaceButton13" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="13" hidden="true"/>
+	<CheckButton name="AlliedRaceButton14" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="14" hidden="true"/>
+	<CheckButton name="AlliedRaceButton15" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="15" hidden="true"/>
+	<CheckButton name="AlliedRaceButton16" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="16" hidden="true"/>
+</Ui>

@@ -1,0 +1,14 @@
+# A dwarf shaman (WoW: Forever's pairs, mod-allied-races) in Coldridge Valley: Forever's dwarf racials,
+# and Branstock Khalder, the priest trainer, training them as a shaman trainer does.
+cmd .list auras
+has Hspell:98807|
+expect-not Hspell:20596|
+cmd .modify money 1000
+go 0 -6058.8 392.2 392.8
+talk 837
+select 837 train
+has trainer type 0
+has trainer spell 8017 state 0
+expect-not trainer spell 1243 state
+train 837 8017
+expect trained 8017

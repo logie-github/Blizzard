@@ -1,0 +1,184 @@
+# Brill: The Stillgarden (mod-brill-home, tools/town/garden.py), ChromieCraft's realm: Brill Endures granted
+# (the project's stage 1, <5:1>: the garden's stages are invisibility kind 5), Edda Graves on Holt's Rise at
+# Brill's eastern edge. A Patch of Earth (weeds, rubble, the marker stakes' soil, Pellen Moss's assessment);
+# What Takes Root (gravebloom in the cemetery, the spore cap, Brightwater's silt, the beds); The Garden's
+# Hunger (Holt's cracked drain, a Bloated Drain Toad, the drain's mouth, Pellen's soil treatment); A Bloom for
+# Every Memory (Willa Fen's quest: Renee's, Dillinger's and Mrs. Winters' flowers, Cold Hearth Manor's seeds,
+# a moonpetal lily, the memorial bed); The First Harvest (the ripe herbs, Pellen's stall, the plague graves'
+# bouquet, the guests, and Edda's question: the flowers to the front, the mark q971307). Each quest moves the
+# stage on; then the garden open (<5:6>): Pellen's wares (the Bouquet of Scarlet Begonias only for the
+# flowers' choice), the house's furnishings bought from Edda (<5:7>, the mark q971314; the deed granted for the
+# house's own, 970121), and the daily, A Garden Is Kept, offered. (Kills and the long counts are filled with
+# .quest complete.)
+cmd .levelup 11
+cmd .modify money 100000
+cmd .brilltown grant 971000
+cmd .brilltown grant 970121
+# Stage 1: Edda on the overgrown rise.
+go 0 2347.0 214.5 38.7
+wait 2
+cmd .brilltown state
+has <5:1>
+talk 971300
+accept 971300 971300
+# A Patch of Earth: a weed, a heap of rubble, a stake's soil, then Pellen's word.
+go 0 2345.0 203.2 38.9
+cmd .brilltown use
+has Brill town: used 971300
+expect credit 971300 971314 1/6
+go 0 2341.0 204.6 38.7
+cmd .brilltown use
+has Brill town: used 971301
+expect credit 971300 971315 1/4
+go 0 2343.5 209.4 38.6
+cmd .brilltown use
+has Brill town: used 971302
+expect credit 971300 971316 1/3
+go 0 2351.0 212.5 38.8
+talk 971301
+select 971301 soil from Edda's stakes
+expect credit 971300 971317 1/1
+cmd .quest complete 971300
+go 0 2347.0 214.5 38.7
+talk 971300
+reward 971300 971300
+expect rewarded 971300
+wait 2
+cmd .brilltown state
+has <5:2>
+# What Takes Root (Pellen): gravebloom in the cemetery, the spore cap in the grove, Brightwater's silt, a bed.
+go 0 2351.0 212.5 38.8
+talk 971301
+accept 971301 971301
+go 0 2334.0 339.5 35.9
+cmd .brilltown use
+has Brill town: used 971323
+expect credit 971301 971318 1/6
+go 0 2388.0 221.0 35.2
+cmd .brilltown use
+has Brill town: used 971324
+expect credit 971301 971319 1/1
+go 0 2895.0 212.0 8.5
+cmd .brilltown use
+has Brill town: used 971325
+expect credit 971301 971320 1/1
+go 0 2348.5 207.0 38.8
+cmd .brilltown use
+has Brill town: used 971304
+expect credit 971301 971321 1/3
+cmd .quest complete 971301
+go 0 2351.0 212.5 38.8
+talk 971301
+reward 971301 971301
+expect rewarded 971301
+wait 2
+cmd .brilltown state
+has <5:3>
+# The Garden's Hunger (Edda): a cracked section of drain, a toad at its mouth, the mouth cleared, Pellen's
+# soil treatment (his words for one who hasn't cleansed Maudie's well).
+go 0 2347.0 214.5 38.7
+talk 971300
+accept 971300 971302
+go 0 2386.0 160.0 35.2
+cmd .brilltown use
+has Brill town: used 971326
+expect credit 971302 971322 1/3
+go 0 2400.0 122.0 31.5
+kill 971313
+expect credit 971302 971313 1/6
+go 0 2404.0 113.0 28.9
+cmd .brilltown use
+has Brill town: used 971327
+expect credit 971302 971323 1/1
+go 0 2351.0 212.5 38.8
+talk 971301
+select 971301 soil treatment
+expect credit 971302 971324 1/1
+cmd .quest complete 971302
+go 0 2347.0 214.5 38.7
+talk 971300
+reward 971300 971302
+expect rewarded 971302
+wait 2
+cmd .brilltown state
+has <5:4>
+# A Bloom for Every Memory (Willa): the innkeeper's flowers, Cold Hearth Manor's seeds, the moonpetal lily,
+# the memorial bed; Edda ends it.
+go 0 2344.5 213.2 38.6
+talk 971303
+accept 971303 971303
+go 0 2270.5 246.5 34.8
+talk 5688
+select 5688 flowers from your life
+expect credit 971303 971325 1/3
+go 0 2181.0 682.0 33.9
+cmd .brilltown use
+has Brill town: used 971328
+expect credit 971303 971326 1/1
+go 0 2889.0 196.0 8.6
+cmd .brilltown use
+has Brill town: used 971329
+expect credit 971303 971327 1/1
+go 0 2340.0 212.6 38.1
+cmd .brilltown use
+has Brill town: used 971314
+expect credit 971303 971328 1/1
+cmd .quest complete 971303
+go 0 2347.0 214.5 38.7
+talk 971300
+reward 971300 971303
+expect rewarded 971303
+wait 2
+cmd .brilltown state
+has <5:5>
+# The First Harvest (Edda): a ripe herb under the glass, Pellen's stall, the bouquet on the plague graves, a
+# guest (Hamlin Atkins), and Edda's question answered: the flowers.
+talk 971300
+accept 971300 971304
+go 0 2352.5 197.0 39.0
+cmd .brilltown use
+has Brill town: used 971319
+expect credit 971304 971329 1/3
+go 0 2362.5 213.2 37.0
+cmd .brilltown use
+has Brill town: used 971321
+expect credit 971304 971330 1/1
+go 0 2414.0 386.0 35.8
+cmd .brilltown use
+has Brill town: used 971330
+expect credit 971304 971331 1/4
+go 0 2283.5 344.5 34.7
+talk 3547
+select 3547 Stillgarden's opening
+expect credit 971304 971331 2/4
+go 0 2347.0 214.5 38.7
+talk 971300
+select 971300 The flowers
+expect credit 971304 971332 1/1
+cmd .quest complete 971304
+talk 971300
+reward 971300 971304
+expect rewarded 971304
+# Open: the garden's stage 6, the flowers' mark.
+wait 2
+cmd .brilltown state
+has <5:6>
+expect q971307
+# Pellen at his stall: herbs, and the begonias for the flowers' choice.
+go 0 2362.5 212.2 37.4
+wait 2
+talk 971302
+select 971302 browse your goods
+buy 971302 2562
+expect bought 2562
+# The house's furnishings, bought from Edda: stage 7.
+go 0 2347.0 214.5 38.7
+talk 971300
+select 971300 anything green for my house
+wait 2
+cmd .brilltown state
+has <5:7>
+expect q971314
+# The daily, offered now.
+talk 971300
+expect quest 971305

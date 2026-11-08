@@ -1,0 +1,22 @@
+[worldserver]
+
+########################################
+# Ralia's mod and Alternate Female Options (mod-ralia): both realms
+########################################
+#
+#    Ralia.Enable
+#        Description: The character textures of the app's Game options ("Ralia's mod" or "Alternate
+#                     Female Options", one at a time; the textures from the user's own zip, picked in
+#                     the app) in the game while one is on. 0 keeps them out whatever the switches say.
+#        Default:     1
+
+Ralia.Enable = 1
+
+#
+#    Ralia.Folder
+#        Description: The app's files folder, where it keeps each set (ralia/ and alternate-female/:
+#                     their files/Character folder and the "enabled" file while it's on). Empty: the
+#                     folder the game's folder is in (WOW_CLIENT_DIR's).
+#        Default:     ""
+
+Ralia.Folder = ""

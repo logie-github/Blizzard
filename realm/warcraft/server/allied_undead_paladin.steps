@@ -1,0 +1,22 @@
+# An undead paladin in Deathknell (mod-allied-races; patches/azerothcore/0011, allied_races_class_trainers.sql).
+#
+# Dark Cleric Duesten, the priest trainer, greets them as he greets a priest (text 4442, not 4439's
+# "I can't train you") and offers training.
+# (from the crypt where the Forsaken wake up to the chapel, beside him: over 100 yards)
+go 0 1845.5 1626.8 97.0
+talk 2123
+has gossip text 4442
+has option: I seek more training in the priestly ways
+expect-not gossip text 4439
+# The training is a paladin trainer's, the Horde's (Seal of Corruption, not the Alliance's Seal of
+# Vengeance), with Devotion Aura to learn at level 1; nothing a priest learns.
+cmd .modify money 1000
+select 2123 priestly ways
+has trainer type 0
+has trainer spell 465 state 0
+has trainer spell 53736 state
+expect-not trainer spell 31801 state
+expect-not trainer spell 1243 state
+# And he teaches it.
+train 2123 465
+expect trained 465

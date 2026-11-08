@@ -1,0 +1,14 @@
+# An orc mage (WoW: Forever's pairs, mod-allied-races) in the Valley of Trials: Forever's orc racials,
+# and Nartok, the warlock trainer, training them as a mage trainer does.
+cmd .list auras
+has Hspell:98804|
+expect-not Hspell:20574|
+cmd .modify money 1000
+go 1 -604.5 -4111.3 43.0
+talk 3156
+select 3156 train
+has trainer type 0
+has trainer spell 1459 state 0
+expect-not trainer spell 688 state
+train 3156 1459
+expect trained 1459

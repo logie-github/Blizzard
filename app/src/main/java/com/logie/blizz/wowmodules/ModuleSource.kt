@@ -1,23 +1,22 @@
 package com.logie.blizz.wowmodules
 
 import com.logie.blizz.BuildConfig
-import com.logie.blizz.wow.WowLayout
 import org.json.JSONObject
 
 /**
- * Where the realm's modules are built, and what Blizzard knows of the realm it holds.
- *
- * The workflow (`build-warcraft-modules.yml`) lives in the World of Warcraft app's repository and
- * compiles the realm from one of that app's releases (`wow-build-N`, N being the app's version
- * code). Blizzard holds a copy of that app's realm, so the release it asks for is the one of the
- * app that made the export: the export's `appVersion` is `1.0.N`.
+ * Where the realm's modules are built. The workflow (`build-realm-modules.yml`) is in this repository and
+ * compiles the realm from the `realm/` folder of it (the scripts, pins, patches and the realm's own modules),
+ * then attaches the package to the release [RELEASE]. Nothing of another app's repository is used.
  */
 object ModuleSource {
-    /** The repository the workflow, the releases and the built packages are in (the WoW app's, as its build gave it). */
-    const val REPO = "logie-github/YeaBwoi"
+    /** The repository the workflow, the release and the built packages are in: this app's own. */
+    val REPO: String get() = BuildConfig.UPDATE_REPO
 
-    /** The WoW app's release tags are `wow-build-N`. */
-    const val RELEASE_TAG_PREFIX = "wow-build"
+    /** The release the built realms are attached to (not an app release: the updater reads `blizzard-build-N` only). */
+    const val RELEASE = "realm-modules"
+
+    /** Which realm sources a package was built from (`realm/`), for telling a package of an older layout from this one's. */
+    const val REALM_SOURCE = 1
 
     /**
      * The modules the realm has always (`warcraft/server-version.env`'s MODULES): a build skips
@@ -39,15 +38,6 @@ object ModuleSource {
     fun runUrl(runId: Long) = "${repoUrl()}/actions/runs/$runId"
 
     fun releaseUrl(tag: String) = "${repoUrl()}/releases/tags/$tag"
-
-    /** The WoW app's version code from its version name (`1.0.52` is 52), or null when it isn't one of its names. */
-    fun versionCodeOf(appVersion: String?): Int? =
-        Regex("^\\d+\\.\\d+\\.(\\d{1,9})$").matchEntire(appVersion?.trim().orEmpty())?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it > 0 }
-
-    /** The version code of the WoW app that made the export Blizzard's realm came from (its `export.json`). */
-    fun exportedVersionCode(layout: WowLayout): Int? = runCatching {
-        versionCodeOf(JSONObject(layout.manifest.readText()).optString("appVersion"))
-    }.getOrNull()
 
     /** A file attached to a release. [sha256] is GitHub's own digest of it, when it gives one. */
     data class Asset(val name: String, val url: String, val size: Long, val sha256: String? = null)

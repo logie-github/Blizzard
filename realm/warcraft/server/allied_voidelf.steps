@@ -1,0 +1,32 @@
+# A void elf warrior in Ammen Vale (mod-allied-races), after its start was checked: its racials
+# at work, and its Rescue the Survivors!.
+# (The racials are cast with a plain .cast: `.cast X triggered` skips every effect of the spell.)
+#
+# Preternatural Calm: spells not pushed back by damage (an aura of type 149, REDUCE_PUSHBACK).
+target 0
+cmd .list auras
+expect auras of type 149
+# Spatial Rift: a rift torn ahead, then the character through it.
+cmd .cast 98711
+expect-not teleported
+cmd .cast 98711
+expect teleported
+# Megelon offers the void elves' You Survived!, never the Draenei's.
+go 530 -3961.6 -13931.2 100.7
+talk 16475
+has quest 959279:
+expect-not quest 9279:
+# Rescue the Survivors!: Gift of the Naaru (a Draenei racial) lent while it's in the log, a
+# survivor healed with it standing up for the clone, the gift taken back as it's handed in.
+cmd .quest add 959283
+expect learned 28880
+go 530 -4147.6 -13883.1 79.4
+target 16483
+cmd .cast 28880
+target 0
+wait 7
+expect credit 959283 16483
+go 530 -4118.5 -13760.5 74.1
+reward 16502 959283
+has rewarded 959283
+expect removed 28880

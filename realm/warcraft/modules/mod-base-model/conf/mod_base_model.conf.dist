@@ -1,0 +1,21 @@
+[worldserver]
+
+########################################
+# Body (mod-base-model): female creation previews, both realms
+########################################
+#
+#    BaseModel.Enable
+#        Description: Female character creation previews without starter gear when Body is on.
+#                     Applied to the client patch at realm startup; never changes in-game gear.
+#                     0 keeps it off whatever the launcher switch says.
+#        Default:     1
+
+BaseModel.Enable = 1
+
+#
+#    BaseModel.Folder
+#        Description: The folder the app keeps the switch in (files/base-model: the "enabled" file
+#                     while it's on). Empty: beside the game's folder (WOW_CLIENT_DIR).
+#        Default:     ""
+
+BaseModel.Folder = ""

@@ -1,0 +1,10 @@
+# Achievement_Criteria: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiiiiiiissssssssssssssssiiiiii
+put	13471	246	53	9	1	0	0	0	0	Goblin																16712190	0	0	0	0	6
+put	13472	1005	53	12	1	0	0	0	0	Worgen																16712190	0	0	0	0	6
+put	13473	2422	110	61815	1	0	0	0	0	Goblin																16712190	0	0	0	0	11
+put	13474	2422	110	61815	1	0	0	0	0	Worgen																16712190	0	0	0	0	12
+put	13475	291	110	44212	1	0	0	0	0	Goblin																16712190	0	0	0	0	11
+put	13476	291	110	44212	1	0	0	0	0	Worgen																16712190	0	0	0	0	12
+put	13477	1429	5	80	0	0	0	0	0	Level to 80	80 레벨	Atteindre le niveau 80	Erreicht Stufe 80	升到80级	升至80級	Alcanza el nivel 80	Alcanza el nivel 80	Достигнуть 80-го уровня								16712190	2	0	0	0	1
+put	13478	1430	5	80	0	0	0	0	0	Level to 80	80 레벨	Atteindre le niveau 80	Erreicht Stufe 80	升到80级	升至80級	Alcanza el nivel 80	Alcanza el nivel 80	Достигнуть 80-го уровня								16712190	2	0	0	0	1

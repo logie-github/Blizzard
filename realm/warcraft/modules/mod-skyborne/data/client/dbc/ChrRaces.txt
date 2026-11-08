@@ -1,0 +1,6 @@
+# ChrRaces: the Skyborne's changes (tools/build_data.py)
+types	iiiiiisiiiisiissssssssssssssssissssssssssssssssissssssssssssssssisssi
+copyrow	13	22
+copyrow	14	23
+put	13	12	1	4142	15476	15475	Be	7	7	15007	1096	SkyborneA	9001	0	Skyborne																16712190	Skyborne																16712172	Skyborne																16712172	NORMAL	EARRINGS	NORMAL	0
+put	14	12	6	4142	15476	15475	Be	1	7	15007	1096	SkyborneH	9002	1	Skyborne																16712190	Skyborne																16712172	Skyborne																16712172	NORMAL	EARRINGS	NORMAL	0

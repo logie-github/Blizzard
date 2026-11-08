@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 14:55:27 +0000
+Subject: [PATCH 1/6] Include <ctime> in ByteBuffer.h
+
+ByteBuffer.h uses time_t but relied on another header to bring it in. With musl (the phone's
+server is built on Alpine) nothing else does, and files that include LootMgr.h first don't build.
+---
+ src/server/shared/Packets/ByteBuffer.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/server/shared/Packets/ByteBuffer.h b/src/server/shared/Packets/ByteBuffer.h
+index 56b4da5de2..cea925ab0b 100644
+--- a/src/server/shared/Packets/ByteBuffer.h
++++ b/src/server/shared/Packets/ByteBuffer.h
+@@ -22,6 +22,7 @@
+ #include "Define.h"
+ #include <array>
+ #include <cstring>
++#include <ctime>
+ #include <string>
+ #include <vector>
+ 

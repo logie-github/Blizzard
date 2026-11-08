@@ -1,0 +1,17 @@
+# CharBaseInfo: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+appendraw	0901
+appendraw	0903
+appendraw	0904
+appendraw	0906
+appendraw	0907
+appendraw	0909
+appendraw	0c01
+appendraw	0c03
+appendraw	0c04
+appendraw	0c05
+appendraw	0c06
+appendraw	0c08
+appendraw	0c09
+appendraw	0c0b
+appendraw	0908
+appendraw	0905

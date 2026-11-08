@@ -1,0 +1,3 @@
+# Languages: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	issssssssssssssssi
+put	9	Nerglish																16712190

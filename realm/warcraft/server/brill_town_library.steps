@@ -1,0 +1,178 @@
+# Brill: The Reclamation Library (mod-brill-home, tools/town/library.py), ChromieCraft's realm: Brill Endures
+# granted (the project's stage 1, <4:1>: the library's stages are invisibility kind 4), Edmund Rook at the old
+# customs office on Stillhome Lane. More Than Ashes (the counter, the flooded cellar, the record chest, a book
+# at Garren's Haunt, Magistrate Sevren's leave); Shelves for the Dead (hardwood west of town, Rudd Carver's
+# hinges, Abigail Shiel's parchment, the shelves and the cellar window); The Names We Carried (Royal Overseer
+# Bauhaus's census in the Undercity, the Agamand mill's ledger, Thomas Arlento, Mrs. Winters and Doreen
+# Beltis); The Missing Chapter (the Scarlet record store at Solliden, a collector, a page, Edmund's
+# worktable); An Open Book (an invitation, the last table, a pile sorted, the child's slate donated: the mark
+# q971213). Each quest moves the stage on; then the library open (<4:6>), the house's library set bought from
+# Tobias (<4:7>, the mark q971217) and the daily, Lost Pages, offered. (The long counts are filled with
+# .quest complete.)
+cmd .levelup 11
+cmd .modify money 100000
+cmd .brilltown grant 971000
+# Stage 1: Edmund at the customs office's yard.
+go 0 2235.5 341.2 35.7
+wait 2
+cmd .brilltown state
+has <4:1>
+talk 971200
+accept 971200 971200
+# More Than Ashes.
+go 0 2227.69 341.76 35.7
+cmd .brilltown use
+has Brill town: used 971201
+expect credit 971200 971214 1/2
+go 0 2224.3 354.38 35.5
+cmd .brilltown use
+has Brill town: used 971202
+expect credit 971200 971214 2/2
+go 0 2218.53 345.84 35.7
+cmd .brilltown use
+has Brill town: used 971203
+expect credit 971200 971216 1/1
+go 0 2915.25 382.59 32.0
+cmd .brilltown use
+has Brill town: used 971218
+expect credit 971200 971215 1/5
+go 0 2304.5 266.0 38.9
+talk 1499
+select 1499 make the old customs office
+expect credit 971200 971217 1/1
+cmd .quest complete 971200
+go 0 2235.5 341.2 35.7
+talk 971200
+reward 971200 971200
+expect rewarded 971200
+wait 2
+cmd .brilltown state
+has <4:2>
+# Shelves for the Dead: Tobias, there from stage 2.
+go 0 2238.6 347.6 35.7
+talk 971201
+accept 971201 971201
+go 0 2112.0 352.0 48.6
+cmd .brilltown use
+has Brill town: used 971219
+expect credit 971201 971218 1/8
+go 0 2297.0 459.0 34.5
+talk 971000
+select 971000 hinges and brackets
+expect credit 971201 971219 1/1
+go 0 2260.8 276.4 35.4
+talk 2118
+select 2118 parchment to mend
+expect credit 971201 971220 1/1
+go 0 2234.06 351.36 35.6
+cmd .brilltown use
+has Brill town: used 971208
+expect credit 971201 971221 1/2
+go 0 2224.42 357.64 35.6
+cmd .brilltown use
+has Brill town: used 971209
+expect credit 971201 971221 2/2
+cmd .quest complete 971201
+go 0 2238.6 347.6 35.7
+talk 971201
+reward 971201 971201
+expect rewarded 971201
+wait 2
+cmd .brilltown state
+has <4:3>
+# The Names We Carried: Maela, there from stage 3; the census in the Undercity, the mill's ledger at Agamand
+# Mills, the three of Wheelwrights' Row.
+go 0 2224.2 344.8 35.6
+talk 971202
+accept 971202 971202
+go 0 1602.8 204.4 -55.0
+talk 10781
+select 10781 census rolls
+expect credit 971202 971222 1/1
+go 0 2827.5 810.5 114.1
+cmd .brilltown use
+has Brill town: used 971220
+expect credit 971202 971223 1/1
+go 0 2261.0 325.8 35.7
+talk 2309
+select 2309 your old street
+expect credit 971202 971224 1/3
+go 0 2253.6 270.6 34.9
+talk 2134
+select 2134 your old street
+expect credit 971202 971224 2/3
+go 0 2256.0 308.3 35.4
+talk 2311
+select 2311 your old street
+expect credit 971202 971224 3/3
+go 0 2224.2 344.8 35.6
+talk 971202
+reward 971202 971202
+expect rewarded 971202
+wait 2
+cmd .brilltown state
+has <4:4>
+# The Missing Chapter: the Scarlet sorting table in the Solliden barn, a collector, a page; the worktable.
+go 0 2235.5 341.2 35.7
+talk 971200
+accept 971200 971203
+go 0 2336.0 1312.0 34.5
+cmd .brilltown use
+has Brill town: used 971221
+expect credit 971203 971225 1/1
+kill 971206
+expect credit 971203 971206 1/5
+go 0 2331.5 1311.0 34.5
+cmd .brilltown use
+has Brill town: used 971222
+expect credit 971203 971226 1/3
+go 0 2224.3 348.53 35.5
+cmd .brilltown use
+has Brill town: used 971211
+expect credit 971203 971227 1/1
+cmd .quest complete 971203
+go 0 2235.5 341.2 35.7
+talk 971200
+reward 971200 971203
+expect rewarded 971203
+wait 2
+cmd .brilltown state
+has <4:5>
+# An Open Book: Hamlin Atkins invited, the last table, a pile sorted, the child's slate for the case.
+talk 971200
+accept 971200 971204
+go 0 2283.2 344.3 34.7
+talk 3547
+select 3547 invites you
+expect credit 971204 971228 1/4
+go 0 2231.26 348.66 35.6
+cmd .brilltown use
+has Brill town: used 971216
+expect credit 971204 971229 1/1
+go 0 2226.05 354.81 35.5
+cmd .brilltown use
+has Brill town: used 971217
+expect credit 971204 971230 1/6
+go 0 2235.5 341.2 35.7
+talk 971200
+select 971200 child's slate
+expect credit 971204 971231 1/1
+cmd .quest complete 971204
+talk 971200
+reward 971200 971204
+expect rewarded 971204
+wait 2
+cmd .brilltown state
+has <4:6>
+expect q971213
+# The library open: Tobias sells the house's library set; Edmund offers the daily.
+go 0 2224.6 343.2 37.0
+talk 971209
+select 971209 spare a few books
+wait 2
+cmd .brilltown state
+has <4:7>
+expect q971217
+go 0 2229.8 357.8 37.0
+talk 971207
+expect Lost Pages

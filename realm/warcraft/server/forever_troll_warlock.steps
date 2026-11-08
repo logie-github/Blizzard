@@ -1,0 +1,15 @@
+# A troll warlock (WoW: Forever's pairs, mod-allied-races) in the Valley of Trials: Forever's troll
+# racials (Regeneration's 20%, no Da Voodoo Shuffle), and Mai'ah, the mage trainer, training them as a
+# warlock trainer does.
+cmd .list auras
+has Hspell:20555|
+expect-not Hspell:58943|
+cmd .modify money 1000
+go 1 -623.6 -4208.4 38.3
+talk 5884
+select 5884 train
+has trainer type 0
+has trainer spell 688 state 0
+expect-not trainer spell 1459 state
+train 5884 688
+expect trained 688

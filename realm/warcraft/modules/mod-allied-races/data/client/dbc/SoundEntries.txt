@@ -1,0 +1,573 @@
+# SoundEntries: the void elves' and the nightborne's changes (tools/build_data.py)
+types	iisssssssssssiiiiiiiiiisfiffii
+put	910100	12	VoidElf Vocal 95654	VoidElf_95654_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910101	12	VoidElf Vocal 95827	VoidElf_95827_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910102	12	VoidElf Vocal 95639	VoidElf_95639_1.mp3	VoidElf_95639_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910103	12	VoidElf Vocal 95809	VoidElf_95809_1.mp3	VoidElf_95809_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910104	12	VoidElf Vocal 95648	VoidElf_95648_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910105	12	VoidElf Vocal 95818	VoidElf_95818_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910106	12	VoidElf Vocal 95626	VoidElf_95626_1.mp3	VoidElf_95626_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910107	12	VoidElf Vocal 95796	VoidElf_95796_1.mp3	VoidElf_95796_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910108	12	VoidElf Vocal 95628	VoidElf_95628_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910109	12	VoidElf Vocal 95798	VoidElf_95798_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910110	12	VoidElf Vocal 95624	VoidElf_95624_1.mp3	VoidElf_95624_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910111	12	VoidElf Vocal 95794	VoidElf_95794_1.mp3	VoidElf_95794_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910112	12	VoidElf Vocal 95642	VoidElf_95642_1.mp3	VoidElf_95642_2.mp3	VoidElf_95642_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910113	12	VoidElf Vocal 95812	VoidElf_95812_1.mp3	VoidElf_95812_2.mp3	VoidElf_95812_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910114	12	VoidElf Vocal 95652	VoidElf_95652_1.mp3	VoidElf_95652_2.mp3	VoidElf_95652_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910115	12	VoidElf Vocal 95824	VoidElf_95824_1.mp3	VoidElf_95824_2.mp3	VoidElf_95824_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910116	12	VoidElf Vocal 95638	VoidElf_95638_1.mp3	VoidElf_95638_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910117	12	VoidElf Vocal 95808	VoidElf_95808_1.mp3	VoidElf_95808_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910118	12	VoidElf Vocal 95656	VoidElf_95656_1.mp3	VoidElf_95656_2.mp3	VoidElf_95656_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910119	12	VoidElf Vocal 95830	VoidElf_95830_1.mp3	VoidElf_95830_2.mp3	VoidElf_95830_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910120	12	VoidElf Vocal 95629	VoidElf_95629_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910121	12	VoidElf Vocal 95799	VoidElf_95799_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910122	12	VoidElf Vocal 95640	VoidElf_95640_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910123	12	VoidElf Vocal 95810	VoidElf_95810_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910124	12	VoidElf Vocal 95650	VoidElf_95650_1.mp3	VoidElf_95650_2.mp3	VoidElf_95650_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910125	12	VoidElf Vocal 95820	VoidElf_95820_1.mp3	VoidElf_95820_2.mp3	VoidElf_95820_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910126	12	VoidElf Vocal 95630	VoidElf_95630_1.mp3	VoidElf_95630_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910127	12	VoidElf Vocal 95800	VoidElf_95800_1.mp3	VoidElf_95800_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910128	12	VoidElf Vocal 95623	VoidElf_95623_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910129	12	VoidElf Vocal 95793	VoidElf_95793_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910130	12	VoidElf Vocal 95647	VoidElf_95647_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910131	12	VoidElf Vocal 95817	VoidElf_95817_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910132	12	VoidElf Vocal 95646	VoidElf_95646_1.mp3	VoidElf_95646_2.mp3	VoidElf_95646_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910133	12	VoidElf Vocal 95816	VoidElf_95816_1.mp3	VoidElf_95816_2.mp3	VoidElf_95816_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910134	12	VoidElf Vocal 95645	VoidElf_95645_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910135	12	VoidElf Vocal 95815	VoidElf_95815_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910136	12	VoidElf Vocal 95621	VoidElf_95621_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910137	12	VoidElf Vocal 95791	VoidElf_95791_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910138	12	VoidElf Vocal 95622	VoidElf_95622_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910139	12	VoidElf Vocal 95792	VoidElf_95792_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910140	12	VoidElf Vocal 95641	VoidElf_95641_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910141	12	VoidElf Vocal 95811	VoidElf_95811_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910142	12	VoidElf Vocal 95631	VoidElf_95631_1.mp3	VoidElf_95631_2.mp3	VoidElf_95631_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910143	12	VoidElf Vocal 95801	VoidElf_95801_1.mp3	VoidElf_95801_2.mp3	VoidElf_95801_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910144	12	VoidElf Vocal 95636	VoidElf_95636_1.mp3	VoidElf_95636_2.mp3	VoidElf_95636_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910145	12	VoidElf Vocal 95806	VoidElf_95806_1.mp3	VoidElf_95806_2.mp3	VoidElf_95806_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910146	12	VoidElf Vocal 95627	VoidElf_95627_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910147	12	VoidElf Vocal 95797	VoidElf_95797_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910148	12	VoidElf Vocal 95619	VoidElf_95619_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910149	12	VoidElf Vocal 95790	VoidElf_95790_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910150	12	VoidElf Vocal 95655	VoidElf_95655_1.mp3	VoidElf_95655_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910151	12	VoidElf Vocal 95829	VoidElf_95829_1.mp3	VoidElf_95829_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910152	12	VoidElf Vocal 95625	VoidElf_95625_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910153	12	VoidElf Vocal 95795	VoidElf_95795_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910154	12	VoidElf Vocal 95633	VoidElf_95633_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910155	12	VoidElf Vocal 95803	VoidElf_95803_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910156	12	VoidElf Vocal 95634	VoidElf_95634_1.mp3	VoidElf_95634_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910157	12	VoidElf Vocal 95804	VoidElf_95804_1.mp3	VoidElf_95804_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910158	12	VoidElf Vocal 95620	VoidElf_95620_1.mp3	VoidElf_95620_2.mp3	VoidElf_95620_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910159	12	VoidElf Vocal 95789	VoidElf_95789_1.mp3	VoidElf_95789_2.mp3	VoidElf_95789_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910160	12	VoidElf Vocal 95635	VoidElf_95635_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910161	12	VoidElf Vocal 95805	VoidElf_95805_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910162	12	VoidElf Vocal 95632	VoidElf_95632_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910163	12	VoidElf Vocal 95802	VoidElf_95802_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910164	12	VoidElf Vocal 95637	VoidElf_95637_1.mp3	VoidElf_95637_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910165	12	VoidElf Vocal 95807	VoidElf_95807_1.mp3	VoidElf_95807_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910166	12	VoidElf Vocal 95651	VoidElf_95651_1.mp3	VoidElf_95651_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910167	12	VoidElf Vocal 95821	VoidElf_95821_1.mp3	VoidElf_95821_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910168	12	VoidElf Vocal 95649	VoidElf_95649_1.mp3	VoidElf_95649_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910169	12	VoidElf Vocal 95819	VoidElf_95819_1.mp3	VoidElf_95819_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910170	12	VoidElf Vocal 95653	VoidElf_95653_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910171	12	VoidElf Vocal 95825	VoidElf_95825_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.30000001192092896	0	8.0	45.0	0	0
+put	910172	29	VoidElf Emote 95675	VoidElf_95675_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910173	29	VoidElf Emote 95676	VoidElf_95676_1.mp3	VoidElf_95676_2.mp3	VoidElf_95676_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910174	29	VoidElf Emote 95677	VoidElf_95677_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910175	29	VoidElf Emote 95678	VoidElf_95678_1.mp3	VoidElf_95678_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910176	29	VoidElf Emote 95669	VoidElf_95669_1.mp3	VoidElf_95669_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910177	29	VoidElf Emote 95615	VoidElf_95615_1.mp3	VoidElf_95615_2.mp3	VoidElf_95615_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910178	29	VoidElf Emote 95661	VoidElf_95661_1.mp3	VoidElf_95661_2.mp3	VoidElf_95661_3.mp3	VoidElf_95661_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910179	29	VoidElf Emote 95617	VoidElf_95617_1.mp3	VoidElf_95617_2.mp3	VoidElf_95617_3.mp3	VoidElf_95617_4.mp3	VoidElf_95617_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910180	29	VoidElf Emote 95674	VoidElf_95674_1.mp3	VoidElf_95674_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910181	29	VoidElf Emote 95618	VoidElf_95618_1.mp3	VoidElf_95618_2.mp3	VoidElf_95618_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910182	29	VoidElf Emote 95657	VoidElf_95657_1.mp3	VoidElf_95657_2.mp3	VoidElf_95657_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910183	29	VoidElf Emote 95658	VoidElf_95658_1.mp3	VoidElf_95658_2.mp3	VoidElf_95658_3.mp3	VoidElf_95658_4.mp3	VoidElf_95658_5.mp3	VoidElf_95658_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910184	29	VoidElf Emote 95659	VoidElf_95659_1.mp3	VoidElf_95659_2.mp3	VoidElf_95659_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910185	29	VoidElf Emote 95662	VoidElf_95662_1.mp3	VoidElf_95662_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910186	29	VoidElf Emote 95663	VoidElf_95663_1.mp3	VoidElf_95663_2.mp3	VoidElf_95663_3.mp3	VoidElf_95663_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910187	29	VoidElf Emote 95664	VoidElf_95664_1.mp3	VoidElf_95664_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910188	29	VoidElf Emote 95665	VoidElf_95665_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910189	29	VoidElf Emote 95666	VoidElf_95666_1.mp3	VoidElf_95666_2.mp3	VoidElf_95666_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910190	29	VoidElf Emote 95668	VoidElf_95668_1.mp3	VoidElf_95668_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910191	29	VoidElf Emote 95679	VoidElf_95679_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910192	29	VoidElf Emote 95670	VoidElf_95670_1.mp3	VoidElf_95670_2.mp3	VoidElf_95670_3.mp3	VoidElf_95670_4.mp3	VoidElf_95670_5.mp3	VoidElf_95670_6.mp3	VoidElf_95670_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910193	29	VoidElf Emote 95671	VoidElf_95671_1.mp3	VoidElf_95671_2.mp3	VoidElf_95671_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910194	29	VoidElf Emote 95682	VoidElf_95682_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910195	29	VoidElf Emote 95683	VoidElf_95683_1.mp3	VoidElf_95683_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910196	29	VoidElf Emote 95685	VoidElf_95685_1.mp3	VoidElf_95685_2.mp3	VoidElf_95685_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910197	29	VoidElf Emote 95681	VoidElf_95681_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910198	29	VoidElf Emote 95673	VoidElf_95673_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910199	29	VoidElf Emote 95694	VoidElf_95694_1.mp3	VoidElf_95694_2.mp3	VoidElf_95694_3.mp3	VoidElf_95694_4.mp3	VoidElf_95694_5.mp3	VoidElf_95694_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910200	29	VoidElf Emote 95695	VoidElf_95695_1.mp3	VoidElf_95695_2.mp3	VoidElf_95695_3.mp3	VoidElf_95695_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910201	29	VoidElf Emote 95680	VoidElf_95680_1.mp3	VoidElf_95680_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910202	29	VoidElf Emote 95616	VoidElf_95616_1.mp3	VoidElf_95616_2.mp3	VoidElf_95616_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910203	29	VoidElf Emote 95672	VoidElf_95672_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910204	29	VoidElf Emote 95855	VoidElf_95855_1.mp3	VoidElf_95855_2.mp3	VoidElf_95855_3.mp3	VoidElf_95855_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910205	29	VoidElf Emote 95852	VoidElf_95852_1.mp3	VoidElf_95852_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910206	29	VoidElf Emote 95879	VoidElf_95879_1.mp3	VoidElf_95879_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910207	29	VoidElf Emote 95847	VoidElf_95847_1.mp3	VoidElf_95847_2.mp3	VoidElf_95847_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910208	29	VoidElf Emote 95846	VoidElf_95846_1.mp3	VoidElf_95846_2.mp3	VoidElf_95846_3.mp3	VoidElf_95846_4.mp3	VoidElf_95846_5.mp3	VoidElf_95846_6.mp3	VoidElf_95846_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910209	29	VoidElf Emote 95842	VoidElf_95842_1.mp3	VoidElf_95842_2.mp3	VoidElf_95842_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910210	29	VoidElf Emote 95875	VoidElf_95875_1.mp3	VoidElf_95875_2.mp3	VoidElf_95875_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910211	29	VoidElf Emote 95840	VoidElf_95840_1.mp3	VoidElf_95840_2.mp3	VoidElf_95840_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910212	29	VoidElf Emote 95874	VoidElf_95874_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910213	29	VoidElf Emote 95873	VoidElf_95873_1.mp3	VoidElf_95873_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910214	29	VoidElf Emote 95838	VoidElf_95838_1.mp3	VoidElf_95838_2.mp3	VoidElf_95838_3.mp3	VoidElf_95838_4.mp3	VoidElf_95838_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910215	29	VoidElf Emote 95850	VoidElf_95850_1.mp3	VoidElf_95850_2.mp3	VoidElf_95850_3.mp3	VoidElf_95850_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910216	29	VoidElf Emote 95896	VoidElf_95896_1.mp3	VoidElf_95896_2.mp3	VoidElf_95896_3.mp3	VoidElf_95896_4.mp3	VoidElf_95896_5.mp3	VoidElf_95896_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910217	29	VoidElf Emote 95835	VoidElf_95835_1.mp3	VoidElf_95835_2.mp3	VoidElf_95835_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910218	29	VoidElf Emote 95832	VoidElf_95832_1.mp3	VoidElf_95832_2.mp3	VoidElf_95832_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910219	29	VoidElf Emote 95870	VoidElf_95870_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910220	29	VoidElf Emote 95893	VoidElf_95893_1.mp3	VoidElf_95893_2.mp3	VoidElf_95893_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910221	29	VoidElf Emote 95872	VoidElf_95872_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910222	29	VoidElf Emote 95696	VoidElf_95696_1.mp3	VoidElf_95696_2.mp3	VoidElf_95696_3.mp3	VoidElf_95696_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910223	29	VoidElf Emote 95890	VoidElf_95890_1.mp3	VoidElf_95890_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910224	29	VoidElf Emote 95888	VoidElf_95888_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910225	29	VoidElf Emote 95868	VoidElf_95868_1.mp3	VoidElf_95868_2.mp3	VoidElf_95868_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910226	29	VoidElf Emote 95886	VoidElf_95886_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910227	29	VoidElf Emote 95884	VoidElf_95884_1.mp3	VoidElf_95884_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910228	29	VoidElf Emote 95881	VoidElf_95881_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910229	29	VoidElf Emote 95861	VoidElf_95861_1.mp3	VoidElf_95861_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910230	29	VoidElf Emote 95863	VoidElf_95863_1.mp3	VoidElf_95863_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910231	29	VoidElf Emote 95858	VoidElf_95858_1.mp3	VoidElf_95858_2.mp3	VoidElf_95858_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910232	29	VoidElf Emote 95667	VoidElf_95667_1.mp3	VoidElf_95667_2.mp3	VoidElf_95667_3.mp3	VoidElf_95667_4.mp3	VoidElf_95667_5.mp3	VoidElf_95667_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910233	29	VoidElf Emote 95859	VoidElf_95859_1.mp3	VoidElf_95859_2.mp3	VoidElf_95859_3.mp3	VoidElf_95859_4.mp3	VoidElf_95859_5.mp3	VoidElf_95859_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910234	29	VoidElf Emote 95877	VoidElf_95877_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910235	29	VoidElf Emote 95866	VoidElf_95866_1.mp3	VoidElf_95866_2.mp3	VoidElf_95866_3.mp3	VoidElf_95866_4.mp3	VoidElf_95866_5.mp3	VoidElf_95866_6.mp3	VoidElf_95866_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910236	29	VoidElf Emote 95857	VoidElf_95857_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910237	29	VoidElf Emote 95856	VoidElf_95856_1.mp3	VoidElf_95856_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910238	29	VoidElf Emote 122856	VoidElf_122856_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910239	29	VoidElf Emote 122857	VoidElf_122857_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910240	29	VoidElf Emote 122858	VoidElf_122858_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\VoidElf	0.8999999761581421	0	8.0	45.0	0	0
+put	910241	12	Nightborne Vocal 96339	Nightborne_96339_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910242	12	Nightborne Vocal 96271	Nightborne_96271_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910243	12	Nightborne Vocal 96340	Nightborne_96340_1.mp3	Nightborne_96340_2.mp3	Nightborne_96340_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910244	12	Nightborne Vocal 96272	Nightborne_96272_1.mp3	Nightborne_96272_2.mp3	Nightborne_96272_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910245	12	Nightborne Vocal 96341	Nightborne_96341_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910246	12	Nightborne Vocal 96273	Nightborne_96273_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910247	12	Nightborne Vocal 96342	Nightborne_96342_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910248	12	Nightborne Vocal 96274	Nightborne_96274_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910249	12	Nightborne Vocal 96343	Nightborne_96343_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910250	12	Nightborne Vocal 96275	Nightborne_96275_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910251	12	Nightborne Vocal 96344	Nightborne_96344_1.mp3	Nightborne_96344_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910252	12	Nightborne Vocal 96276	Nightborne_96276_1.mp3	Nightborne_96276_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910253	12	Nightborne Vocal 96345	Nightborne_96345_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910254	12	Nightborne Vocal 96277	Nightborne_96277_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910255	12	Nightborne Vocal 96346	Nightborne_96346_1.mp3	Nightborne_96346_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910256	12	Nightborne Vocal 96278	Nightborne_96278_1.mp3	Nightborne_96278_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910257	12	Nightborne Vocal 96347	Nightborne_96347_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910258	12	Nightborne Vocal 96279	Nightborne_96279_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910259	12	Nightborne Vocal 96348	Nightborne_96348_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910260	12	Nightborne Vocal 96280	Nightborne_96280_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910261	12	Nightborne Vocal 96349	Nightborne_96349_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910262	12	Nightborne Vocal 96281	Nightborne_96281_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910263	12	Nightborne Vocal 96350	Nightborne_96350_1.mp3	Nightborne_96350_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910264	12	Nightborne Vocal 96282	Nightborne_96282_1.mp3	Nightborne_96282_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910265	12	Nightborne Vocal 96351	Nightborne_96351_1.mp3	Nightborne_96351_2.mp3	Nightborne_96351_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910266	12	Nightborne Vocal 96283	Nightborne_96283_1.mp3	Nightborne_96283_2.mp3	Nightborne_96283_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910267	12	Nightborne Vocal 96352	Nightborne_96352_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910268	12	Nightborne Vocal 96284	Nightborne_96284_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910269	12	Nightborne Vocal 96353	Nightborne_96353_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910270	12	Nightborne Vocal 96285	Nightborne_96285_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910271	12	Nightborne Vocal 96354	Nightborne_96354_1.mp3	Nightborne_96354_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910272	12	Nightborne Vocal 96286	Nightborne_96286_1.mp3	Nightborne_96286_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910273	12	Nightborne Vocal 96355	Nightborne_96355_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910274	12	Nightborne Vocal 96287	Nightborne_96287_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910275	12	Nightborne Vocal 96356	Nightborne_96356_1.mp3	Nightborne_96356_2.mp3	Nightborne_96356_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910276	12	Nightborne Vocal 96288	Nightborne_96288_1.mp3	Nightborne_96288_2.mp3	Nightborne_96288_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910277	12	Nightborne Vocal 96357	Nightborne_96357_1.mp3	Nightborne_96357_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910278	12	Nightborne Vocal 96289	Nightborne_96289_1.mp3	Nightborne_96289_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910279	12	Nightborne Vocal 96358	Nightborne_96358_1.mp3	Nightborne_96358_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910280	12	Nightborne Vocal 96290	Nightborne_96290_1.mp3	Nightborne_96290_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910281	12	Nightborne Vocal 96359	Nightborne_96359_1.mp3	Nightborne_96359_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910282	12	Nightborne Vocal 96291	Nightborne_96291_1.mp3	Nightborne_96291_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910283	12	Nightborne Vocal 96360	Nightborne_96360_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910284	12	Nightborne Vocal 96292	Nightborne_96292_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910285	12	Nightborne Vocal 96361	Nightborne_96361_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910286	12	Nightborne Vocal 96293	Nightborne_96293_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910287	12	Nightborne Vocal 96362	Nightborne_96362_1.mp3	Nightborne_96362_2.mp3	Nightborne_96362_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910288	12	Nightborne Vocal 96294	Nightborne_96294_1.mp3	Nightborne_96294_2.mp3	Nightborne_96294_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910289	12	Nightborne Vocal 96363	Nightborne_96363_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910290	12	Nightborne Vocal 96295	Nightborne_96295_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910291	12	Nightborne Vocal 96364	Nightborne_96364_1.mp3	Nightborne_96364_2.mp3	Nightborne_96364_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910292	12	Nightborne Vocal 96296	Nightborne_96296_1.mp3	Nightborne_96296_2.mp3	Nightborne_96296_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910293	12	Nightborne Vocal 96365	Nightborne_96365_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910294	12	Nightborne Vocal 96297	Nightborne_96297_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910295	12	Nightborne Vocal 96366	Nightborne_96366_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910296	12	Nightborne Vocal 96298	Nightborne_96298_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910297	12	Nightborne Vocal 96371	Nightborne_96371_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910298	12	Nightborne Vocal 96167	Nightborne_96167_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910299	12	Nightborne Vocal 96367	Nightborne_96367_1.mp3	Nightborne_96367_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910300	12	Nightborne Vocal 96299	Nightborne_96299_1.mp3	Nightborne_96299_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910301	12	Nightborne Vocal 96368	Nightborne_96368_1.mp3	Nightborne_96368_2.mp3	Nightborne_96368_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910302	12	Nightborne Vocal 96300	Nightborne_96300_1.mp3	Nightborne_96300_2.mp3	Nightborne_96300_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910303	12	Nightborne Vocal 96369	Nightborne_96369_1.mp3	Nightborne_96369_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910304	12	Nightborne Vocal 96301	Nightborne_96301_1.mp3	Nightborne_96301_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910305	12	Nightborne Vocal 96370	Nightborne_96370_1.mp3	Nightborne_96370_2.mp3	Nightborne_96370_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910306	12	Nightborne Vocal 96302	Nightborne_96302_1.mp3	Nightborne_96302_2.mp3	Nightborne_96302_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910307	12	Nightborne Vocal 96372	Nightborne_96372_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910308	12	Nightborne Vocal 96304	Nightborne_96304_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910309	12	Nightborne Vocal 96373	Nightborne_96373_1.mp3	Nightborne_96373_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910310	12	Nightborne Vocal 96305	Nightborne_96305_1.mp3	Nightborne_96305_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910311	12	Nightborne Vocal 96374	Nightborne_96374_1.mp3	Nightborne_96374_2.mp3	Nightborne_96374_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910312	12	Nightborne Vocal 96306	Nightborne_96306_1.mp3	Nightborne_96306_2.mp3	Nightborne_96306_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.30000001192092896	0	8.0	45.0	0	0
+put	910313	29	Nightborne Emote 96314	Nightborne_96314_1.mp3	Nightborne_96314_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910314	29	Nightborne Emote 96315	Nightborne_96315_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910315	29	Nightborne Emote 96320	Nightborne_96320_1.mp3	Nightborne_96320_2.mp3	Nightborne_96320_3.mp3	Nightborne_96320_4.mp3	Nightborne_96320_5.mp3	Nightborne_96320_6.mp3	Nightborne_96320_7.mp3	Nightborne_96320_8.mp3			1	1	1	1	1	1	1	1	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910316	29	Nightborne Emote 96327	Nightborne_96327_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910317	29	Nightborne Emote 96328	Nightborne_96328_1.mp3	Nightborne_96328_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910318	29	Nightborne Emote 96326	Nightborne_96326_1.mp3	Nightborne_96326_2.mp3	Nightborne_96326_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910319	29	Nightborne Emote 96317	Nightborne_96317_1.mp3	Nightborne_96317_2.mp3	Nightborne_96317_3.mp3	Nightborne_96317_4.mp3	Nightborne_96317_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910320	29	Nightborne Emote 96316	Nightborne_96316_1.mp3	Nightborne_96316_2.mp3	Nightborne_96316_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910321	29	Nightborne Emote 96319	Nightborne_96319_1.mp3	Nightborne_96319_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910322	29	Nightborne Emote 96318	Nightborne_96318_1.mp3	Nightborne_96318_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910323	29	Nightborne Emote 96329	Nightborne_96329_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910324	29	Nightborne Emote 96330	Nightborne_96330_1.mp3	Nightborne_96330_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910325	29	Nightborne Emote 96331	Nightborne_96331_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910326	29	Nightborne Emote 96321	Nightborne_96321_1.mp3	Nightborne_96321_2.mp3	Nightborne_96321_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910327	29	Nightborne Emote 96332	Nightborne_96332_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910328	29	Nightborne Emote 96333	Nightborne_96333_1.mp3	Nightborne_96333_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910329	29	Nightborne Emote 96313	Nightborne_96313_1.mp3	Nightborne_96313_2.mp3	Nightborne_96313_3.mp3	Nightborne_96313_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910330	29	Nightborne Emote 96447	Nightborne_96447_1.mp3	Nightborne_96447_2.mp3	Nightborne_96447_3.mp3	Nightborne_96447_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910331	29	Nightborne Emote 96323	Nightborne_96323_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910332	29	Nightborne Emote 96334	Nightborne_96334_1.mp3	Nightborne_96334_2.mp3	Nightborne_96334_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910333	29	Nightborne Emote 96322	Nightborne_96322_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910334	29	Nightborne Emote 96267	Nightborne_96267_1.mp3	Nightborne_96267_2.mp3	Nightborne_96267_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910335	29	Nightborne Emote 96268	Nightborne_96268_1.mp3	Nightborne_96268_2.mp3	Nightborne_96268_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910336	29	Nightborne Emote 96453	Nightborne_96453_1.mp3	Nightborne_96453_2.mp3	Nightborne_96453_3.mp3	Nightborne_96453_4.mp3	Nightborne_96453_5.mp3	Nightborne_96453_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910337	29	Nightborne Emote 96311	Nightborne_96311_1.mp3	Nightborne_96311_2.mp3	Nightborne_96311_3.mp3	Nightborne_96311_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910338	29	Nightborne Emote 96269	Nightborne_96269_1.mp3	Nightborne_96269_2.mp3	Nightborne_96269_3.mp3	Nightborne_96269_4.mp3	Nightborne_96269_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910339	29	Nightborne Emote 96324	Nightborne_96324_1.mp3	Nightborne_96324_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910340	29	Nightborne Emote 96325	Nightborne_96325_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910341	29	Nightborne Emote 96270	Nightborne_96270_1.mp3	Nightborne_96270_2.mp3	Nightborne_96270_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910342	29	Nightborne Emote 96307	Nightborne_96307_1.mp3	Nightborne_96307_2.mp3	Nightborne_96307_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910343	29	Nightborne Emote 96308	Nightborne_96308_1.mp3	Nightborne_96308_2.mp3	Nightborne_96308_3.mp3	Nightborne_96308_4.mp3	Nightborne_96308_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910344	29	Nightborne Emote 96309	Nightborne_96309_1.mp3	Nightborne_96309_2.mp3	Nightborne_96309_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910345	29	Nightborne Emote 96312	Nightborne_96312_1.mp3	Nightborne_96312_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910346	29	Nightborne Emote 96385	Nightborne_96385_1.mp3	Nightborne_96385_2.mp3	Nightborne_96385_3.mp3	Nightborne_96385_4.mp3	Nightborne_96385_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910347	29	Nightborne Emote 96390	Nightborne_96390_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910348	29	Nightborne Emote 96336	Nightborne_96336_1.mp3	Nightborne_96336_2.mp3	Nightborne_96336_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910349	29	Nightborne Emote 96398	Nightborne_96398_1.mp3	Nightborne_96398_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910350	29	Nightborne Emote 96448	Nightborne_96448_1.mp3	Nightborne_96448_2.mp3	Nightborne_96448_3.mp3	Nightborne_96448_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910351	29	Nightborne Emote 96452	Nightborne_96452_1.mp3	Nightborne_96452_2.mp3	Nightborne_96452_3.mp3	Nightborne_96452_4.mp3	Nightborne_96452_5.mp3	Nightborne_96452_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910352	29	Nightborne Emote 96391	Nightborne_96391_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910353	29	Nightborne Emote 96399	Nightborne_96399_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910354	29	Nightborne Emote 96402	Nightborne_96402_1.mp3	Nightborne_96402_2.mp3	Nightborne_96402_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910355	29	Nightborne Emote 96401	Nightborne_96401_1.mp3	Nightborne_96401_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910356	29	Nightborne Emote 96400	Nightborne_96400_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910357	29	Nightborne Emote 96389	Nightborne_96389_1.mp3	Nightborne_96389_2.mp3	Nightborne_96389_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910358	29	Nightborne Emote 96388	Nightborne_96388_1.mp3	Nightborne_96388_2.mp3	Nightborne_96388_3.mp3	Nightborne_96388_4.mp3	Nightborne_96388_5.mp3	Nightborne_96388_6.mp3	Nightborne_96388_7.mp3	Nightborne_96388_8.mp3			1	1	1	1	1	1	1	1	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910359	29	Nightborne Emote 96397	Nightborne_96397_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910360	29	Nightborne Emote 96386	Nightborne_96386_1.mp3	Nightborne_96386_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910361	29	Nightborne Emote 96384	Nightborne_96384_1.mp3	Nightborne_96384_2.mp3	Nightborne_96384_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910362	29	Nightborne Emote 96383	Nightborne_96383_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910363	29	Nightborne Emote 96382	Nightborne_96382_1.mp3	Nightborne_96382_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910364	29	Nightborne Emote 96381	Nightborne_96381_1.mp3	Nightborne_96381_2.mp3	Nightborne_96381_3.mp3	Nightborne_96381_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910365	29	Nightborne Emote 96380	Nightborne_96380_1.mp3	Nightborne_96380_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910366	29	Nightborne Emote 96377	Nightborne_96377_1.mp3	Nightborne_96377_2.mp3	Nightborne_96377_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910367	29	Nightborne Emote 96376	Nightborne_96376_1.mp3	Nightborne_96376_2.mp3	Nightborne_96376_3.mp3	Nightborne_96376_4.mp3	Nightborne_96376_5.mp3	Nightborne_96376_6.mp3	Nightborne_96376_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910368	29	Nightborne Emote 96375	Nightborne_96375_1.mp3	Nightborne_96375_2.mp3	Nightborne_96375_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910369	29	Nightborne Emote 96338	Nightborne_96338_1.mp3	Nightborne_96338_2.mp3	Nightborne_96338_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910370	29	Nightborne Emote 96392	Nightborne_96392_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910371	29	Nightborne Emote 96337	Nightborne_96337_1.mp3	Nightborne_96337_2.mp3	Nightborne_96337_3.mp3	Nightborne_96337_4.mp3	Nightborne_96337_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910372	29	Nightborne Emote 96379	Nightborne_96379_1.mp3	Nightborne_96379_2.mp3	Nightborne_96379_3.mp3	Nightborne_96379_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910373	29	Nightborne Emote 96335	Nightborne_96335_1.mp3	Nightborne_96335_2.mp3	Nightborne_96335_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910374	29	Nightborne Emote 96387	Nightborne_96387_1.mp3	Nightborne_96387_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910375	29	Nightborne Emote 96396	Nightborne_96396_1.mp3	Nightborne_96396_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910376	29	Nightborne Emote 96395	Nightborne_96395_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910377	29	Nightborne Emote 96394	Nightborne_96394_1.mp3	Nightborne_96394_2.mp3	Nightborne_96394_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910378	29	Nightborne Emote 96393	Nightborne_96393_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
+put	910379	12	LightforgedDraenei Vocal 96231	LightforgedDraenei_96231_1.mp3	LightforgedDraenei_96231_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910380	12	LightforgedDraenei Vocal 96163	LightforgedDraenei_96163_1.mp3	LightforgedDraenei_96163_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910381	12	LightforgedDraenei Vocal 96232	LightforgedDraenei_96232_1.mp3	LightforgedDraenei_96232_2.mp3	LightforgedDraenei_96232_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910382	12	LightforgedDraenei Vocal 96164	LightforgedDraenei_96164_1.mp3	LightforgedDraenei_96164_2.mp3	LightforgedDraenei_96164_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910383	12	LightforgedDraenei Vocal 96233	LightforgedDraenei_96233_1.mp3	LightforgedDraenei_96233_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910384	12	LightforgedDraenei Vocal 96165	LightforgedDraenei_96165_1.mp3	LightforgedDraenei_96165_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910385	12	LightforgedDraenei Vocal 96234	LightforgedDraenei_96234_1.mp3	LightforgedDraenei_96234_2.mp3	LightforgedDraenei_96234_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910386	12	LightforgedDraenei Vocal 96166	LightforgedDraenei_96166_1.mp3	LightforgedDraenei_96166_2.mp3	LightforgedDraenei_96166_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910387	12	LightforgedDraenei Vocal 96236	LightforgedDraenei_96236_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910388	12	LightforgedDraenei Vocal 96168	LightforgedDraenei_96168_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910389	12	LightforgedDraenei Vocal 96237	LightforgedDraenei_96237_1.mp3	LightforgedDraenei_96237_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910390	12	LightforgedDraenei Vocal 96169	LightforgedDraenei_96169_1.mp3	LightforgedDraenei_96169_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910391	12	LightforgedDraenei Vocal 96238	LightforgedDraenei_96238_1.mp3	LightforgedDraenei_96238_2.mp3	LightforgedDraenei_96238_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910392	12	LightforgedDraenei Vocal 96170	LightforgedDraenei_96170_1.mp3	LightforgedDraenei_96170_2.mp3	LightforgedDraenei_96170_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910393	12	LightforgedDraenei Vocal 96203	LightforgedDraenei_96203_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910394	12	LightforgedDraenei Vocal 96135	LightforgedDraenei_96135_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910395	12	LightforgedDraenei Vocal 96204	LightforgedDraenei_96204_1.mp3	LightforgedDraenei_96204_2.mp3	LightforgedDraenei_96204_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910396	12	LightforgedDraenei Vocal 96136	LightforgedDraenei_96136_1.mp3	LightforgedDraenei_96136_2.mp3	LightforgedDraenei_96136_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910397	12	LightforgedDraenei Vocal 96205	LightforgedDraenei_96205_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910398	12	LightforgedDraenei Vocal 96137	LightforgedDraenei_96137_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910399	12	LightforgedDraenei Vocal 96206	LightforgedDraenei_96206_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910400	12	LightforgedDraenei Vocal 96138	LightforgedDraenei_96138_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910401	12	LightforgedDraenei Vocal 96207	LightforgedDraenei_96207_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910402	12	LightforgedDraenei Vocal 96139	LightforgedDraenei_96139_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910403	12	LightforgedDraenei Vocal 96208	LightforgedDraenei_96208_1.mp3	LightforgedDraenei_96208_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910404	12	LightforgedDraenei Vocal 96140	LightforgedDraenei_96140_1.mp3	LightforgedDraenei_96140_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910405	12	LightforgedDraenei Vocal 96209	LightforgedDraenei_96209_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910406	12	LightforgedDraenei Vocal 96141	LightforgedDraenei_96141_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910407	12	LightforgedDraenei Vocal 96210	LightforgedDraenei_96210_1.mp3	LightforgedDraenei_96210_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910408	12	LightforgedDraenei Vocal 96142	LightforgedDraenei_96142_1.mp3	LightforgedDraenei_96142_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910409	12	LightforgedDraenei Vocal 96211	LightforgedDraenei_96211_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910410	12	LightforgedDraenei Vocal 96143	LightforgedDraenei_96143_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910411	12	LightforgedDraenei Vocal 96212	LightforgedDraenei_96212_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910412	12	LightforgedDraenei Vocal 96144	LightforgedDraenei_96144_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910413	12	LightforgedDraenei Vocal 96213	LightforgedDraenei_96213_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910414	12	LightforgedDraenei Vocal 96145	LightforgedDraenei_96145_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910415	12	LightforgedDraenei Vocal 96214	LightforgedDraenei_96214_1.mp3	LightforgedDraenei_96214_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910416	12	LightforgedDraenei Vocal 96146	LightforgedDraenei_96146_1.mp3	LightforgedDraenei_96146_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910417	12	LightforgedDraenei Vocal 96215	LightforgedDraenei_96215_1.mp3	LightforgedDraenei_96215_2.mp3	LightforgedDraenei_96215_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910418	12	LightforgedDraenei Vocal 96147	LightforgedDraenei_96147_1.mp3	LightforgedDraenei_96147_2.mp3	LightforgedDraenei_96147_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910419	12	LightforgedDraenei Vocal 96216	LightforgedDraenei_96216_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910420	12	LightforgedDraenei Vocal 96148	LightforgedDraenei_96148_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910421	12	LightforgedDraenei Vocal 96217	LightforgedDraenei_96217_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910422	12	LightforgedDraenei Vocal 96149	LightforgedDraenei_96149_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910423	12	LightforgedDraenei Vocal 96218	LightforgedDraenei_96218_1.mp3	LightforgedDraenei_96218_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910424	12	LightforgedDraenei Vocal 96150	LightforgedDraenei_96150_1.mp3	LightforgedDraenei_96150_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910425	12	LightforgedDraenei Vocal 96219	LightforgedDraenei_96219_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910426	12	LightforgedDraenei Vocal 96151	LightforgedDraenei_96151_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910427	12	LightforgedDraenei Vocal 96220	LightforgedDraenei_96220_1.mp3	LightforgedDraenei_96220_2.mp3	LightforgedDraenei_96220_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910428	12	LightforgedDraenei Vocal 96152	LightforgedDraenei_96152_1.mp3	LightforgedDraenei_96152_2.mp3	LightforgedDraenei_96152_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910429	12	LightforgedDraenei Vocal 96221	LightforgedDraenei_96221_1.mp3	LightforgedDraenei_96221_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910430	12	LightforgedDraenei Vocal 96153	LightforgedDraenei_96153_1.mp3	LightforgedDraenei_96153_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910431	12	LightforgedDraenei Vocal 96222	LightforgedDraenei_96222_1.mp3	LightforgedDraenei_96222_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910432	12	LightforgedDraenei Vocal 96154	LightforgedDraenei_96154_1.mp3	LightforgedDraenei_96154_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910433	12	LightforgedDraenei Vocal 96223	LightforgedDraenei_96223_1.mp3	LightforgedDraenei_96223_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910434	12	LightforgedDraenei Vocal 96155	LightforgedDraenei_96155_1.mp3	LightforgedDraenei_96155_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910435	12	LightforgedDraenei Vocal 96224	LightforgedDraenei_96224_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910436	12	LightforgedDraenei Vocal 96156	LightforgedDraenei_96156_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910437	12	LightforgedDraenei Vocal 96225	LightforgedDraenei_96225_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910438	12	LightforgedDraenei Vocal 96157	LightforgedDraenei_96157_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910439	12	LightforgedDraenei Vocal 96226	LightforgedDraenei_96226_1.mp3	LightforgedDraenei_96226_2.mp3	LightforgedDraenei_96226_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910440	12	LightforgedDraenei Vocal 96158	LightforgedDraenei_96158_1.mp3	LightforgedDraenei_96158_2.mp3	LightforgedDraenei_96158_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910441	12	LightforgedDraenei Vocal 96227	LightforgedDraenei_96227_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910442	12	LightforgedDraenei Vocal 96159	LightforgedDraenei_96159_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910443	12	LightforgedDraenei Vocal 96228	LightforgedDraenei_96228_1.mp3	LightforgedDraenei_96228_2.mp3	LightforgedDraenei_96228_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910444	12	LightforgedDraenei Vocal 96160	LightforgedDraenei_96160_1.mp3	LightforgedDraenei_96160_2.mp3	LightforgedDraenei_96160_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910445	12	LightforgedDraenei Vocal 96229	LightforgedDraenei_96229_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910446	12	LightforgedDraenei Vocal 96161	LightforgedDraenei_96161_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910447	12	LightforgedDraenei Vocal 96230	LightforgedDraenei_96230_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910448	12	LightforgedDraenei Vocal 96162	LightforgedDraenei_96162_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910449	12	LightforgedDraenei Vocal 96235	LightforgedDraenei_96235_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910450	12	LightforgedDraenei Vocal 96167	LightforgedDraenei_96167_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.30000001192092896	0	8.0	45.0	0	0
+put	910451	29	LightforgedDraenei Emote 67806	LightforgedDraenei_67806_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910452	29	LightforgedDraenei Emote 100895	LightforgedDraenei_100895_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910453	29	LightforgedDraenei Emote 100897	LightforgedDraenei_100897_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910454	29	LightforgedDraenei Emote 67808	LightforgedDraenei_67808_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910455	29	LightforgedDraenei Emote 67807	LightforgedDraenei_67807_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910456	29	LightforgedDraenei Emote 100896	LightforgedDraenei_100896_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910457	29	LightforgedDraenei Emote 25270	LightforgedDraenei_25270_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910458	29	LightforgedDraenei Emote 25269	LightforgedDraenei_25269_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910459	29	LightforgedDraenei Emote 96131	LightforgedDraenei_96131_1.mp3	LightforgedDraenei_96131_2.mp3	LightforgedDraenei_96131_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910460	29	LightforgedDraenei Emote 96132	LightforgedDraenei_96132_1.mp3	LightforgedDraenei_96132_2.mp3	LightforgedDraenei_96132_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910461	29	LightforgedDraenei Emote 96133	LightforgedDraenei_96133_1.mp3	LightforgedDraenei_96133_2.mp3	LightforgedDraenei_96133_3.mp3	LightforgedDraenei_96133_4.mp3	LightforgedDraenei_96133_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910462	29	LightforgedDraenei Emote 96134	LightforgedDraenei_96134_1.mp3	LightforgedDraenei_96134_2.mp3	LightforgedDraenei_96134_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910463	29	LightforgedDraenei Emote 96171	LightforgedDraenei_96171_1.mp3	LightforgedDraenei_96171_2.mp3	LightforgedDraenei_96171_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910464	29	LightforgedDraenei Emote 96172	LightforgedDraenei_96172_1.mp3	LightforgedDraenei_96172_2.mp3	LightforgedDraenei_96172_3.mp3	LightforgedDraenei_96172_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910465	29	LightforgedDraenei Emote 96173	LightforgedDraenei_96173_1.mp3	LightforgedDraenei_96173_2.mp3	LightforgedDraenei_96173_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910466	29	LightforgedDraenei Emote 96175	LightforgedDraenei_96175_1.mp3	LightforgedDraenei_96175_2.mp3	LightforgedDraenei_96175_3.mp3	LightforgedDraenei_96175_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910467	29	LightforgedDraenei Emote 96176	LightforgedDraenei_96176_1.mp3	LightforgedDraenei_96176_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910468	29	LightforgedDraenei Emote 96177	LightforgedDraenei_96177_1.mp3	LightforgedDraenei_96177_2.mp3	LightforgedDraenei_96177_3.mp3	LightforgedDraenei_96177_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910469	29	LightforgedDraenei Emote 96178	LightforgedDraenei_96178_1.mp3	LightforgedDraenei_96178_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910470	29	LightforgedDraenei Emote 96179	LightforgedDraenei_96179_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910471	29	LightforgedDraenei Emote 96180	LightforgedDraenei_96180_1.mp3	LightforgedDraenei_96180_2.mp3	LightforgedDraenei_96180_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910472	29	LightforgedDraenei Emote 96181	LightforgedDraenei_96181_1.mp3	LightforgedDraenei_96181_2.mp3	LightforgedDraenei_96181_3.mp3	LightforgedDraenei_96181_4.mp3	LightforgedDraenei_96181_5.mp3	LightforgedDraenei_96181_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910473	29	LightforgedDraenei Emote 96182	LightforgedDraenei_96182_1.mp3	LightforgedDraenei_96182_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910474	29	LightforgedDraenei Emote 96183	LightforgedDraenei_96183_1.mp3	LightforgedDraenei_96183_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910475	29	LightforgedDraenei Emote 96184	LightforgedDraenei_96184_1.mp3	LightforgedDraenei_96184_2.mp3	LightforgedDraenei_96184_3.mp3	LightforgedDraenei_96184_4.mp3	LightforgedDraenei_96184_5.mp3	LightforgedDraenei_96184_6.mp3	LightforgedDraenei_96184_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910476	29	LightforgedDraenei Emote 96186	LightforgedDraenei_96186_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910477	29	LightforgedDraenei Emote 96187	LightforgedDraenei_96187_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910478	29	LightforgedDraenei Emote 96188	LightforgedDraenei_96188_1.mp3	LightforgedDraenei_96188_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910479	29	LightforgedDraenei Emote 96189	LightforgedDraenei_96189_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910480	29	LightforgedDraenei Emote 96190	LightforgedDraenei_96190_1.mp3	LightforgedDraenei_96190_2.mp3	LightforgedDraenei_96190_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910481	29	LightforgedDraenei Emote 96191	LightforgedDraenei_96191_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910482	29	LightforgedDraenei Emote 96192	LightforgedDraenei_96192_1.mp3	LightforgedDraenei_96192_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910483	29	LightforgedDraenei Emote 96193	LightforgedDraenei_96193_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910484	29	LightforgedDraenei Emote 96194	LightforgedDraenei_96194_1.mp3	LightforgedDraenei_96194_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910485	29	LightforgedDraenei Emote 96196	LightforgedDraenei_96196_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910486	29	LightforgedDraenei Emote 96197	LightforgedDraenei_96197_1.mp3	LightforgedDraenei_96197_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910487	29	LightforgedDraenei Emote 96195	LightforgedDraenei_96195_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910488	29	LightforgedDraenei Emote 96198	LightforgedDraenei_96198_1.mp3	LightforgedDraenei_96198_2.mp3	LightforgedDraenei_96198_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910489	29	LightforgedDraenei Emote 96446	LightforgedDraenei_96446_1.mp3	LightforgedDraenei_96446_2.mp3	LightforgedDraenei_96446_3.mp3	LightforgedDraenei_96446_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910490	29	LightforgedDraenei Emote 96450	LightforgedDraenei_96450_1.mp3	LightforgedDraenei_96450_2.mp3	LightforgedDraenei_96450_3.mp3	LightforgedDraenei_96450_4.mp3	LightforgedDraenei_96450_5.mp3	LightforgedDraenei_96450_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910491	29	LightforgedDraenei Emote 96185	LightforgedDraenei_96185_1.mp3	LightforgedDraenei_96185_2.mp3	LightforgedDraenei_96185_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910492	29	LightforgedDraenei Emote 96266	LightforgedDraenei_96266_1.mp3	LightforgedDraenei_96266_2.mp3	LightforgedDraenei_96266_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910493	29	LightforgedDraenei Emote 96255	LightforgedDraenei_96255_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910494	29	LightforgedDraenei Emote 96449	LightforgedDraenei_96449_1.mp3	LightforgedDraenei_96449_2.mp3	LightforgedDraenei_96449_3.mp3	LightforgedDraenei_96449_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910495	29	LightforgedDraenei Emote 96245	LightforgedDraenei_96245_1.mp3	LightforgedDraenei_96245_2.mp3	LightforgedDraenei_96245_3.mp3	LightforgedDraenei_96245_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910496	29	LightforgedDraenei Emote 96265	LightforgedDraenei_96265_1.mp3	LightforgedDraenei_96265_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910497	29	LightforgedDraenei Emote 96258	LightforgedDraenei_96258_1.mp3	LightforgedDraenei_96258_2.mp3	LightforgedDraenei_96258_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910498	29	LightforgedDraenei Emote 96264	LightforgedDraenei_96264_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910499	29	LightforgedDraenei Emote 96253	LightforgedDraenei_96253_1.mp3	LightforgedDraenei_96253_2.mp3	LightforgedDraenei_96253_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910500	29	LightforgedDraenei Emote 96263	LightforgedDraenei_96263_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910501	29	LightforgedDraenei Emote 96260	LightforgedDraenei_96260_1.mp3	LightforgedDraenei_96260_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910502	29	LightforgedDraenei Emote 96262	LightforgedDraenei_96262_1.mp3	LightforgedDraenei_96262_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910503	29	LightforgedDraenei Emote 96261	LightforgedDraenei_96261_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910504	29	LightforgedDraenei Emote 96250	LightforgedDraenei_96250_1.mp3	LightforgedDraenei_96250_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910505	29	LightforgedDraenei Emote 96251	LightforgedDraenei_96251_1.mp3	LightforgedDraenei_96251_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910506	29	LightforgedDraenei Emote 96249	LightforgedDraenei_96249_1.mp3	LightforgedDraenei_96249_2.mp3	LightforgedDraenei_96249_3.mp3	LightforgedDraenei_96249_4.mp3	LightforgedDraenei_96249_5.mp3	LightforgedDraenei_96249_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910507	29	LightforgedDraenei Emote 96248	LightforgedDraenei_96248_1.mp3	LightforgedDraenei_96248_2.mp3	LightforgedDraenei_96248_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910508	29	LightforgedDraenei Emote 96259	LightforgedDraenei_96259_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910509	29	LightforgedDraenei Emote 96252	LightforgedDraenei_96252_1.mp3	LightforgedDraenei_96252_2.mp3	LightforgedDraenei_96252_3.mp3	LightforgedDraenei_96252_4.mp3	LightforgedDraenei_96252_5.mp3	LightforgedDraenei_96252_6.mp3	LightforgedDraenei_96252_7.mp3	LightforgedDraenei_96252_8.mp3			1	1	1	1	1	1	1	1	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910510	29	LightforgedDraenei Emote 96247	LightforgedDraenei_96247_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910511	29	LightforgedDraenei Emote 96246	LightforgedDraenei_96246_1.mp3	LightforgedDraenei_96246_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910512	29	LightforgedDraenei Emote 96244	LightforgedDraenei_96244_1.mp3	LightforgedDraenei_96244_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910513	29	LightforgedDraenei Emote 96241	LightforgedDraenei_96241_1.mp3	LightforgedDraenei_96241_2.mp3	LightforgedDraenei_96241_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910514	29	LightforgedDraenei Emote 96240	LightforgedDraenei_96240_1.mp3	LightforgedDraenei_96240_2.mp3	LightforgedDraenei_96240_3.mp3	LightforgedDraenei_96240_4.mp3	LightforgedDraenei_96240_5.mp3	LightforgedDraenei_96240_6.mp3	LightforgedDraenei_96240_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910515	29	LightforgedDraenei Emote 96239	LightforgedDraenei_96239_1.mp3	LightforgedDraenei_96239_2.mp3	LightforgedDraenei_96239_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910516	29	LightforgedDraenei Emote 96202	LightforgedDraenei_96202_1.mp3	LightforgedDraenei_96202_2.mp3	LightforgedDraenei_96202_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910517	29	LightforgedDraenei Emote 96257	LightforgedDraenei_96257_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910518	29	LightforgedDraenei Emote 96256	LightforgedDraenei_96256_1.mp3	LightforgedDraenei_96256_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910519	29	LightforgedDraenei Emote 96201	LightforgedDraenei_96201_1.mp3	LightforgedDraenei_96201_2.mp3	LightforgedDraenei_96201_3.mp3	LightforgedDraenei_96201_4.mp3	LightforgedDraenei_96201_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910520	29	LightforgedDraenei Emote 96243	LightforgedDraenei_96243_1.mp3	LightforgedDraenei_96243_2.mp3	LightforgedDraenei_96243_3.mp3	LightforgedDraenei_96243_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910521	29	LightforgedDraenei Emote 96451	LightforgedDraenei_96451_1.mp3	LightforgedDraenei_96451_2.mp3	LightforgedDraenei_96451_3.mp3	LightforgedDraenei_96451_4.mp3	LightforgedDraenei_96451_5.mp3	LightforgedDraenei_96451_6.mp3					1	1	1	1	1	1	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910522	29	LightforgedDraenei Emote 96200	LightforgedDraenei_96200_1.mp3	LightforgedDraenei_96200_2.mp3	LightforgedDraenei_96200_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910523	29	LightforgedDraenei Emote 96199	LightforgedDraenei_96199_1.mp3	LightforgedDraenei_96199_2.mp3	LightforgedDraenei_96199_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910524	29	LightforgedDraenei Emote 96254	LightforgedDraenei_96254_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\LightforgedDraenei	0.8999999761581421	0	8.0	45.0	0	0
+put	910525	12	ZandalariTroll Vocal 127288	ZandalariTroll_127288_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910526	12	ZandalariTroll Vocal 126914	ZandalariTroll_126914_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910527	12	ZandalariTroll Vocal 127286	ZandalariTroll_127286_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910528	12	ZandalariTroll Vocal 126912	ZandalariTroll_126912_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910529	12	ZandalariTroll Vocal 127273	ZandalariTroll_127273_1.mp3	ZandalariTroll_127273_2.mp3	ZandalariTroll_127273_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910530	12	ZandalariTroll Vocal 126899	ZandalariTroll_126899_1.mp3	ZandalariTroll_126899_2.mp3	ZandalariTroll_126899_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910531	12	ZandalariTroll Vocal 127287	ZandalariTroll_127287_1.mp3	ZandalariTroll_127287_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910532	12	ZandalariTroll Vocal 126913	ZandalariTroll_126913_1.mp3	ZandalariTroll_126913_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910533	12	ZandalariTroll Vocal 127307	ZandalariTroll_127307_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910534	12	ZandalariTroll Vocal 126933	ZandalariTroll_126933_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910535	12	ZandalariTroll Vocal 127305	ZandalariTroll_127305_1.mp3	ZandalariTroll_127305_2.mp3	ZandalariTroll_127305_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910536	12	ZandalariTroll Vocal 126927	ZandalariTroll_126927_1.mp3	ZandalariTroll_126927_2.mp3	ZandalariTroll_126927_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910537	12	ZandalariTroll Vocal 127289	ZandalariTroll_127289_1.mp3	ZandalariTroll_127289_2.mp3	ZandalariTroll_127289_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910538	12	ZandalariTroll Vocal 126915	ZandalariTroll_126915_1.mp3	ZandalariTroll_126915_2.mp3	ZandalariTroll_126915_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910539	12	ZandalariTroll Vocal 127278	ZandalariTroll_127278_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910540	12	ZandalariTroll Vocal 126904	ZandalariTroll_126904_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910541	12	ZandalariTroll Vocal 127308	ZandalariTroll_127308_1.mp3	ZandalariTroll_127308_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910542	12	ZandalariTroll Vocal 126934	ZandalariTroll_126934_1.mp3	ZandalariTroll_126934_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910543	12	ZandalariTroll Vocal 127272	ZandalariTroll_127272_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910544	12	ZandalariTroll Vocal 126898	ZandalariTroll_126898_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910545	12	ZandalariTroll Vocal 127280	ZandalariTroll_127280_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910546	12	ZandalariTroll Vocal 126906	ZandalariTroll_126906_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910547	12	ZandalariTroll Vocal 127298	ZandalariTroll_127298_1.mp3	ZandalariTroll_127298_2.mp3	ZandalariTroll_127298_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910548	12	ZandalariTroll Vocal 126925	ZandalariTroll_126925_1.mp3	ZandalariTroll_126925_2.mp3	ZandalariTroll_126925_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910549	12	ZandalariTroll Vocal 127284	ZandalariTroll_127284_1.mp3	ZandalariTroll_127284_2.mp3	ZandalariTroll_127284_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910550	12	ZandalariTroll Vocal 126910	ZandalariTroll_126910_1.mp3	ZandalariTroll_126910_2.mp3	ZandalariTroll_126910_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910551	12	ZandalariTroll Vocal 127293	ZandalariTroll_127293_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910552	12	ZandalariTroll Vocal 126919	ZandalariTroll_126919_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910553	12	ZandalariTroll Vocal 127283	ZandalariTroll_127283_1.mp3	ZandalariTroll_127283_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910554	12	ZandalariTroll Vocal 126909	ZandalariTroll_126909_1.mp3	ZandalariTroll_126909_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910555	12	ZandalariTroll Vocal 127294	ZandalariTroll_127294_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910556	12	ZandalariTroll Vocal 126920	ZandalariTroll_126920_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910557	12	ZandalariTroll Vocal 127275	ZandalariTroll_127275_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910558	12	ZandalariTroll Vocal 126901	ZandalariTroll_126901_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910559	12	ZandalariTroll Vocal 127274	ZandalariTroll_127274_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910560	12	ZandalariTroll Vocal 126900	ZandalariTroll_126900_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910561	12	ZandalariTroll Vocal 127299	ZandalariTroll_127299_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910562	12	ZandalariTroll Vocal 126924	ZandalariTroll_126924_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910563	12	ZandalariTroll Vocal 127300	ZandalariTroll_127300_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910564	12	ZandalariTroll Vocal 126926	ZandalariTroll_126926_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910565	12	ZandalariTroll Vocal 127276	ZandalariTroll_127276_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910566	12	ZandalariTroll Vocal 126902	ZandalariTroll_126902_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910567	12	ZandalariTroll Vocal 127303	ZandalariTroll_127303_1.mp3	ZandalariTroll_127303_2.mp3	ZandalariTroll_127303_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910568	12	ZandalariTroll Vocal 126930	ZandalariTroll_126930_1.mp3	ZandalariTroll_126930_2.mp3	ZandalariTroll_126930_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910569	12	ZandalariTroll Vocal 127282	ZandalariTroll_127282_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910570	12	ZandalariTroll Vocal 126908	ZandalariTroll_126908_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910571	12	ZandalariTroll Vocal 127309	ZandalariTroll_127309_1.mp3	ZandalariTroll_127309_2.mp3	ZandalariTroll_127309_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910572	12	ZandalariTroll Vocal 126935	ZandalariTroll_126935_1.mp3	ZandalariTroll_126935_2.mp3	ZandalariTroll_126935_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910573	12	ZandalariTroll Vocal 127291	ZandalariTroll_127291_1.mp3	ZandalariTroll_127291_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910574	12	ZandalariTroll Vocal 126917	ZandalariTroll_126917_1.mp3	ZandalariTroll_126917_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910575	12	ZandalariTroll Vocal 127306	ZandalariTroll_127306_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910576	12	ZandalariTroll Vocal 126932	ZandalariTroll_126932_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910577	12	ZandalariTroll Vocal 127295	ZandalariTroll_127295_1.mp3	ZandalariTroll_127295_2.mp3	ZandalariTroll_127295_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910578	12	ZandalariTroll Vocal 126921	ZandalariTroll_126921_1.mp3	ZandalariTroll_126921_2.mp3	ZandalariTroll_126921_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910579	12	ZandalariTroll Vocal 127277	ZandalariTroll_127277_1.mp3	ZandalariTroll_127277_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910580	12	ZandalariTroll Vocal 126903	ZandalariTroll_126903_1.mp3	ZandalariTroll_126903_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910581	12	ZandalariTroll Vocal 127281	ZandalariTroll_127281_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910582	12	ZandalariTroll Vocal 126907	ZandalariTroll_126907_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910583	12	ZandalariTroll Vocal 127279	ZandalariTroll_127279_1.mp3	ZandalariTroll_127279_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910584	12	ZandalariTroll Vocal 126905	ZandalariTroll_126905_1.mp3	ZandalariTroll_126905_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910585	12	ZandalariTroll Vocal 127301	ZandalariTroll_127301_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910586	12	ZandalariTroll Vocal 126928	ZandalariTroll_126928_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910587	12	ZandalariTroll Vocal 127292	ZandalariTroll_127292_1.mp3	ZandalariTroll_127292_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910588	12	ZandalariTroll Vocal 126918	ZandalariTroll_126918_1.mp3	ZandalariTroll_126918_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910589	12	ZandalariTroll Vocal 127302	ZandalariTroll_127302_1.mp3	ZandalariTroll_127302_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910590	12	ZandalariTroll Vocal 126929	ZandalariTroll_126929_1.mp3	ZandalariTroll_126929_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910591	12	ZandalariTroll Vocal 127304	ZandalariTroll_127304_1.mp3	ZandalariTroll_127304_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910592	12	ZandalariTroll Vocal 126931	ZandalariTroll_126931_1.mp3	ZandalariTroll_126931_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910593	12	ZandalariTroll Vocal 127290	ZandalariTroll_127290_1.mp3	ZandalariTroll_127290_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910594	12	ZandalariTroll Vocal 126916	ZandalariTroll_126916_1.mp3	ZandalariTroll_126916_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910595	12	ZandalariTroll Vocal 127285	ZandalariTroll_127285_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910596	12	ZandalariTroll Vocal 126911	ZandalariTroll_126911_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.30000001192092896	0	8.0	45.0	0	0
+put	910597	29	ZandalariTroll Emote 126946	ZandalariTroll_126946_1.mp3	ZandalariTroll_126946_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910598	29	ZandalariTroll Emote 126895	ZandalariTroll_126895_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910599	29	ZandalariTroll Emote 126892	ZandalariTroll_126892_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910600	29	ZandalariTroll Emote 126944	ZandalariTroll_126944_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910601	29	ZandalariTroll Emote 126891	ZandalariTroll_126891_1.mp3	ZandalariTroll_126891_2.mp3	ZandalariTroll_126891_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910602	29	ZandalariTroll Emote 126897	ZandalariTroll_126897_1.mp3	ZandalariTroll_126897_2.mp3	ZandalariTroll_126897_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910603	29	ZandalariTroll Emote 126889	ZandalariTroll_126889_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910604	29	ZandalariTroll Emote 126958	ZandalariTroll_126958_1.mp3	ZandalariTroll_126958_2.mp3	ZandalariTroll_126958_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910605	29	ZandalariTroll Emote 126953	ZandalariTroll_126953_1.mp3	ZandalariTroll_126953_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910606	29	ZandalariTroll Emote 126952	ZandalariTroll_126952_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910607	29	ZandalariTroll Emote 126948	ZandalariTroll_126948_1.mp3	ZandalariTroll_126948_2.mp3	ZandalariTroll_126948_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910608	29	ZandalariTroll Emote 126940	ZandalariTroll_126940_1.mp3	ZandalariTroll_126940_2.mp3	ZandalariTroll_126940_3.mp3	ZandalariTroll_126940_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910609	29	ZandalariTroll Emote 126960	ZandalariTroll_126960_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910610	29	ZandalariTroll Emote 126954	ZandalariTroll_126954_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910611	29	ZandalariTroll Emote 126942	ZandalariTroll_126942_1.mp3	ZandalariTroll_126942_2.mp3	ZandalariTroll_126942_3.mp3	ZandalariTroll_126942_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910612	29	ZandalariTroll Emote 126941	ZandalariTroll_126941_1.mp3	ZandalariTroll_126941_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910613	29	ZandalariTroll Emote 126890	ZandalariTroll_126890_1.mp3	ZandalariTroll_126890_2.mp3	ZandalariTroll_126890_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910614	29	ZandalariTroll Emote 126938	ZandalariTroll_126938_1.mp3	ZandalariTroll_126938_2.mp3	ZandalariTroll_126938_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910615	29	ZandalariTroll Emote 126963	ZandalariTroll_126963_1.mp3	ZandalariTroll_126963_2.mp3	ZandalariTroll_126963_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910616	29	ZandalariTroll Emote 126956	ZandalariTroll_126956_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910617	29	ZandalariTroll Emote 126950	ZandalariTroll_126950_1.mp3	ZandalariTroll_126950_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910618	29	ZandalariTroll Emote 126943	ZandalariTroll_126943_1.mp3	ZandalariTroll_126943_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910619	29	ZandalariTroll Emote 126937	ZandalariTroll_126937_1.mp3	ZandalariTroll_126937_2.mp3	ZandalariTroll_126937_3.mp3	ZandalariTroll_126937_4.mp3	ZandalariTroll_126937_5.mp3	ZandalariTroll_126937_6.mp3	ZandalariTroll_126937_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910620	29	ZandalariTroll Emote 126936	ZandalariTroll_126936_1.mp3	ZandalariTroll_126936_2.mp3	ZandalariTroll_126936_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910621	29	ZandalariTroll Emote 126893	ZandalariTroll_126893_1.mp3	ZandalariTroll_126893_2.mp3	ZandalariTroll_126893_3.mp3	ZandalariTroll_126893_4.mp3	ZandalariTroll_126893_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910622	29	ZandalariTroll Emote 126955	ZandalariTroll_126955_1.mp3	ZandalariTroll_126955_2.mp3	ZandalariTroll_126955_3.mp3	ZandalariTroll_126955_4.mp3	ZandalariTroll_126955_5.mp3	ZandalariTroll_126955_6.mp3	ZandalariTroll_126955_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910623	29	ZandalariTroll Emote 126951	ZandalariTroll_126951_1.mp3	ZandalariTroll_126951_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910624	29	ZandalariTroll Emote 126961	ZandalariTroll_126961_1.mp3	ZandalariTroll_126961_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910625	29	ZandalariTroll Emote 126959	ZandalariTroll_126959_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910626	29	ZandalariTroll Emote 126957	ZandalariTroll_126957_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910627	29	ZandalariTroll Emote 126947	ZandalariTroll_126947_1.mp3	ZandalariTroll_126947_2.mp3	ZandalariTroll_126947_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910628	29	ZandalariTroll Emote 126945	ZandalariTroll_126945_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910629	29	ZandalariTroll Emote 126896	ZandalariTroll_126896_1.mp3	ZandalariTroll_126896_2.mp3	ZandalariTroll_126896_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910630	29	ZandalariTroll Emote 126894	ZandalariTroll_126894_1.mp3	ZandalariTroll_126894_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910631	29	ZandalariTroll Emote 127355	ZandalariTroll_127355_1.mp3	ZandalariTroll_127355_2.mp3	ZandalariTroll_127355_3.mp3	ZandalariTroll_127355_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910632	29	ZandalariTroll Emote 127354	ZandalariTroll_127354_1.mp3	ZandalariTroll_127354_2.mp3	ZandalariTroll_127354_3.mp3	ZandalariTroll_127354_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910633	29	ZandalariTroll Emote 127335	ZandalariTroll_127335_1.mp3	ZandalariTroll_127335_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910634	29	ZandalariTroll Emote 127320	ZandalariTroll_127320_1.mp3	ZandalariTroll_127320_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910635	29	ZandalariTroll Emote 127312	ZandalariTroll_127312_1.mp3	ZandalariTroll_127312_2.mp3	ZandalariTroll_127312_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910636	29	ZandalariTroll Emote 127266	ZandalariTroll_127266_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910637	29	ZandalariTroll Emote 127328	ZandalariTroll_127328_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910638	29	ZandalariTroll Emote 127326	ZandalariTroll_127326_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910639	29	ZandalariTroll Emote 127317	ZandalariTroll_127317_1.mp3	ZandalariTroll_127317_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910640	29	ZandalariTroll Emote 127269	ZandalariTroll_127269_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910641	29	ZandalariTroll Emote 127264	ZandalariTroll_127264_1.mp3	ZandalariTroll_127264_2.mp3	ZandalariTroll_127264_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910642	29	ZandalariTroll Emote 127333	ZandalariTroll_127333_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910643	29	ZandalariTroll Emote 127330	ZandalariTroll_127330_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910644	29	ZandalariTroll Emote 127321	ZandalariTroll_127321_1.mp3	ZandalariTroll_127321_2.mp3	ZandalariTroll_127321_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910645	29	ZandalariTroll Emote 127332	ZandalariTroll_127332_1.mp3	ZandalariTroll_127332_2.mp3	ZandalariTroll_127332_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910646	29	ZandalariTroll Emote 127271	ZandalariTroll_127271_1.mp3	ZandalariTroll_127271_2.mp3	ZandalariTroll_127271_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910647	29	ZandalariTroll Emote 127263	ZandalariTroll_127263_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910648	29	ZandalariTroll Emote 127319	ZandalariTroll_127319_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910649	29	ZandalariTroll Emote 127310	ZandalariTroll_127310_1.mp3	ZandalariTroll_127310_2.mp3	ZandalariTroll_127310_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910650	29	ZandalariTroll Emote 127268	ZandalariTroll_127268_1.mp3	ZandalariTroll_127268_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910651	29	ZandalariTroll Emote 127327	ZandalariTroll_127327_1.mp3	ZandalariTroll_127327_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910652	29	ZandalariTroll Emote 127325	ZandalariTroll_127325_1.mp3	ZandalariTroll_127325_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910653	29	ZandalariTroll Emote 127324	ZandalariTroll_127324_1.mp3	ZandalariTroll_127324_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910654	29	ZandalariTroll Emote 127311	ZandalariTroll_127311_1.mp3	ZandalariTroll_127311_2.mp3	ZandalariTroll_127311_3.mp3	ZandalariTroll_127311_4.mp3	ZandalariTroll_127311_5.mp3	ZandalariTroll_127311_6.mp3	ZandalariTroll_127311_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910655	29	ZandalariTroll Emote 127267	ZandalariTroll_127267_1.mp3	ZandalariTroll_127267_2.mp3	ZandalariTroll_127267_3.mp3	ZandalariTroll_127267_4.mp3	ZandalariTroll_127267_5.mp3						1	1	1	1	1	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910656	29	ZandalariTroll Emote 127265	ZandalariTroll_127265_1.mp3	ZandalariTroll_127265_2.mp3	ZandalariTroll_127265_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910657	29	ZandalariTroll Emote 127337	ZandalariTroll_127337_1.mp3	ZandalariTroll_127337_2.mp3	ZandalariTroll_127337_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910658	29	ZandalariTroll Emote 127322	ZandalariTroll_127322_1.mp3	ZandalariTroll_127322_2.mp3	ZandalariTroll_127322_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910659	29	ZandalariTroll Emote 127318	ZandalariTroll_127318_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910660	29	ZandalariTroll Emote 127314	ZandalariTroll_127314_1.mp3	ZandalariTroll_127314_2.mp3	ZandalariTroll_127314_3.mp3	ZandalariTroll_127314_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910661	29	ZandalariTroll Emote 127316	ZandalariTroll_127316_1.mp3	ZandalariTroll_127316_2.mp3	ZandalariTroll_127316_3.mp3	ZandalariTroll_127316_4.mp3							1	1	1	1	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910662	29	ZandalariTroll Emote 127315	ZandalariTroll_127315_1.mp3	ZandalariTroll_127315_2.mp3									1	1	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910663	29	ZandalariTroll Emote 127270	ZandalariTroll_127270_1.mp3	ZandalariTroll_127270_2.mp3	ZandalariTroll_127270_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910664	29	ZandalariTroll Emote 127334	ZandalariTroll_127334_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910665	29	ZandalariTroll Emote 127331	ZandalariTroll_127331_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910666	29	ZandalariTroll Emote 127329	ZandalariTroll_127329_1.mp3	ZandalariTroll_127329_2.mp3	ZandalariTroll_127329_3.mp3	ZandalariTroll_127329_4.mp3	ZandalariTroll_127329_5.mp3	ZandalariTroll_127329_6.mp3	ZandalariTroll_127329_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
+put	910001	31	VoidElfFlyByNarration	VoidElfNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910002	31	NightborneFlyByNarration	NightborneNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910003	31	LightforgedDraeneiFlyByNarration	LightforgedDraeneiNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910004	31	ZandalariTrollFlyByNarration	ZandalariTrollNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0

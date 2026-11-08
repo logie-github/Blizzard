@@ -1,0 +1,83 @@
+From e514a6231188514211590dd8d23e803d5391eab1 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 7 Nov 2026 23:49:14 +0000
+Subject: [PATCH] PlayerScript::OnPlayerGetRestBonusMax: modules can change the
+ most rest bonus a player can have
+
+Modules written for a core that has this hook (wow-mod-challenges) override it; without it they
+don't compile. Called in Player::SetRestBonus once the max is worked out from the rate.
+---
+ src/server/game/Entities/Player/Player.cpp               | 3 +++
+ src/server/game/Scripting/ScriptDefines/PlayerScript.cpp | 5 +++++
+ src/server/game/Scripting/ScriptDefines/PlayerScript.h   | 5 +++++
+ src/server/game/Scripting/ScriptMgr.h                    | 1 +
+ 4 files changed, 14 insertions(+)
+
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index 138e7ea..37d16ae 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -10394,6 +10394,9 @@ void Player::SetRestBonus(float restBonusNew)
+     // Calculate rest bonus max using the multiplier
+     float restBonusMax = (float)GetUInt32Value(PLAYER_NEXT_LEVEL_XP) * restBonusMultiplier / 2;
+ 
++    // Modules may change it (PlayerScript::OnPlayerGetRestBonusMax)
++    sScriptMgr->OnPlayerGetRestBonusMax(this, restBonusMax);
++
+     if (restBonusNew > restBonusMax)
+         _restBonus = restBonusMax;
+     else
+diff --git a/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp b/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp
+index 4ac4571..dc56e51 100644
+--- a/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp
++++ b/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp
+@@ -147,6 +147,11 @@ void ScriptMgr::OnPlayerGiveXP(Player* player, uint32& amount, Unit* victim, uin
+     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GIVE_EXP, script->OnPlayerGiveXP(player, amount, victim, xpSource));
+ }
+ 
++void ScriptMgr::OnPlayerGetRestBonusMax(Player* player, float& restBonusMax)
++{
++    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GET_REST_BONUS_MAX, script->OnPlayerGetRestBonusMax(player, restBonusMax));
++}
++
+ bool ScriptMgr::OnPlayerReputationChange(Player* player, uint32 factionID, int32& standing, bool incremental)
+ {
+     CALL_ENABLED_BOOLEAN_HOOKS(PlayerScript, PLAYERHOOK_ON_REPUTATION_CHANGE, !script->OnPlayerReputationChange(player, factionID, standing, incremental));
+diff --git a/src/server/game/Scripting/ScriptDefines/PlayerScript.h b/src/server/game/Scripting/ScriptDefines/PlayerScript.h
+index 0d2314e..394e251 100644
+--- a/src/server/game/Scripting/ScriptDefines/PlayerScript.h
++++ b/src/server/game/Scripting/ScriptDefines/PlayerScript.h
+@@ -63,6 +63,7 @@ enum PlayerHook
+     PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
+     PLAYERHOOK_ON_BEFORE_SEND_LOOT,
+     PLAYERHOOK_ON_GIVE_EXP,
++    PLAYERHOOK_ON_GET_REST_BONUS_MAX,
+     PLAYERHOOK_ON_REPUTATION_CHANGE,
+     PLAYERHOOK_ON_REPUTATION_RANK_CHANGE,
+     PLAYERHOOK_ON_LEARN_SPELL,
+@@ -313,6 +314,10 @@ public:
+     // Called when a player gains XP (before anything is given)
+     virtual void OnPlayerGiveXP(Player* /*player*/, uint32& /*amount*/, Unit* /*victim*/, uint8 /*xpSource*/) { }
+ 
++    // Called when the most rest bonus a player can have is worked out (Player::SetRestBonus), after the
++    // rate is applied: a module may lower or raise [restBonusMax].
++    virtual void OnPlayerGetRestBonusMax(Player* /*player*/, float& /*restBonusMax*/) { }
++
+     // Called when a player's reputation changes (before it is actually changed)
+     virtual bool OnPlayerReputationChange(Player* /*player*/, uint32 /*factionID*/, int32& /*standing*/, bool /*incremental*/) { return true; }
+ 
+diff --git a/src/server/game/Scripting/ScriptMgr.h b/src/server/game/Scripting/ScriptMgr.h
+index 7f0f30d..f29fc25 100644
+--- a/src/server/game/Scripting/ScriptMgr.h
++++ b/src/server/game/Scripting/ScriptMgr.h
+@@ -319,6 +319,7 @@ public: /* PlayerScript */
+     void OnPlayerBeforeLootMoney(Player* player, Loot* loot);
+     void OnPlayerBeforeSendLoot(Player* player, ObjectGuid lootGuid, Loot* loot);
+     void OnPlayerGiveXP(Player* player, uint32& amount, Unit* victim, uint8 xpSource);
++    void OnPlayerGetRestBonusMax(Player* player, float& restBonusMax);
+     bool OnPlayerReputationChange(Player* player, uint32 factionID, int32& standing, bool incremental);
+     void OnPlayerReputationRankChange(Player* player, uint32 factionID, ReputationRank newRank, ReputationRank oldRank, bool increased);
+     void OnPlayerGiveReputation(Player* player, int32 factionID, float& amount, ReputationSource repSource);
+-- 
+2.43.0
+

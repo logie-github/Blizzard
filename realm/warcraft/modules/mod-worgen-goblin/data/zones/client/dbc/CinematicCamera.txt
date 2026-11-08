@@ -1,0 +1,5 @@
+# CinematicCamera: the starting areas (tools/zones/build_tables.py)
+types	isiffff
+put	248	cameras\\flybygilneasshort.mdx	0	-1925.5200195312	2559.4899902344	1.67417001724	-1.9896800518
+put	253	cameras\\flybyworgen.mdx	23105	-1435.5200195312	1671.1300048828	0.14964300394	3.10668992996
+put	288	cameras\\flybygoblin.mdx	23106	-8416.849609375	1364.2099609375	102.20800018311	4.69494009018

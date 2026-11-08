@@ -86,19 +86,19 @@ object ModuleStore {
 
     private fun slots(context: Context) = RealmPackage.Slots.of(layout(context))
 
-    /** The WoW app's version the imported realm is of, which a build is made from. */
-    fun versionCode(context: Context): Int? = ModuleSource.exportedVersionCode(layout(context))
+    /** Which realm sources a build is made from ([ModuleSource.REALM_SOURCE]). */
+    @Suppress("UNUSED_PARAMETER")
+    fun versionCode(context: Context): Int? = ModuleSource.REALM_SOURCE
 
-    /** Why a realm can't be built or changed (null when it can): the realm isn't imported, or isn't known by version. */
+    /** Why a realm can't be built or changed (null when it can): the realm isn't imported. */
     fun unavailableReason(context: Context): String? = when {
         !layout(context).isImported() -> "The Wrath+ realm isn't imported yet. Import World of Warcraft from the World of Warcraft app's export first."
-        versionCode(context) == null -> "The export doesn't say which version of the World of Warcraft app made it, so the realm to build from can't be found. Export again from the World of Warcraft app."
         else -> null
     }
 
-    /** The app's release, which a realm is built from (`wow-build-N`), or null when the export doesn't say. */
-    fun release(context: Context): String? =
-        versionCode(context)?.let { ModuleBuild.release(ModuleSource.RELEASE_TAG_PREFIX, it) }
+    /** The release the built realms are on. */
+    @Suppress("UNUSED_PARAMETER")
+    fun release(context: Context): String? = ModuleSource.RELEASE
 
     @Synchronized
     fun load(context: Context) {
@@ -259,10 +259,7 @@ object ModuleStore {
 
     /**
      * Asks GitHub for a realm with the chosen modules: each at its branch's newest commit, built
-     * from the release of the WoW app the imported realm is of. Throws what went wrong.
-     *
-     * The workflow is started at the release's own tag (the file as it was for that version); if
-     * GitHub doesn't know it there, at the repository's default branch.
+     * from this repository's `realm/` sources. Throws what went wrong.
      */
     suspend fun startBuild(context: Context) = withContext(Dispatchers.IO) {
         load(context)
@@ -283,24 +280,18 @@ object ModuleStore {
         }
         val request = ModuleBuild.newRequest()
         val modules = ModuleBuild.modulesInput(pinned, baseModules)
-        dispatch(api, release, request, modules)
+        dispatch(api, request, modules)
         setPending(context, ModuleBuild.Pending(request, release, version, pinned, System.currentTimeMillis()))
     }
 
-    private fun dispatch(api: GitHubApi, release: String, request: String, modules: String) {
+    private fun dispatch(api: GitHubApi, request: String, modules: String) {
         val url = "${ModuleSource.workflowUrl()}/dispatches"
+        // At the repository's default branch, where the workflow and the realm's sources are.
+        val branch = runCatching { ModuleSource.parseDefaultBranch(api.get(ModuleSource.repoUrl())) }.getOrNull() ?: "main"
         try {
-            api.post(url, ModuleBuild.dispatchBody(release, release, request, modules))
+            api.post(url, ModuleBuild.dispatchBody(branch, request, modules))
         } catch (e: GitHubApi.HttpError) {
-            if (e.code != 404 && e.code != 422) throw e
-            // Not at the release's tag: the default branch has the workflow, if it has it at all.
-            val branch = runCatching { ModuleSource.parseDefaultBranch(api.get(ModuleSource.repoUrl())) }.getOrNull()
-                ?: throw IOException("GitHub wouldn't start the build at ${ModuleSource.REPO} $release (${e.reason ?: "HTTP ${e.code}"}).")
-            try {
-                api.post(url, ModuleBuild.dispatchBody(branch, release, request, modules))
-            } catch (second: GitHubApi.HttpError) {
-                throw IOException("GitHub wouldn't start the build at ${ModuleSource.REPO} (${second.reason ?: "HTTP ${second.code}"}).")
-            }
+            throw IOException("GitHub wouldn't start the build at ${ModuleSource.REPO} (${e.reason ?: "HTTP ${e.code}"}).")
         }
     }
 

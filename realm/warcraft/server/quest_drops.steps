@@ -1,0 +1,76 @@
+# Quest drops (mod-quest-drops), ChromieCraft's realm: a quest drop rolls 75% where its chance was under
+# 75%, 50% where it was 10% or less, its own chance from 75% up; an epic or better in a dungeon or from a
+# rare spawn ten times its chance, 10% at least and 100% at most; any other drop its own chance (the
+# user's rules). What the module rolls for each:
+cmd .questdrops chance 40
+expect Quest drops: 40 rolls 75 for a quest item, 100 for an epic in a dungeon or from a rare, 40 for any other
+cmd .questdrops chance 35
+expect Quest drops: 35 rolls 75 for a quest item, 100 for an epic in a dungeon or from a rare, 35 for any other
+cmd .questdrops chance 74
+expect Quest drops: 74 rolls 75 for a quest item, 100 for an epic in a dungeon or from a rare, 74 for any other
+cmd .questdrops chance 80
+expect Quest drops: 80 rolls 80 for a quest item, 100 for an epic in a dungeon or from a rare, 80 for any other
+cmd .questdrops chance 15
+expect Quest drops: 15 rolls 75 for a quest item, 100 for an epic in a dungeon or from a rare, 15 for any other
+cmd .questdrops chance 10
+expect Quest drops: 10 rolls 50 for a quest item, 100 for an epic in a dungeon or from a rare, 10 for any other
+cmd .questdrops chance 5
+expect Quest drops: 5 rolls 50 for a quest item, 50 for an epic in a dungeon or from a rare, 5 for any other
+cmd .questdrops chance 0.5
+expect Quest drops: 0.5 rolls 50 for a quest item, 10 for an epic in a dungeon or from a rare, 0.5 for any other
+cmd .questdrops chance 100
+expect Quest drops: 100 rolls 100 for a quest item, 100 for an epic in a dungeon or from a rare, 100 for any other
+# And in the loot: Piercing the Veil (1470, a warlock's) asks for Rattlecage Skeletons' Rattlecage
+# Skulls, which they drop at 15%. Now 75%: twenty kills, nine skulls at least (a working module misses
+# that about once in a thousand tries; at 15% it's reached about once in a thousand). The character
+# stands beside each skeleton before it falls (one called over from afar can die out of looting reach,
+# where the core lets go of its corpse without a loot window).
+cmd .levelup 9
+cmd .quest add 1470
+go 0 1974.2 1499.7 86.5
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+cmd .questdrops near 1890
+kill-loot 1890
+at-least 9 loot item 6281
+# Out of the fight, away from the skeletons, so the character can log out (the realm keeps one in
+# combat).
+go 0 1676.7 1678.3 121.7
+cmd .combatstop
+wait 2

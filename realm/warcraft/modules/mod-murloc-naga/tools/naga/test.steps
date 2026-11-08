@@ -1,0 +1,158 @@
+# A naga shaman in the naga's story, chapter 1 (The Low Tide: tools/naga/ch1_low_tide.py), from its start: at
+# Rethress Sanctum in Azshara, in the line before the Empress's shrine, with the naga's phase (2048) and the crèche's
+# story bit (536870912, the chapter's one story phase in Azshara: the crèche is the Spitelash's until chapter 10), no
+# world; the creed (a /roar at the Empress's image is the credit); the drill (six corals); the shaman's instructor
+# (his trainer window, his lesson offered); Isshara's first song: into her memory (memory A's bit alone, 2, at the
+# Ravencrest Monument), the young handmaiden found, a bowl of Well-water given to a lord, a death inside (alive again
+# at the Deep Pool, the court's quest started over), back in through her "Sing it again", the three lords' bowls from
+# the fountain, the Night of the Well (the set piece, about 50 seconds) and awake at the pool when it ends; the
+# chapter's last quest as a GM gives it, played: the cage opened, the crack in the reef that takes one across the bay
+# to the Hollow, Lady Szaria there; at Valormok, a Horde quest closed to it (the naga's gate).
+# Written with the story's names; tools/build_data.py writes warcraft/server/murloc_naga_naga.steps with their ids.
+wait 3
+cmd .gps
+has Rethress Sanctum
+expect Phase: 536872960
+# 1.01: the creed (Matron Szessh offers it where a new naga stands; the tide-runners roar in turn, then it's yours).
+talk {ch1:szessh}
+has quest {ch1:ch1_creed}:
+accept {ch1:szessh} {ch1:ch1_creed}
+wait 25
+emote {ch1:empress} 75
+expect complete {ch1:ch1_creed}
+talk {ch1:szessh}
+reward {ch1:szessh} {ch1:ch1_creed}
+expect rewarded {ch1:ch1_creed}
+# 1.02: Drillmaster Kraveth's drill (and he hits his own tail).
+talk {ch1:kraveth}
+has quest {ch1:ch1_drill}:
+accept {ch1:kraveth} {ch1:ch1_drill}
+kill {ch1:training_coral}
+kill {ch1:training_coral}
+kill {ch1:training_coral}
+kill {ch1:training_coral}
+kill {ch1:training_coral}
+kill {ch1:training_coral}
+expect complete {ch1:ch1_drill}
+talk {ch1:kraveth}
+reward {ch1:kraveth} {ch1:ch1_drill}
+expect rewarded {ch1:ch1_drill}
+# The crèche's shaman instructor: the game's shaman trainer's list, and his first lesson (the totems) offered.
+go 1 {xyz:ch1:mesh}
+wait 2
+talk {ch1:mesh}
+has quest {ch1:ch1_lesson_shaman}:
+select-nth {ch1:mesh} 0
+expect trainer type 0
+# To the Deep Pool, the chapter done as a GM would up to Isshara's first song (1.09 handed in).
+cmd .quest add {ch1:ch1_pool}
+cmd .quest complete {ch1:ch1_pool}
+cmd .quest reward {ch1:ch1_pool}
+go 1 {xyz:ch1:pool_shore}
+wait 2
+talk {ch0:isshara}
+has quest {ch1:ch1_afraid}:
+accept {ch0:isshara} {ch1:ch1_afraid}
+wait 8
+expect teleported
+cmd .gps
+has Ravencrest Monument
+has Phase: 2
+expect-not Phase: 20
+# 1.10: the young handmaiden by the queen's fountain (an exploration: a GM's .go to her).
+go 1 {xyz:ch1:m0_isshara}
+wait 3
+expect complete {ch1:ch1_afraid}
+talk {ch1:isshara_elf}
+reward {ch1:isshara_elf} {ch1:ch1_afraid}
+expect rewarded {ch1:ch1_afraid}
+# 1.11: a bowl of Well-water (a GM's, here) for Lord Ethalor: one lord's credit.
+talk {ch1:isshara_elf}
+has quest {ch1:ch1_court}:
+accept {ch1:isshara_elf} {ch1:ch1_court}
+cmd .additem {ch1:bowl}
+talk {ch1:lord_taster}
+select {ch1:lord_taster} Give it to them
+expect credit {ch1:ch1_court} {ch1:lord_taster} 1/1
+# A death inside: alive at the Deep Pool, the present again (the crèche's bit), the court's quest started over.
+target self
+cmd .die
+wait 6
+expect teleported
+cmd .gps
+has Rethress Sanctum
+expect Phase: 536872960
+# Back in through the singer; the three lords' bowls from the queen's fountain, one at a time.
+talk {ch0:isshara}
+select {ch0:isshara} Sing it again
+wait 6
+expect teleported
+cmd .gps
+has Ravencrest Monument
+go 1 {xyz:ch1:m0_fountain}
+wait 2
+use {ch1:fountain}
+go 1 {xyz:ch1:m0_taster}
+wait 2
+talk {ch1:lord_taster}
+select {ch1:lord_taster} Give it to them
+expect credit {ch1:ch1_court} {ch1:lord_taster} 1/1
+go 1 {xyz:ch1:m0_fountain}
+wait 2
+use {ch1:fountain}
+go 1 {xyz:ch1:m0_bower}
+wait 2
+talk {ch1:lord_bower}
+select {ch1:lord_bower} Give it to them
+expect credit {ch1:ch1_court} {ch1:lord_bower} 1/1
+go 1 {xyz:ch1:m0_fountain}
+wait 2
+use {ch1:fountain}
+go 1 {xyz:ch1:m0_pincher}
+wait 2
+talk {ch1:lord_pincher}
+select {ch1:lord_pincher} Give it to them
+expect credit {ch1:ch1_court} {ch1:lord_pincher} 1/1
+expect complete {ch1:ch1_court}
+talk {ch1:isshara_elf}
+reward {ch1:isshara_elf} {ch1:ch1_court}
+expect rewarded {ch1:ch1_court}
+# 1.12: the Night of the Well (the scene's own credit near its end), then awake at the Deep Pool, four seconds on.
+talk {ch1:isshara_elf}
+has quest {ch1:ch1_well}:
+accept {ch1:isshara_elf} {ch1:ch1_well}
+wait 58
+has complete {ch1:ch1_well}
+expect teleported
+cmd .gps
+has Rethress Sanctum
+expect Phase: 536872960
+talk {ch0:isshara}
+reward {ch0:isshara} {ch1:ch1_well}
+expect rewarded {ch1:ch1_well}
+# The last quest (1.24, the breakout) as a GM gives it, played: the cage opened (Isshara follows), the crack in the
+# reef at the Deep Pool's mouth (across the bay to the Hollow), Lady Szaria takes it there.
+cmd .levelup 3
+cmd .quest add {ch1:ch1_end}
+go 1 {xyz:ch1:pool_shore}
+wait 3
+use {ch1:cage_door}
+wait 4
+go 1 {xyz:ch1:crack}
+wait 2
+use {ch1:reef_crack}
+wait 5
+expect teleported
+cmd .gps
+has Bay of Storms
+expect complete {ch1:ch1_end}
+talk {ch0:szaria}
+reward {ch0:szaria} {ch1:ch1_end}
+expect rewarded {ch1:ch1_end}
+# The gate: Jediga at Valormok (the world's and the naga's phase there) offers a naga of level 46 or so none of the Horde's
+# quests (Stealing Knowledge, 3517, open to every race) while its story isn't done.
+cmd .levelup 32
+go 1 3603.0 -4421.0 113.0
+wait 3
+talk 8587
+expect-not quest 3517:

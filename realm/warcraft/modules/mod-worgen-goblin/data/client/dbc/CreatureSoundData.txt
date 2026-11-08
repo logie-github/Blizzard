@@ -1,0 +1,3 @@
+# CreatureSoundData: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiffiiiii
+put	3110	18064	18065	18068	18069	0	18066	0	0	7	18063	0	0	18067	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0.0	0.0	0	0	0	0	0

@@ -1,0 +1,132 @@
+# A murloc warrior in the Wrathtail's pens (mod-murloc-naga's story, chapter 1), after its start was
+# checked: the Elder's first quest, handed in to Murlorga; her /wave quest done by waving at the four
+# slaves; Overseer Kezzith's count (a place to stand); the warrior trainer's lessons in the pens; and
+# the breakout and the free Greymist's cove (chapter 2's arrival); every later chapter's hub and first quest;
+# Auberdine's quests closed to it while its story isn't done (the gate).
+# Written with the story's names; tools/build_data.py writes warcraft/server/murloc_naga_murloc.steps
+# with their ids.
+wait 3
+talk 976022
+has quest 978500:
+expect-not quest 954:
+accept 976022 978500
+wait 6
+talk 976024
+reward 976024 978500
+expect rewarded 978500
+talk 976024
+expect quest 978501:
+accept 976024 978501
+emote 976037 101
+emote 976038 101
+emote 976039 101
+emote 976040 101
+expect complete 978501
+talk 976024
+reward 976024 978501
+expect rewarded 978501
+talk 976050
+expect quest 978502:
+accept 976050 978502
+go 1 4089.0 1078.0 2.1
+wait 3
+expect complete 978502
+talk 976050
+reward 976050 978502
+expect rewarded 978502
+# The tribe's warrior trainer teaches (the game's warrior trainer's list).
+go 1 4093.0 1134.0 2.5
+wait 2
+talk 976030
+select-nth 976030 0
+expect trainer type 0
+# Out through the reef (the breakout done as a GM would, to save the chapter's length), to Blrrgl on the
+# Darkshore shore, and on to the free Greymist's cove (chapter 2): Mother Mrrgula takes it in.
+cmd .levelup 4
+cmd .quest add 978528
+cmd .quest complete 978528
+cmd .quest reward 978528
+go 1 4891.0 618.0 1.4
+wait 3
+talk 976076
+expect quest 978529:
+accept 976076 978529
+go 1 4803.0 695.0 3.9
+wait 3
+talk 976014
+reward 976014 978529
+expect rewarded 978529
+# (her welcome: she walks to the newcomers and back, about 20 seconds)
+wait 25
+talk 976014
+expect quest 978530:
+# Chapter by chapter (each chapter's last quest done as a GM would, the character levelled to the next): at
+# each hub, the one who starts the next chapter is there and offers its first quest (every hub, its phases).
+cmd .quest add 978556
+cmd .quest complete 978556
+cmd .quest reward 978556
+cmd .levelup 5
+go 1 4301.0 1151.0 3.0
+wait 3
+talk 976025
+expect quest 978557:
+cmd .quest add 978591
+cmd .quest complete 978591
+cmd .quest reward 978591
+cmd .levelup 5
+go 0 -3365.0 -1018.0 9.4
+wait 3
+talk 976022
+expect quest 978594:
+cmd .quest add 978620
+cmd .quest complete 978620
+cmd .quest reward 978620
+cmd .levelup 5
+go 0 -1059.5 -177.0 7.4
+wait 3
+talk 976022
+expect quest 978623:
+cmd .quest add 978654
+cmd .quest complete 978654
+cmd .quest reward 978654
+cmd .levelup 5
+go 0 -11478.0 1735.0 7.0
+wait 3
+talk 976022
+expect quest 978655:
+cmd .quest add 978674
+cmd .quest complete 978674
+cmd .quest reward 978674
+cmd .levelup 5
+go 1 -2214.0 -4163.0 8.6
+wait 3
+talk 976022
+expect quest 978675:
+cmd .quest add 978700
+cmd .quest complete 978700
+cmd .quest reward 978700
+cmd .levelup 5
+go 0 -14708.0 303.0 4.0
+wait 3
+talk 976022
+expect quest 978701:
+cmd .quest add 978730
+cmd .quest complete 978730
+cmd .quest reward 978730
+cmd .levelup 5
+go 1 -3201.5 3240.0 7.1
+wait 3
+talk 976022
+expect quest 978731:
+cmd .quest add 978760
+cmd .quest complete 978760
+cmd .quest reward 978760
+cmd .levelup 5
+go 1 2945.0 -5999.0 0.3
+wait 3
+talk 976026
+expect quest 978761:
+# Auberdine's quests aren't a murloc's while its story isn't done (Thundris Windweaver's).
+go 1 6581.0 492.0 8.3
+talk 3649
+expect-not quest 954:

@@ -1,0 +1,290 @@
+# Brill: The Old Brewery (mod-brill-home, tools/town/brewery.py), ChromieCraft's realm: Brill Endures granted (the
+# project's stage 1, <9:1>: the brewery's stages are invisibility kind 9), Brewmaster Oren Blackbarrel at the old
+# brewhouse's door beside the Gallows' End. The Kegs Are Empty (the old copper, six piles of spoiled stores, six
+# Brewhouse Rats, the ledger); A Proper Fermentation (the goblins' pump below the zeppelin tower, six rotten casks,
+# Oliver Dwor's hoops, the vats and the casks); Taste of the Living (four bitterroot, Hamlin's culture, Saldean's
+# grain, the three batches, three tasters, and the choice: the old family brown, the mark q971613); A Bitter Batch
+# (the spoiled barrels, Bram and Calla questioned, the cellar hatch and the wall-rot, the vent); To Absent Friends
+# (Renee and Marta invited, the market's sample barrels, the trestles, and the name: Lordaeron Reserve, the mark
+# q971620). Each quest moves the stage on; then the brewery open (<9:6>, Oren behind its counter, the weekly offered)
+# and the house's barrel stand and cabinet bought from him (<9:7>, the mark q971606).
+cmd .levelup 11
+cmd .modify money 100000
+cmd .brilltown grant 971000
+# Stage 1: Oren at the brewhouse door.
+go 0 2219.0 266.5 34.9
+wait 2
+cmd .brilltown state
+has <9:1>
+talk 971600
+accept 971600 971600
+# The Kegs Are Empty: the old copper (the hall seen past it) and the spoiled stores.
+go 0 2215.55 265.74 35.2
+cmd .brilltown use
+has Brill town: used 971602
+expect credit 971600 971617 1/1
+go 0 2219.32 264.74 34.8
+cmd .brilltown use
+has Brill town: used 971603
+expect credit 971600 971618 1/6
+go 0 2217.03 262.56 34.8
+cmd .brilltown use
+expect credit 971600 971618 2/6
+go 0 2224.0 264.16 34.5
+cmd .brilltown use
+expect credit 971600 971618 3/6
+go 0 2224.34 268.18 34.9
+cmd .brilltown use
+expect credit 971600 971618 4/6
+go 0 2224.58 260.57 34.3
+cmd .brilltown use
+expect credit 971600 971618 5/6
+go 0 2227.57 263.62 34.4
+cmd .brilltown use
+expect credit 971600 971618 6/6
+# The rats by the cellar hatch, and the ledger under the fallen shelf.
+go 0 2218.0 293.0 35.4
+kill 971605
+expect credit 971600 971605 1/6
+kill 971605
+expect credit 971600 971605 2/6
+kill 971605
+expect credit 971600 971605 3/6
+kill 971605
+expect credit 971600 971605 4/6
+kill 971605
+expect credit 971600 971605 5/6
+kill 971605
+expect credit 971600 971605 6/6
+go 0 2222.29 291.5 35.4
+cmd .brilltown use
+has Brill town: used 971604
+expect credit 971600 971619 1/1
+go 0 2219.0 266.5 34.9
+talk 971600
+reward 971600 971600
+expect rewarded 971600
+wait 2
+cmd .brilltown state
+has <9:2>
+# A Proper Fermentation: Bram at his bench from stage 2.
+go 0 2211.5 265.5 35.7
+talk 971602
+accept 971602 971601
+# The goblins' pump below the zeppelin tower.
+go 0 2088.0 262.0 57.4
+cmd .brilltown use
+has Brill town: used 971611
+expect credit 971601 971620 1/1
+# The rotten casks behind the brewhouse.
+go 0 2207.82 285.86 35.2
+cmd .brilltown use
+has Brill town: used 971610
+expect credit 971601 971621 1/6
+go 0 2204.92 286.16 35.8
+cmd .brilltown use
+expect credit 971601 971621 2/6
+go 0 2207.46 289.0 34.8
+cmd .brilltown use
+expect credit 971601 971621 3/6
+go 0 2203.95 283.5 36.9
+cmd .brilltown use
+expect credit 971601 971621 4/6
+go 0 2205.01 289.51 34.9
+cmd .brilltown use
+expect credit 971601 971621 5/6
+go 0 2202.02 286.46 36.4
+cmd .brilltown use
+expect credit 971601 971621 6/6
+# Oliver Dwor's hoops.
+go 0 2229.5 315.0 37.0
+talk 2136
+select 2136 iron hoops
+expect credit 971601 971622 1/1
+# The two vats mended and the three casks hooped.
+go 0 2206.2 273.0 37.3
+cmd .brilltown use
+has Brill town: used 971608
+expect credit 971601 971623 1/5
+go 0 2204.5 277.0 37.9
+cmd .brilltown use
+expect credit 971601 971623 2/5
+go 0 2209.66 262.99 35.4
+cmd .brilltown use
+has Brill town: used 971609
+expect credit 971601 971623 3/5
+go 0 2206.79 264.41 36.0
+cmd .brilltown use
+expect credit 971601 971623 4/5
+go 0 2209.14 260.54 35.1
+cmd .brilltown use
+expect credit 971601 971623 5/5
+go 0 2211.5 265.5 35.7
+talk 971602
+reward 971602 971601
+expect rewarded 971601
+wait 2
+cmd .brilltown state
+has <9:3>
+# Taste of the Living: Calla, there from stage 3.
+go 0 2228.5 270.0 34.9
+talk 971603
+accept 971603 971602
+# Bitterroot on the hillside west of town.
+go 0 2150.0 300.0 47.2
+cmd .brilltown use
+has Brill town: used 971617
+expect credit 971602 971624 1/6
+go 0 2158.0 312.0 44.0
+cmd .brilltown use
+expect credit 971602 971624 2/6
+go 0 2145.0 285.0 49.9
+cmd .brilltown use
+expect credit 971602 971624 3/6
+go 0 2162.0 325.0 42.5
+cmd .brilltown use
+expect credit 971602 971624 4/6
+# Hamlin's culture and William Saldean's grain.
+go 0 2282.0 342.5 34.5
+talk 3547
+select 3547 blue caps
+expect credit 971602 971624 5/6
+go 0 2236.6 297.0 35.4
+talk 33996
+select 33996 brewing grain
+expect credit 971602 971624 6/6
+# The three batches set going.
+go 0 2228.14 268.3 34.8
+cmd .brilltown use
+has Brill town: used 971618
+expect credit 971602 971625 1/3
+go 0 2230.41 269.36 34.7
+cmd .brilltown use
+has Brill town: used 971619
+expect credit 971602 971625 2/3
+go 0 2231.17 272.47 34.9
+cmd .brilltown use
+has Brill town: used 971620
+expect credit 971602 971625 3/3
+# The tasters: Hamlin, Deathguard Dillinger, Executor Zygand.
+go 0 2282.0 342.5 34.5
+talk 3547
+select 3547 Calla's experimental batches
+expect credit 971602 971626 1/3
+go 0 2287.7 402.5 34.3
+talk 1496
+select 1496 experimental batches
+expect credit 971602 971626 2/3
+go 0 2278.1 295.6 35.6
+talk 1515
+select 1515 experimental batches
+expect credit 971602 971626 3/3
+# The choice, with Calla: the old family brown.
+go 0 2228.5 270.0 34.9
+talk 971603
+select 971603 old family brown
+expect credit 971602 971627 1/1
+talk 971603
+reward 971603 971602
+expect rewarded 971602
+wait 2
+cmd .brilltown state
+has <9:4>
+has q971613
+# A Bitter Batch: the spoiled barrels behind the brewhouse.
+go 0 2219.0 266.5 34.9
+talk 971600
+accept 971600 971603
+go 0 2213.05 288.85 35.0
+cmd .brilltown use
+has Brill town: used 971621
+expect credit 971603 971628 1/3
+go 0 2210.63 290.48 34.8
+cmd .brilltown use
+expect credit 971603 971628 2/3
+go 0 2212.26 292.89 34.8
+cmd .brilltown use
+expect credit 971603 971628 3/3
+# Bram and Calla questioned.
+go 0 2211.5 265.5 35.7
+talk 971602
+select 971602 spoiled the batch
+expect credit 971603 971629 1/2
+go 0 2228.5 270.0 34.9
+talk 971603
+select 971603 your cultures spoiled
+expect credit 971603 971629 2/2
+# Down through the hatch; the wall-rot cut out; the vent mended.
+go 0 2216.67 290.54 35.4
+cmd .brilltown use
+has Brill town: used 971605
+expect credit 971603 971630 1/4
+go 0 2215.21 287.76 35.2
+cmd .brilltown use
+has Brill town: used 971622
+expect credit 971603 971630 2/4
+go 0 2219.7 289.96 35.4
+cmd .brilltown use
+expect credit 971603 971630 3/4
+go 0 2217.06 288.51 35.4
+cmd .brilltown use
+expect credit 971603 971630 4/4
+go 0 2212.86 286.88 35.0
+cmd .brilltown use
+has Brill town: used 971623
+expect credit 971603 971631 1/1
+go 0 2219.0 266.5 34.9
+talk 971600
+reward 971600 971603
+expect rewarded 971603
+wait 2
+cmd .brilltown state
+has <9:5>
+# To Absent Friends: Renee and Marta invited.
+talk 971600
+accept 971600 971604
+go 0 2268.5 245.5 34.6
+talk 5688
+select 5688 brewery's opening
+expect credit 971604 971632 1/2
+go 0 2202.0 288.0 35.4
+talk 971604
+select 971604 brewery's opening
+expect credit 971604 971632 2/2
+# The sample barrels at the market.
+go 0 2250.5 267.5 34.6
+cmd .brilltown use
+has Brill town: used 971625
+expect credit 971604 971633 1/3
+go 0 2257.5 278.0 34.5
+cmd .brilltown use
+expect credit 971604 971633 2/3
+go 0 2246.0 274.0 34.4
+cmd .brilltown use
+expect credit 971604 971633 3/3
+# The tasting room's trestles.
+go 0 2228.96 265.37 34.5
+cmd .brilltown use
+has Brill town: used 971626
+expect credit 971604 971634 1/1
+# The name: Lordaeron Reserve.
+go 0 2219.0 266.5 34.9
+talk 971600
+select 971600 Lordaeron Reserve
+expect credit 971604 971635 1/1
+talk 971600
+reward 971600 971604
+expect rewarded 971604
+wait 2
+cmd .brilltown state
+has <9:6>
+has q971620
+# The brewery open: Oren behind his counter, the weekly special offered; the house's barrel stand bought.
+go 0 2219.0 278.5 36.4
+talk 971601
+has quest 971605
+select 971601 send something round to my house
+wait 2
+cmd .brilltown state
+has <9:7>
+has q971606

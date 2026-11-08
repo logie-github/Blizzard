@@ -1,0 +1,37 @@
+# The companion (RemixMoratari.cpp): to the Borean Tundra with Moratari at your side; she fights what
+# fights you, steps away to her post when you come near it, and waits when asked.
+cmd .remix intro skip
+wait 3
+cmd .quest add 77014
+cmd .quest complete 77014
+cmd .quest reward 77014
+wait 9
+expect far too many soldiers in one harbor
+go 571 2268.6 4975.0 6.0 4.71
+wait 4
+cmd .remix companion
+expect Wrath Remix companion: level
+cmd .gm off
+cmd .npc add temp 116
+wait 6
+cmd .remix companion
+expect fighting
+kill 116
+wait 3
+go 571 2305.0 5236.0 11.4 2.78
+wait 4
+cmd .remix companion
+expect at her post nearby
+talk 770001
+expect option: Wait for me here
+select 770001 Wait for me here
+expect gossip text 7702600
+cmd .remix companion
+expect asked to wait
+talk 770001
+select 770001 Walk with me again
+expect gossip text 7702601
+go 571 2268.6 4975.0 6.0 4.71
+wait 4
+cmd .remix companion
+expect Wrath Remix companion: level

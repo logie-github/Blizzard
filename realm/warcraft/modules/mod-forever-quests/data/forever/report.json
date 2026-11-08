@@ -1,0 +1,6556 @@
+{
+ "_about": "Forever's new quests (ids 86000 and up, not in the core) left out, and why; reward items left out.",
+ "picked": 123,
+ "new": 889,
+ "left_out": {
+  "86613": {
+   "name": "Excavation Tools",
+   "area": "Loch Modan",
+   "why": [
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "86614": {
+   "name": "Silver of the Waves",
+   "area": "Loch Modan",
+   "why": [
+    "new objects"
+   ]
+  },
+  "86667": {
+   "name": "Snowbound",
+   "area": "Loch Modan",
+   "why": [
+    "an item to collect that no creature drops in the data (279379)"
+   ]
+  },
+  "86784": {
+   "name": "Sticks and Bones",
+   "area": "Tirisfal Glades",
+   "why": [
+    "an item to collect that no creature drops in the data (279991)"
+   ]
+  },
+  "88756": {
+   "name": "Bring Back a Bang",
+   "area": "Wetlands",
+   "why": [
+    "an item to collect that no creature drops in the data (280806)"
+   ]
+  },
+  "88757": {
+   "name": "Accessories of the Lost",
+   "area": "Wetlands",
+   "why": [
+    "an item to collect that no creature drops in the data (284705)",
+    "an item to collect that no creature drops in the data (284150)",
+    "an item to collect that no creature drops in the data (284146)"
+   ]
+  },
+  "90902": {
+   "name": "Rediscovering the Light",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "91208": {
+   "name": "Coming to Terms",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91209": {
+   "name": "Continue Your Training",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "91282": {
+   "name": "A Second Home",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91285": {
+   "name": "Murlocs at the Gates",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91294": {
+   "name": "Touring the Grounds",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "91316": {
+   "name": "Making Repairs",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (246213)"
+   ]
+  },
+  "91317": {
+   "name": "The Tarnished",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91725": {
+   "name": "Stolen Enchanting Supplies",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (247805)"
+   ]
+  },
+  "91732": {
+   "name": "Good Steel",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (247816)"
+   ]
+  },
+  "91733": {
+   "name": "Downstream",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (247817)",
+    "an item to collect that no creature drops in the data (247813)",
+    "an item to collect that no creature drops in the data (247818)"
+   ]
+  },
+  "91736": {
+   "name": "Applejack Still",
+   "area": "Elwynn Forest",
+   "why": [
+    "new objects"
+   ]
+  },
+  "91738": {
+   "name": "An Apple Treat",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (247824)"
+   ]
+  },
+  "91751": {
+   "name": "Rough Wolf Pelts",
+   "area": "Elwynn Forest",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "91753": {
+   "name": "An Enchanting Lesson",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (247884)",
+    "a profession requirement"
+   ]
+  },
+  "91772": {
+   "name": "Shhh! We're Hunting Kobolds",
+   "area": "Elwynn Forest",
+   "why": [
+    "objects to use"
+   ]
+  },
+  "91775": {
+   "name": "Book Return",
+   "area": "Elwynn Forest",
+   "why": [
+    "needs [91772] first, which isn't here"
+   ]
+  },
+  "91777": {
+   "name": "Rare Books",
+   "area": "Elwynn Forest",
+   "why": [
+    "needs [91775] first, which isn't here"
+   ]
+  },
+  "91858": {
+   "name": "Diplomatic Incident",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91859": {
+   "name": "A Curious Pair",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91860": {
+   "name": "A Grim Fate",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "new objects"
+   ]
+  },
+  "91861": {
+   "name": "Into Fenris Keep",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "new objects"
+   ]
+  },
+  "91862": {
+   "name": "Lumina Windsinger",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "91899": {
+   "name": "A Sealed Crate",
+   "area": "",
+   "why": [
+    "people the data has no place for in the old zones: [256390, 256390]",
+    "an item to collect that no creature drops in the data (248765)"
+   ]
+  },
+  "91900": {
+   "name": "A Sealed Crate",
+   "area": "",
+   "why": [
+    "people the data has no place for in the old zones: [256390, 256390]",
+    "an item to collect that no creature drops in the data (248766)"
+   ]
+  },
+  "91901": {
+   "name": "A Sealed Crate",
+   "area": "",
+   "why": [
+    "people the data has no place for in the old zones: [256390, 256390]"
+   ]
+  },
+  "91904": {
+   "name": "A Sealed Crate",
+   "area": "",
+   "why": [
+    "people the data has no place for in the old zones: [256390, 256390]",
+    "an item to collect that no creature drops in the data (248770)"
+   ]
+  },
+  "91905": {
+   "name": "A Sealed Crate",
+   "area": "",
+   "why": [
+    "people the data has no place for in the old zones: [256390, 256390]",
+    "an item to collect that no creature drops in the data (248771)"
+   ]
+  },
+  "92109": {
+   "name": "My First Alchemy Set",
+   "area": "Westfall",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "92110": {
+   "name": "My First Real Potion",
+   "area": "Westfall",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "92401": {
+   "name": "A Frightened Request",
+   "area": "Undercity",
+   "why": [
+    "a place to explore (a script)"
+   ]
+  },
+  "92415": {
+   "name": "Remember That I Love You",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "92421": {
+   "name": "Light's Justice",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (268580)"
+   ]
+  },
+  "92422": {
+   "name": "The Wrath of Rath'mael",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92434": {
+   "name": "Blood in the Streets",
+   "area": "Alterac Mountains",
+   "why": [
+    "a place to explore (a script)"
+   ]
+  },
+  "92456": {
+   "name": "A Green Sample",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (251983)"
+   ]
+  },
+  "92457": {
+   "name": "Starving Arcane",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92458": {
+   "name": "Heart of Disruption",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (251961)"
+   ]
+  },
+  "92460": {
+   "name": "Coming of Age",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251362, 251361]"
+   ]
+  },
+  "92461": {
+   "name": "Harmony in Balance",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251361, 251361]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92462": {
+   "name": "Infestation Investigation",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251368, 251368]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92463": {
+   "name": "The Cirrusfly Queen",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251368, 251368]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92464": {
+   "name": "Elemental Unrest",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251361, 249363]"
+   ]
+  },
+  "92465": {
+   "name": "Agitators",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [249363, 249363]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92466": {
+   "name": "Call of Earth",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251374, 251374]",
+    "an item to collect from creatures the data has no place for (251924)"
+   ]
+  },
+  "92467": {
+   "name": "Call of Earth",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251374, 251166]"
+   ]
+  },
+  "92468": {
+   "name": "Call of Earth",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251166, 251374]"
+   ]
+  },
+  "92469": {
+   "name": "Return to Rorian",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [249363, 251361]"
+   ]
+  },
+  "92470": {
+   "name": "Foul Matriarch",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251366, 251366]",
+    "creatures to kill the data has no place for in the old zones",
+    "an item to collect from creatures the data has no place for (252665)"
+   ]
+  },
+  "92471": {
+   "name": "Aetheen of the Gales",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251361, 251366]"
+   ]
+  },
+  "92472": {
+   "name": "The Next Step",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251366, 251523]"
+   ]
+  },
+  "92473": {
+   "name": "Aggressive Encroachment",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257551, 257551]",
+    "an item to collect from creatures the data has no place for (251918)"
+   ]
+  },
+  "92474": {
+   "name": "Falling With Style",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [263113, 251361]",
+    "a spell to cast (a script)"
+   ]
+  },
+  "92479": {
+   "name": "A Scribbled Letter",
+   "area": "Warrior",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "92481": {
+   "name": "A Student of the Arcane",
+   "area": "Mage",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [251361, 251379]"
+   ]
+  },
+  "92482": {
+   "name": "The Way of the Hunter",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [251361, 251376]"
+   ]
+  },
+  "92483": {
+   "name": "At Home in the Shadows",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [251361, 251389]"
+   ]
+  },
+  "92484": {
+   "name": "Embracing the Elements",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [251361, 251374]"
+   ]
+  },
+  "92485": {
+   "name": "A Student of Nature",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [251361, 251373]"
+   ]
+  },
+  "92489": {
+   "name": "Power Overwhelming",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92514": {
+   "name": "Welcome to Shen'dar Village",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 251523]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92515": {
+   "name": "The Problem With Prideclaws",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251993, 251993]",
+    "an item to collect from creatures the data has no place for (252670)"
+   ]
+  },
+  "92516": {
+   "name": "Hippogryph Harrassment",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251906, 251906]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92517": {
+   "name": "The Criminal Element",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 251523]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92519": {
+   "name": "Ward Restocking",
+   "area": "Arathi Highlands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (278462)"
+   ]
+  },
+  "92528": {
+   "name": "Among the Faithful",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257065, 251523]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92529": {
+   "name": "Falaath Village",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251904, 257065]"
+   ]
+  },
+  "92532": {
+   "name": "The Warrior's Path",
+   "area": "Warrior",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [251361, 251964]"
+   ]
+  },
+  "92544": {
+   "name": "Al'Aketh Thugs",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252095, 252095]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92550": {
+   "name": "Havoc in the Highlands",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 251523]",
+    "creatures to kill the data has no place for in the old zones",
+    "an item to collect from creatures the data has no place for (252661)"
+   ]
+  },
+  "92551": {
+   "name": "Stolen Supplies",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252172, 252172]",
+    "an item to collect from creatures the data has no place for (252760)"
+   ]
+  },
+  "92553": {
+   "name": "Restocking the Larders",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251905, 251905]"
+   ]
+  },
+  "92579": {
+   "name": "To Valanaar",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 252383]"
+   ]
+  },
+  "92595": {
+   "name": "The Windshapers",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251902, 251902]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92596": {
+   "name": "The High Order",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251903, 251903]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92597": {
+   "name": "Reading the Ley Lines",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251371, 251371]",
+    "objects to use"
+   ]
+  },
+  "92598": {
+   "name": "The Gift of Skysight",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251487, 251487]",
+    "objects to use"
+   ]
+  },
+  "92640": {
+   "name": "Desperate Times",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252476, 252383]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92642": {
+   "name": "Disrupting Logistics",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252378, 252378]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92643": {
+   "name": "The Turncoat",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252476, 253372]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92644": {
+   "name": "Unfortunate News",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253372, 252476]"
+   ]
+  },
+  "92645": {
+   "name": "Breaking the Breaker",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252378, 252378]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92646": {
+   "name": "Confront Lorthuna",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253590, 251968]",
+    "a place to explore (a script)",
+    "special objectives (a script)"
+   ]
+  },
+  "92679": {
+   "name": "Blood Tithe",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252448, 252800]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92682": {
+   "name": "Make Yourself Useful",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252800, 252800]",
+    "creatures to kill the data has no place for in the old zones",
+    "an item to collect that no creature drops in the data (253591)"
+   ]
+  },
+  "92683": {
+   "name": "Flutterfly Dust",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252800, 252800]",
+    "an item to collect that no creature drops in the data (253595)",
+    "special objectives (a script)"
+   ]
+  },
+  "92684": {
+   "name": "Ornery Ornery Galestriders",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252800, 252800]",
+    "an item to collect from creatures the data has no place for (253597)"
+   ]
+  },
+  "92685": {
+   "name": "The Hills Have Eyes",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252800, 252800]",
+    "an item to collect from creatures the data has no place for (253596)"
+   ]
+  },
+  "92693": {
+   "name": "Standing Our Ground",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252800, 252800]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92698": {
+   "name": "What Is My Purpose?",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [250929, 252800]"
+   ]
+  },
+  "92699": {
+   "name": "The Supreme Magister",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252383, 252475]"
+   ]
+  },
+  "92700": {
+   "name": "The Grand Skyseer",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252383, 251968]"
+   ]
+  },
+  "92701": {
+   "name": "To Valanaar",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 252383]"
+   ]
+  },
+  "92703": {
+   "name": "Deliver the News",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252800, 252448]"
+   ]
+  },
+  "92707": {
+   "name": "The Giant in the Den",
+   "area": "Arathi Highlands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92708": {
+   "name": "A Grand Adventure",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 251968]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92709": {
+   "name": "A Grand Adventure",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252475, 252475]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92727": {
+   "name": "The Missing Scholar",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253204]",
+    "new objects"
+   ]
+  },
+  "92741": {
+   "name": "Unwelcome Visitors",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253004, 253004]",
+    "an item to collect from creatures the data has no place for (254378)"
+   ]
+  },
+  "92742": {
+   "name": "Testing the Wells",
+   "area": "Westfall",
+   "why": [
+    "an item to collect that no creature drops in the data (254546)",
+    "an item to collect that no creature drops in the data (254547)"
+   ]
+  },
+  "92743": {
+   "name": "A Conqueror's Crown",
+   "area": "Desolace",
+   "why": [
+    "needs a Conqueror's Crown that QuestieDB doesn't list, and Magram standing"
+   ]
+  },
+  "92745": {
+   "name": "The State of the Mines",
+   "area": "Westfall",
+   "why": [
+    "needs [92742] first, which isn't here"
+   ]
+  },
+  "92747": {
+   "name": "Moonbrook Espionage",
+   "area": "Westfall",
+   "why": [
+    "an item to collect that no creature drops in the data (254676)"
+   ]
+  },
+  "92748": {
+   "name": "Explosive Consultation",
+   "area": "Westfall",
+   "why": [
+    "needs [92747] first, which isn't here"
+   ]
+  },
+  "92749": {
+   "name": "A Dynamite Plan",
+   "area": "Westfall",
+   "why": [
+    "needs [92748] first, which isn't here"
+   ]
+  },
+  "92750": {
+   "name": "Detonation at a Distance",
+   "area": "Westfall",
+   "why": [
+    "needs [92748] first, which isn't here"
+   ]
+  },
+  "92751": {
+   "name": "Detonation at a Distance",
+   "area": "Westfall",
+   "why": [
+    "needs [92750] first, which isn't here"
+   ]
+  },
+  "92752": {
+   "name": "Explosive Consultation",
+   "area": "Westfall",
+   "why": [
+    "needs [92749, 92751] first, which isn't here"
+   ]
+  },
+  "92753": {
+   "name": "Destruction in Deadmines",
+   "area": "Westfall",
+   "why": [
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "92754": {
+   "name": "A New Need for Shadow Protection",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92755": {
+   "name": "Mysterious Mysticism",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "people the data has no place for in the old zones: [253096]"
+   ]
+  },
+  "92811": {
+   "name": "Economic Warfare",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92812": {
+   "name": "Economic Warfare",
+   "area": "Desolace",
+   "why": [
+    "people the data has no place for in the old zones: [253140, 253140]"
+   ]
+  },
+  "92814": {
+   "name": "I Need a Tailor",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92817": {
+   "name": "Leather Technique",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92818": {
+   "name": "Big, No, MASSIVE Iron Axes",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92819": {
+   "name": "Destruction in Deadmines",
+   "area": "Westfall",
+   "why": [
+    "objects to use"
+   ]
+  },
+  "92834": {
+   "name": "Avenged Tenfold",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252475, 252475]",
+    "an item to collect from creatures the data has no place for (255658)"
+   ]
+  },
+  "92840": {
+   "name": "Catching Wind",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252475, 252475]",
+    "objects to use"
+   ]
+  },
+  "92841": {
+   "name": "Valley of Bones",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253136]"
+   ]
+  },
+  "92844": {
+   "name": "Mountain of Bones",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253136, 253136]"
+   ]
+  },
+  "92846": {
+   "name": "Outcast Necromancers",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody ends it in the data",
+    "people the data has no place for in the old zones: [253136]"
+   ]
+  },
+  "92847": {
+   "name": "Corrupting Tears",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92849": {
+   "name": "The Missing Scholar",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253284]",
+    "new objects",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "objects to use"
+   ]
+  },
+  "92850": {
+   "name": "The Missing Scholar",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253284, 253285]",
+    "an item to collect from creatures the data has no place for (257107)"
+   ]
+  },
+  "92860": {
+   "name": "In Service of Zephras",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252475, 252383]"
+   ]
+  },
+  "92867": {
+   "name": "Ground to Keep",
+   "area": "Arathi Highlands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92871": {
+   "name": "In Service of Zephras",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 252383]"
+   ]
+  },
+  "92872": {
+   "name": "Dutiful Steps",
+   "area": "Arathi Highlands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92873": {
+   "name": "Proof of Concept",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92880": {
+   "name": "Return to Valanaar",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252378, 252383]"
+   ]
+  },
+  "92881": {
+   "name": "The High Elder's Request",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252383, 252476]"
+   ]
+  },
+  "92893": {
+   "name": "No Mercy for the Weak",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92894": {
+   "name": "Bone Raising",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92910": {
+   "name": "Harvesting the Harvesters",
+   "area": "Westfall",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "92911": {
+   "name": "Harvesting the Harvesters",
+   "area": "Westfall",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "92947": {
+   "name": "Making Our Move",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253844, 253576]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93034": {
+   "name": "Valley of Bones",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253177]"
+   ]
+  },
+  "93035": {
+   "name": "Ravaging Ravagers",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253177, 253177]"
+   ]
+  },
+  "93036": {
+   "name": "Infiltrating the Cult",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 251904]"
+   ]
+  },
+  "93037": {
+   "name": "Outing Outcasts",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253177, 253177]"
+   ]
+  },
+  "93041": {
+   "name": "Facing the Truth",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253177]"
+   ]
+  },
+  "93044": {
+   "name": "A Cleansing Cry",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "93058": {
+   "name": "Saving Our Own",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "people the data has no place for in the old zones: [253177]"
+   ]
+  },
+  "93062": {
+   "name": "Bone Burying",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "people the data has no place for in the old zones: [253177]"
+   ]
+  },
+  "93065": {
+   "name": "Prepare for Battle",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252383, 253844]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93066": {
+   "name": "Bristleback Retreat",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "people the data has no place for in the old zones: [253851]"
+   ]
+  },
+  "93072": {
+   "name": "Long-Term Solutions",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93089": {
+   "name": "What Comes Next",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252476, 252475]"
+   ]
+  },
+  "93090": {
+   "name": "What Comes Next",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252476, 251968]"
+   ]
+  },
+  "93122": {
+   "name": "Checking Things Out",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "people the data has no place for in the old zones: [253177]"
+   ]
+  },
+  "93125": {
+   "name": "Going Home",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93128": {
+   "name": "Khan Jehn",
+   "area": "Desolace",
+   "why": [
+    "people the data has no place for in the old zones: [253177]"
+   ]
+  },
+  "93129": {
+   "name": "Threat of Starvation",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93159": {
+   "name": "The Strange Hermit",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251684, 251684]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93160": {
+   "name": "The Forest's Bounty",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251684, 251684]",
+    "an item to collect that no creature drops in the data (257128)"
+   ]
+  },
+  "93165": {
+   "name": "Mercy Falls on Deaf Ears",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [254151, 254151]",
+    "an item to collect from creatures the data has no place for (258771)"
+   ]
+  },
+  "93172": {
+   "name": "Free the Hollows",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251684, 251684]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93188": {
+   "name": "Return to Orgrul",
+   "area": "Shen'dralas",
+   "why": [
+    "in Shen'dralas, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93196": {
+   "name": "Khan Jehn",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93226": {
+   "name": "Buying Friendship: Magram",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93227": {
+   "name": "Buying Friendship: Gelkis",
+   "area": "Desolace",
+   "why": [
+    "people the data has no place for in the old zones: [253140]"
+   ]
+  },
+  "93317": {
+   "name": "Crab Season",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257006, 257006]",
+    "an item to collect from creatures the data has no place for (257941)"
+   ]
+  },
+  "93318": {
+   "name": "WANTED: Vulgara the Insatiable",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252172]",
+    "new objects",
+    "an item to collect from creatures the data has no place for (257942)"
+   ]
+  },
+  "93319": {
+   "name": "Pilfered Windstones",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251906, 251906]",
+    "an item to collect from creatures the data has no place for (257945)"
+   ]
+  },
+  "93320": {
+   "name": "Tower Defense",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252383, 252378]"
+   ]
+  },
+  "93429": {
+   "name": "Blood of My Blood",
+   "area": "Swamp of Sorrows",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93430": {
+   "name": "Taking the Bait Back",
+   "area": "Swamp of Sorrows",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93459": {
+   "name": "More Al'Aketh Ears",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [254151, 254151]",
+    "an item to collect from creatures the data has no place for (258771)"
+   ]
+  },
+  "93461": {
+   "name": "Welcome to Shen'dar Village",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 251523]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93464": {
+   "name": "The Visiting Mage",
+   "area": "Swamp of Sorrows",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93465": {
+   "name": "Notes on Draenethyst",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect from creatures the data has no place for (258774)"
+   ]
+  },
+  "93552": {
+   "name": "Harvesting Windstones",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251363, 251363]",
+    "an item to collect that no creature drops in the data (258772)"
+   ]
+  },
+  "93585": {
+   "name": "This Light of Mine",
+   "area": "Swamp of Sorrows",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "93663": {
+   "name": "Lost in Transit",
+   "area": "Swamp of Sorrows",
+   "why": [
+    "an item to collect that no creature drops in the data (260452)"
+   ]
+  },
+  "93678": {
+   "name": "Abridged Notes on Draenethyst",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "93680": {
+   "name": "Key to the City",
+   "area": "Alterac Mountains",
+   "why": [
+    "an item to collect that no creature drops in the data (279469)"
+   ]
+  },
+  "93735": {
+   "name": "The Broken Construct",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 256083]"
+   ]
+  },
+  "93736": {
+   "name": "Unwelcome Spirits",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [254344, 254344]",
+    "an item to collect from creatures the data has no place for (262357)"
+   ]
+  },
+  "93737": {
+   "name": "The Broken Construct",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [256083, 256083]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "an item to collect that no creature drops in the data (260881)",
+    "an item to collect that no creature drops in the data (260883)",
+    "an item to collect that no creature drops in the data (260880)"
+   ]
+  },
+  "93738": {
+   "name": "The Broken Construct",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [256083, 251968]"
+   ]
+  },
+  "93739": {
+   "name": "Exploring the Horde",
+   "area": "Orgrimmar",
+   "why": [
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "93740": {
+   "name": "Blood for Blood",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 251968]",
+    "an item to collect from creatures the data has no place for (255658)"
+   ]
+  },
+  "93746": {
+   "name": "A Firm Response",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 251968]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93791": {
+   "name": "Speak with Belann",
+   "area": "Mage",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252373, 256507, 256507]"
+   ]
+  },
+  "93797": {
+   "name": "Boughs in the Wind",
+   "area": "Mage",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [256507, 256507]",
+    "an item to collect that no creature drops in the data (262668)"
+   ]
+  },
+  "93835": {
+   "name": "Confront Lorthuna",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253590, 252475]",
+    "a place to explore (a script)",
+    "special objectives (a script)"
+   ]
+  },
+  "93836": {
+   "name": "The Fate of Zephras",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 252476]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93862": {
+   "name": "Crate Return",
+   "area": "",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (262917)"
+   ]
+  },
+  "93926": {
+   "name": "The Western Watch",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 252155]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93927": {
+   "name": "A Last Request",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252155, 251523]",
+    "creatures to kill the data has no place for in the old zones",
+    "an item to collect that no creature drops in the data (254871)",
+    "an item to collect that no creature drops in the data (263415)",
+    "an item to collect that no creature drops in the data (263418)"
+   ]
+  },
+  "93928": {
+   "name": "Of Mice and Milk",
+   "area": "Westfall",
+   "why": [
+    "the mouse's cookie isn't in the data (a scripted hand-in)"
+   ]
+  },
+  "93948": {
+   "name": "Deliver the Signet",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251523, 252476]"
+   ]
+  },
+  "93949": {
+   "name": "Bugged",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252383, 252383]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "93951": {
+   "name": "A Little Beauty",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251991, 251991]",
+    "an item to collect that no creature drops in the data (263493)"
+   ]
+  },
+  "93958": {
+   "name": "The Inner Sanctum",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253576, 253590]"
+   ]
+  },
+  "93963": {
+   "name": "Exploring the Alliance",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [1748, 1748]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94003": {
+   "name": "The Skybreaker Bulwark",
+   "area": "Warrior",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252377, 252377]",
+    "an item to collect from creatures the data has no place for (263993)"
+   ]
+  },
+  "94004": {
+   "name": "Craftsman's Writ: Elixir of Ogre's Strength",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264011)"
+   ]
+  },
+  "94006": {
+   "name": "The Great Ursera Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252359, 255853]"
+   ]
+  },
+  "94007": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [254084, 252389]"
+   ]
+  },
+  "94013": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252389, 252389]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94050": {
+   "name": "Training the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252389, 254411]"
+   ]
+  },
+  "94212": {
+   "name": "Craftsman's Writ: Elixir of Wisdom",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264012)"
+   ]
+  },
+  "94213": {
+   "name": "Craftsman's Writ: Lesser Mana Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264013)"
+   ]
+  },
+  "94214": {
+   "name": "Craftsman's Writ: Shadow Protection Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264014)"
+   ]
+  },
+  "94215": {
+   "name": "Craftsman's Writ: Free Action Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264015)"
+   ]
+  },
+  "94216": {
+   "name": "Craftsman's Writ: Elixir of Lesser Agility",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264016)"
+   ]
+  },
+  "94217": {
+   "name": "Craftsman's Writ: Lesser Troll's Blood Elixir",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264017)"
+   ]
+  },
+  "94218": {
+   "name": "Craftsman's Writ: Elixir of Defense",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264018)"
+   ]
+  },
+  "94219": {
+   "name": "Craftsman's Writ: Draught of Water Breathing",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264019)"
+   ]
+  },
+  "94220": {
+   "name": "Craftsman's Writ: Pearl-Handled Dagger",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264020)"
+   ]
+  },
+  "94221": {
+   "name": "Craftsman's Writ: Golden Rod",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264021)"
+   ]
+  },
+  "94222": {
+   "name": "Craftsman's Writ: Iridescent Hammer",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264022)"
+   ]
+  },
+  "94223": {
+   "name": "Craftsman's Writ: Silver Skeleton Key",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264023)"
+   ]
+  },
+  "94224": {
+   "name": "Craftsman's Writ: Heavy Bronze Mace",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264024)"
+   ]
+  },
+  "94225": {
+   "name": "Craftsman's Writ: Rough Bronze Leggings",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264025)"
+   ]
+  },
+  "94226": {
+   "name": "Craftsman's Writ: Green Iron Gauntlets",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264026)"
+   ]
+  },
+  "94227": {
+   "name": "Craftsman's Writ: Big Bronze Knife",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264027)"
+   ]
+  },
+  "94228": {
+   "name": "Craftsman's Writ: Green Iron Boots",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264028)"
+   ]
+  },
+  "94229": {
+   "name": "Craftsman's Writ: Ornate Spyglass",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264029)"
+   ]
+  },
+  "94230": {
+   "name": "Craftsman's Writ: Explosive Sheep",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264030)"
+   ]
+  },
+  "94231": {
+   "name": "Craftsman's Writ: Moonsight Rifle",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264031)"
+   ]
+  },
+  "94232": {
+   "name": "Craftsman's Writ: Minor Recombobulator",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264032)"
+   ]
+  },
+  "94233": {
+   "name": "Craftsman's Writ: Practice Lock",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264033)"
+   ]
+  },
+  "94234": {
+   "name": "Craftsman's Writ: Shadow Goggles",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264034)"
+   ]
+  },
+  "94235": {
+   "name": "Craftsman's Writ: Gnomish Universal Remote",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264035)"
+   ]
+  },
+  "94236": {
+   "name": "Craftsman's Writ: Big Bronze Bomb",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264036)"
+   ]
+  },
+  "94237": {
+   "name": "Craftsman's Writ: Crafted Solid Shot",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264037)"
+   ]
+  },
+  "94238": {
+   "name": "Craftsman's Writ: Heavy Leather Ball",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264038)"
+   ]
+  },
+  "94239": {
+   "name": "Craftsman's Writ: Fine Leather Pants",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264039)"
+   ]
+  },
+  "94240": {
+   "name": "Craftsman's Writ: Herbalist's Gloves",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264040)"
+   ]
+  },
+  "94241": {
+   "name": "Craftsman's Writ: Dark Leather Tunic",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264041)"
+   ]
+  },
+  "94242": {
+   "name": "Craftsman's Writ: Pilferer's Gloves",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264042)"
+   ]
+  },
+  "94243": {
+   "name": "Craftsman's Writ: Heavy Quiver",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264043)"
+   ]
+  },
+  "94244": {
+   "name": "Craftsman's Writ: Dark Leather Shoulders",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264044)"
+   ]
+  },
+  "94245": {
+   "name": "Craftsman's Writ: Barbaric Gloves",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264045)"
+   ]
+  },
+  "94246": {
+   "name": "Craftsman's Writ: Red Whelp Gloves",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264046)"
+   ]
+  },
+  "94247": {
+   "name": "Craftsman's Writ: Lesser Wizard's Robe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264047)"
+   ]
+  },
+  "94248": {
+   "name": "Craftsman's Writ: Blue Overalls",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264048)"
+   ]
+  },
+  "94249": {
+   "name": "Craftsman's Writ: Azure Silk Hood",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264049)"
+   ]
+  },
+  "94250": {
+   "name": "Craftsman's Writ: Small Silk Pack",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264050)"
+   ]
+  },
+  "94251": {
+   "name": "Craftsman's Writ: Phoenix Pants",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264051)"
+   ]
+  },
+  "94252": {
+   "name": "Craftsman's Writ: Red Woolen Boots",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264052)"
+   ]
+  },
+  "94253": {
+   "name": "Craftsman's Writ: Colorful Kilt",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264053)"
+   ]
+  },
+  "94254": {
+   "name": "Craftsman's Writ: Greater Adept's Robe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264054)"
+   ]
+  },
+  "94255": {
+   "name": "Craftsman's Writ: Spider Silk Slippers",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264055)"
+   ]
+  },
+  "94256": {
+   "name": "Craftsman's Writ: Frost Protection Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264056)"
+   ]
+  },
+  "94257": {
+   "name": "Craftsman's Writ: Lesser Invisibility Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264057)"
+   ]
+  },
+  "94258": {
+   "name": "Craftsman's Writ: Lesser Stoneshield Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264058)"
+   ]
+  },
+  "94259": {
+   "name": "Craftsman's Writ: Nature Protection Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264059)"
+   ]
+  },
+  "94260": {
+   "name": "Craftsman's Writ: Catseye Draught",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264060)"
+   ]
+  },
+  "94261": {
+   "name": "Craftsman's Writ: Great Rage Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264061)"
+   ]
+  },
+  "94262": {
+   "name": "Craftsman's Writ: Mana Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264062)"
+   ]
+  },
+  "94263": {
+   "name": "Craftsman's Writ: Fire Protection Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264063)"
+   ]
+  },
+  "94264": {
+   "name": "Craftsman's Writ: Shadow Oil",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264064)"
+   ]
+  },
+  "94265": {
+   "name": "Craftsman's Writ: Goblin Rocket Fuel",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264065)"
+   ]
+  },
+  "94266": {
+   "name": "Craftsman's Writ: Elixir of Agility",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264066)"
+   ]
+  },
+  "94267": {
+   "name": "Craftsman's Writ: Wildvine Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264067)"
+   ]
+  },
+  "94268": {
+   "name": "Craftsman's Writ: Steel Plate Helm",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264068)"
+   ]
+  },
+  "94269": {
+   "name": "Craftsman's Writ: Inlaid Mithril Cylinder",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264069)"
+   ]
+  },
+  "94270": {
+   "name": "Craftsman's Writ: Steel Weapon Chain",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264070)"
+   ]
+  },
+  "94271": {
+   "name": "Craftsman's Writ: Ornate Mithril Shoulders",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264071)"
+   ]
+  },
+  "94272": {
+   "name": "Craftsman's Writ: Blue Glittering Axe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264072)"
+   ]
+  },
+  "94273": {
+   "name": "Craftsman's Writ: Moonsteel Broadsword",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264073)"
+   ]
+  },
+  "94274": {
+   "name": "Craftsman's Writ: Golden Scale Coif",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264074)"
+   ]
+  },
+  "94275": {
+   "name": "Craftsman's Writ: Solid Sharpening Stone",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264075)"
+   ]
+  },
+  "94276": {
+   "name": "Craftsman's Writ: Wicked Mithril Blade",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264076)"
+   ]
+  },
+  "94277": {
+   "name": "Craftsman's Writ: Truesilver Rod",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264077)"
+   ]
+  },
+  "94278": {
+   "name": "Craftsman's Writ: Golden Scale Gauntlets",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264078)"
+   ]
+  },
+  "94279": {
+   "name": "Craftsman's Writ: Heavy Mithril Axe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264079)"
+   ]
+  },
+  "94280": {
+   "name": "Craftsman's Writ: Mechanical Dragonling",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264080)"
+   ]
+  },
+  "94281": {
+   "name": "Craftsman's Writ: Advanced Target Dummy",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264081)"
+   ]
+  },
+  "94282": {
+   "name": "Craftsman's Writ: Craftsman's Monocle",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264082)"
+   ]
+  },
+  "94283": {
+   "name": "Craftsman's Writ: Goblin Land Mine",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264083)"
+   ]
+  },
+  "94284": {
+   "name": "Craftsman's Writ: Catseye Ultra Goggles",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264084)"
+   ]
+  },
+  "94285": {
+   "name": "Craftsman's Writ: Unstable Trigger",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264085)"
+   ]
+  },
+  "94286": {
+   "name": "Craftsman's Writ: Flash Bomb",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264086)"
+   ]
+  },
+  "94287": {
+   "name": "Craftsman's Writ: Fire Goggles",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264087)"
+   ]
+  },
+  "94288": {
+   "name": "Craftsman's Writ: Mithril Frag Bomb",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264088)"
+   ]
+  },
+  "94289": {
+   "name": "Craftsman's Writ: Gyromatic Micro-Adjuster",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264089)"
+   ]
+  },
+  "94290": {
+   "name": "Craftsman's Writ: Mechanical Repair Kit",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264090)"
+   ]
+  },
+  "94291": {
+   "name": "Craftsman's Writ: Dark Iron Bomb",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264091)"
+   ]
+  },
+  "94292": {
+   "name": "Craftsman's Writ: Comfortable Leather Hat",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264092)"
+   ]
+  },
+  "94293": {
+   "name": "Craftsman's Writ: Guardian Cloak",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264093)"
+   ]
+  },
+  "94294": {
+   "name": "Craftsman's Writ: Dusky Bracers",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264094)"
+   ]
+  },
+  "94295": {
+   "name": "Craftsman's Writ: Wild Leather Helmet",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264095)"
+   ]
+  },
+  "94296": {
+   "name": "Craftsman's Writ: Wild Leather Shoulders",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264096)"
+   ]
+  },
+  "94297": {
+   "name": "Craftsman's Writ: Quickdraw Quiver",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264097)"
+   ]
+  },
+  "94298": {
+   "name": "Craftsman's Writ: Swift Boots",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264098)"
+   ]
+  },
+  "94299": {
+   "name": "Craftsman's Writ: Nightscape Shoulders",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264099)"
+   ]
+  },
+  "94300": {
+   "name": "Craftsman's Writ: Big Voodoo Mask",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264100)"
+   ]
+  },
+  "94301": {
+   "name": "Craftsman's Writ: Big Voodoo Robe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264101)"
+   ]
+  },
+  "94302": {
+   "name": "Craftsman's Writ: Turtle Scale Breastplate",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264102)"
+   ]
+  },
+  "94303": {
+   "name": "Craftsman's Writ: Thick Leather Ammo Pouch",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264103)"
+   ]
+  },
+  "94304": {
+   "name": "Craftsman's Writ: Mageweave Bag",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264104)"
+   ]
+  },
+  "94305": {
+   "name": "Craftsman's Writ: Shadoweave Gloves",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264105)"
+   ]
+  },
+  "94306": {
+   "name": "Craftsman's Writ: Crimson Silk Robe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264106)"
+   ]
+  },
+  "94307": {
+   "name": "Craftsman's Writ: Shadoweave Robe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264107)"
+   ]
+  },
+  "94308": {
+   "name": "Craftsman's Writ: Enchanted Mageweave Pouch",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264108)"
+   ]
+  },
+  "94309": {
+   "name": "Craftsman's Writ: Star Belt",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264109)"
+   ]
+  },
+  "94310": {
+   "name": "Craftsman's Writ: Black Mageweave Vest",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264110)"
+   ]
+  },
+  "94311": {
+   "name": "Craftsman's Writ: Red Mageweave Pants",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264111)"
+   ]
+  },
+  "94312": {
+   "name": "Craftsman's Writ: Orange Martial Shirt",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264112)"
+   ]
+  },
+  "94313": {
+   "name": "Craftsman's Writ: White Bandit Mask",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264113)"
+   ]
+  },
+  "94314": {
+   "name": "Craftsman's Writ: Cindercloth Robe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264114)"
+   ]
+  },
+  "94315": {
+   "name": "Craftsman's Writ: Earthen Silk Belt",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264115)"
+   ]
+  },
+  "94316": {
+   "name": "Craftsman's Writ: Potion of Demonslaying",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264116)"
+   ]
+  },
+  "94317": {
+   "name": "Craftsman's Writ: Dreamless Sleep Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264117)"
+   ]
+  },
+  "94318": {
+   "name": "Craftsman's Writ: Greater Fire Protection Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264118)"
+   ]
+  },
+  "94319": {
+   "name": "Craftsman's Writ: Draught of Detect Demon",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264119)"
+   ]
+  },
+  "94320": {
+   "name": "Craftsman's Writ: Gift of Arthas",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264120)"
+   ]
+  },
+  "94321": {
+   "name": "Craftsman's Writ: Flask of Chromatic Resistance",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264121)"
+   ]
+  },
+  "94322": {
+   "name": "Craftsman's Writ: Limited Invulnerability Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264122)"
+   ]
+  },
+  "94323": {
+   "name": "Craftsman's Writ: Major Rejuvenation Potion",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264123)"
+   ]
+  },
+  "94324": {
+   "name": "Craftsman's Writ: Distilled Firewater",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264124)",
+    "an item to collect that no creature drops in the data (246948)"
+   ]
+  },
+  "94325": {
+   "name": "Craftsman's Writ: Radiant Circlet",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264125)"
+   ]
+  },
+  "94326": {
+   "name": "Craftsman's Writ: Radiant Belt",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264126)"
+   ]
+  },
+  "94327": {
+   "name": "Craftsman's Writ: Orcish War Leggings",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264127)"
+   ]
+  },
+  "94328": {
+   "name": "Craftsman's Writ: Mithril Spurs",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264128)"
+   ]
+  },
+  "94329": {
+   "name": "Craftsman's Writ: Imperial Plate Chest",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264129)"
+   ]
+  },
+  "94330": {
+   "name": "Craftsman's Writ: Darkrune Gauntlets",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264130)"
+   ]
+  },
+  "94331": {
+   "name": "Craftsman's Writ: Huge Thorium Battleaxe",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264131)"
+   ]
+  },
+  "94332": {
+   "name": "Craftsman's Writ: Arcanite Skeleton Key",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264132)"
+   ]
+  },
+  "94333": {
+   "name": "Craftsman's Writ: Ebon Shiv",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264133)"
+   ]
+  },
+  "94334": {
+   "name": "Craftsman's Writ: Masterwork Target Dummy",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264134)"
+   ]
+  },
+  "94335": {
+   "name": "Craftsman's Writ: Green Lens",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264135)"
+   ]
+  },
+  "94336": {
+   "name": "Craftsman's Writ: Lifelike Mechanical Toad",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264136)"
+   ]
+  },
+  "94337": {
+   "name": "Craftsman's Writ: Gnomish Alarm-O-Bot",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264137)"
+   ]
+  },
+  "94338": {
+   "name": "Craftsman's Writ: Goblin Jumper Cables XL",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264138)"
+   ]
+  },
+  "94339": {
+   "name": "Craftsman's Writ: Field Repair Bot 74A",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264139)"
+   ]
+  },
+  "94340": {
+   "name": "Craftsman's Writ: Truesilver Transformer",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264140)"
+   ]
+  },
+  "94341": {
+   "name": "Craftsman's Writ: Sniper Scope",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264141)"
+   ]
+  },
+  "94342": {
+   "name": "Craftsman's Writ: Tranquil Mechanical Yeti",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264142)"
+   ]
+  },
+  "94343": {
+   "name": "Craftsman's Writ: Wicked Leather Pants",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264143)"
+   ]
+  },
+  "94344": {
+   "name": "Craftsman's Writ: Gordok Ogre Suit",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264144)"
+   ]
+  },
+  "94345": {
+   "name": "Craftsman's Writ: Volcanic Breastplate",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264145)"
+   ]
+  },
+  "94346": {
+   "name": "Craftsman's Writ: Runic Leather Headband",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264146)"
+   ]
+  },
+  "94347": {
+   "name": "Craftsman's Writ: Wicked Leather Bracers",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264147)"
+   ]
+  },
+  "94348": {
+   "name": "Craftsman's Writ: Chimeric Vest",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264148)"
+   ]
+  },
+  "94349": {
+   "name": "Craftsman's Writ: Heavy Scorpid Helm",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264149)"
+   ]
+  },
+  "94350": {
+   "name": "Craftsman's Writ: Runic Leather Bracers",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264150)"
+   ]
+  },
+  "94351": {
+   "name": "Craftsman's Writ: Frostsaber Boots",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264151)"
+   ]
+  },
+  "94352": {
+   "name": "Craftsman's Writ: Wizardweave Turban",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264152)"
+   ]
+  },
+  "94353": {
+   "name": "Craftsman's Writ: Runecloth Bag",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264153)"
+   ]
+  },
+  "94354": {
+   "name": "Craftsman's Writ: Runecloth Boots",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264154)"
+   ]
+  },
+  "94355": {
+   "name": "Craftsman's Writ: Tuxedo Jacket",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264155)"
+   ]
+  },
+  "94356": {
+   "name": "Craftsman's Writ: Felcloth Boots",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264156)"
+   ]
+  },
+  "94357": {
+   "name": "Craftsman's Writ: Cenarion Herb Bag",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264157)"
+   ]
+  },
+  "94358": {
+   "name": "Craftsman's Writ: Shadoweave Mask",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264158)"
+   ]
+  },
+  "94359": {
+   "name": "Craftsman's Writ: Ghostweave Vest",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264159)"
+   ]
+  },
+  "94360": {
+   "name": "Craftsman's Writ: Soul Pouch",
+   "area": "Crafting",
+   "why": [
+    "a Craftsman's Writ (Forever's crafting orders)",
+    "nobody ends it in the data",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (264160)"
+   ]
+  },
+  "94369": {
+   "name": "The Fate of Zephras",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252475, 252476]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94373": {
+   "name": "Call of Earth",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94374": {
+   "name": "Call of Earth",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94375": {
+   "name": "Call of Earth",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94411": {
+   "name": "Meddlesome Mages",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251902, 251902]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94413": {
+   "name": "A Magical Affront",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251903, 251903]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94414": {
+   "name": "The Anchors of Zephras",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257554, 257554]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94427": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94434": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94435": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94436": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94438": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94440": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94441": {
+   "name": "A Lesson in Divinity",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94449": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94465": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94466": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94467": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94468": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94472": {
+   "name": "Earth Sapta",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94473": {
+   "name": "Fire Sapta",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94484": {
+   "name": "Unnerving Silence",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252359, 257944]"
+   ]
+  },
+  "94485": {
+   "name": "Tears of the Lady",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 257944]",
+    "an item to collect that no creature drops in the data (265105)"
+   ]
+  },
+  "94486": {
+   "name": "Feathers for Binding",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 257944]",
+    "an item to collect from creatures the data has no place for (265140)"
+   ]
+  },
+  "94487": {
+   "name": "Unwanted and Unworthy",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 257944]",
+    "an item to collect from creatures the data has no place for (265141)"
+   ]
+  },
+  "94488": {
+   "name": "The Ties That Bind",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 257944]",
+    "an item to collect from creatures the data has no place for (265475)"
+   ]
+  },
+  "94489": {
+   "name": "The Wounds of Betrayal",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 257944]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "kill credit (a script)"
+   ]
+  },
+  "94490": {
+   "name": "Ripped Missive",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944]",
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "94491": {
+   "name": "The Fate of the Den",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 252359]"
+   ]
+  },
+  "94493": {
+   "name": "A Sacrifice in Vain",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [257944, 257944]"
+   ]
+  },
+  "94494": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94495": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94497": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (265734)"
+   ]
+  },
+  "94499": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (265748)"
+   ]
+  },
+  "94500": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (265773)"
+   ]
+  },
+  "94501": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94502": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "new objects"
+   ]
+  },
+  "94503": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [5895]",
+    "new objects"
+   ]
+  },
+  "94505": {
+   "name": "Call of Water",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [5895]"
+   ]
+  },
+  "94568": {
+   "name": "The Cult's True Plans",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252476, 252476]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94616": {
+   "name": "Water Sapta",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94638": {
+   "name": "Strength and Mercy",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [255853, 255853]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94773": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94774": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94775": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94776": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94777": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94778": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94779": {
+   "name": "Divine Grace",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94789": {
+   "name": "Call of Air",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94792": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "94793": {
+   "name": "Training the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94817": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94818": {
+   "name": "Contingency Plan",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94819": {
+   "name": "Contingency Plan",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94820": {
+   "name": "Contingency Plan",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody ends it in the data"
+   ]
+  },
+  "94821": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94822": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data"
+   ]
+  },
+  "94823": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94824": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94825": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94826": {
+   "name": "Confounding Flash",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94863": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "94864": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "94873": {
+   "name": "Buying Friendship: Gelkis",
+   "area": "Desolace",
+   "why": [
+    "people the data has no place for in the old zones: [253140]"
+   ]
+  },
+  "94896": {
+   "name": "Aid For The Refugees",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [259012, 259012]",
+    "an item to collect that no creature drops in the data (266433)"
+   ]
+  },
+  "94897": {
+   "name": "The Fate of a Loved One",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [259012, 259012]",
+    "an item to collect from creatures the data has no place for (266434)"
+   ]
+  },
+  "94911": {
+   "name": "Child of Nature",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [259118]"
+   ]
+  },
+  "94912": {
+   "name": "Child of Nature",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94913": {
+   "name": "Moonglade",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94914": {
+   "name": "Moonglade",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94946": {
+   "name": "The Magical City of Dalaran",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [252475]"
+   ]
+  },
+  "94947": {
+   "name": "Welcome to Azeroth",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [1748]",
+    "objects to use"
+   ]
+  },
+  "94978": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252389, 252389]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "94979": {
+   "name": "Taming the Beast",
+   "area": "Hunter",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252389, 252389]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "95034": {
+   "name": "The Debt",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95036": {
+   "name": "A Moon-Kissed Blade",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (267454)",
+    "an item to collect that no creature drops in the data (267361)",
+    "an item to collect that no creature drops in the data (272448)"
+   ]
+  },
+  "95041": {
+   "name": "Data Hoarders",
+   "area": "Dun Morogh",
+   "why": [
+    "an item to collect that no creature drops in the data (267413)"
+   ]
+  },
+  "95042": {
+   "name": "Seeking the Kor Gem",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95065": {
+   "name": "Fishin' Time",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [267118, 267118]"
+   ]
+  },
+  "95111": {
+   "name": "An Underrated Talent",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95125": {
+   "name": "Ott's Masterwork",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95126": {
+   "name": "The Moonsilver Blade",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95140": {
+   "name": "Old Fire-Eye",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95161": {
+   "name": "Remember That I Love You",
+   "area": "Riverglades",
+   "why": [
+    "in Riverglades, one of Forever's new zones and dungeons"
+   ]
+  },
+  "95189": {
+   "name": "Crest of Lordaeron",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "95195": {
+   "name": "Bloodied Insignia",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "95204": {
+   "name": "Crest of Lordaeron",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "95216": {
+   "name": "The New Plague",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (275443)"
+   ]
+  },
+  "95217": {
+   "name": "The Quarry's Smith",
+   "area": "Dun Morogh",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "95250": {
+   "name": "Abominable Creatures",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect from creatures the data has no place for (268518)"
+   ]
+  },
+  "95314": {
+   "name": "That Shadowvale Green Elixir",
+   "area": "Tirisfal Glades",
+   "why": [
+    "an item to collect that no creature drops in the data (268801)"
+   ]
+  },
+  "95349": {
+   "name": "The Earthen Ring",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [251968, 259119]"
+   ]
+  },
+  "95350": {
+   "name": "Welcome to Azeroth",
+   "area": "Orgrimmar",
+   "why": [
+    "people the data has no place for in the old zones: [259119]"
+   ]
+  },
+  "95384": {
+   "name": "Partial Mystical Notes",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95507": {
+   "name": "Vrang's Game",
+   "area": "The Barrens",
+   "why": [
+    "an item to collect that no creature drops in the data (269719)"
+   ]
+  },
+  "95534": {
+   "name": "Strahnbrad Mystery",
+   "area": "Alterac Mountains",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "95646": {
+   "name": "Horrors in the Highland",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons"
+   ]
+  },
+  "95647": {
+   "name": "Lost in the Thicket Things",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "nobody ends it in the data"
+   ]
+  },
+  "95663": {
+   "name": "Dragonmaw Rumors",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [13155]"
+   ]
+  },
+  "95664": {
+   "name": "Elder Knowledge",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect from creatures the data has no place for (270866)"
+   ]
+  },
+  "95682": {
+   "name": "Open the Maw",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [13155, 13155]"
+   ]
+  },
+  "95697": {
+   "name": "Changing Tastes",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (271100)"
+   ]
+  },
+  "95737": {
+   "name": "Seeking Caitlin",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "leads to Excavation Site: Wetlands, a new dungeon"
+   ]
+  },
+  "95748": {
+   "name": "The Gurubashi Legends of Old",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95770": {
+   "name": "Locating the Lost City",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95772": {
+   "name": "Songblade Search",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "nobody ends it in the data"
+   ]
+  },
+  "95773": {
+   "name": "Enemies in the Water",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95775": {
+   "name": "The Drowned City",
+   "area": "",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (270308)",
+    "an item to collect that no creature drops in the data (270309)",
+    "an item to collect that no creature drops in the data (270310)",
+    "an item to collect that no creature drops in the data (270311)"
+   ]
+  },
+  "95776": {
+   "name": "The Only Good Brinescale...",
+   "area": "",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95795": {
+   "name": "Fallen in the Fen",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data"
+   ]
+  },
+  "95803": {
+   "name": "A Token of Good Faith",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95805": {
+   "name": "Grace of An'she and Mu'sha",
+   "area": "Mulgore",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95809": {
+   "name": "Heartwoven",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data"
+   ]
+  },
+  "95810": {
+   "name": "Lost Relic Carry",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect from creatures the data has no place for (270865)"
+   ]
+  },
+  "95816": {
+   "name": "Sign Me Up!",
+   "area": "Redridge Mountains",
+   "why": [
+    "people the data has no place for in the old zones: [256391]",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (270897)"
+   ]
+  },
+  "95817": {
+   "name": "Rotgath Stonebeard",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "95819": {
+   "name": "Sign Me Up!",
+   "area": "The Barrens",
+   "why": [
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (270897)"
+   ]
+  },
+  "95883": {
+   "name": "The Tortured Soul",
+   "area": "Silverpine Forest",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95884": {
+   "name": "The Offering Stone",
+   "area": "Silverpine Forest",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95885": {
+   "name": "The Offering of Blood",
+   "area": "Silverpine Forest",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95998": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "objects to use"
+   ]
+  },
+  "95999": {
+   "name": "WANTED: Incinerator Gar'im",
+   "area": "Redridge Mountains",
+   "why": [
+    "new objects",
+    "an item to collect from creatures the data has no place for (271872)"
+   ]
+  },
+  "96016": {
+   "name": "The Tempest's Weapons",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "96031": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96044": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96045": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96046": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96047": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96050": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96055": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96056": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96057": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96058": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96059": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96101": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 263664]",
+    "objects to use"
+   ]
+  },
+  "96102": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "96130": {
+   "name": "Chakuyak",
+   "area": "Mulgore",
+   "why": [
+    "an item to collect from creatures the data has no place for (270302)"
+   ]
+  },
+  "96135": {
+   "name": "Heed My Call",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "96136": {
+   "name": "Call of Air",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "96139": {
+   "name": "The Valor Family",
+   "area": "Duskwood",
+   "why": [
+    "an item to collect that no creature drops in the data (281046)"
+   ]
+  },
+  "96204": {
+   "name": "The Windshaper's Wrath",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "96222": {
+   "name": "Khan Hratha",
+   "area": "Desolace",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "96241": {
+   "name": "Talkin' bout Toxins, Mon",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [264074, 264074]",
+    "an item to collect from creatures the data has no place for (273001)"
+   ]
+  },
+  "96243": {
+   "name": "Call of Earth",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "96259": {
+   "name": "Defending the Dead",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [259118, 259118]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "96260": {
+   "name": "Stronger than Steel",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [264072, 264072]",
+    "an item to collect from creatures the data has no place for (273181)"
+   ]
+  },
+  "96261": {
+   "name": "The Broodmother",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [259118, 259118]"
+   ]
+  },
+  "96264": {
+   "name": "Elemental Aid",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "96294": {
+   "name": "A Darker Truth",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [259118]"
+   ]
+  },
+  "96339": {
+   "name": "Legacy Reward: Replica Ironforge Air Rifle",
+   "area": "The Barrens",
+   "why": [
+    "not a quest to play (Legacy Reward: Replica Ironforge Air Rifle)"
+   ]
+  },
+  "96383": {
+   "name": "Legacy Reward: Spectral Bear Cub",
+   "area": "The Barrens",
+   "why": [
+    "not a quest to play (Legacy Reward: Spectral Bear Cub)"
+   ]
+  },
+  "96390": {
+   "name": "Nip 'Em in the Bud",
+   "area": "Dun Morogh",
+   "why": [
+    "needs [96392] first, which isn't here"
+   ]
+  },
+  "96392": {
+   "name": "Farsen's Watch",
+   "area": "Dun Morogh",
+   "why": [
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96393": {
+   "name": "Old Ironforge Incursion",
+   "area": "The Hall of Thanes",
+   "why": [
+    "in The Hall of Thanes, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (274286)"
+   ]
+  },
+  "96394": {
+   "name": "The Restless Dead",
+   "area": "The Hall of Thanes",
+   "why": [
+    "in The Hall of Thanes, one of Forever's new zones and dungeons",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "96395": {
+   "name": "An Ancient Grudge",
+   "area": "The Hall of Thanes",
+   "why": [
+    "in The Hall of Thanes, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "96403": {
+   "name": "Important Heirlooms",
+   "area": "The Hall of Thanes",
+   "why": [
+    "in The Hall of Thanes, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (274289)"
+   ]
+  },
+  "96604": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "objects to use"
+   ]
+  },
+  "96605": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810, 265810]",
+    "objects to use"
+   ]
+  },
+  "96606": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "objects to use"
+   ]
+  },
+  "96607": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "objects to use"
+   ]
+  },
+  "96608": {
+   "name": "The Great Outdoors",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "objects to use"
+   ]
+  },
+  "96626": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96627": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession"
+   ]
+  },
+  "96628": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession"
+   ]
+  },
+  "96629": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96630": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "new objects"
+   ]
+  },
+  "96634": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96638": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [251366, 263664]"
+   ]
+  },
+  "96646": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 251905]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "96652": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "new objects"
+   ]
+  },
+  "96655": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96656": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession"
+   ]
+  },
+  "96658": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96659": {
+   "name": "The Adventurer",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]"
+   ]
+  },
+  "96661": {
+   "name": "Camping 101: Cooking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "96774": {
+   "name": "Ancient Gurubashi Idol",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [264074, 264074]",
+    "an item to collect that no creature drops in the data (276894)"
+   ]
+  },
+  "96779": {
+   "name": "Syndicate Sabotage",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "96781": {
+   "name": "What's the Big Idea?",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (275482)"
+   ]
+  },
+  "96782": {
+   "name": "Covert Extraction",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "an item to collect that no creature drops in the data (275635)",
+    "an item to collect that no creature drops in the data (275636)"
+   ]
+  },
+  "96783": {
+   "name": "A Way In",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "new objects"
+   ]
+  },
+  "96784": {
+   "name": "Master of Disguise",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [266847]",
+    "new objects"
+   ]
+  },
+  "96785": {
+   "name": "Ain't No Telling",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "people the data has no place for in the old zones: [266847]",
+    "an item to collect that no creature drops in the data (275709)"
+   ]
+  },
+  "96786": {
+   "name": "The Syndicate Sting",
+   "area": "Rogue",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "an item to collect that no creature drops in the data (275882)",
+    "an item to collect that no creature drops in the data (275706)"
+   ]
+  },
+  "96800": {
+   "name": "Past Due",
+   "area": "",
+   "why": [
+    "an item to collect that no creature drops in the data (273169)"
+   ]
+  },
+  "96822": {
+   "name": "For Honor",
+   "area": "Durotar",
+   "why": [
+    "an item to collect that no creature drops in the data (275713)",
+    "an item to collect that no creature drops in the data (275716)",
+    "an item to collect that no creature drops in the data (275717)"
+   ]
+  },
+  "96825": {
+   "name": "This Fruit Could Bite Back",
+   "area": "Durotar",
+   "why": [
+    "an item to collect that no creature drops in the data (275718)"
+   ]
+  },
+  "96873": {
+   "name": "A Pain in the Neck",
+   "area": "Durotar",
+   "why": [
+    "an item to collect that no creature drops in the data (247884)",
+    "a profession requirement"
+   ]
+  },
+  "96874": {
+   "name": "This Is Spinal Axe",
+   "area": "Durotar",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "96875": {
+   "name": "Beasts of Thunder Ridge",
+   "area": "Durotar",
+   "why": [
+    "a profession requirement"
+   ]
+  },
+  "96984": {
+   "name": "Heart of Disruption",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (251961)"
+   ]
+  },
+  "96986": {
+   "name": "The Grave Knight",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "96987": {
+   "name": "Opportunistic Education",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (275996)"
+   ]
+  },
+  "96988": {
+   "name": "Source of Power",
+   "area": "City of Dalaran",
+   "why": [
+    "in City of Dalaran, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (275997)"
+   ]
+  },
+  "97047": {
+   "name": "The Cook in the Cage",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (216617)"
+   ]
+  },
+  "97048": {
+   "name": "Returning to Port",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97065": {
+   "name": "Tip the Scales - Keefer's Angelfish",
+   "area": "Fishing",
+   "why": [
+    "Forever's fishing contest"
+   ]
+  },
+  "97066": {
+   "name": "Tip the Scales - Brownell's Blue Striped Racer",
+   "area": "Fishing",
+   "why": [
+    "Forever's fishing contest"
+   ]
+  },
+  "97067": {
+   "name": "Tip the Scales - Dezian Queenfish",
+   "area": "Fishing",
+   "why": [
+    "Forever's fishing contest"
+   ]
+  },
+  "97220": {
+   "name": "Philmor's Favor",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [268511]"
+   ]
+  },
+  "97222": {
+   "name": "Gatehouse Goods",
+   "area": "Stormwind City",
+   "why": [
+    "objects to use"
+   ]
+  },
+  "97225": {
+   "name": "Forgotten Loa Idols",
+   "area": "Durotar",
+   "why": [
+    "an item to collect that no creature drops in the data (277135)"
+   ]
+  },
+  "97234": {
+   "name": "Reading Room",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [268568]"
+   ]
+  },
+  "97237": {
+   "name": "Shelf Picked",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [268568]",
+    "an item to collect that no creature drops in the data (277196)",
+    "an item to collect that no creature drops in the data (277194)",
+    "an item to collect that no creature drops in the data (277195)",
+    "an item to collect that no creature drops in the data (277197)"
+   ]
+  },
+  "97242": {
+   "name": "Yelmak's Medley",
+   "area": "Orgrimmar",
+   "why": [
+    "an item to collect that no creature drops in the data (277278)",
+    "an item to collect that no creature drops in the data (277279)"
+   ]
+  },
+  "97243": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [252382, 254082, 268592]"
+   ]
+  },
+  "97244": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [268592, 268592]",
+    "an item to collect from creatures the data has no place for (277267)"
+   ]
+  },
+  "97245": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [268592, 268592]",
+    "an item to collect from creatures the data has no place for (277269)",
+    "special objectives (a script)"
+   ]
+  },
+  "97253": {
+   "name": "Parts and Pieces",
+   "area": "The Barrens",
+   "why": [
+    "an item to collect that no creature drops in the data (277331)"
+   ]
+  },
+  "97257": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [268592, 252382]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "97263": {
+   "name": "Your Package Has Arrived",
+   "area": "Ironforge",
+   "why": [
+    "new objects"
+   ]
+  },
+  "97265": {
+   "name": "Hate the Hatefury",
+   "area": "Desolace",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "97277": {
+   "name": "Grund and Gozwin",
+   "area": "Dun Morogh",
+   "why": [
+    "people the data has no place for in the old zones: [2756, 2756]",
+    "an item to collect that no creature drops in the data (277976)"
+   ]
+  },
+  "97279": {
+   "name": "Wayward Weapons",
+   "area": "Durotar",
+   "why": [
+    "an item to collect that no creature drops in the data (277653)"
+   ]
+  },
+  "97284": {
+   "name": "Vahlarriel's Vengeance",
+   "area": "Desolace",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97286": {
+   "name": "Research Access",
+   "area": "Mage",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "people the data has no place for in the old zones: [211033, 211033]"
+   ]
+  },
+  "97288": {
+   "name": "Unending Torment",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "97289": {
+   "name": "Unending Torment",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons"
+   ]
+  },
+  "97291": {
+   "name": "Unending Torment",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (281246)",
+    "an item to collect that no creature drops in the data (281300)"
+   ]
+  },
+  "97292": {
+   "name": "Unending Torment",
+   "area": "Ruins of Lordaeron",
+   "why": [
+    "in Ruins of Lordaeron, one of Forever's new zones and dungeons"
+   ]
+  },
+  "97326": {
+   "name": "Rocks to Rests",
+   "area": "Orgrimmar",
+   "why": [
+    "an item to collect that no creature drops in the data (277952)"
+   ]
+  },
+  "97328": {
+   "name": "Anything of Value",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody ends it in the data",
+    "new objects",
+    "an item to collect that no creature drops in the data (277953)"
+   ]
+  },
+  "97329": {
+   "name": "Where's the Key?",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97331": {
+   "name": "Zimmix's Great Escape",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97420": {
+   "name": "Reduce, Reuse, Reconcile",
+   "area": "Stranglethorn Vale",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97485": {
+   "name": "Traditions of the Bluff",
+   "area": "Thunder Bluff",
+   "why": [
+    "objects to use",
+    "an item to collect that no creature drops in the data (278078)"
+   ]
+  },
+  "97538": {
+   "name": "Pigments for Paints",
+   "area": "Stonetalon Mountains",
+   "why": [
+    "an item to collect that no creature drops in the data (278201)"
+   ]
+  },
+  "97539": {
+   "name": "Silky Sutures",
+   "area": "Arathi Highlands",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "97583": {
+   "name": "WRIGGLE.",
+   "area": "Special",
+   "why": [
+    "not a quest to play",
+    "an item to collect that no creature drops in the data (278265)"
+   ]
+  },
+  "97899": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97900": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97901": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97902": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97903": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97904": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97905": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97906": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97907": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97908": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97915": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97916": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97917": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97918": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97919": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97920": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97921": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97922": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97923": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97924": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97925": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97927": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97928": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97929": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "nobody ends it in the data",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97930": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97931": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97932": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97933": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97934": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97935": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97936": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97937": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [265810]",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97938": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97939": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "nobody ends it in the data",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97940": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97941": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97942": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97943": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97944": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97946": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97948": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97949": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97950": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97951": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97952": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97953": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97954": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97955": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97956": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97957": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97958": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97959": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97960": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97961": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "97963": {
+   "name": "Camping 101: Alchemy",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 257019]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97964": {
+   "name": "Camping 101: Blacksmithing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 251913]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97965": {
+   "name": "Camping 101: First Aid",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 257018]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97967": {
+   "name": "Camping 101: Fishing",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 251992]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97968": {
+   "name": "Camping 101: Herbalism",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 254345]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97969": {
+   "name": "Camping 101: Leatherworking",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 251993]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97970": {
+   "name": "Camping 101: Mining",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 257022]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97971": {
+   "name": "Camping 101: Skinning",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 257024]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97972": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 251991]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97973": {
+   "name": "Camping 101: Tailoring",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 251991]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "97977": {
+   "name": "Nature's Call",
+   "area": "Teldrassil",
+   "why": [
+    "an item to collect that no creature drops in the data (279082)"
+   ]
+  },
+  "97979": {
+   "name": "The Goddess Provides",
+   "area": "Night Elf",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "a spell to cast (a script)"
+   ]
+  },
+  "98021": {
+   "name": "Journey to Sentinel Hill",
+   "area": "Westfall",
+   "why": [
+    "people the data has no place for in the old zones: [1748]"
+   ]
+  },
+  "98024": {
+   "name": "Journey to the Crossroads",
+   "area": "The Barrens",
+   "why": [
+    "needs [95350] first, which isn't here"
+   ]
+  },
+  "98027": {
+   "name": "Gleaming Crescent Necklace",
+   "area": "Ashenvale",
+   "why": [
+    "new objects"
+   ]
+  },
+  "98067": {
+   "name": "Eyes of the Sentinels",
+   "area": "Darnassus",
+   "why": [
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "98069": {
+   "name": "Stolen Freewind Supplies",
+   "area": "Thousand Needles",
+   "why": [
+    "an item to collect that no creature drops in the data (279383)"
+   ]
+  },
+  "98071": {
+   "name": "Brewer's Trade",
+   "area": "Hillsbrad Foothills",
+   "why": [
+    "its objective (the hops from Dun Garok) isn't in the data"
+   ]
+  },
+  "98093": {
+   "name": "Field to Clear",
+   "area": "The Barrens",
+   "why": [
+    "people the data has no place for in the old zones: [14242, 14242]"
+   ]
+  },
+  "98156": {
+   "name": "Packaged Pristine Pelts",
+   "area": "Thousand Needles",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "98190": {
+   "name": "A Friend of the Family",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [1748]"
+   ]
+  },
+  "98191": {
+   "name": "A Friend of the Family",
+   "area": "Stormwind City",
+   "why": [
+    "people the data has no place for in the old zones: [1748]"
+   ]
+  },
+  "98197": {
+   "name": "Spoils of War",
+   "area": "Wetlands",
+   "why": [
+    "an item to collect that no creature drops in the data (279821)",
+    "an item to collect that no creature drops in the data (279822)"
+   ]
+  },
+  "98208": {
+   "name": "Bloom of the Heavens",
+   "area": "Wetlands",
+   "why": [
+    "an item to collect that no creature drops in the data (279915)"
+   ]
+  },
+  "98221": {
+   "name": "From the Ashes",
+   "area": "Wetlands",
+   "why": [
+    "its objective (the attack plans to destroy) isn't in the data"
+   ]
+  },
+  "98223": {
+   "name": "Old Habits",
+   "area": "Wetlands",
+   "why": [
+    "new objects"
+   ]
+  },
+  "98246": {
+   "name": "Trying Times",
+   "area": "Wetlands",
+   "why": [
+    "an item to collect that no creature drops in the data (280132)"
+   ]
+  },
+  "98247": {
+   "name": "Shipping Label",
+   "area": "Redridge Mountains",
+   "why": [
+    "people the data has no place for in the old zones: [256390]",
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (280179)"
+   ]
+  },
+  "98248": {
+   "name": "Shipping Label",
+   "area": "Redridge Mountains",
+   "why": [
+    "starts from an item nothing in the old zones drops",
+    "an item to collect that no creature drops in the data (280180)"
+   ]
+  },
+  "98284": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 257020]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "98285": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [251684, 251684]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "98286": {
+   "name": "Camping 101: Enchanting",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "people the data has no place for in the old zones: [263664, 257020]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones",
+    "a profession requirement"
+   ]
+  },
+  "98287": {
+   "name": "Camping 101: Engineering",
+   "area": "Camping",
+   "why": [
+    "Forever's Camping profession",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an objective done by an event or a talk (a script)",
+    "a profession requirement"
+   ]
+  },
+  "98293": {
+   "name": "Forced Disarmament",
+   "area": "Wetlands",
+   "why": [
+    "new objects",
+    "an item to collect that no creature drops in the data (280369)"
+   ]
+  },
+  "98319": {
+   "name": "Secure the Mountain",
+   "area": "Dun Morogh",
+   "why": [
+    "an objective done by an event or a talk (a script)"
+   ]
+  },
+  "98321": {
+   "name": "Flintfire's Shipment",
+   "area": "Dun Morogh",
+   "why": [
+    "an item to collect that no creature drops in the data (280413)"
+   ]
+  },
+  "98323": {
+   "name": "Secure the Mountain",
+   "area": "Dun Morogh",
+   "why": [
+    "needs [98319] first, which isn't here"
+   ]
+  },
+  "98338": {
+   "name": "REUSE ME",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "98340": {
+   "name": "The Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98341": {
+   "name": "The Great Windborne Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98342": {
+   "name": "The Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (280502)",
+    "an item to collect that no creature drops in the data (280679)",
+    "an item to collect that no creature drops in the data (280680)"
+   ]
+  },
+  "98362": {
+   "name": "To Thunder Bluff",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98372": {
+   "name": "An Unfortunate End",
+   "area": "",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "98386": {
+   "name": "Alther's Mill",
+   "area": "Redridge Mountains",
+   "why": [
+    "objects to use",
+    "kill credit (a script)"
+   ]
+  },
+  "98387": {
+   "name": "Blackrock Blockade",
+   "area": "Redridge Mountains",
+   "why": [
+    "an item to collect that no creature drops in the data (280841)",
+    "an item to collect that no creature drops in the data (280839)"
+   ]
+  },
+  "98389": {
+   "name": "A Light in the Darkness",
+   "area": "Tirisfal Glades",
+   "why": [
+    "kill credit (a script)"
+   ]
+  },
+  "98393": {
+   "name": "The Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98394": {
+   "name": "The Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98396": {
+   "name": "The Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (280502)",
+    "an item to collect that no creature drops in the data (280679)",
+    "an item to collect that no creature drops in the data (280680)"
+   ]
+  },
+  "98397": {
+   "name": "To Darnassus",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98398": {
+   "name": "The Oracle Tree",
+   "area": "Teldrassil",
+   "why": [
+    "new objects"
+   ]
+  },
+  "98404": {
+   "name": "The Great Windborne Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "an item to collect that no creature drops in the data (280502)",
+    "an item to collect that no creature drops in the data (280679)",
+    "an item to collect that no creature drops in the data (280680)"
+   ]
+  },
+  "98405": {
+   "name": "The Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98417": {
+   "name": "Vengeful Trail",
+   "area": "Ashenvale",
+   "why": [
+    "an item to collect that no creature drops in the data (281014)"
+   ]
+  },
+  "98423": {
+   "name": "The Treaty of Understanding",
+   "area": "Dun Morogh",
+   "why": [
+    "starts from an item nothing in the old zones drops"
+   ]
+  },
+  "98424": {
+   "name": "Fizsprocket's Notes",
+   "area": "Mulgore",
+   "why": [
+    "an item to collect that no creature drops in the data (281035)",
+    "an item to collect that no creature drops in the data (281036)",
+    "an item to collect that no creature drops in the data (281037)"
+   ]
+  },
+  "98427": {
+   "name": "Ceasing Operations",
+   "area": "Mulgore",
+   "why": [
+    "an item to collect from creatures the data has no place for (281048)"
+   ]
+  },
+  "98430": {
+   "name": "The Longwalkers",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [272203]",
+    "a place to explore (a script)"
+   ]
+  },
+  "98471": {
+   "name": "Message from the Supreme Magister",
+   "area": "Invasion",
+   "why": [
+    "Forever's invasions",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98512": {
+   "name": "Al'Aketh Assassins",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [273017, 273017]",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  },
+  "98517": {
+   "name": "Call of Fire",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98574": {
+   "name": "Hallowed Memorandum",
+   "area": "Priest",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98575": {
+   "name": "Tainted Tablet",
+   "area": "Warlock",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98576": {
+   "name": "Glyphic Parchment",
+   "area": "Mage",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98581": {
+   "name": "Archaic Rune",
+   "area": "Shaman",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98601": {
+   "name": "A Difficult Path",
+   "area": "Paladin",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98731": {
+   "name": "Blessings of the Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98738": {
+   "name": "Blessings of the Great Windborne Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98739": {
+   "name": "Blessings of the Great Cat Spirit",
+   "area": "Druid",
+   "why": [
+    "a class or race quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98815": {
+   "name": "Highland Hides",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (284845)"
+   ]
+  },
+  "98823": {
+   "name": "Earthen Echo",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [259118]"
+   ]
+  },
+  "98824": {
+   "name": "Prehistoric Prism",
+   "area": "Excavation Site: Wetlands",
+   "why": [
+    "in Excavation Site: Wetlands, one of Forever's new zones and dungeons",
+    "an item to collect from creatures the data has no place for (270865)"
+   ]
+  },
+  "98887": {
+   "name": "Conflict at Darkspear Islands",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98888": {
+   "name": "Conflict at Darkspear Islands",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98889": {
+   "name": "Conflict at Darkspear Islands",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98891": {
+   "name": "Conflict at Darkspear Islands",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98893": {
+   "name": "Conflict at Darkspear Islands",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98895": {
+   "name": "Darkspear Islands Clash",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98896": {
+   "name": "Darkspear Islands Clash",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98897": {
+   "name": "Darkspear Islands Clash",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98899": {
+   "name": "Darkspear Islands Clash",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98901": {
+   "name": "Darkspear Islands Clash",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect that no creature drops in the data (274895)"
+   ]
+  },
+  "98903": {
+   "name": "The Battle for Darkspear Islands!",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [275273, 275273]"
+   ]
+  },
+  "98904": {
+   "name": "The Battle for Darkspear Islands!",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "98905": {
+   "name": "The Battle for Darkspear Islands!",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "98906": {
+   "name": "The Battle for Darkspear Islands!",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons"
+   ]
+  },
+  "98907": {
+   "name": "The Battle for Darkspear Islands!",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "98908": {
+   "name": "The Battle for Darkspear Islands!",
+   "area": null,
+   "why": [
+    "foreverchanges.pro has no page for it (its text)"
+   ]
+  },
+  "98910": {
+   "name": "Darkspear's Basic Care Package",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98913": {
+   "name": "Theramore Basic Care Package",
+   "area": "Darkspear Islands",
+   "why": [
+    "in Darkspear Islands, one of Forever's new zones and dungeons",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98977": {
+   "name": "Mossheart the Elder",
+   "area": "Lunar Festival",
+   "why": [
+    "a holiday quest of Forever's",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98983": {
+   "name": "Frostleaf the Elder",
+   "area": "Lunar Festival",
+   "why": [
+    "a holiday quest of Forever's",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "99049": {
+   "name": "Threat from Below",
+   "area": "Durotar",
+   "why": [
+    "an item to collect that no creature drops in the data (286012)",
+    "an item to collect that no creature drops in the data (286011)",
+    "an item to collect that no creature drops in the data (286010)"
+   ]
+  },
+  "99051": {
+   "name": "Threat from Below",
+   "area": "Durotar",
+   "why": [
+    "needs [99049] first, which isn't here"
+   ]
+  },
+  "99052": {
+   "name": "Threat from Below",
+   "area": "Durotar",
+   "why": [
+    "needs [99051] first, which isn't here"
+   ]
+  },
+  "99053": {
+   "name": "Escaping Ban'ethil",
+   "area": "Teldrassil",
+   "why": [
+    "a place to explore (a script)"
+   ]
+  },
+  "99079": {
+   "name": "Longwalker Malah",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [275789]"
+   ]
+  },
+  "99080": {
+   "name": "Drive Them Out",
+   "area": "Mulgore",
+   "why": [
+    "an item to collect from creatures the data has no place for (286075)"
+   ]
+  },
+  "99081": {
+   "name": "Grim Tidings",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [275789]"
+   ]
+  },
+  "99082": {
+   "name": "The High Chieftain",
+   "area": "Mulgore",
+   "why": [
+    "needs [99080] first, which isn't here"
+   ]
+  },
+  "99101": {
+   "name": "Our Ancient Enemy",
+   "area": "Mulgore",
+   "why": [
+    "needs [99081] first, which isn't here"
+   ]
+  },
+  "99108": {
+   "name": "Sparring Match",
+   "area": "Mulgore",
+   "why": [
+    "duels with other players"
+   ]
+  },
+  "99123": {
+   "name": "Lost in the Shadows",
+   "area": "Durotar",
+   "why": [
+    "a place to explore (a script)"
+   ]
+  },
+  "99127": {
+   "name": "A Net Disaster",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (286205)"
+   ]
+  },
+  "99128": {
+   "name": "Slimy Menace",
+   "area": "Elwynn Forest",
+   "why": [
+    "needs [99127] first, which isn't here"
+   ]
+  },
+  "99129": {
+   "name": "A Man About a Murloc",
+   "area": "Elwynn Forest",
+   "why": [
+    "needs [99128] first, which isn't here"
+   ]
+  },
+  "99130": {
+   "name": "An Enticing Offer",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (286214)"
+   ]
+  },
+  "99131": {
+   "name": "Baited for Success",
+   "area": "Elwynn Forest",
+   "why": [
+    "needs [99130] first, which isn't here"
+   ]
+  },
+  "99134": {
+   "name": "Discipline",
+   "area": "Tirisfal Glades",
+   "why": [
+    "kill credit (a script)"
+   ]
+  },
+  "99142": {
+   "name": "Tomb Weed",
+   "area": "Tirisfal Glades",
+   "why": [
+    "an item to collect that no creature drops in the data (286204)"
+   ]
+  },
+  "99143": {
+   "name": "Bottles and Baubles",
+   "area": "Elwynn Forest",
+   "why": [
+    "an item to collect that no creature drops in the data (286209)"
+   ]
+  },
+  "99144": {
+   "name": "Seeking Refuge",
+   "area": "Tirisfal Glades",
+   "why": [
+    "a place to explore (a script)"
+   ]
+  },
+  "99153": {
+   "name": "The One That Got Away",
+   "area": "Tirisfal Glades",
+   "why": [
+    "an item to collect that no creature drops in the data (286269)"
+   ]
+  },
+  "99159": {
+   "name": "Finding Warmth",
+   "area": "Dun Morogh",
+   "why": [
+    "an item to collect that no creature drops in the data (286339)"
+   ]
+  },
+  "99160": {
+   "name": "Rime's Wrath",
+   "area": "Dun Morogh",
+   "why": [
+    "needs [99159] first, which isn't here"
+   ]
+  },
+  "99161": {
+   "name": "Rime's Wrath",
+   "area": "Dun Morogh",
+   "why": [
+    "needs [99160] first, which isn't here"
+   ]
+  },
+  "99162": {
+   "name": "Treacherous Cold",
+   "area": "Dun Morogh",
+   "why": [
+    "an item to collect that no creature drops in the data (286360)",
+    "an item to collect that no creature drops in the data (286359)",
+    "an item to collect that no creature drops in the data (286358)"
+   ]
+  },
+  "99191": {
+   "name": "A Donation of Wool",
+   "area": "Alterac Mountains",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "99192": {
+   "name": "A Donation of Silk",
+   "area": "Alterac Mountains",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "99196": {
+   "name": "A Donation of Wool",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [276171, 276171]"
+   ]
+  },
+  "99197": {
+   "name": "A Donation of Silk",
+   "area": "Mulgore",
+   "why": [
+    "nobody ends it in the data",
+    "people the data has no place for in the old zones: [276171]"
+   ]
+  },
+  "99260": {
+   "name": "Fillion's Mission",
+   "area": "Zephras Isle",
+   "why": [
+    "in Zephras Isle, one of Forever's new zones and dungeons",
+    "people the data has no place for in the old zones: [253285, 252475]"
+   ]
+  },
+  "99267": {
+   "name": "An Unfortunate End",
+   "area": "",
+   "why": [
+    "no objective, giver's words or level in the data"
+   ]
+  },
+  "99411": {
+   "name": "Kyle's Gone Missing!",
+   "area": "Mulgore",
+   "why": [
+    "people the data has no place for in the old zones: [277182, 277182]",
+    "an objective done by an event or a talk (a script)",
+    "creatures to kill the data has no place for in the old zones"
+   ]
+  }
+ },
+ "rewards_left_out": {
+  "247840": "Mining for Dummies: what it does (spell [1245608]) isn't in 3.3.5",
+  "247841": "Wild Harvest: what it does (spell [1245609]) isn't in 3.3.5",
+  "247846": "Pelt Collecting for Beginners: what it does (spell [1245610]) isn't in 3.3.5",
+  "279864": "neither Wowhead's tooltip nor the client's tables have it",
+  "279865": "neither Wowhead's tooltip nor the client's tables have it",
+  "279867": "neither Wowhead's tooltip nor the client's tables have it",
+  "286742": "neither Wowhead's tooltip nor the client's tables have it",
+  "286743": "neither Wowhead's tooltip nor the client's tables have it",
+  "286744": "neither Wowhead's tooltip nor the client's tables have it"
+ }
+}

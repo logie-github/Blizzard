@@ -1,0 +1,3 @@
+# SummonProperties: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	iiiiii
+put	2421	1	0	0	0	2320

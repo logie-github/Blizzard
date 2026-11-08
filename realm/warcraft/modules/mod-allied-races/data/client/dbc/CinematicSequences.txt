@@ -1,0 +1,6 @@
+# CinematicSequences: the void elves' and the nightborne's changes (tools/build_data.py)
+types	iiiiiiiiii
+put	9011	0	9011	0	0	0	0	0	0	0
+put	9012	0	9012	0	0	0	0	0	0	0
+put	9013	0	9013	0	0	0	0	0	0	0
+put	9014	0	9014	0	0	0	0	0	0	0

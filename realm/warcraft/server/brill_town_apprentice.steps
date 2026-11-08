@@ -1,0 +1,86 @@
+# Brill: The Apothecary's Apprentice (mod-brill-home, tools/town/apprentice.py), ChromieCraft's realm:
+# Apothecary Johaan's five quests about his apprentice Wendell Crane (970400) and the Stay, played through:
+# the shed behind the laboratory, the stolen crates and the cart at Solliden Farmstead, Wendell's
+# confession, his three caged darkhounds and the frenzied one, and the judgment, here "under your eye"
+# (the mark q970406), which puts Wendell's apparatus in the yard (the line's phase 0x800000; the
+# "destroyed" one, 0x1000000, stays off). A new level-12 undead warrior.
+cmd .levelup 11
+cmd .modify money 100000
+# An Unpleasant Odor (970400): Johaan in his laboratory; the locked shed behind it.
+go 0 2260.5 345.5 36.2
+talk 1518
+accept 1518 970400
+go 0 2252.6 353.2 35.4
+cmd .brilltown use
+has Brill town: used 970400
+expect credit 970400 970402 1/1
+go 0 2260.5 345.5 36.2
+talk 1518
+reward 1518 970400
+# Missing Reagents (970401): four crates and the handcart at Solliden Farmstead, north of Brill.
+talk 1518
+accept 1518 970401
+go 0 2286.0 1298.0 33.2
+cmd .brilltown use
+go 0 2294.0 1322.0 32.5
+cmd .brilltown use
+go 0 2276.0 1334.0 34.5
+cmd .brilltown use
+go 0 2300.0 1305.0 32.4
+cmd .brilltown use
+expect credit 970401 970403 4/4
+go 0 2280.0 1288.0 32.5
+cmd .brilltown use
+expect credit 970401 970404 1/1
+go 0 2260.5 345.5 36.2
+talk 1518
+reward 1518 970401
+# The Apprentice's Secret (970402): taken from Johaan, turned in to Wendell in the yard.
+talk 1518
+accept 1518 970402
+go 0 2251.0 343.6 35.4
+talk 970400
+reward 970400 970402
+# A Question of Progress (970403): the three cages north-east of Brill, and the hound that got out.
+talk 970400
+accept 970400 970403
+go 0 2451.5 201.0 38.0
+cmd .brilltown use
+go 0 2523.5 253.0 47.5
+cmd .brilltown use
+go 0 2603.5 183.0 34.5
+cmd .brilltown use
+expect credit 970403 970405 3/3
+kill 970401
+expect complete 970403
+go 0 2251.0 343.6 35.4
+talk 970400
+reward 970400 970403
+# The Apothecary's Judgment (970404): the notes to Johaan, and the choice: Wendell goes on, supervised.
+talk 970400
+accept 970400 970404
+go 0 2260.5 345.5 36.2
+talk 1518
+has Under your eye
+has Burn the notes
+expect It belongs to the Society
+select 1518 Under your eye
+expect credit 970404 970406 1/1
+# (Johaan's words for the supervised: his greeting 970416; the choices gone)
+talk 1518
+has gossip text 970416
+expect-not Burn the notes
+reward 1518 970404
+# The yard: the supervised phase on (Crane's apparatus), the destroyed one off; the line and the mark done.
+go 0 2251.0 343.6 35.4
+wait 2
+cmd .brilltown state
+has [0x800000]
+has q970404
+has q970406
+expect-not [0x1000000]
+cmd .brilltown state
+expect-not q970407
+# Wendell's greeting for the supervised (970422).
+talk 970400
+expect gossip text 970422

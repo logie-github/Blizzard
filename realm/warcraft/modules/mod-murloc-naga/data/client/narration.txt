@@ -1,0 +1,25 @@
+# The intros' narrations: the game's own sounds, each at its moment (ms), mixed into one file by the patch
+# (Sound\CinematicVoices\<Race>Narration.wav). <race>	<ms>	<the game's file>
+Naga	500	Sound\Creature\LadyVashj\COIL_LadyVashj_Intro01.wav
+Naga	20500	Sound\Creature\LadyVashj\COIL_LadyVashj_Phase01.wav
+Naga	30000	Sound\Creature\LadyVashj\COIL_LadyVashj_Aggro04.wav
+Naga	33500	Sound\Creature\LadyVashj\COIL_LadyVashj_Phase02.wav
+Naga	38500	Sound\Creature\LadyVashj\COIL_LadyVashj_BowShot02.wav
+Naga	42500	Sound\Creature\LadyVashj\COIL_LadyVashj_Aggro02.wav
+Naga	46500	Sound\Ambience\Water\OceanA.wav
+Naga	51500	Sound\Doodad\HornGoober.wav
+Naga	57000	Sound\Creature\NagaFemale\NagaFemalePreAggro.wav
+Murloc	300	Sound\Ambience\Water\OceanA.wav
+Murloc	3500	Sound\Item\FoleySounds\ChainFoley01.wav
+Murloc	7000	Sound\Doodad\G_GongTroll01.wav
+Murloc	11000	Sound\Item\Weapons\Whip\BullWhipHit1.wav
+Murloc	11600	Sound\Creature\Murloc\mMurlocWoundA.wav
+Murloc	15500	Sound\Creature\BabyMurloc\BabyMurlocA.wav
+Murloc	19000	Sound\Item\FoleySounds\ChainFoley01.wav
+Murloc	22500	Sound\Creature\NagaFemale\NagaFemalePreAggro.wav
+Murloc	26500	Sound\Item\Weapons\Whip\BullWhipHit1.wav
+Murloc	27200	Sound\Creature\Murloc\mMurlocWoundB.wav
+Murloc	24000	Sound\Ambience\Water\OceanA.wav
+Murloc	31500	Sound\Creature\BabyMurloc\BabyMurlocC.wav
+Murloc	34000	Sound\Doodad\G_GongTroll01.wav
+Murloc	38500	Sound\Creature\Murloc\mMurlocAggroOld.wav

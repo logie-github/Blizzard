@@ -1,0 +1,246 @@
+# Wrath Remix's prologue (STORY.md), played by CI as a new Timerunner (auth_check.py script, on the
+# Remix realm): the opening (a tavern in their capital, the war's last battle, what the Lich King's
+# reign cost), then the Infinite Bazaar one thing at a time: Eternus and the plan, Alurmi, the class
+# instructor and lesson, the Bazaar's keepers, the anomalies, a purchase from the Bronze vendors,
+# and Eternus sending the Timerunner to Valiance Keep. The anomalies are killed with a game
+# master's `.damage` (the character's blows, so it gets the kills).
+
+cmd .remix
+expect chapter 0 (the prologue)
+
+# The opening (RemixIntro.cpp): drinking with friends in the Gilded Rose, until the room stops and
+# Moratari walks in; the Broken Front in Icecrown, beside Tirion against the Scourge, until the Lich
+# King comes and time stops; the Wrathgate, Wintergarde and Icecrown's fields; then the Bazaar. Each
+# act opens from the dark once the game has settled behind the realm's curtain (this client answers
+# a curtain at once; the realm holds it a second and a half at least), so its moments are waited for.
+wait 8
+cmd .gps
+expect Stormwind City
+# (in their chair at the table with their friends, between the toasts: the curtain lifts about 4 s
+# after the login and the talk starts 2.5 s later; they stand for the toast at +9 s and sit again
+# at +16 s, until the next toast at +44 s)
+wait 21
+cmd .remix intro status
+expect seated
+# (the curtain was drawn three times, the login's, the way to the tavern's and the arrival's, and
+# this client answered each: the realm heard "settled" three times)
+cmd .remix intro status
+expect settled 3
+until I'm sorry, hero. I need you. 100
+wait 14
+cmd .gps
+expect Icecrown
+until Frostmourne hungers 110
+# (the journey to the Wrathgate: its curtain is drawn as the Lich King finishes, and lifts once the
+# game has settled there)
+until Angrathar 60
+wait 8
+cmd .gps
+expect Dragonblight
+until Farmers and miners 70
+cmd .gps
+expect Dragonblight
+until Arise minions 80
+cmd .gps
+expect Icecrown
+until We can stop all of this 90
+# (the journey to the Bazaar, thirteen seconds on: its curtain is drawn as it starts)
+until Malykriss | Years earlier 60
+wait 8
+cmd .gps
+expect Malykriss: The Vile Hold
+
+# The starter kit and the class's abilities, a moment after the first login (the client checks
+# what the realm wrote down at the end).
+wait 3
+
+# Moratari's Hourglass is in the bags from the first moment; turned at the Bazaar before the
+# Timerunner has come to it from anywhere, it has nowhere to take them back to.
+cmd .remix hourglass
+expect Wrath Remix hourglass: bag 255
+use-hourglass
+expect come here from nowhere yet
+
+# WRM-010, Out of Time: Moratari, a few steps from where the Timerunner arrives, sends them to
+# Eternus (Eternus is large, and she stands clear of her).
+go 571 6387.5 1872.0 509.1
+talk 770001
+expect quest 77010
+accept 770001 77010
+go 571 6391.5 1873.5 509.1
+reward 770002 77010
+expect rewarded 77010
+
+# WRM-011, The Plan: Eternus answers what she wants, how it is done and why them.
+talk 770002
+expect quest 77011
+accept 770002 77011
+talk 770002
+expect What do you want from me
+select 770002 What do you want
+expect credit 77011 770049
+select 770002 How is this
+expect credit 77011 770050
+select 770002 Why me
+expect credit 77011 770058
+reward 770002 77011
+expect rewarded 77011
+
+# WRM-012, Time's Toll: to Alurmi, at the head of the market.
+talk 770002
+expect quest 77012
+accept 770002 77012
+go 571 6380.0 1896.5 509.1
+reward 770005 77012
+expect rewarded 77012
+
+# WRM-020, Old Habits: Alurmi sends the Timerunner to their class's instructor; another class's has
+# nothing for a warrior.
+talk 770005
+expect quest 77020
+accept 770005 77020
+go 571 6352.0 1843.0 509.1
+talk 770110
+expect-not quest 77020
+go 571 6373.0 1840.5 509.1
+reward 770101 77020
+expect rewarded 77020
+
+# The warrior's lesson (RemixLessons.cpp), from the same instructor: Charge, Rend and Heroic Strike
+# on one of the training yard's dummies.
+talk 770101
+expect quest 77031
+accept 770101 77031
+go 571 6368.0 1848.0 509.1 4.71
+cast 100 770087
+expect credit 77031 770067
+# (and in reach of it for the next two)
+go 571 6368.0 1838.0 509.0 4.71
+cast 772 770087
+expect credit 77031 770068
+cast 78 770087
+expect credit 77031 770069
+reward 770101 77031
+expect rewarded 77031
+talk 770101
+expect-not quest 77031
+
+# WRM-021, The Bazaar's Keepers: Zephyr, Sa'at and the Chronologist, then Moratari (the hearthstone
+# remembers the Bazaar).
+go 571 6387.5 1872.0 509.1
+talk 770001
+expect quest 77021
+accept 770001 77021
+go 571 6400.5 1840.0 509.1
+talk 770006
+expect credit 77021 770006
+# Report Time Anomaly, from the game's menu or the toolbar's Help button (the app's add-on): the
+# realm writes a report of the quest the Timerunner is on, who they've spoken to since they took it
+# and the way they came, for the app to send to GitHub (the server test reads it). What they wrote
+# comes in pieces when it's long ("report+" for each but the last).
+addon WowRemix report+ CI's report,
+addon WowRemix report  from the Bazaar
+expect Time anomaly reported
+go 571 6388.0 1824.5 509.1
+talk 770007
+expect credit 77021 770007
+go 571 6408.0 1894.0 509.1
+talk 770008
+expect credit 77021 770008
+go 571 6387.5 1872.0 509.1
+reward 770001 77021
+expect rewarded 77021
+
+# WRM-013, A Small Demonstration: Moratari lets the anomalies through, one at a time (each one
+# killed brings the next, three in all).
+talk 770001
+accept 770001 77013
+talk 770001
+expect Let the anomalies through
+select 770001 anomalies
+expect through the seams
+# (a moment for each to come through)
+wait 2
+kill 770031
+expect credit 77013 770032 1/3
+wait 2
+kill 770031
+expect credit 77013 770032 2/3
+wait 2
+kill 770031
+expect credit 77013 770032 3/3
+wait 2
+cmd .remix guid 770031
+expect no creature 770031
+reward 770001 77013
+expect rewarded 77013
+
+# Alurmi, and from her vendor window a heirloom the warrior's kit hasn't got, for 300 Bronze
+# (ItemExtendedCost 7708). (How much Bronze the Timerunner has by now isn't checked: the prologue
+# gives plenty, and more is better.)
+go 571 6380.0 1896.5 509.1
+talk 770005
+expect Bronze
+select 770005 Heirlooms
+expect ware 42985 cost 7708
+buy 770005 42985
+expect bought 42985
+
+# The Bazaar's other Bronze vendors, as a warrior sees them: Hemet Nesingwary's mounts by the
+# waystation, Pythagorus's heroic tier sets in the north row (a warrior's pieces, not a mage's), and
+# Durus's legendary at the market lane's end, paid for with Bronze a game master gives.
+go 571 6413.5 1822.0 509.1
+talk 770212
+expect Mounts of Northrend
+select 770212 Mounts of Northrend
+expect ware 50818 cost 7726
+go 571 6424.5 1888.0 509.1
+talk 770206
+expect Tier 10, Icecrown Citadel (25 heroic)
+select 770206 Tier 10, Icecrown Citadel (25 heroic)
+expect ware 51227
+talk 770206
+select 770206 Tier 10, Icecrown Citadel (25 heroic)
+expect-not ware 51280
+go 571 6335.5 1896.0 509.1
+talk 770205
+expect Legendaries
+cmd .remix bronze add 20000
+talk 770205
+select 770205 Legendaries
+buy 770205 46017
+expect bought 46017
+
+# WRM-014, To the Front: Moratari's, answered by Eternus, who sends the Timerunner to Valiance Keep,
+# before Recruitment Officer Blythe and Enlistment Day.
+go 571 6387.5 1872.0 509.1
+talk 770001
+expect quest 77014
+accept 770001 77014
+go 571 6391.5 1873.5 509.1
+reward 770002 77014
+expect rewarded 77014
+wait 3
+cmd .remix
+expect chapter 1
+talk 25307
+expect quest 11672
+
+# Moratari's Hourglass: from Valiance Keep to the Bazaar, and back to Valiance Keep.
+use-hourglass
+wait 2
+cmd .gps
+expect Malykriss: The Vile Hold
+cmd .remix hourglass
+expect way back map 571 at 229
+use-hourglass
+wait 2
+cmd .gps
+expect Borean Tundra
+
+# Borean Tundra's creatures at Chapter I's levels, and squished: three quarters of the health of
+# their level.
+cmd .remix band
+expect band: Borean Tundra
+cmd .remix band
+expect at 75% of their level's health

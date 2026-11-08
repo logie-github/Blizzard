@@ -1,0 +1,5 @@
+## Interface: 30300
+## Title: Brill Town (for Questie)
+## Notes: The Brill home's and town's quests for Questie (mod-brill-home); made by the realm
+## OptionalDeps: Questie-335, Questie
+BrillTown.lua

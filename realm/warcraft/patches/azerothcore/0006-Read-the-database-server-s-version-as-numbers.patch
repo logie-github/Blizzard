@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 11 Oct 2026 17:46:22 +0000
+Subject: [PATCH 6/6] Read the database server's version as numbers
+
+DatabaseIncompatibleVersion compared the version's characters: "11.4.12" read as 1, ., 4 and
+so came before 8.0.0, and MariaDB 11 was turned away as older than MySQL 8. dbimport then hung
+instead of exiting.
+---
+ .../database/Database/DatabaseWorkerPool.cpp       | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/server/database/Database/DatabaseWorkerPool.cpp b/src/server/database/Database/DatabaseWorkerPool.cpp
+index f27b346e8e..d6d7b77565 100644
+--- a/src/server/database/Database/DatabaseWorkerPool.cpp
++++ b/src/server/database/Database/DatabaseWorkerPool.cpp
+@@ -387,19 +387,19 @@ void DatabaseWorkerPool<T>::KeepAlive()
+ */
+ bool DatabaseIncompatibleVersion(std::string const mysqlVersion)
+ {
+-    // anon func to turn a version string into an array of uint8
+-    // "1.2.3" => [1, 2, 3]
++    // anon func to turn a version string into an array of numbers
++    // "1.2.3" => [1, 2, 3], "11.4.12-MariaDB" => [11, 4, 12]
+     auto parse = [](std::string const& input)
+     {
+-        std::vector<uint8> result;
++        std::vector<uint32> result;
+         std::istringstream parser(input);
+-        result.push_back(parser.get());
+-        for (int i = 1; i < 3; i++)
++        for (int i = 0; i < 3; i++)
+         {
++            uint32 number = 0;
++            parser >> number;
++            result.push_back(number);
+             // Skip period
+             parser.get();
+-            // Append int from parser to output
+-            result.push_back(parser.get());
+         }
+         return result;
+     };

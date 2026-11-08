@@ -1,0 +1,90 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 06:12:34 +0000
+Subject: [PATCH] Local realm sessions can ask for their own Box64
+
+0.4.4 with Box64's fix for the flags in signal contexts (#4348) is a
+built-in version, 0.4.4-legion; a session's box64_version extra picks it.
+Modern WoW clients' start-up protection single-steps itself and needs
+the flags in each step's context right.
+---
+ .../main/java/com/winlator/XServerDisplayActivity.java    | 3 +++
+ app/src/main/java/com/winlator/core/DefaultVersion.java   | 3 +++
+ .../main/java/com/winlator/core/GeneralComponents.java    | 2 +-
+ .../components/GuestProgramLauncherComponent.java         | 8 +++++++-
+ 4 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 9167921..8131bf4 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -574,6 +574,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
+ 
+             guestProgramLauncherComponent.setBox64Preset(shortcut != null ? shortcut.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
++            // World of Warcraft app: a session may ask for its own Box64 (local realms' modern clients).
++            String box64Version = getIntent().getStringExtra("box64_version");
++            if (box64Version != null) guestProgramLauncherComponent.setBox64Version(box64Version);
+         }
+ 
+         environment = new XEnvironment(this, rootFS);
+diff --git a/app/src/main/java/com/winlator/core/DefaultVersion.java b/app/src/main/java/com/winlator/core/DefaultVersion.java
+index 86aa7b1..0adec23 100644
+--- a/app/src/main/java/com/winlator/core/DefaultVersion.java
++++ b/app/src/main/java/com/winlator/core/DefaultVersion.java
+@@ -6,6 +6,9 @@ import java.util.Locale;
+ 
+ public abstract class DefaultVersion {
+     public static final String BOX64 = "0.4.4";
++    // World of Warcraft app: 0.4.4 with Box64's fix for the flags in signal contexts (#4348), which
++    // modern WoW clients' start-up protection needs; local realms' sessions ask for it.
++    public static final String BOX64_LEGION = "0.4.4-legion";
+     public static final String TURNIP = "26.2.0";
+     public static final String VORTEK = "2.1";
+     public static final String ZINK = "22.2.5";
+diff --git a/app/src/main/java/com/winlator/core/GeneralComponents.java b/app/src/main/java/com/winlator/core/GeneralComponents.java
+index a035d2c..582b276 100644
+--- a/app/src/main/java/com/winlator/core/GeneralComponents.java
++++ b/app/src/main/java/com/winlator/core/GeneralComponents.java
+@@ -122,7 +122,7 @@ public abstract class GeneralComponents {
+ 
+         switch (type) {
+             case BOX64:
+-                items = new String[]{DefaultVersion.BOX64};
++                items = new String[]{DefaultVersion.BOX64, DefaultVersion.BOX64_LEGION};
+                 break;
+             case TURNIP:
+                 items = new String[]{DefaultVersion.TURNIP};
+diff --git a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+index 84c4702..b1bd5ac 100644
+--- a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
++++ b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+@@ -28,6 +28,8 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+     private static int pid = -1;
+     private EnvVars envVars;
+     private String box64Preset = Box64Preset.CONSERVATIVE;
++    // World of Warcraft app: the Box64 a session asks for, in place of the app-wide one.
++    private String box64Version;
+     private Callback<Integer> terminationCallback;
+     private static final Object lock = new Object();
+ 
+@@ -118,7 +120,7 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+     private void extractBox64File() {
+         Context context = environment.getContext();
+         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+-        String box64Version = preferences.getString("box64_version", DefaultVersion.BOX64);
++        String box64Version = this.box64Version != null ? this.box64Version : preferences.getString("box64_version", DefaultVersion.BOX64);
+         String currentBox64Version = preferences.getString("current_box64_version", "");
+ 
+         if (!box64Version.equals(currentBox64Version)) {
+@@ -127,6 +129,10 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+         }
+     }
+ 
++    public void setBox64Version(String box64Version) {
++        this.box64Version = box64Version;
++    }
++
+     private void copyDefaultBox64RCFile() {
+         Context context = environment.getContext();
+         RootFS rootFS = environment.getRootFS();

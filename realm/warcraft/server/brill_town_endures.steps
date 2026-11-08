@@ -1,0 +1,47 @@
+# Brill Endures (mod-brill-home, tools/town/endures.py), ChromieCraft's realm: Magistrate Sevren's quest
+# once any three of Brill's questlines are done (granted here: the housewarming, the last bell, the well),
+# Zygand and Jamie Nore told, the square's bell rung; the projects open (the Board and the builder's yard:
+# its stage 1). Then The Town We Made, once all six projects are open (granted here), its walk filled.
+cmd .levelup 11
+go 0 2305.0 266.0 38.8
+talk 1499
+cmd .brilltown grant 970205
+cmd .brilltown grant 970304
+cmd .brilltown grant 970804
+talk 1499
+accept 1499 971000
+go 0 2278.1 295.6 35.3
+talk 1515
+select 1515 calling the town together
+go 0 2316.0 287.0 37.4
+talk 2310
+select 2310 Bring the ledgers
+go 0 2299.0 292.5 35.2
+cmd .brilltown use
+expect Brill town: used 971000
+go 0 2305.0 266.0 38.8
+talk 1499
+reward 1499 971000
+wait 2
+cmd .brilltown state
+has <1:1>
+# The builder's yard on the north road: its foreman there for this character now.
+go 0 2297.0 459.0 34.5
+wait 2
+talk 971000
+expect gossip
+# The Town We Made: all six projects open.
+cmd .brilltown grant 971104
+cmd .brilltown grant 971204
+cmd .brilltown grant 971304
+cmd .brilltown grant 971404
+cmd .brilltown grant 971504
+cmd .brilltown grant 971604
+go 0 2305.0 266.0 38.8
+talk 1499
+accept 1499 971001
+cmd .quest complete 971001
+talk 1499
+reward 1499 971001
+cmd .brilltown state
+has <1:2>

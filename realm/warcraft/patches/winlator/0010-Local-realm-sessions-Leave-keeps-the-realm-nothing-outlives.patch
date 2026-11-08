@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 07:03:23 +0000
+Subject: [PATCH] Local realm sessions: Leave keeps the realm, nothing outlives
+ the session, the notification opens it
+
+Leave (the game's menu) in a local realm's session closes its game and
+brings the launcher back, the realm left running; in a game's session it
+ends the session as before. When a local realm's session ends, its Wine
+processes (the realm's servers, in a session of their own) are ended too,
+so none outlives it holding the installation. The notification opens the
+session's own screen (a local realm's is another class, in its own task).
+The game started again in the session gets its login again.
+---
+ .../com/winlator/XServerDisplayActivity.java  | 33 ++++++++++++++++++-
+ .../winlator/services/ForegroundService.java  |  7 +++-
+ 2 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 8131bf4..26d80a6 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -248,6 +248,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         xServer = new XServer(this, screenInfo);
+         xServer.setWinHandler(winHandler);
+         final boolean[] flags = {false, shortcut != null || getIntent().hasExtra("exec_path")};
++        windowFlags = flags;
+         xServer.windowManager.addOnWindowModificationListener(new WindowManager.OnWindowModificationListener() {
+             @Override
+             public void onUpdateWindowContent(Window window) {
+@@ -365,6 +366,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         com.logie.warcraft.tww.TwwServer.runtimeDetached(this);
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
++        endLocalRealmProcesses();
+         ForegroundService.stopSession(this);
+         closeSessionLog();
+         super.onDestroy();
+@@ -487,10 +489,39 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         return preferences;
+     }
+ 
++    // World of Warcraft app: the first-window handling (flags[0]: the game's first window was shown).
++    private boolean[] windowFlags;
++
++    // World of Warcraft app: a local realm's game started again in its session (which outlives the
++    // game): its first window brings the login again.
++    public void onRealmClientLaunched() {
++        runOnUiThread(() -> {
++            if (windowFlags != null) windowFlags[0] = false;
++            if (gestureView != null) gestureView.onClientLaunched();
++        });
++    }
++
++    // World of Warcraft app: Leave in a local realm's session closes its game and goes back to the
++    // launcher, the realm left running (Stop Server ends it); in a game's, it ends the session.
++    private void leaveGame() {
++        if (!com.logie.warcraft.tww.TwwServer.leaveGame(this)) exit();
++    }
++
++    // World of Warcraft app: a local realm's servers are Wine processes apart from the runtime's (a
++    // session of their own), which outlive its end: when it ends, none is left running (the realm has
++    // shut them down already when it was stopped).
++    private void endLocalRealmProcesses() {
++        if (!getIntent().getBooleanExtra("local_server_session", false)) return;
++        for (ProcessHelper.PStat process : ProcessHelper.getChildProcesses()) {
++            if (process.guestProcess) ProcessHelper.killProcess(process.pid);
++        }
++    }
++
+     private void exit() {
+         writeSessionLog("[app] Closing the Windows session (the runtime ended, or Leave/Exit was chosen).");
+         winHandler.stop();
+         if (environment != null) environment.stopEnvironmentComponents();
++        endLocalRealmProcesses();
+ 
+         // World of Warcraft app: back to the launcher, without restarting the app (its server runs in it).
+         ForegroundService.stopSession(this);
+@@ -665,7 +696,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         rootView.addView(touchpadView);
+ 
+         if (getIntent().getBooleanExtra("gestures", false)) {
+-            gestureView = new com.logie.warcraft.game.GestureView(this, xServer, this::exit);
++            gestureView = new com.logie.warcraft.game.GestureView(this, xServer, this::leaveGame);
+             rootView.addView(gestureView);
+         }
+ 
+diff --git a/app/src/main/java/com/winlator/services/ForegroundService.java b/app/src/main/java/com/winlator/services/ForegroundService.java
+index e909fc5..bcac5c5 100644
+--- a/app/src/main/java/com/winlator/services/ForegroundService.java
++++ b/app/src/main/java/com/winlator/services/ForegroundService.java
+@@ -55,8 +55,13 @@ public class ForegroundService extends Service {
+     private static final String NOTIFICATION_ID_NAME = "winlator.FGS";
+ 
+     // ── Container / game session lifecycle ──────────────────────────────────────────────
++    // World of Warcraft app: the screen of the session running (a game's, or a local realm's own,
++    // a different class in a task of its own), which the notification opens.
++    private static volatile Class<?> sessionActivityClass = XServerDisplayActivity.class;
++
+     public static void startSession(Context ctx) {
+         if (ctx == null) return;
++        if (ctx instanceof XServerDisplayActivity) sessionActivityClass = ctx.getClass();
+         // Background operation is part of the WoW app, not a hidden Winlator preference.
+         sessionActive.set(true);
+         isSessionInBackground = false;
+@@ -260,7 +265,7 @@ public class ForegroundService extends Service {
+         boolean containerActive = sessionActive.get();
+ 
+         // Determine target activity: Game screen if active, else Main menu
+-        Class<?> targetActivity = containerActive ? XServerDisplayActivity.class : com.logie.warcraft.MainActivity.class;
++        Class<?> targetActivity = containerActive ? sessionActivityClass : com.logie.warcraft.MainActivity.class;
+ 
+         Notification n = notificationUtils.createForegroundNotification(
+                 getNotificationContent(),

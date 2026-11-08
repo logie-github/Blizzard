@@ -1,0 +1,14 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<!-- More race buttons for the character creation screen (mod-worgen-goblin): the game has ten, and with the
+	     Worgen, Goblins, allied races and Skyborne there are eighteen (the allied races' and the Skyborne's own make
+	     sixteen). WorgenGoblinCreate.lua gives them the names the screen looks for, where it hasn't a button by that
+	     number already. -->
+	<CheckButton name="WorgenGoblinRaceButton11" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="11" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton12" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="12" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton13" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="13" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton14" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="14" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton15" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="15" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton16" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="16" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton17" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="17" hidden="true"/>
+	<CheckButton name="WorgenGoblinRaceButton18" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="18" hidden="true"/>
+</Ui>

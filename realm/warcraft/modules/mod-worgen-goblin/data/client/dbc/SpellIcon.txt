@@ -1,0 +1,12 @@
+# SpellIcon: mod-worgoblin's Worgen and Goblins (tools/build_data.py)
+types	is
+put	366937	Interface\\Icons\\ability_racial_darkflight
+put	514641	Interface\\Icons\\ability_racial_runningwild
+put	463876	Interface\\Icons\\achievement_worganhead
+put	369214	Interface\\Icons\\ability_racial_timeismoney
+put	370670	Interface\\Icons\\ability_racial_betterlivingthroughchemistry
+put	370211	Interface\\Icons\\ability_racial_packhobgoblin
+put	133032	Interface\\Icons\\inv_gizmo_rocketlauncher
+put	370769	Interface\\Icons\\ability_racial_rocketjump
+put	463874	Interface\\Icons\\achievement_goblinhead
+put	4331	Interface\\Icons\\ability_racial_bestdealsanywhere

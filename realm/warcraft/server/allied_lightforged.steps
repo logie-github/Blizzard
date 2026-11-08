@@ -1,0 +1,40 @@
+# A Lightforged Draenei warrior in Ammen Vale (mod-allied-races), after its start was checked.
+#
+# Megelon offers the Lightforged's You Survived!, never the Draenei's.
+talk 16475
+has quest 969279:
+expect-not quest 9279:
+# Rescue the Survivors!, as the void elves' (another survivor: theirs has run off).
+cmd .quest add 969283
+expect learned 28880
+go 530 -4060.3 -13669.5 72.1
+target 16483
+cmd .cast 28880
+target 0
+wait 7
+expect credit 969283 16483
+go 530 -4118.5 -13760.5 74.1
+reward 16502 969283
+has rewarded 969283
+expect removed 28880
+# Light's Reckoning: dying beside a Vale Moth, the burst is the character's own (its kill would
+# be the character's). The moth is put there for it (one of the Vale's wanders, and wasn't always
+# within the burst's 8 yards).
+go 530 -4237.4 -13345.7 44.5
+cmd .npc add temp 16520
+target self
+cmd .die
+until damage 98727 by player 10
+cmd .revive
+target 0
+# Light's Judgment: three seconds after it's used on a Vale Moth, the character's strike there
+# (heard within ten: a wait of exactly three raced the strike's own three seconds).
+go 530 -4318.1 -13349.1 47.6
+target 16520
+cmd .cast 98723
+target 0
+until damage 98724 by player 10
+# Out of the fight, so the character can log out (the realm keeps one in combat).
+go 530 -3961.6 -13931.2 100.7
+cmd .combatstop
+wait 2

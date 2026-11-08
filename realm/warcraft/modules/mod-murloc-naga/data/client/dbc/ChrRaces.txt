@@ -1,0 +1,6 @@
+# ChrRaces: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iiiiiisiiiisiissssssssssssssssissssssssssssssssissssssssssssssssisssi
+copyrow	19	30
+copyrow	20	31
+put	19	12	4	4145	33101	33102	Mu	7	7	15007	1096	Murloc	9021	0	Murloc																16712191	Murloc																16712172	Murloc																16712172	FEATURES	FEATURES	MURLOC	0
+put	20	12	116	4144	17402	17403	Na	1	7	15007	1096	Naga_	9022	1	Naga																16712190	Naga																16712172	Naga																16712172	FEATURES	FEATURES	NAGA	0

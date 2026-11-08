@@ -1,0 +1,181 @@
+# Brill: The Surgeon's Hall (mod-brill-home, tools/town/surgeon.py), ChromieCraft's realm: Brill Endures
+# granted (the project's stage 1, <7:1>: the hall's stages are invisibility kind 7), Surgeon Elspeth Rane at
+# the vacant farmhouse's door inside the cemetery's fence. Holding Together (a traveller, Mrs. Winters' linen,
+# Rudd Carver's splints, the wagon on the Undercity road, the boarded door); A Steady Hand (Fenwick Pike's: a
+# Garrens' table at Garren's Haunt, Abigail Shiel's needles, Holland's glass, the cabinets); A Spare Arm and a
+# Leg (Timm Vetch's: Agamand Mills' gearing, Rudd's straps, the clockmaker's hand, the practice frame); The
+# Patient Comes First (the Society's proposal, a patient asked, Johaan, and the charter: no research at all,
+# the mark q971406); The First Patient (the table, Fenwick, Timm's brace, the instruments; Agnes Morrow ends
+# it). Each quest moves the stage on; then the hall open (<7:6>): Fenwick's wares inside (the heavy wool
+# bandage only for the clinical charter), the house's furnishings bought from Elspeth (<7:7>, the mark
+# q971416; the deed granted for the house's own, 970121), and the daily, Repairs Required, offered. (Kills
+# and the long counts are filled with .quest complete.)
+cmd .levelup 11
+cmd .modify money 100000
+cmd .brilltown grant 971000
+cmd .brilltown grant 970121
+# Stage 1: Elspeth at the farmhouse door, her travellers in the yard.
+go 0 2314.6 369.3 34.5
+wait 2
+cmd .brilltown state
+has <7:1>
+talk 971400
+accept 971400 971400
+# Holding Together: Jory, the linen, the splints, the wagon, the house.
+go 0 2318.6 357.5 34.7
+talk 971403
+select 971403 holding up
+expect credit 971400 971418 1/3
+go 0 2253.8 268.4 34.9
+talk 2134
+select 2134 linen for bandages
+expect credit 971400 971419 1/2
+go 0 2297.0 459.0 34.5
+talk 971000
+select 971000 four splints
+expect credit 971400 971419 2/2
+go 0 2092.0 146.0 35.5
+cmd .brilltown use
+has Brill town: used 971404
+expect credit 971400 971420 1/1
+go 0 2319.5 371.1 34.9
+cmd .brilltown use
+has Brill town: used 971402
+expect credit 971400 971421 1/1
+cmd .quest complete 971400
+go 0 2314.6 369.3 34.5
+talk 971400
+reward 971400 971400
+expect rewarded 971400
+wait 2
+cmd .brilltown state
+has <7:2>
+# A Steady Hand (Fenwick, in the tent from stage 2): a table at Garren's Haunt, needles, glass, the cabinets.
+go 0 2321.6 362.2 34.2
+talk 971402
+accept 971402 971401
+go 0 2920.0 400.0 31.5
+cmd .brilltown use
+has Brill town: used 971408
+expect credit 971401 971422 1/2
+go 0 2260.5 276.6 35.3
+talk 2118
+select 2118 needles and stitching thread
+expect credit 971401 971423 1/1
+go 0 2325.3 399.8 34.2
+talk 10665
+select 10665 clean glass
+expect credit 971401 971424 1/1
+go 0 2325.5 363.1 33.9
+cmd .brilltown use
+has Brill town: used 971407
+expect credit 971401 971425 1/1
+cmd .quest complete 971401
+go 0 2314.6 369.3 34.5
+talk 971400
+reward 971400 971401
+expect rewarded 971401
+wait 2
+cmd .brilltown state
+has <7:3>
+# A Spare Arm and a Leg (Timm): the mill's gearing, Rudd's straps, the clockmaker's hand, the practice frame.
+go 0 2318.8 365.6 34.3
+talk 971401
+accept 971401 971402
+go 0 2790.0 805.0 113.8
+cmd .brilltown use
+has Brill town: used 971415
+expect credit 971402 971426 1/3
+go 0 2297.0 459.0 34.5
+talk 971000
+select 971000 leather straps
+expect credit 971402 971427 1/1
+go 0 2770.0 806.0 113.5
+cmd .brilltown use
+has Brill town: used 971416
+expect credit 971402 971428 1/1
+go 0 2334.0 368.0 34.3
+cmd .brilltown use
+has Brill town: used 971414
+expect credit 971402 971429 1/1
+cmd .quest complete 971402
+go 0 2318.8 365.6 34.3
+talk 971401
+reward 971401 971402
+expect rewarded 971402
+wait 2
+cmd .brilltown state
+has <7:4>
+# The Patient Comes First (Elspeth): the proposal, Jory asked, Johaan, and the charter: no research at all.
+go 0 2314.6 369.3 34.5
+talk 971400
+accept 971400 971403
+go 0 2313.3 363.9 34.3
+cmd .brilltown use
+has Brill town: used 971418
+expect credit 971403 971430 1/2
+go 0 2318.6 357.5 34.7
+talk 971403
+select 971403 Society wants
+expect credit 971403 971431 1/3
+go 0 2260.0 348.0 36.6
+talk 1518
+select 1518 Society's proposal
+expect credit 971403 971432 1/1
+go 0 2314.6 369.3 34.5
+talk 971400
+select 971400 No research at all
+expect credit 971403 971433 1/1
+cmd .quest complete 971403
+talk 971400
+reward 971400 971403
+expect rewarded 971403
+wait 2
+cmd .brilltown state
+has <7:5>
+expect q971406
+# The First Patient (Elspeth): the table, Fenwick, Timm's brace, the instruments; Agnes in the ward tent.
+talk 971400
+accept 971400 971404
+go 0 2311.0 365.8 34.3
+cmd .brilltown use
+has Brill town: used 971409
+expect credit 971404 971434 1/1
+go 0 2321.6 362.2 34.2
+talk 971402
+select 971402 Agnes's leg
+expect credit 971404 971435 1/1
+go 0 2318.8 365.6 34.3
+talk 971401
+select 971401 fit Agnes's brace
+expect credit 971404 971436 1/1
+go 0 2308.8 367.2 34.4
+cmd .brilltown use
+has Brill town: used 971420
+expect credit 971404 971437 1/1
+go 0 2332.0 387.4 34.5
+talk 971406
+reward 971406 971404
+expect rewarded 971404
+# Open: the hall's stage 6.
+wait 2
+cmd .brilltown state
+has <7:6>
+# Fenwick at his counter inside: bandages, and the heavy wool for the clinical charter.
+go 0 2323.0 373.5 34.9
+wait 2
+talk 971409
+select 971409 browse your goods
+buy 971409 3531
+expect bought 3531
+# The house's furnishings, bought from Elspeth: stage 7.
+go 0 2314.6 369.3 34.5
+talk 971400
+select 971400 spare anything for my house
+wait 2
+cmd .brilltown state
+has <7:7>
+expect q971416
+# The daily, offered now.
+talk 971400
+expect quest 971405

@@ -1,0 +1,5 @@
+# CreatureDisplayInfoExtra: the void elves' and the nightborne's changes (tools/build_data.py)
+remapfield	1	15	24
+remapfield	1	16	25
+remapfield	1	17	26
+remapfield	1	18	27

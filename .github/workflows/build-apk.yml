@@ -7,6 +7,10 @@ name: Build Blizzard Launcher
 on:
   push:
     branches: [main]
+    # (the realm's sources and its module build have a workflow of their own)
+    paths-ignore:
+      - 'realm/**'
+      - '.github/workflows/build-realm-modules.yml'
   pull_request:
   workflow_dispatch:
 permissions:

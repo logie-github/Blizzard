@@ -1,0 +1,132 @@
+# A murloc warrior in the Wrathtail's pens (mod-murloc-naga's story, chapter 1), after its start was
+# checked: the Elder's first quest, handed in to Murlorga; her /wave quest done by waving at the four
+# slaves; Overseer Kezzith's count (a place to stand); the warrior trainer's lessons in the pens; and
+# the breakout and the free Greymist's cove (chapter 2's arrival); every later chapter's hub and first quest;
+# Auberdine's quests closed to it while its story isn't done (the gate).
+# Written with the story's names; tools/build_data.py writes warcraft/server/murloc_naga_murloc.steps
+# with their ids.
+wait 3
+talk {ch1:elder}
+has quest {ch1:ch1_brand}:
+expect-not quest 954:
+accept {ch1:elder} {ch1:ch1_brand}
+wait 6
+talk {ch1:murlorga}
+reward {ch1:murlorga} {ch1:ch1_brand}
+expect rewarded {ch1:ch1_brand}
+talk {ch1:murlorga}
+expect quest {ch1:ch1_hello}:
+accept {ch1:murlorga} {ch1:ch1_hello}
+emote {ch1:gurp} 101
+emote {ch1:nubbin} 101
+emote {ch1:mrrlo} 101
+emote {ch1:squirt} 101
+expect complete {ch1:ch1_hello}
+talk {ch1:murlorga}
+reward {ch1:murlorga} {ch1:ch1_hello}
+expect rewarded {ch1:ch1_hello}
+talk {ch1:kezzith}
+expect quest {ch1:ch1_count}:
+accept {ch1:kezzith} {ch1:ch1_count}
+go 1 4089.0 1078.0 {z:ch1:your_mark}
+wait 3
+expect complete {ch1:ch1_count}
+talk {ch1:kezzith}
+reward {ch1:kezzith} {ch1:ch1_count}
+expect rewarded {ch1:ch1_count}
+# The tribe's warrior trainer teaches (the game's warrior trainer's list).
+go 1 {xyz:ch1:t_warrior}
+wait 2
+talk {ch1:brrgmrk}
+select-nth {ch1:brrgmrk} 0
+expect trainer type 0
+# Out through the reef (the breakout done as a GM would, to save the chapter's length), to Blrrgl on the
+# Darkshore shore, and on to the free Greymist's cove (chapter 2): Mother Mrrgula takes it in.
+cmd .levelup 4
+cmd .quest add {ch1:ch1_breakout}
+cmd .quest complete {ch1:ch1_breakout}
+cmd .quest reward {ch1:ch1_breakout}
+go 1 4891.0 618.0 {z:ch1:blrrgl_free}
+wait 3
+talk {ch1:blrrgl_free}
+expect quest {ch2:ch2_arrival}:
+accept {ch1:blrrgl_free} {ch2:ch2_arrival}
+go 1 4803.0 695.0 {z:ch2:mrrgula}
+wait 3
+talk {ch0:mrrgula}
+reward {ch0:mrrgula} {ch2:ch2_arrival}
+expect rewarded {ch2:ch2_arrival}
+# (her welcome: she walks to the newcomers and back, about 20 seconds)
+wait 25
+talk {ch0:mrrgula}
+expect quest {ch2:ch2_fish}:
+# Chapter by chapter (each chapter's last quest done as a GM would, the character levelled to the next): at
+# each hub, the one who starts the next chapter is there and offers its first quest (every hub, its phases).
+cmd .quest add {ch2:ch2_end}
+cmd .quest complete {ch2:ch2_end}
+cmd .quest reward {ch2:ch2_end}
+cmd .levelup 5
+go 1 {xyz:ch3:blrrgl_pier}
+wait 3
+talk {ch1:blrrgl}
+expect quest {ch3:ch3_arrival}:
+cmd .quest add {ch3:ch3_end}
+cmd .quest complete {ch3:ch3_end}
+cmd .quest reward {ch3:ch3_end}
+cmd .levelup 5
+go 0 {xyz:ch4:elder}
+wait 3
+talk {ch1:elder}
+expect quest {ch4:ch4_arrival}:
+cmd .quest add {ch4:ch4_end}
+cmd .quest complete {ch4:ch4_end}
+cmd .quest reward {ch4:ch4_end}
+cmd .levelup 5
+go 0 {xyz:ch5:elder}
+wait 3
+talk {ch1:elder}
+expect quest {ch5:ch5_arrival}:
+cmd .quest add {ch5:ch5_end}
+cmd .quest complete {ch5:ch5_end}
+cmd .quest reward {ch5:ch5_end}
+cmd .levelup 5
+go 0 {xyz:ch6:elder_beach}
+wait 3
+talk {ch1:elder}
+expect quest {ch6:ch6_arrival}:
+cmd .quest add {ch6:ch6_end}
+cmd .quest complete {ch6:ch6_end}
+cmd .quest reward {ch6:ch6_end}
+cmd .levelup 5
+go 1 {xyz:ch7:elder}
+wait 3
+talk {ch1:elder}
+expect quest {ch7:ch7_arrival}:
+cmd .quest add {ch7:ch7_end}
+cmd .quest complete {ch7:ch7_end}
+cmd .quest reward {ch7:ch7_end}
+cmd .levelup 5
+go 0 {xyz:ch8:elder}
+wait 3
+talk {ch1:elder}
+expect quest {ch8:ch8_arrival}:
+cmd .quest add {ch8:ch8_end}
+cmd .quest complete {ch8:ch8_end}
+cmd .quest reward {ch8:ch8_end}
+cmd .levelup 5
+go 1 {xyz:ch9:elder}
+wait 3
+talk {ch1:elder}
+expect quest {ch9:ch9_arrival}:
+cmd .quest add {ch9:ch9_end}
+cmd .quest complete {ch9:ch9_end}
+cmd .quest reward {ch9:ch9_end}
+cmd .levelup 5
+go 1 {xyz:ch10:surf}
+wait 3
+talk {ch1:glubbub}
+expect quest {ch10:ch10_arrival}:
+# Auberdine's quests aren't a murloc's while its story isn't done (Thundris Windweaver's).
+go 1 6581.0 492.0 8.3
+talk 3649
+expect-not quest 954:

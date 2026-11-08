@@ -1,0 +1,495 @@
+From c9a16c9cf0e04e0a61ae76c064b0d14aca8faaba Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 17:30:06 +0000
+Subject: [PATCH] Entry point for the folder name the module browser installs
+ it under
+
+The module's install folder is mod-adaptive-autoattack, but the module browser installs a module
+under its repository's name (Auto-Attack-Forever): AzerothCore's generated loader then calls
+AddAuto_Attack_ForeverScripts(), which the module doesn't define (a link error). The entry point
+is added, calling the module's own.
+---
+ README.md               | 140 ++++++++++++++++++++--------------------
+ docs/INSTALL.md         | 126 ++++++++++++++++++------------------
+ docs/UPGRADE-0.2.0.md   |  58 ++++++++---------
+ docs/VALIDATION.md      |  26 ++++----
+ media/README.md         |  10 +--
+ patches/README.md       |   6 +-
+ src/loader.cpp          |   8 +++
+ tools/prepare_server.py |  54 ++++++++--------
+ 8 files changed, 218 insertions(+), 210 deletions(-)
+
+diff --git a/README.md b/README.md
+index 095f96f..692362c 100644
+--- a/README.md
++++ b/README.md
+@@ -1,70 +1,70 @@
+-[![Auto-Attack Forever â€” watch the showcase](docs/assets/showcase-thumbnail.jpg)](https://youtu.be/Dh1eWCPZBXg)
+-
+-# Auto-Attack Forever
+-
+-Created by [CWO4PapaBear](https://github.com/CWO4PapaBear). Third-party contributions are credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+-
+-Your most basic attacks should be the easiest part of combat. Switching between shooting and swinging is a small, familiar frustrationâ€”easy to overlook, but repeated across countless encounters. **Auto-Attack Forever** smooths out that friction, letting your equipped weapons handle the basics while you focus on the abilities, timing, and big plays that make your character fun to play.
+-
+-Close the distance. Take the shot. Save your attention for the moves that matter.
+-
+-For hunter-style characters in Free Pick or Wildcard systems, universal ranged attacks can also leave more room for specialization. When Auto Shot would otherwise consume an ability selection, making basic ranged attacks available to everyone lets that selection go toward another skill that defines the build. Spend it on becoming a better marksman, a stronger beast master, or something entirely your own.
+-
+-This module supplies the basic attack controls; it does not itself refund ability selections or change a Free Pick/Wildcard system's ability pool. That system must treat the supplied attack as free to realize this benefit. Ordinary hunters keep their existing abilities, and all classes retain their normal weapon restrictions.
+-
+-**0.2.0 preview — no core edits required. Built and tested on stock AzerothCore on September 15, 2026.**
+-
+-Auto Ranged dispatches native Auto Shot (75) for bows, guns and crossbows on every class, without teaching or requiring a separate Auto Shot ability. It preserves native Hunter proc identity without granting talents or the Hunter's separate haste passive. Thrown weapons and wands fire automatically and switch between melee and ranged. Wands retain stock startup timing.
+-
+-Upgrading from a core-patched version? Follow [the migration instructions](docs/UPGRADE-0.2.0.md) before rebuilding. Do not leave the old core callbacks installed alongside this version.
+-
+-Right-click an enemy to use the equipped ranged weapon outside melee reach and melee attacks at close range. If the target moves back into valid ranged distance, ranged attacks resume. The General spellbook contains **Auto Melee** and **Auto Ranged**; the optional addon changes Auto Ranged's icon to the equipped ranged weapon on Blizzard action bars.
+-
+-Supports bows, guns, crossbows, thrown weapons and wands. Existing proficiency, ammunition, durability, range, facing, line-of-sight and movement checks still apply. Every character receives the attack controls, regardless of class or weapon proficiency. The module does not teach weapon skills, remove item class restrictions, or make a weapon equippable by an otherwise ineligible character.
+-
+-## Demonstration
+-
+-[Watch the showcase on YouTube](https://youtu.be/Dh1eWCPZBXg). The downloadable package also includes the original final-test MP4.
+-
+-Recorded by the project owner during the successful final test on the Classless test server. This recording demonstrates the working predecessor. The packaged preview subsequently passed its stock-core build, activation and ordinary-class gameplay tests on September 14, 2026. The video is provided as a separate media asset, not under the source-code license.
+-
+-Click the header thumbnail to watch the showcase.
+-
+-The display name is **Auto-Attack Forever**. Installation folder and configuration identifiers remain `mod-adaptive-autoattack` and `AdaptiveAutoAttack.Enable` in this preview.
+-
+-## Components
+-
+-- `src/`: independent server module, no Classless Wildcard dependency.
+-- `patches/`: historical migration references only. **Do not apply them with 0.2.0.**
+-- `data/sql/db-world/`: three custom spell records and General-tab mappings.
+-- `tools/build_client.py`: generates client patches from your own 3.3.5a client; preserves unrelated entries in existing Z archives.
+-- `client-addon/AdaptiveAutoAttack/`: optional dynamic action-bar icon addon.
+-- `conf/`: enable/disable setting.
+-
+-The server module uses existing AzerothCore hooks; **no core patch is required**. Matching client spell data is still required. No Blizzard client assets, account data, databases, executable files or server credentials are included.
+-
+-## Installation
+-
+-Start with the [step-by-step walkthrough](docs/INSTALL.md). It assumes you already have a running AzerothCore server. The helper `tools/prepare_server.py` performs read-only checks and never patches the core.
+-
+-Install the repository at `modules/mod-adaptive-autoattack`, check IDs, rebuild your worldserver, apply the included SQL once through your normal module updater, and generate matching client patches from your own client. Existing installations retain their spell records and client patches.
+-
+-Tested core revision: `e1823bb2db751a7cc0a90a8543e778449ebf7d84`. Other revisions require compilation and gameplay validation. Keep backups and test before deploying to a public realm.
+-
+-## Verification and limits
+-
+-The hook-based server compiled and linked against unmodified stock AzerothCore and passed user-reported testing of bows, guns, crossbows, thrown weapons and wands, automatic repetition and melee/ranged switching on September 15, 2026. The C++ files are byte-identical to that tested build; its startup message still says `no-core prototype 1; stock wand timing`.
+-
+-Native Auto Shot/Wild Quiver interaction was separately verified on the preceding modified-core build: 117 Wild Quiver damage events followed 831 damaging Auto Shots with rank 3 reported by the tester. This demonstrates proc operation, not an exact measured 12% probability. A new Hunter-proc trace on the hook-based version remains an additional check. See [validation](docs/VALIDATION.md).
+-
+-There is a short transition window to distinguish a client response to a server-requested mode change from a stop request. High-latency and packet-loss testing is outstanding. Do not advertise competitive-PvP readiness yet.
+-
+-Native spell IDs are preserved, including existing Shoot, Throw and wand abilities. The two custom implementation spells are hidden in the client. Action-bar replacement addons and non-enUS labels have not been tested. Built-in melee activation and right-click share an attack command; a separate manual melee-only override is not implemented.
+-
+-## Disable or uninstall
+-
+-Set `AdaptiveAutoAttack.Enable = 0` and restart to stop automatic dispatch and new grants. This retains learned spells and client labels. For a complete rollback, stop the server, restore the prior core/module build and database backups, restore both prior client archives and remove the addon. Version 0.2.0 has no core patch to remove. Older installations must remove their old integration as described in the migration guide.
+-
+-## License
+-
+-GPL-2.0-or-later. Bundled client archive utilities are adapted from `mod-classless-wildcard`; see [third-party notices](THIRD_PARTY_NOTICES.md). Generated client patches are for your own installation and are intentionally excluded from this source repository.
++[![Auto-Attack Forever â€” watch the showcase](docs/assets/showcase-thumbnail.jpg)](https://youtu.be/Dh1eWCPZBXg)
++
++# Auto-Attack Forever
++
++Created by [CWO4PapaBear](https://github.com/CWO4PapaBear). Third-party contributions are credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
++
++Your most basic attacks should be the easiest part of combat. Switching between shooting and swinging is a small, familiar frustrationâ€”easy to overlook, but repeated across countless encounters. **Auto-Attack Forever** smooths out that friction, letting your equipped weapons handle the basics while you focus on the abilities, timing, and big plays that make your character fun to play.
++
++Close the distance. Take the shot. Save your attention for the moves that matter.
++
++For hunter-style characters in Free Pick or Wildcard systems, universal ranged attacks can also leave more room for specialization. When Auto Shot would otherwise consume an ability selection, making basic ranged attacks available to everyone lets that selection go toward another skill that defines the build. Spend it on becoming a better marksman, a stronger beast master, or something entirely your own.
++
++This module supplies the basic attack controls; it does not itself refund ability selections or change a Free Pick/Wildcard system's ability pool. That system must treat the supplied attack as free to realize this benefit. Ordinary hunters keep their existing abilities, and all classes retain their normal weapon restrictions.
++
++**0.2.0 preview — no core edits required. Built and tested on stock AzerothCore on September 15, 2026.**
++
++Auto Ranged dispatches native Auto Shot (75) for bows, guns and crossbows on every class, without teaching or requiring a separate Auto Shot ability. It preserves native Hunter proc identity without granting talents or the Hunter's separate haste passive. Thrown weapons and wands fire automatically and switch between melee and ranged. Wands retain stock startup timing.
++
++Upgrading from a core-patched version? Follow [the migration instructions](docs/UPGRADE-0.2.0.md) before rebuilding. Do not leave the old core callbacks installed alongside this version.
++
++Right-click an enemy to use the equipped ranged weapon outside melee reach and melee attacks at close range. If the target moves back into valid ranged distance, ranged attacks resume. The General spellbook contains **Auto Melee** and **Auto Ranged**; the optional addon changes Auto Ranged's icon to the equipped ranged weapon on Blizzard action bars.
++
++Supports bows, guns, crossbows, thrown weapons and wands. Existing proficiency, ammunition, durability, range, facing, line-of-sight and movement checks still apply. Every character receives the attack controls, regardless of class or weapon proficiency. The module does not teach weapon skills, remove item class restrictions, or make a weapon equippable by an otherwise ineligible character.
++
++## Demonstration
++
++[Watch the showcase on YouTube](https://youtu.be/Dh1eWCPZBXg). The downloadable package also includes the original final-test MP4.
++
++Recorded by the project owner during the successful final test on the Classless test server. This recording demonstrates the working predecessor. The packaged preview subsequently passed its stock-core build, activation and ordinary-class gameplay tests on September 14, 2026. The video is provided as a separate media asset, not under the source-code license.
++
++Click the header thumbnail to watch the showcase.
++
++The display name is **Auto-Attack Forever**. Installation folder and configuration identifiers remain `mod-adaptive-autoattack` and `AdaptiveAutoAttack.Enable` in this preview.
++
++## Components
++
++- `src/`: independent server module, no Classless Wildcard dependency.
++- `patches/`: historical migration references only. **Do not apply them with 0.2.0.**
++- `data/sql/db-world/`: three custom spell records and General-tab mappings.
++- `tools/build_client.py`: generates client patches from your own 3.3.5a client; preserves unrelated entries in existing Z archives.
++- `client-addon/AdaptiveAutoAttack/`: optional dynamic action-bar icon addon.
++- `conf/`: enable/disable setting.
++
++The server module uses existing AzerothCore hooks; **no core patch is required**. Matching client spell data is still required. No Blizzard client assets, account data, databases, executable files or server credentials are included.
++
++## Installation
++
++Start with the [step-by-step walkthrough](docs/INSTALL.md). It assumes you already have a running AzerothCore server. The helper `tools/prepare_server.py` performs read-only checks and never patches the core.
++
++Install the repository at `modules/mod-adaptive-autoattack`, check IDs, rebuild your worldserver, apply the included SQL once through your normal module updater, and generate matching client patches from your own client. Existing installations retain their spell records and client patches.
++
++Tested core revision: `e1823bb2db751a7cc0a90a8543e778449ebf7d84`. Other revisions require compilation and gameplay validation. Keep backups and test before deploying to a public realm.
++
++## Verification and limits
++
++The hook-based server compiled and linked against unmodified stock AzerothCore and passed user-reported testing of bows, guns, crossbows, thrown weapons and wands, automatic repetition and melee/ranged switching on September 15, 2026. The C++ files are byte-identical to that tested build; its startup message still says `no-core prototype 1; stock wand timing`.
++
++Native Auto Shot/Wild Quiver interaction was separately verified on the preceding modified-core build: 117 Wild Quiver damage events followed 831 damaging Auto Shots with rank 3 reported by the tester. This demonstrates proc operation, not an exact measured 12% probability. A new Hunter-proc trace on the hook-based version remains an additional check. See [validation](docs/VALIDATION.md).
++
++There is a short transition window to distinguish a client response to a server-requested mode change from a stop request. High-latency and packet-loss testing is outstanding. Do not advertise competitive-PvP readiness yet.
++
++Native spell IDs are preserved, including existing Shoot, Throw and wand abilities. The two custom implementation spells are hidden in the client. Action-bar replacement addons and non-enUS labels have not been tested. Built-in melee activation and right-click share an attack command; a separate manual melee-only override is not implemented.
++
++## Disable or uninstall
++
++Set `AdaptiveAutoAttack.Enable = 0` and restart to stop automatic dispatch and new grants. This retains learned spells and client labels. For a complete rollback, stop the server, restore the prior core/module build and database backups, restore both prior client archives and remove the addon. Version 0.2.0 has no core patch to remove. Older installations must remove their old integration as described in the migration guide.
++
++## License
++
++GPL-2.0-or-later. Bundled client archive utilities are adapted from `mod-classless-wildcard`; see [third-party notices](THIRD_PARTY_NOTICES.md). Generated client patches are for your own installation and are intentionally excluded from this source repository.
+diff --git a/docs/INSTALL.md b/docs/INSTALL.md
+index e8df4e7..bff53ad 100644
+--- a/docs/INSTALL.md
++++ b/docs/INSTALL.md
+@@ -1,63 +1,63 @@
+-# Installation on an existing AzerothCore server
+-
+-Requires your running AzerothCore setup, its existing build environment, your own 3.3.5a build 12340 client, Git and Python 3.10+. No second server is required by the module, though testing separately is recommended. No core edits are required. Upgrading an older version? Use [the migration guide](UPGRADE-0.2.0.md) instead.
+-
+-## 1. Back up
+-
+-Save your source changes, configuration, world/character database backups, existing binaries or Docker images, and client patch archives. Record your current core revision. Tested revision: e1823bb2db751a7cc0a90a8543e778449ebf7d84; do not reset your server to it and discard local work.
+-
+-## 2. Install the module
+-
+-From your AzerothCore source root:
+-
+-```bash
+-git clone https://github.com/CWO4PapaBear/Auto-Attack-Forever.git modules/mod-adaptive-autoattack
+-python3 modules/mod-adaptive-autoattack/tools/prepare_server.py --core .
+-```
+-
+-The installation folder must use that name. The check never edits files; it detects missing hooks and old integration symbols but is not a complete compatibility test. Do not install mod-ranged-autoattack alongside it.
+-
+-## 3. Check reserved IDs
+-
+-Run in your world database. Both results must be empty on a fresh installation:
+-
+-```sql
+-SELECT Id FROM spell_dbc WHERE Id BETWEEN 970100 AND 970102;
+-SELECT ID, Spell FROM skilllineability_dbc WHERE ID BETWEEN 970100 AND 970102 OR Spell BETWEEN 970100 AND 970102;
+-```
+-
+-Resolve collisions rather than overwriting unrelated records. The included SQL uses INSERT and is intended to run once. Existing users should not repeat it.
+-
+-## 4. Build and configure
+-
+-Use your existing AzerothCore reconfigure/build/install workflow with modules enabled. For an existing native CMake build directory, replacing the example paths:
+-
+-```bash
+-cmake -S /path/to/azerothcore -B /path/to/existing-build -DMODULES=static
+-cmake --build /path/to/existing-build --parallel 2
+-cmake --install /path/to/existing-build
+-```
+-
+-Keep your existing CMake options and installation prefix. Adjust parallel jobs for available memory. Docker users must rebuild the worldserver image through their existing Compose setup, then recreate that service; native build commands do not update a Docker image. Service names and commands depend on your deployment.
+-
+-Apply data/sql/db-world/2026_09_14_00_adaptive_autoattack.sql once through the normal module database updater. If your setup requires a separate db-import image, rebuild/run that updater first. Do not both manually import and rerun the same SQL via the updater. Copy conf/adaptive_autoattack.conf.dist to your deployed etc/modules/adaptive_autoattack.conf and leave AdaptiveAutoAttack.Enable = 1. Restart the new worldserver after installation and database update.
+-
+-## 5. Generate client patches
+-
+-From the module directory, using your own unpatched client and a new output directory:
+-
+-```bash
+-python3 tools/build_client.py --client "/path/to/WoW-3.3.5a" --output "/path/to/new-client-patches" --locale enUS
+-```
+-
+-On Windows use `python` instead of `python3` if needed. The builder preserves unrelated entries from existing Z archives and writes only to the output directory. It rejects reserved-ID collisions and cannot update an already-installed version automatically.
+-
+-## 6. Install client files
+-
+-Close WoW. Back up Data/patch-Z.MPQ and Data/enUS/patch-enUS-Z.MPQ (substitute your locale). Copy the generated Data directory into the client. Both base and locale archives must match. Copy client-addon/AdaptiveAutoAttack to Interface/AddOns and enable it for dynamic Blizzard action-bar icons. Fully restart WoW and log in.
+-
+-## 7. Verify
+-
+-The log should contain `no-core prototype 1; stock wand timing` (the tested source marker). Auto Melee and Auto Ranged appear in General. Test each weapon type your class can equip, with ammunition where required. Verify repeated attacks, right-click and hotbar starts, cancellation, melee switching and return to ranged distance. Wands use stock startup timing. The module grants no weapon proficiencies, equipment permissions or Hunter talents.
+-
+-To disable, set AdaptiveAutoAttack.Enable = 0 and restart. Learned controls and client labels remain; restore your backups for complete removal. Version 0.2.0 requires no core patch to undo. See [validation](VALIDATION.md) for remaining compatibility checks.
++# Installation on an existing AzerothCore server
++
++Requires your running AzerothCore setup, its existing build environment, your own 3.3.5a build 12340 client, Git and Python 3.10+. No second server is required by the module, though testing separately is recommended. No core edits are required. Upgrading an older version? Use [the migration guide](UPGRADE-0.2.0.md) instead.
++
++## 1. Back up
++
++Save your source changes, configuration, world/character database backups, existing binaries or Docker images, and client patch archives. Record your current core revision. Tested revision: e1823bb2db751a7cc0a90a8543e778449ebf7d84; do not reset your server to it and discard local work.
++
++## 2. Install the module
++
++From your AzerothCore source root:
++
++```bash
++git clone https://github.com/CWO4PapaBear/Auto-Attack-Forever.git modules/mod-adaptive-autoattack
++python3 modules/mod-adaptive-autoattack/tools/prepare_server.py --core .
++```
++
++The installation folder must use that name. The check never edits files; it detects missing hooks and old integration symbols but is not a complete compatibility test. Do not install mod-ranged-autoattack alongside it.
++
++## 3. Check reserved IDs
++
++Run in your world database. Both results must be empty on a fresh installation:
++
++```sql
++SELECT Id FROM spell_dbc WHERE Id BETWEEN 970100 AND 970102;
++SELECT ID, Spell FROM skilllineability_dbc WHERE ID BETWEEN 970100 AND 970102 OR Spell BETWEEN 970100 AND 970102;
++```
++
++Resolve collisions rather than overwriting unrelated records. The included SQL uses INSERT and is intended to run once. Existing users should not repeat it.
++
++## 4. Build and configure
++
++Use your existing AzerothCore reconfigure/build/install workflow with modules enabled. For an existing native CMake build directory, replacing the example paths:
++
++```bash
++cmake -S /path/to/azerothcore -B /path/to/existing-build -DMODULES=static
++cmake --build /path/to/existing-build --parallel 2
++cmake --install /path/to/existing-build
++```
++
++Keep your existing CMake options and installation prefix. Adjust parallel jobs for available memory. Docker users must rebuild the worldserver image through their existing Compose setup, then recreate that service; native build commands do not update a Docker image. Service names and commands depend on your deployment.
++
++Apply data/sql/db-world/2026_09_14_00_adaptive_autoattack.sql once through the normal module database updater. If your setup requires a separate db-import image, rebuild/run that updater first. Do not both manually import and rerun the same SQL via the updater. Copy conf/adaptive_autoattack.conf.dist to your deployed etc/modules/adaptive_autoattack.conf and leave AdaptiveAutoAttack.Enable = 1. Restart the new worldserver after installation and database update.
++
++## 5. Generate client patches
++
++From the module directory, using your own unpatched client and a new output directory:
++
++```bash
++python3 tools/build_client.py --client "/path/to/WoW-3.3.5a" --output "/path/to/new-client-patches" --locale enUS
++```
++
++On Windows use `python` instead of `python3` if needed. The builder preserves unrelated entries from existing Z archives and writes only to the output directory. It rejects reserved-ID collisions and cannot update an already-installed version automatically.
++
++## 6. Install client files
++
++Close WoW. Back up Data/patch-Z.MPQ and Data/enUS/patch-enUS-Z.MPQ (substitute your locale). Copy the generated Data directory into the client. Both base and locale archives must match. Copy client-addon/AdaptiveAutoAttack to Interface/AddOns and enable it for dynamic Blizzard action-bar icons. Fully restart WoW and log in.
++
++## 7. Verify
++
++The log should contain `no-core prototype 1; stock wand timing` (the tested source marker). Auto Melee and Auto Ranged appear in General. Test each weapon type your class can equip, with ammunition where required. Verify repeated attacks, right-click and hotbar starts, cancellation, melee switching and return to ranged distance. Wands use stock startup timing. The module grants no weapon proficiencies, equipment permissions or Hunter talents.
++
++To disable, set AdaptiveAutoAttack.Enable = 0 and restart. Learned controls and client labels remain; restore your backups for complete removal. Version 0.2.0 requires no core patch to undo. See [validation](VALIDATION.md) for remaining compatibility checks.
+diff --git a/docs/UPGRADE-0.2.0.md b/docs/UPGRADE-0.2.0.md
+index 66c808d..5899d45 100644
+--- a/docs/UPGRADE-0.2.0.md
++++ b/docs/UPGRADE-0.2.0.md
+@@ -1,29 +1,29 @@
+-# Upgrade to 0.2.0
+-
+-Back up source, module, binaries/images, configuration, databases and client patches. Keep the patch from the version actually installed.
+-
+-1. Remove only the old module integration from CombatHandler.cpp, SpellHandler.cpp, Unit.cpp and Spell.cpp. On the exact supported baseline, check reversal of your installed version's patch first:
+-
+-```bash
+-git apply --reverse --check modules/mod-adaptive-autoattack/patches/azerothcore-e1823bb.patch
+-```
+-
+-Only if the check passes:
+-
+-```bash
+-git apply --reverse modules/mod-adaptive-autoattack/patches/azerothcore-e1823bb.patch
+-```
+-
+-The historical full patch bundled here matches 0.1.2. For older or adapted integrations use the corresponding old patch. If reversal fails, review the four files manually; do not force it or discard unrelated changes. Do not reset databases.
+-
+-2. Update the module and run the read-only check from the core root:
+-
+-```bash
+-python3 modules/mod-adaptive-autoattack/tools/prepare_server.py --core .
+-```
+-
+-3. Reconfigure, rebuild and install using your existing server build process. Stop the worldserver for deployment and restart the new build. Never run both old core callbacks and new hooks.
+-4. Keep your configuration, existing three spell records, General-tab mappings, client patches and addon. Do not rerun the original INSERT SQL or run the client generator against an already patched client. No new client data or database changes are required.
+-5. Test all weapon types, starts, stops and melee/ranged transitions. Stock wand startup timing is intentional.
+-
+-The startup log retains `no-core prototype 1; stock wand timing` to preserve exact tested source. Rollback requires restoring the previous module, matching core integration and binary together; this upgrade does not require database rollback.
++# Upgrade to 0.2.0
++
++Back up source, module, binaries/images, configuration, databases and client patches. Keep the patch from the version actually installed.
++
++1. Remove only the old module integration from CombatHandler.cpp, SpellHandler.cpp, Unit.cpp and Spell.cpp. On the exact supported baseline, check reversal of your installed version's patch first:
++
++```bash
++git apply --reverse --check modules/mod-adaptive-autoattack/patches/azerothcore-e1823bb.patch
++```
++
++Only if the check passes:
++
++```bash
++git apply --reverse modules/mod-adaptive-autoattack/patches/azerothcore-e1823bb.patch
++```
++
++The historical full patch bundled here matches 0.1.2. For older or adapted integrations use the corresponding old patch. If reversal fails, review the four files manually; do not force it or discard unrelated changes. Do not reset databases.
++
++2. Update the module and run the read-only check from the core root:
++
++```bash
++python3 modules/mod-adaptive-autoattack/tools/prepare_server.py --core .
++```
++
++3. Reconfigure, rebuild and install using your existing server build process. Stop the worldserver for deployment and restart the new build. Never run both old core callbacks and new hooks.
++4. Keep your configuration, existing three spell records, General-tab mappings, client patches and addon. Do not rerun the original INSERT SQL or run the client generator against an already patched client. No new client data or database changes are required.
++5. Test all weapon types, starts, stops and melee/ranged transitions. Stock wand startup timing is intentional.
++
++The startup log retains `no-core prototype 1; stock wand timing` to preserve exact tested source. Rollback requires restoring the previous module, matching core integration and binary together; this upgrade does not require database rollback.
+diff --git a/docs/VALIDATION.md b/docs/VALIDATION.md
+index 8a1b90a..f98fdf2 100644
+--- a/docs/VALIDATION.md
++++ b/docs/VALIDATION.md
+@@ -1,13 +1,13 @@
+-# Validation — 0.2.0 preview
+-
+-On September 15, 2026 the hook-based module compiled and linked against stock AzerothCore revision e1823bb2db751a7cc0a90a8543e778449ebf7d84. All four previously edited core files matched their original Git blobs. Startup and login/world listening ports were verified with ten ordinary classes retained.
+-
+-The tester reported successful bow, gun, crossbow, thrown and wand testing, automatic repetition and melee/ranged switching. Local controller regression checks passed with the old AttackStop callback removed. Released C++ files match the tested prototype byte for byte, including its diagnostic startup label.
+-
+-Stock wand startup timing is intentional. A male dwarf wand projectile appearing to launch from the left was reproduced with stock Shoot on the same client; it is not unique to this module. No client model correction is included.
+-
+-Native Auto Shot and Wild Quiver were traced on the preceding modified-core implementation: 831 damaging Auto Shots and 117 Wild Quiver damage events with rank 3 reported. This verifies proc operation, not exact probability. The hook build retains the same native spell dispatch; a dedicated new Hunter trace on it is still desirable.
+-
+-Remaining checks: other core revisions, configurations with competing packet hooks, high latency/packet loss, malformed requests, disable/re-enable, extended interruption/vehicle/possession scenarios, third-party action bars, non-enUS clients and full migration/rollback matrices. Vehicles and possession retain native command handling. Custom servers that permit nonstandard wand users need separate damage-school review; ordinary class equipment restrictions remain unchanged.
+-
+-This remains a preview. Do not claim universal compatibility or competitive-PvP readiness.
++# Validation — 0.2.0 preview
++
++On September 15, 2026 the hook-based module compiled and linked against stock AzerothCore revision e1823bb2db751a7cc0a90a8543e778449ebf7d84. All four previously edited core files matched their original Git blobs. Startup and login/world listening ports were verified with ten ordinary classes retained.
++
++The tester reported successful bow, gun, crossbow, thrown and wand testing, automatic repetition and melee/ranged switching. Local controller regression checks passed with the old AttackStop callback removed. Released C++ files match the tested prototype byte for byte, including its diagnostic startup label.
++
++Stock wand startup timing is intentional. A male dwarf wand projectile appearing to launch from the left was reproduced with stock Shoot on the same client; it is not unique to this module. No client model correction is included.
++
++Native Auto Shot and Wild Quiver were traced on the preceding modified-core implementation: 831 damaging Auto Shots and 117 Wild Quiver damage events with rank 3 reported. This verifies proc operation, not exact probability. The hook build retains the same native spell dispatch; a dedicated new Hunter trace on it is still desirable.
++
++Remaining checks: other core revisions, configurations with competing packet hooks, high latency/packet loss, malformed requests, disable/re-enable, extended interruption/vehicle/possession scenarios, third-party action bars, non-enUS clients and full migration/rollback matrices. Vehicles and possession retain native command handling. Custom servers that permit nonstandard wand users need separate damage-school review; ordinary class equipment restrictions remain unchanged.
++
++This remains a preview. Do not claim universal compatibility or competitive-PvP readiness.
+diff --git a/media/README.md b/media/README.md
+index d3aec42..c7843c5 100644
+--- a/media/README.md
++++ b/media/README.md
+@@ -1,5 +1,5 @@
+-# Demonstration video
+-
+-`adaptive-autoattack-demo.mp4` is the project owner's final in-game test recording, supplied for distribution with this package. It is excluded from source-code licensing; the GPL notice applies to code, not this recording. Underlying game content belongs to its respective owners.
+-
+-Keep the video in release downloads rather than Git history. When publishing, upload it as a GitHub release asset and update the main README with the real video URL. No video has been uploaded by preparing this package.
++# Demonstration video
++
++`adaptive-autoattack-demo.mp4` is the project owner's final in-game test recording, supplied for distribution with this package. It is excluded from source-code licensing; the GPL notice applies to code, not this recording. Underlying game content belongs to its respective owners.
++
++Keep the video in release downloads rather than Git history. When publishing, upload it as a GitHub release asset and update the main README with the real video URL. No video has been uploaded by preparing this package.
+diff --git a/patches/README.md b/patches/README.md
+index ff524ce..1d42534 100644
+--- a/patches/README.md
++++ b/patches/README.md
+@@ -1,3 +1,3 @@
+-# Historical patches only
+-
+-Do not apply these patches with 0.2.0. They are retained solely for migration from older releases. See [the migration guide](../docs/UPGRADE-0.2.0.md).
++# Historical patches only
++
++Do not apply these patches with 0.2.0. They are retained solely for migration from older releases. See [the migration guide](../docs/UPGRADE-0.2.0.md).
+diff --git a/src/loader.cpp b/src/loader.cpp
+index d956e5d..1f3190b 100644
+--- a/src/loader.cpp
++++ b/src/loader.cpp
+@@ -34,3 +34,11 @@ void Addmod_adaptive_autoattackScripts()
+     RegisterAdaptiveAttackHooks();
+     RegisterAdaptiveAttackOptions();
+ }
++
++// The module browser installs the module as Auto-Attack-Forever (its repository's name), where the
++// module's own install folder is mod-adaptive-autoattack: the core's generated loader calls the
++// entry point of the folder's name.
++void AddAuto_Attack_ForeverScripts()
++{
++    Addmod_adaptive_autoattackScripts();
++}
+diff --git a/tools/prepare_server.py b/tools/prepare_server.py
+index 779383a..2e5e33e 100644
+--- a/tools/prepare_server.py
++++ b/tools/prepare_server.py
+@@ -1,27 +1,27 @@
+-#!/usr/bin/env python3
+-"""Read-only checks for hook-based Auto-Attack Forever; never edits core files."""
+-import argparse, subprocess
+-from pathlib import Path
+-
+-def main():
+-    parser=argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument('--core',required=True,type=Path)
+-    args=parser.parse_args()
+-    core=args.core.resolve()
+-    if Path(__file__).resolve().parents[1] != core/'modules/mod-adaptive-autoattack':
+-        parser.error('Install at CORE/modules/mod-adaptive-autoattack first.')
+-    if (core/'modules/mod-ranged-autoattack').exists():
+-        parser.error('Conflicting experimental module present.')
+-    for rel in ('Entities/Unit/Unit.cpp','Handlers/CombatHandler.cpp','Handlers/SpellHandler.cpp','Spells/Spell.cpp'):
+-        text=(core/'src/server/game'/rel).read_text()
+-        if any(s in text for s in ('RangedAutoStart','RangedAutoStop','RangedAutoUpdate','RangedAutoClientCancel')):
+-            parser.error('Old core integration in '+rel+'. Follow docs/UPGRADE-0.2.0.md.')
+-    for file,hook in (('ServerScript.h','CanPacketReceive'),('UnitScript.h','OnUnitUpdate')):
+-        if hook not in (core/'src/server/game/Scripting/ScriptDefines'/file).read_text():
+-            parser.error('Required hook missing: '+hook)
+-    revision=subprocess.check_output(['git','-C',str(core),'rev-parse','HEAD'],text=True).strip()
+-    print('PASS: hook names present; old integration symbols absent. No files changed.')
+-    print('Core revision: '+revision)
+-    print('Tested: e1823bb2db751a7cc0a90a8543e778449ebf7d84. Other revisions require validation.')
+-    print('Build, database ID checks and client installation remain. This is not a complete compatibility test.')
+-if __name__=='__main__':main()
++#!/usr/bin/env python3
++"""Read-only checks for hook-based Auto-Attack Forever; never edits core files."""
++import argparse, subprocess
++from pathlib import Path
++
++def main():
++    parser=argparse.ArgumentParser(description=__doc__)
++    parser.add_argument('--core',required=True,type=Path)
++    args=parser.parse_args()
++    core=args.core.resolve()
++    if Path(__file__).resolve().parents[1] != core/'modules/mod-adaptive-autoattack':
++        parser.error('Install at CORE/modules/mod-adaptive-autoattack first.')
++    if (core/'modules/mod-ranged-autoattack').exists():
++        parser.error('Conflicting experimental module present.')
++    for rel in ('Entities/Unit/Unit.cpp','Handlers/CombatHandler.cpp','Handlers/SpellHandler.cpp','Spells/Spell.cpp'):
++        text=(core/'src/server/game'/rel).read_text()
++        if any(s in text for s in ('RangedAutoStart','RangedAutoStop','RangedAutoUpdate','RangedAutoClientCancel')):
++            parser.error('Old core integration in '+rel+'. Follow docs/UPGRADE-0.2.0.md.')
++    for file,hook in (('ServerScript.h','CanPacketReceive'),('UnitScript.h','OnUnitUpdate')):
++        if hook not in (core/'src/server/game/Scripting/ScriptDefines'/file).read_text():
++            parser.error('Required hook missing: '+hook)
++    revision=subprocess.check_output(['git','-C',str(core),'rev-parse','HEAD'],text=True).strip()
++    print('PASS: hook names present; old integration symbols absent. No files changed.')
++    print('Core revision: '+revision)
++    print('Tested: e1823bb2db751a7cc0a90a8543e778449ebf7d84. Other revisions require validation.')
++    print('Build, database ID checks and client installation remain. This is not a complete compatibility test.')
++if __name__=='__main__':main()
+-- 
+2.43.0
+

@@ -1,11 +1,18 @@
 # Blizzard launcher: working rules
 
-- **Push edits to `main`** (the user: "always push edits to main unless it conflicts with another
-  session"). Many sessions can work at once. Before pushing: fetch `origin/main`, merge it into your
-  work, and look at what changed there. Where it is plainly separate additions, keep both and push to
-  `main`. Where the same lines changed differently, or one change undoes another's, don't push: stop
-  and tell the user. Never rebase or force-push over others' work. CI builds and releases every push
-  to `main` (`blizzard-build-N`); confirm the run and the release.
+- **Always merge into `main`** (the user: "always merge unless it contradicts other sessions, then
+  decide automatically which one to merge first so it doesn't mess up changes"). Many sessions can work
+  at once. When a change is done, fetch `origin/main`, merge it into your work, and look at what changed
+  there. Where it is plainly separate additions, keep both and push to `main`; do not wait to be asked.
+  Never rebase or force-push over others' work. CI builds and releases every push to `main`
+  (`blizzard-build-N`); confirm the run and the release.
+  **When sessions contradict** (the same lines changed differently, or one change undoes another's),
+  decide the order yourself, without asking: merge first the work that is finished, tested and
+  pushed, and that the others build on or touch least (the smaller, more foundational change); the
+  other session then merges `main` into its work, keeps both changes, and re-runs the tests before
+  it pushes. Where both changes cannot stand together even then, keep the one merged first, adapt
+  the later one to it, and say so in the commit message; never drop or overwrite the other
+  session's work to make a merge go through.
 - Build and run the unit tests before pushing:
   `./gradlew --init-script <maven-mirror.init.gradle> :app:testDebugUnitTest` (the init script is in
   YeaBwoi's `scripts/` when it is cloned beside this repository). Say what was tested and what wasn't:

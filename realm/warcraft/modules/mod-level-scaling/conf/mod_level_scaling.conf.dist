@@ -1,0 +1,45 @@
+[worldserver]
+
+########################################
+# Level scaling (mod-level-scaling): creatures within a few levels of yours, as Ascension WoW has it,
+# for each character that turns it on at their class trainer; dungeons and raids for however many
+# are there
+########################################
+#
+#    LevelScaling.Enable
+#        Description: The module on this realm. The app's ctl.sh sets it at every start: on for
+#                     ChromieCraft, off for Wrath Remix (which has its own).
+#        Default:     1
+#
+#    LevelScaling.Range
+#        Description: How many levels above or below a character with scaling on the creatures near
+#                     them are (a boss at the top of it). Each character turns scaling on or off at
+#                     their class trainer; it's off until they do.
+#        Default:     2
+#
+#    LevelScaling.QuestExperience
+#        Description: With scaling on, a quest below the character's level gives the experience of
+#                     one at their level.
+#        Default:     1
+#
+#    LevelScaling.Solo.Enable
+#        Description: Dungeons and raids for however many are there (bots count): below a full group
+#                     the creatures' blows land softer and the players' harder.
+#        Default:     1
+#
+#    LevelScaling.Solo.DungeonDamage, LevelScaling.Solo.RaidDamage
+#        Description: The least share of a full group's damage taken, in percent, alone in a dungeon
+#                     or a raid.
+#        Default:     35, 15
+#
+#    LevelScaling.Solo.MaxBoost
+#        Description: The most the players' damage is multiplied by below a full group.
+#        Default:     15
+
+LevelScaling.Enable = 1
+LevelScaling.Range = 2
+LevelScaling.QuestExperience = 1
+LevelScaling.Solo.Enable = 1
+LevelScaling.Solo.DungeonDamage = 35
+LevelScaling.Solo.RaidDamage = 15
+LevelScaling.Solo.MaxBoost = 15

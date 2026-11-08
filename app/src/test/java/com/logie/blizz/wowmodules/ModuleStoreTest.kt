@@ -49,18 +49,13 @@ class ModuleStoreTest {
         )!!
 
     @Test
-    fun theRealmMustBeImportedWithAKnownVersion() {
+    fun theRealmMustBeImported() {
         assertTrue(ModuleStore.unavailableReason(context)!!.contains("isn't imported"))
-        assertNull(ModuleStore.versionCode(context))
-        assertNull(ModuleStore.release(context))
 
         importRealm(appVersion = null)
-        assertTrue(ModuleStore.unavailableReason(context)!!.contains("doesn't say which version"))
-
-        importRealm(appVersion = "1.0.52")
         assertNull(ModuleStore.unavailableReason(context))
-        assertEquals(52, ModuleStore.versionCode(context))
-        assertEquals("wow-build-52", ModuleStore.release(context))
+        assertEquals(ModuleSource.REALM_SOURCE, ModuleStore.versionCode(context))
+        assertEquals("realm-modules", ModuleStore.release(context))
     }
 
     @Test
@@ -126,11 +121,11 @@ class ModuleStoreTest {
     }
 
     @Test
-    fun realmsOfAnotherVersionLoseTheirPackages() {
-        importRealm("1.0.52")
+    fun realmsOfOlderSourcesLoseTheirPackages() {
+        importRealm()
         val modules = listOf(ModuleBuild.Chosen("azerothcore/mod-transmog", "master", commit = sha))
-        val old = ModuleBuild.Built(51, "aaaaaaaa1111", modules, 1L, size = 100)
-        val current = ModuleBuild.Built(52, "bbbbbbbb2222", modules, 2L, size = 100)
+        val old = ModuleBuild.Built(ModuleSource.REALM_SOURCE - 1, "aaaaaaaa1111", modules, 1L, size = 100)
+        val current = ModuleBuild.Built(ModuleSource.REALM_SOURCE, "bbbbbbbb2222", modules, 2L, size = 100)
         val dir = File(context.filesDir, "wowmodules").also { it.mkdirs() }
         File(dir, "realms.json").writeText(ModuleBuild.savedToJson(listOf(current, old)))
         val realms = File(dir, "realms").also { it.mkdirs() }
