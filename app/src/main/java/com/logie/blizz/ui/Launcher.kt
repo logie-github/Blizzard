@@ -367,11 +367,7 @@ private fun RuntimeOverlay() {
                 Text(
                     "World of Warcraft: Forever runs its own offline realm here, but it needs the game client once. " +
                         "Install Forever through Battle.net on a PC (or on this phone with the WoW Forever app), then copy its " +
-                        "folder (the one with .build.info and _forever_) into:
-
-$clientPath
-
-" +
+                        "folder (the one with .build.info and _forever_) into:\n\n$clientPath\n\n" +
                         "To connect the client to the local realm, also place the Forever Launcher there (it sets the server key). " +
                         "Then press Play again.",
                     style = MaterialTheme.typography.bodyMedium,
