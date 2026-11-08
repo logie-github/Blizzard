@@ -178,11 +178,6 @@ private fun LauncherPage(onDismiss: () -> Unit) {
 
     SettingCard("Look") {
         Segmented(listOf("Modern" to true, "Classic" to false), Look.modern) { Look.set(context, it) }
-        Text(
-            if (Look.modern) "The launcher of today: the game's art up front, your library beside it. Hold the Blizzard logo for the classic look."
-            else "The Northrend look: the shelf or the tiles below. Hold the Blizzard logo for the modern look.",
-            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-        )
     }
     if (!Look.modern) SettingCard("Layout") {
         Segmented(listOf("Classic shelf" to TileSettings.Mode.SHELF, "Tiles" to TileSettings.Mode.TILES), s.mode) { TileSettings.setMode(context, it) }

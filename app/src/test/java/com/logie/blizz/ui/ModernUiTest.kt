@@ -40,7 +40,7 @@ class ModernUiTest {
     @Test fun homeOnPhone() {
         rule.setContent { Launcher(fold = null) }
         settle()
-        rule.onNodeWithText("Library", ignoreCase = true).assertExists()
+        rule.onNodeWithText("Install", ignoreCase = true).assertExists()
         UiShots.save("modern-home-phone", rule.onRoot())
     }
 
@@ -53,7 +53,7 @@ class ModernUiTest {
     @Test @Config(qualifiers = "w840dp-h780dp-xxhdpi") fun worldOfWarcraftOnFoldInnerScreen() {
         rule.setContent { BlizzTheme { ModernHome(0, Games.find("wow")!!, onSelect = {}, onPlay = {}, onChooseApp = {}) } }
         settle()
-        rule.onNodeWithText("Add-ons", ignoreCase = true).assertExists()
+        rule.onNodeWithText("Legion", ignoreCase = true).assertExists()
         UiShots.save("modern-home-fold-wow", rule.onRoot())
     }
 

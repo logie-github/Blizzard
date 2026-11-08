@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
@@ -32,6 +36,8 @@ import com.logie.blizz.Game
 internal val LocalOpenOptions = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenAddons = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenModules = staticCompositionLocalOf<() -> Unit> { {} }
+internal val LocalOpenControls = staticCompositionLocalOf<(Game) -> Unit> { {} }
+internal val LocalChooseApp = staticCompositionLocalOf<(Game) -> Unit> { {} }
 
 /** The versions of World of Warcraft that have add-ons (their client's), and the one with modules (Wrath+'s realm). */
 internal fun hasAddons(gameId: String) = gameId == "wow" || gameId == "wow_legion" || gameId == "wow_octowow"
@@ -52,10 +58,18 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
                 .padding(vertical = 12.dp),
         ) {
             FrameTitle(effective.fullTitle, Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp), style = MaterialTheme.typography.titleMedium)
-            HoldItem(Icons.Default.Tune, "Loading screen") { onDismiss(); openSplash(game) }
+            val openControls = LocalOpenControls.current
+            val chooseApp = LocalChooseApp.current
+            val openWizard = LocalOpenWizard.current
+            val importable = com.logie.blizz.importer.GameImportManager.importable(effective.id)
+            val isWow = effective.id == "wow" || effective.id.startsWith("wow_")
             if (effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Settings, "Launch options") { onDismiss(); openOptions(game) }
+            if (!isWow && effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Mouse, "Controls") { onDismiss(); openControls(game) }
             if (hasAddons(effective.id)) HoldItem(Icons.Default.Extension, "Add-ons") { onDismiss(); openAddons(game) }
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
+            HoldItem(Icons.Default.Image, "Art") { onDismiss(); openSplash(game) }
+            if (importable) HoldItem(Icons.Default.Build, "Install & repair") { onDismiss(); openWizard(effective) }
+            else HoldItem(Icons.Default.Apps, "App") { onDismiss(); chooseApp(game) }
         }
     }
 }

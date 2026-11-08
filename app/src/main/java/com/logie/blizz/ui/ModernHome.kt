@@ -55,7 +55,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mouse
@@ -137,17 +137,13 @@ internal fun ModernHome(
                 }
             }
         } else {
-            Column(
-                Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).verticalScroll(rememberScrollState()),
-            ) {
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 TopBar(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), showLogo = true)
-                Spacer(Modifier.height((this@BoxWithConstraints.maxHeight * 0.22f).coerceAtLeast(60.dp)))
+                Spacer(Modifier.weight(1f))
                 Hero(selected, linkKey, onPlay, onChooseApp, Modifier.padding(horizontal = 20.dp))
-                Spacer(Modifier.height(28.dp))
-                SectionLabel("Library", Modifier.padding(horizontal = 20.dp))
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(32.dp))
                 Shelf(selected, onSelect)
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(28.dp))
             }
         }
     }
@@ -196,7 +192,6 @@ private fun TopBar(modifier: Modifier, showLogo: Boolean) {
         if (showLogo) Logo(Modifier.height(30.dp)) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             Look.set(context, false)
-            android.widget.Toast.makeText(context, "Classic look. Hold the logo to come back.", android.widget.Toast.LENGTH_SHORT).show()
         }
         Spacer(Modifier.weight(1f))
         RoundIcon(Icons.Default.Settings, "Settings", onClick = openSettings)
@@ -244,11 +239,6 @@ private fun Library(selected: Game, onSelect: (Game) -> Unit, modifier: Modifier
         Logo(Modifier.padding(start = 22.dp, top = 22.dp, bottom = 10.dp).height(34.dp)) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             Look.set(context, false)
-            android.widget.Toast.makeText(context, "Classic look. Hold the logo to come back.", android.widget.Toast.LENGTH_SHORT).show()
-        }
-        Row(Modifier.padding(horizontal = 22.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            SectionLabel("Library", Modifier.weight(1f))
-            Text("${Games.all.size}", style = MaterialTheme.typography.bodySmall)
         }
         LazyColumn(contentPadding = PaddingValues(start = 10.dp, end = 10.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             itemsIndexed(Games.all, key = { _, g -> g.id }) { _, game ->
@@ -271,7 +261,7 @@ private fun Library(selected: Game, onSelect: (Game) -> Unit, modifier: Modifier
                     Column(Modifier.weight(1f)) {
                         val chosen = effectiveGame(game)
                         Text(chosen.title, style = MaterialTheme.typography.titleMedium.copy(color = if (on) Modern.Text else Modern.Text.copy(alpha = 0.86f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(chosen.subtitle ?: chosen.year.toString(), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (game.variants.isEmpty()) chosen.subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                     }
                     ReadyDot(game)
                 }
@@ -340,53 +330,30 @@ private fun Hero(game: Game, linkKey: Int, onPlay: (Game) -> Unit, onChooseApp: 
     val context = LocalContext.current
     val chosen = effectiveGame(game)
     val linked = remember(linkKey, chosen.id) { Links.packageFor(context, game) }
+    val openHold = LocalOpenHold.current
     AnimatedContent(
         targetState = game,
         transitionSpec = { (fadeIn(tween(320)) + slideInVertically(tween(380)) { it / 14 }) togetherWith fadeOut(tween(160)) },
         label = "hero", modifier = modifier,
     ) { g ->
         val shown = effectiveGame(g)
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Tag(shown.year.toString())
-                StatusTag(g, linked)
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Column {
                 Text(shown.title, style = CinzelStyle.copy(fontSize = 40.sp, lineHeight = 46.sp, color = Modern.Text, letterSpacing = 0.02.sp), maxLines = 2)
-                shown.subtitle?.let { Text(it, style = MaterialTheme.typography.headlineSmall.copy(color = Modern.Muted, fontWeight = FontWeight.Normal)) }
+                shown.subtitle?.takeIf { g.variants.isEmpty() }?.let { Text(it, style = MaterialTheme.typography.headlineSmall.copy(color = Modern.Muted, fontWeight = FontWeight.Normal)) }
             }
             if (g.variants.isNotEmpty()) {
                 PillSegmented(
                     (listOf(g) + g.variants).map { (it.variantLabel ?: it.fullTitle) to it },
-                    shown, Modifier.widthIn(max = 560.dp),
+                    shown, Modifier.widthIn(max = 520.dp),
                 ) { Variants.select(context, g, it) }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PlayCta(g, Modifier.widthIn(min = 200.dp)) { onPlay(g) }
-                if (!GameImportManager.importable(shown.id)) {
-                    RoundIcon(Icons.Default.Apps, "Choose the app") { onChooseApp(g) }
-                }
+                PlayCta(g, Modifier.widthIn(min = 210.dp)) { onPlay(g) }
+                RoundIcon(Icons.Default.MoreHoriz, "More") { openHold(g) }
             }
-            Progress(g)
-            Actions(g)
+            ImportBar(g)
         }
-    }
-}
-
-/** "Installed", "Importing 42 %", "Needs attention", "Plays in <app>". */
-@Composable
-private fun StatusTag(game: Game, linked: String?) {
-    val context = LocalContext.current
-    val shown = effectiveGame(game)
-    val states by GameImportManager.states.collectAsState()
-    val state = states[shown.id]
-    when {
-        !GameImportManager.importable(shown.id) ->
-            if (linked != null) Tag("Plays in ${remember(linked) { Links.label(context, linked) }}", Modern.AccentBright, filled = true) else Tag("No app chosen")
-        state?.running == true -> Tag("Importing", Modern.AccentBright, filled = true)
-        state?.record?.stage == Stage.FAILED -> Tag("Needs attention", Modern.Warn, filled = true)
-        state?.entry != null -> Tag("Installed", Modern.Good, filled = true)
-        else -> Tag("Not installed")
     }
 }
 
@@ -430,53 +397,23 @@ private fun PlayCta(game: Game, modifier: Modifier, onClick: () -> Unit) {
     }
 }
 
-/** An import going on: what it's doing and how far; a failed one, a line that opens the wizard. */
+/** A thin bar under Play while the version is being imported; tapping it opens the import. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Progress(game: Game) {
+private fun ImportBar(game: Game) {
     val shown = effectiveGame(game)
-    if (!GameImportManager.importable(shown.id)) return
     val states by GameImportManager.states.collectAsState()
     val state = states[shown.id] ?: return
+    if (!state.running) return
     val openWizard = LocalOpenWizard.current
-    if (state.running) {
-        val p = state.progress
-        Column(Modifier.widthIn(max = 460.dp).clip(RoundedCornerShape(12.dp)).combinedClickableNoRipple { openWizard(shown) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(p?.label ?: "Importing…", style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (p != null && p.total > 0) {
-                val f by animateFloatAsState((p.done.toFloat() / p.total).coerceIn(0f, 1f), tween(400), label = "p")
-                LinearProgressIndicator(progress = { f }, color = Modern.AccentBright, trackColor = Color.White.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape))
-            } else {
-                LinearProgressIndicator(color = Modern.AccentBright, trackColor = Color.White.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape))
-            }
-        }
-    } else if (state.record.stage == Stage.FAILED) {
-        val text = statusLabel(state.record.stage, state.record.outcome, state.record.launchTest, shown.id).ifEmpty { "The import stopped" }
-        Text("$text · Open", style = MaterialTheme.typography.bodySmall.copy(color = Modern.Warn), modifier = Modifier.clip(CircleShape).combinedClickableNoRipple { openWizard(shown) }.padding(vertical = 4.dp))
+    val p = state.progress
+    val mod = Modifier.widthIn(max = 300.dp).fillMaxWidth().height(4.dp).clip(CircleShape).combinedClickableNoRipple { openWizard(shown) }
+    if (p != null && p.total > 0) {
+        val f by animateFloatAsState((p.done.toFloat() / p.total).coerceIn(0f, 1f), tween(400), label = "p")
+        LinearProgressIndicator(progress = { f }, color = Modern.AccentBright, trackColor = Color.White.copy(alpha = 0.1f), modifier = mod)
+    } else {
+        LinearProgressIndicator(color = Modern.AccentBright, trackColor = Color.White.copy(alpha = 0.1f), modifier = mod)
     }
-}
-
-/** What can be set for the version shown, each one tap away. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun Actions(game: Game) {
-    val shown = effectiveGame(game)
-    val openOptions = LocalOpenOptions.current
-    val openAddons = LocalOpenAddons.current
-    val openModules = LocalOpenModules.current
-    val openSplash = LocalOpenSplash.current
-    val openWizard = LocalOpenWizard.current
-    var controls by remember { mutableStateOf(false) }
-    val isWow = shown.id == "wow" || shown.id.startsWith("wow_")
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.widthIn(max = 640.dp)) {
-        if (shown.id != com.logie.blizz.d2r.D2r.GAME_ID) ActionChip(Icons.Default.Tune, "Launch options") { openOptions(game) }
-        if (!isWow && shown.id != com.logie.blizz.d2r.D2r.GAME_ID) ActionChip(Icons.Default.Mouse, "Controls") { controls = true }
-        if (hasAddons(shown.id)) ActionChip(Icons.Default.Extension, "Add-ons") { openAddons(game) }
-        if (hasModules(shown.id)) ActionChip(Icons.Default.Storage, "Modules") { openModules() }
-        ActionChip(Icons.Default.Image, "Art & loading screen") { openSplash(game) }
-        if (GameImportManager.importable(shown.id)) ActionChip(Icons.Default.Download, "Install & repair") { openWizard(shown) }
-    }
-    if (controls) ControlsScreen(shown, onDismiss = { controls = false })
 }
 
 /** The big box of the version shown, beside the words on the open Fold; holding it opens its menu. */

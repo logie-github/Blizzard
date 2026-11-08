@@ -7,7 +7,7 @@ arm64 phones. Made for the Galaxy Z Fold.
 
 ## The look
 
-**Modern** is the default: the chosen game's art fills the screen, with its name (in Blizzard's Cinzel), its year and whether it's installed, its versions as a sliding switch (World of Warcraft's Wrath+, Legion, OctoWoW, Forever; StarCraft's Classic and Remastered...), a big **Play** (or **Install**), and one-tap chips for what can be set for it: Launch options, Controls, Add-ons and Modules (World of Warcraft), Art & loading screen, Install & repair. On the open Fold the library is a panel down the left (each game's box, its name, a dot when it's in the app) and the box stands beside Play; on the cover screen the library is a row of boxes under the game. The gear at the top opens the settings. Every popup (settings, the import wizard, launch options, add-ons, modules, the art editor, controls, the menus) is a rounded dark sheet in the same style: sans-serif type, one accent blue, pill switches.
+**Modern** is the default: the game's art, its name, its versions (where it has more than one) and **Play**. Everything else for a game (launch options, controls, add-ons, modules, art, install & repair, the app it plays in) is in its menu: hold its box, or tap the ••• beside Play. On the open Fold the library runs down the left; on the cover screen it is a row of boxes under the game. The gear opens the settings.
 
 **Classic** is the Northrend look the app had (the shelf or the tiles, Cinzel and gold corners), kept whole. **Hold the Blizzard logo** to switch: in Modern it goes to Classic; in Classic it offers the settings or Modern. The settings' **Look** card switches too. Holding a game's box opens its menu in either look.
 

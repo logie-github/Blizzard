@@ -153,6 +153,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
     var optionsFor by remember { mutableStateOf<Game?>(null) }
     var addonsFor by remember { mutableStateOf<Game?>(null) }
     var modulesOpen by remember { mutableStateOf(false) }
+    var controlsFor by remember { mutableStateOf<Game?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
     remember { TileSettings.load(context) }
     val tiles by TileSettings.state.collectAsState()
@@ -202,6 +203,8 @@ fun Launcher(fold: Fold? = rememberFold()) {
             LocalOpenOptions provides { g: Game -> optionsFor = Variants.effective(g) },
             LocalOpenAddons provides { g: Game -> addonsFor = Variants.effective(g) },
             LocalOpenModules provides { modulesOpen = true },
+            LocalOpenControls provides { g: Game -> controlsFor = Variants.effective(g) },
+            LocalChooseApp provides { g: Game -> chooseApp(g) },
             LocalOpenSettings provides { settingsOpen = true },
         ) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
@@ -236,6 +239,7 @@ fun Launcher(fold: Fold? = rememberFold()) {
         optionsFor?.let { GameOptionsDialog(it, onDismiss = { optionsFor = null }) }
         addonsFor?.let { WowAddonManager(it.id, onDismiss = { addonsFor = null }) }
         if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
+        controlsFor?.let { ControlsScreen(it, onDismiss = { controlsFor = null }) }
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
