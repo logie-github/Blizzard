@@ -16,6 +16,8 @@ import java.io.File
 object Splashes {
     enum class Kind(val file: String, val maxSide: Int) {
         BACKGROUND("background.jpg", 1920), LOGO("logo.png", 1024),
+        /** The picture that fills the home screen behind a game (its own, apart from the loading screen's background). */
+        HEADER("header.jpg", 2400),
     }
 
     private val _version = MutableStateFlow(0)

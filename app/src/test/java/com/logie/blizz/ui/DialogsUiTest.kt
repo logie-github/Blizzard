@@ -29,7 +29,6 @@ class DialogsUiTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Before fun fresh() {
-        Look.set(context, true)
         TileSettings.load(context)
         rule.mainClock.autoAdvance = false
     }
@@ -39,7 +38,7 @@ class DialogsUiTest {
     @Test fun splashEditor() {
         rule.setContent { BlizzTheme { SplashDialog(Games.find("diablo2")!!, onDismiss = {}) } }
         settle()
-        rule.onNodeWithText("Background", ignoreCase = true).assertExists()
+        rule.onNodeWithText("Home picture", ignoreCase = true).assertExists()
         UiShots.saveAll("splash-editor", rule)
     }
 
@@ -65,35 +64,6 @@ class DialogsUiTest {
         rule.onNodeWithText("Choose song", ignoreCase = true).assertExists()
         rule.onNodeWithText("Choose", ignoreCase = true).assertExists()
         UiShots.saveAll("settings-version", rule)
-    }
-
-    @Test fun settingsTilesMode() {
-        // The tiles' settings are the classic look's.
-        Look.set(context, false)
-        TileSettings.setMode(context, TileSettings.Mode.TILES)
-        TileSettings.setColumns(context, 3)
-        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
-        settle()
-        rule.onNodeWithText("Reset tile layout", ignoreCase = true).assertExists()
-        UiShots.saveAll("settings-tiles", rule)
-        rule.onNodeWithText("Reset tile layout", ignoreCase = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
-        settle(500)
-        UiShots.saveAll("settings-tiles-confirm", rule)
-    }
-
-    @Test fun settingsMinusMeansFewerAcross() {
-        // The tiles' settings are the classic look's.
-        Look.set(context, false)
-        TileSettings.setMode(context, TileSettings.Mode.TILES)
-        TileSettings.setColumns(context, 3)
-        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
-        settle()
-        rule.onNodeWithText("−", ignoreCase = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
-        settle(200)
-        org.junit.Assert.assertEquals(2, TileSettings.state.value.columns)
-        rule.onNodeWithText("+", ignoreCase = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
-        settle(200)
-        org.junit.Assert.assertEquals(3, TileSettings.state.value.columns)
     }
 
     private fun record(id: String, r: ImportRecord) {

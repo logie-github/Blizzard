@@ -26,28 +26,21 @@ class ModernUiTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Before fun modern() {
-        Look.set(context, true)
         TileSettings.load(context)
         rule.mainClock.autoAdvance = false
     }
 
     private fun settle(ms: Long = 3000) { rule.mainClock.advanceTimeBy(ms); rule.waitForIdle() }
 
-    @Test fun theModernLookIsTheDefault() {
-        context.getSharedPreferences("look", Context.MODE_PRIVATE).edit().clear().commit()
-        Look.load(context)
-        assertTrue(Look.modern)
-    }
-
     @Test fun homeOnPhone() {
-        rule.setContent { Launcher(fold = null) }
+        rule.setContent { Launcher() }
         settle()
         rule.onNodeWithText("Install", ignoreCase = true).assertExists()
         UiShots.save("modern-home-phone", rule.onRoot())
     }
 
     @Test @Config(qualifiers = "w840dp-h780dp-xxhdpi") fun homeOnFoldInnerScreen() {
-        rule.setContent { Launcher(fold = null) }
+        rule.setContent { Launcher() }
         settle()
         UiShots.save("modern-home-fold", rule.onRoot())
     }
@@ -102,7 +95,7 @@ class ModernUiTest {
     }
 
     @Test fun theMenusItemsOpenWhatTheySay() {
-        rule.setContent { Launcher(fold = null) }
+        rule.setContent { Launcher() }
         settle()
         rule.onNodeWithContentDescription("More").performClick()
         settle(500)
@@ -112,14 +105,15 @@ class ModernUiTest {
     }
 
     @Test fun theMenusArtOpensEveryPicture() {
-        rule.setContent { Launcher(fold = null) }
+        rule.setContent { Launcher() }
         settle()
         rule.onNodeWithContentDescription("More").performClick()
         settle(500)
         rule.onNodeWithText("Art").performClick()
         settle(500)
         rule.onNodeWithText("Box").assertExists()
-        rule.onNodeWithText("Background").assertExists()
+        rule.onNodeWithText("Home picture").assertExists()
+        rule.onNodeWithText("Loading picture").assertExists()
         rule.onNodeWithText("Logo").assertExists()
         UiShots.saveAll("modern-art", rule)
     }

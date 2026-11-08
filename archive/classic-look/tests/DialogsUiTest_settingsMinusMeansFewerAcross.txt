@@ -1,0 +1,15 @@
+    @Test fun settingsMinusMeansFewerAcross() {
+        // The tiles' settings are the classic look's.
+        Look.set(context, false)
+        TileSettings.setMode(context, TileSettings.Mode.TILES)
+        TileSettings.setColumns(context, 3)
+        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
+        settle()
+        rule.onNodeWithText("−", ignoreCase = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        settle(200)
+        org.junit.Assert.assertEquals(2, TileSettings.state.value.columns)
+        rule.onNodeWithText("+", ignoreCase = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        settle(200)
+        org.junit.Assert.assertEquals(3, TileSettings.state.value.columns)
+    }
+

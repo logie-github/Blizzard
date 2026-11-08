@@ -172,28 +172,7 @@ internal fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> U
 @Composable
 private fun LauncherPage(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    val s by TileSettings.state.collectAsState()
     var vibration by remember { mutableStateOf(GameSettings.vibration(context)) }
-    var confirmReset by remember { mutableStateOf(false) }
-
-    SettingCard("Look") {
-        Segmented(listOf("Modern" to true, "Classic" to false), Look.modern) { Look.set(context, it) }
-    }
-    if (!Look.modern) SettingCard("Layout") {
-        Segmented(listOf("Classic shelf" to TileSettings.Mode.SHELF, "Tiles" to TileSettings.Mode.TILES), s.mode) { TileSettings.setMode(context, it) }
-        if (s.mode == TileSettings.Mode.TILES) {
-            val auto = TileLayout.autoColumns(360f)
-            val current = if (s.columns > 0) s.columns else auto
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Tiles across", style = MaterialTheme.typography.bodyLarge, color = Colors.Text, modifier = Modifier.weight(1f))
-                // "−" is fewer across (bigger tiles), "+" more.
-                FrameButton("−", primary = false) { TileSettings.setColumns(context, (current - 1).coerceAtLeast(TileLayout.MIN_COLUMNS)) }
-                Text(if (s.columns > 0) "${s.columns}" else "auto", style = MaterialTheme.typography.titleMedium, color = Colors.Glow, modifier = Modifier.widthIn(min = 44.dp), textAlign = TextAlign.Center)
-                FrameButton("+", primary = false) { TileSettings.setColumns(context, (current + 1).coerceAtMost(TileLayout.MAX_COLUMNS)) }
-            }
-            Segmented(listOf("Auto size" to true, "Fixed size" to false), s.columns == 0) { if (it) TileSettings.setColumns(context, 0) else TileSettings.setColumns(context, current) }
-        }
-    }
 
     SettingCard("Touch") {
         ToggleRow("Vibration", vibration) { vibration = it; GameSettings.setVibration(context, it) }
@@ -247,13 +226,6 @@ private fun LauncherPage(onDismiss: () -> Unit) {
 
     SettingCard("Maintenance") {
         FrameButton("Run the launch test", primary = false, modifier = Modifier.fillMaxWidth()) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
-        if (confirmReset) {
-            Text("Put the tiles back as they were (order, shapes, size, pictures)?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FrameButton("No", primary = false) { confirmReset = false }
-                FrameButton("Reset tiles") { TileSettings.reset(context); confirmReset = false }
-            }
-        } else FrameButton("Reset tile layout", primary = false, modifier = Modifier.fillMaxWidth()) { confirmReset = true }
     }
 }
 

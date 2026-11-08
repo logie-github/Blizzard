@@ -11,64 +11,22 @@ import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 
 /**
- * How the launcher shows the games: the classic shelf, or tiles the person arranges (order, each
- * tile vertical or horizontal, how many across, their own pictures). Kept in the app's preferences
- * and files; changing any of it changes [state].
+ * The pictures the person chose for a game's box (the library, the menus): kept in the app's files; changing one changes [state]
+ * so screens load it again. (It was the tile layout's settings too: order, shapes and size, archived in
+ * `archive/classic-look/ui/TileSettings.kt`.)
  */
 object TileSettings {
-    enum class Mode { SHELF, TILES }
-
     data class State(
-        val mode: Mode = Mode.SHELF,
-        val order: List<String> = emptyList(),
-        /** Games whose tile is horizontal. */
-        val wide: Set<String> = emptySet(),
-        /** Tiles across; 0 picks as many as fit. */
-        val columns: Int = 0,
         /** Changes when a picture does, so screens load it again. */
         val artVersion: Int = 0,
     )
 
-    private const val PREFS = "tiles"
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state
 
-    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-
-    private fun csv(text: String?) = text?.split(',')?.filter { it.isNotEmpty() } ?: emptyList()
-
-    fun load(context: Context) {
-        val p = prefs(context)
-        _state.value = State(
-            mode = Mode.entries.firstOrNull { it.name == p.getString("mode", null) } ?: Mode.SHELF,
-            order = csv(p.getString("order", null)),
-            wide = csv(p.getString("wide", null)).toSet(),
-            columns = p.getInt("columns", 0).coerceIn(0, TileLayout.MAX_COLUMNS),
-            artVersion = _state.value.artVersion,
-        )
-    }
-
-    fun setMode(context: Context, mode: Mode) {
-        prefs(context).edit().putString("mode", mode.name).apply()
-        _state.value = _state.value.copy(mode = mode)
-    }
-
-    fun setOrder(context: Context, order: List<String>) {
-        prefs(context).edit().putString("order", order.joinToString(",")).apply()
-        _state.value = _state.value.copy(order = order)
-    }
-
-    fun setWide(context: Context, id: String, wide: Boolean) {
-        val set = if (wide) _state.value.wide + id else _state.value.wide - id
-        prefs(context).edit().putString("wide", set.joinToString(",")).apply()
-        _state.value = _state.value.copy(wide = set)
-    }
-
-    fun setColumns(context: Context, columns: Int) {
-        val n = columns.coerceIn(0, TileLayout.MAX_COLUMNS)
-        prefs(context).edit().putInt("columns", n).apply()
-        _state.value = _state.value.copy(columns = n)
-    }
+    /** Kept for the callers that load it at start; the box pictures are read from files when asked for. */
+    @Suppress("UNUSED_PARAMETER")
+    fun load(context: Context) {}
 
     private fun dir(context: Context) = File(context.filesDir, "tiles")
 
@@ -104,12 +62,5 @@ object TileSettings {
     fun clearArt(context: Context, id: String, wide: Boolean) {
         File(dir(context), "$id-${if (wide) "wide" else "tall"}.jpg").delete()
         _state.value = _state.value.copy(artVersion = _state.value.artVersion + 1)
-    }
-
-    /** The tile layout as it came: order, orientations, size and pictures. The mode stays. */
-    fun reset(context: Context) {
-        prefs(context).edit().remove("order").remove("wide").remove("columns").apply()
-        dir(context).deleteTree()
-        _state.value = _state.value.copy(order = emptyList(), wide = emptySet(), columns = 0, artVersion = _state.value.artVersion + 1)
     }
 }

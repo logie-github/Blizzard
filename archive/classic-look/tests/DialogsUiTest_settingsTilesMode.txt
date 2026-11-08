@@ -1,0 +1,14 @@
+    @Test fun settingsTilesMode() {
+        // The tiles' settings are the classic look's.
+        Look.set(context, false)
+        TileSettings.setMode(context, TileSettings.Mode.TILES)
+        TileSettings.setColumns(context, 3)
+        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
+        settle()
+        rule.onNodeWithText("Reset tile layout", ignoreCase = true).assertExists()
+        UiShots.saveAll("settings-tiles", rule)
+        rule.onNodeWithText("Reset tile layout", ignoreCase = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        settle(500)
+        UiShots.saveAll("settings-tiles-confirm", rule)
+    }
+

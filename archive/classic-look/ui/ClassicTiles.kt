@@ -1,3 +1,4 @@
+// ARCHIVED: the classic look's tile screen. Not compiled; see archive/classic-look/README.md.
 package com.logie.blizz.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -100,10 +101,8 @@ import com.logie.blizz.Game
 import com.logie.blizz.Games
 import com.logie.blizz.importer.GameImportManager
 
-/** Opens the settings (hold the Blizzard logo): set by [Launcher]. */
-internal val LocalOpenSettings = androidx.compose.runtime.staticCompositionLocalOf<() -> Unit> { {} }
-
 private val PAD = 18.dp
+
 private val GAP = 14.dp
 
 /**
@@ -372,23 +371,6 @@ private fun TileArtDialog(game: Game, onDismiss: () -> Unit) {
                 FrameButton("Choose picture") { pick.launch(arrayOf("image/*")) }
                 FrameButton("Original", primary = false) { TileSettings.clearArt(context, shown.id, wide) }
                 FrameButton("Done", primary = false, onClick = onDismiss)
-            }
-        }
-    }
-}
-
-@Composable
-internal fun ConfirmDialog(title: String, text: String, confirm: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier.padding(24.dp).widthIn(max = 460.dp).fillMaxWidth().background(Colors.Deep).border(1.dp, Colors.Steel).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            FrameTitle(title, style = MaterialTheme.typography.titleLarge)
-            Text(text, style = MaterialTheme.typography.bodyLarge, color = Colors.Mist)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
-                FrameButton("No", primary = false, onClick = onDismiss)
-                FrameButton(confirm, onClick = onConfirm)
             }
         }
     }

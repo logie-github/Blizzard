@@ -1,6 +1,5 @@
 package com.logie.blizz.ui
 
-import android.content.Context
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -60,18 +59,11 @@ import androidx.compose.ui.unit.sp
  * [Segmented], [Modifier.panel], [drawFrame]) draws the look that is on, so every menu and popup follows.
  */
 object Look {
-    private const val PREFS = "look"
-    var modern by mutableStateOf(true)
-        private set
-
-    fun load(context: Context) {
-        modern = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("modern", true)
-    }
-
-    fun set(context: Context, on: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("modern", on).apply()
-        modern = on
-    }
+    /**
+     * Always true: the classic look has been archived (`archive/classic-look/`, see its README), its screens and its options out of
+     * the app. The classic drawing of the shared pieces ([FrameButton], [Modifier.panel], [Colors]...) still sits behind this flag.
+     */
+    const val modern = true
 }
 
 /** The modern look's palette: near-black blue surfaces, white type, Blizzard blue as the one accent, gold kept for small honours. */

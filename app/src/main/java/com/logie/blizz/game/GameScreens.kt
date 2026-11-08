@@ -124,7 +124,7 @@ class GameLoading(private val activity: Activity) {
     @Synchronized
     fun show(textResId: Int) {
         // A line of the loading lines, in place of the step's name.
-        text.value = LoadingLines.next(text.value.takeIf { it.isNotEmpty() })
+        text.value = LoadingLines.next(gameId)
         if (dialog?.isShowing == true) return
         val created = dialog ?: fullScreenDialog(activity, dim = false) { Loading(gameId, text.value) }.also {
             it.setCancelable(false)
@@ -186,7 +186,12 @@ private fun LoadingScreen(gameId: String?, text: String, layoutOverride: Splashe
             Image(art, contentDescription = null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, if (customBackground != null) 0f else game?.splashTop ?: -0.2f),
                 modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = layout.zoom; scaleY = layout.zoom; translationX = layout.panX * size.width; translationY = layout.panY * size.height })
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.9f))))
-            Snow(alpha = 0.8f, color = Color(0xFFFF8A3D), rising = true, flakes = 50)
+            // Particles in the picture's own colours (its highs and lows and a few accents).
+            val palette = com.logie.blizz.ui.rememberArtPalette(gameId to version) { c ->
+                (gameId?.let { Splashes.file(c, it, Splashes.Kind.BACKGROUND) }?.let { com.logie.blizz.ui.smallFile(it) })
+                    ?: (game?.splash ?: game?.cover)?.let { com.logie.blizz.ui.smallResource(c, it) }
+            }
+            Snow(alpha = 0.8f, color = Color(0xFFFF8A3D), rising = true, flakes = 50, palette = palette)
             // A very wide screen (the cover screen sideways): the logo to the lower right, off the face.
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val wide = maxWidth > maxHeight * 1.7f

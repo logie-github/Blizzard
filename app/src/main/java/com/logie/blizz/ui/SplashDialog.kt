@@ -83,6 +83,10 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     fun load(file: java.io.File?) = file?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
     val ownBox = remember(game.id, tiles.artVersion) { load(TileSettings.artFile(context, game.id, false)) }
     val ownBackground = remember(game.id, version) { load(Splashes.file(context, game.id, Splashes.Kind.BACKGROUND)) }
+    val ownHeader = remember(game.id, version) { load(Splashes.file(context, game.id, Splashes.Kind.HEADER)) }
+    val pickHeader = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) Splashes.set(context, game.id, Splashes.Kind.HEADER, uri)
+    }
     val ownLogo = remember(game.id, version) { load(Splashes.file(context, game.id, Splashes.Kind.LOGO)) }
     var layout by remember(game.id) { mutableStateOf(Splashes.layout(context, game.id)) }
     LaunchedEffect(layout) { delay(300); Splashes.setLayout(context, game.id, layout) }
@@ -90,6 +94,7 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Sheet(game.fullTitle, onDismiss, maxWidth = 620.dp) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                // The home screen: the box in the library, and the picture that fills the screen behind the game.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
                     ArtSlot(
                         "Box", Modifier.weight(0.75f), 3f / 4f,
@@ -99,10 +104,20 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                         else Image(painterResource(game.cover), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     }
                     ArtSlot(
-                        "Background", Modifier.weight(1.5f), 3f / 2f,
+                        "Home picture", Modifier.weight(2.25f), 2.25f,
+                        own = ownHeader != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.HEADER) }, onPick = { pickHeader.launch(arrayOf("image/*")) },
+                    ) {
+                        val art = ownHeader?.let { BitmapPainter(it) } ?: painterResource(game.wide ?: game.splash ?: game.cover)
+                        Image(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    }
+                }
+                // The loading screen: its picture and its logo (below, how it will look).
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
+                    ArtSlot(
+                        "Loading picture", Modifier.weight(1.5f), 3f / 2f,
                         own = ownBackground != null, onReset = { Splashes.clear(context, game.id, Splashes.Kind.BACKGROUND) }, onPick = { pickBackground.launch(arrayOf("image/*")) },
                     ) {
-                        val art = ownBackground?.let { BitmapPainter(it) } ?: painterResource(game.wide ?: game.splash ?: game.cover)
+                        val art = ownBackground?.let { BitmapPainter(it) } ?: painterResource(game.splash ?: game.wide ?: game.cover)
                         Image(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     }
                     ArtSlot(

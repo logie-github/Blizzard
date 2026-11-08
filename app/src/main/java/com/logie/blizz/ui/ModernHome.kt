@@ -159,8 +159,9 @@ private fun Backdrop(game: Game) {
     val version by Splashes.version.collectAsState()
     val drift by rememberInfiniteTransition(label = "drift").animateFloat(0f, 1f, infiniteRepeatable(tween(40_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "d")
     Crossfade(shown, animationSpec = tween(700), label = "backdrop") { g ->
+        // The home's own picture (Art, "Header"): not the loading screen's background.
         val own = remember(g.id, version) {
-            Splashes.file(context, g.id, Splashes.Kind.BACKGROUND)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
+            Splashes.file(context, g.id, Splashes.Kind.HEADER)?.let { runCatching { android.graphics.BitmapFactory.decodeFile(it.path)?.asImageBitmap() }.getOrNull() }
         }
         val painter: Painter = own?.let { BitmapPainter(it) } ?: painterResource(g.wide ?: g.splash ?: g.cover)
         val artIsCover = own == null && g.wide == null && g.splash == null
@@ -177,7 +178,12 @@ private fun Backdrop(game: Game) {
     // Scrims: dark to the left and the bottom, where the words are.
     Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Modern.Background.copy(alpha = 0.92f), 0.55f to Modern.Background.copy(alpha = 0.35f), 1f to Color.Transparent)))
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Modern.Background.copy(alpha = 0.55f), 0.35f to Color.Transparent, 0.65f to Modern.Background.copy(alpha = 0.55f), 1f to Modern.Background)))
-    Snow(flakes = 36, alpha = 0.35f)
+    // Particles in the picture's own colours: its highs and lows and a few accents (embers for a fiery picture, snow for an icy one).
+    val art = shown.wide ?: shown.splash ?: shown.cover
+    val palette = rememberArtPalette(Triple(shown.id, version, art)) { c ->
+        Splashes.file(c, shown.id, Splashes.Kind.HEADER)?.let { smallFile(it) } ?: smallResource(c, art)
+    }
+    Snow(flakes = 44, alpha = 0.7f, palette = palette)
 }
 
 // The bar at the top
@@ -189,24 +195,16 @@ private fun TopBar(modifier: Modifier, showLogo: Boolean) {
     val haptic = LocalHapticFeedback.current
     val openSettings = LocalOpenSettings.current
     Row(modifier.height(52.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (showLogo) Logo(Modifier.height(30.dp)) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            Look.set(context, false)
-        }
+        if (showLogo) Logo(Modifier.height(30.dp))
         Spacer(Modifier.weight(1f))
         RoundIcon(Icons.Default.Settings, "Settings", onClick = openSettings)
     }
 }
 
-/** The Blizzard logo: holding it switches to the classic look. */
-@OptIn(ExperimentalFoundationApi::class)
+/** The Blizzard logo. */
 @Composable
-private fun Logo(modifier: Modifier, onHold: () -> Unit) {
-    Image(
-        painterResource(R.drawable.blizz_logo), contentDescription = "Blizzard (hold for the classic look)", contentScale = ContentScale.Fit,
-        modifier = modifier.aspectRatio(2000f / 1041f)
-            .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}, onLongClick = onHold),
-    )
+private fun Logo(modifier: Modifier) {
+    Image(painterResource(R.drawable.blizz_logo), contentDescription = "Blizzard", contentScale = ContentScale.Fit, modifier = modifier.aspectRatio(2000f / 1041f))
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -236,10 +234,7 @@ private fun Library(selected: Game, onSelect: (Game) -> Unit, modifier: Modifier
         modifier.clip(RoundedCornerShape(Modern.SheetCorner)).background(Modern.Surface.copy(alpha = 0.78f))
             .border(1.dp, Modern.Outline, RoundedCornerShape(Modern.SheetCorner)),
     ) {
-        Logo(Modifier.padding(start = 22.dp, top = 22.dp, bottom = 10.dp).height(34.dp)) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            Look.set(context, false)
-        }
+        Logo(Modifier.padding(start = 22.dp, top = 22.dp, bottom = 10.dp).height(34.dp))
         LazyColumn(contentPadding = PaddingValues(start = 10.dp, end = 10.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             itemsIndexed(Games.all, key = { _, g -> g.id }) { _, game ->
                 val on = game.id == selected.id

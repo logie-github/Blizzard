@@ -251,24 +251,32 @@ fun FrameTitle(text: String, modifier: Modifier = Modifier, style: TextStyle = M
 internal fun modernLabel(text: String): String =
     if (text.length > 1 && text == text.uppercase() && text.any { it.isLetter() }) text.lowercase().replaceFirstChar { it.uppercase() } else text
 
-/** Snow drifting down over the picture ([rising]: embers going up). */
+/**
+ * Particles drifting over a picture: snow, or embers rising. Their colours are [palette]'s (the picture's own highs and lows, with a few
+ * accents: [ArtPalette.of]); [palette] null is white snow (or [color], for embers of one colour).
+ */
 @Composable
-fun Snow(modifier: Modifier = Modifier, flakes: Int = 70, alpha: Float = 1f, color: Color = Colors.Glow, rising: Boolean = false) {
+fun Snow(modifier: Modifier = Modifier, flakes: Int = 70, alpha: Float = 1f, color: Color = Colors.Glow, rising: Boolean = false, palette: ArtPalette? = null) {
     val motion = rememberInfiniteTransition(label = "snow")
     val time by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(20_000, easing = LinearEasing)), label = "time")
     val seeds = remember(flakes) {
         val random = java.util.Random(7)
-        List(flakes) { floatArrayOf(random.nextFloat(), random.nextFloat(), 0.4f + random.nextFloat() * 0.6f, random.nextFloat()) }
+        // x, y, depth, phase, colour seed
+        List(flakes) { floatArrayOf(random.nextFloat(), random.nextFloat(), 0.4f + random.nextFloat() * 0.6f, random.nextFloat(), random.nextFloat()) }
     }
+    val goesUp = palette?.warm ?: rising
     Canvas(modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }) {
         for (seed in seeds) {
             val x0 = seed[0]; val y0 = seed[1]; val depth = seed[2]; val phase = seed[3]
             val travel = (y0 + time * (1f + 2f * depth)) % 1f
-            val fall = if (rising) 1f - travel else travel
-            val sway = sin((time * 6f + phase) * 2 * PI).toFloat() * 0.012f
+            val fall = if (goesUp) 1f - travel else travel
+            val sway = sin((time * 6f + phase) * 2 * PI).toFloat() * (if (goesUp) 0.02f else 0.012f)
             val x = ((x0 + sway - time * 0.15f * depth) % 1f + 1f) % 1f
+            val tint = palette?.pick(seed[4]) ?: color
+            // Embers glow brighter near the bottom where they start; snow keeps one brightness.
+            val glow = if (goesUp) 0.35f + 0.55f * (1f - fall).coerceIn(0f, 1f) else 0.25f + 0.5f * depth
             drawCircle(
-                color.copy(alpha = 0.25f + 0.5f * depth),
+                tint.copy(alpha = glow.coerceIn(0f, 1f)),
                 radius = (0.8f + 1.8f * depth).dp.toPx(),
                 center = Offset(x * size.width, fall * size.height),
             )
