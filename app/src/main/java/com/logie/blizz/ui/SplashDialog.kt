@@ -68,7 +68,7 @@ import java.io.File
  * A version's art, in two parts. **Home**: its box (the library) and the picture behind it on the home screen, each cropped to its frame
  * (Crop: drag and zoom). **Loading screen**: its picture and logo, and below them the screen as it will look (drag and pinch the
  * picture, tap where the logo goes, slide for its size). Every picture: Change (SteamGridDB when the key is in Settings, else a file
- * on the phone), Crop (box and home picture), Original.
+ * on the phone), Crop (box, home and loading picture), Original.
  */
 @Composable
 fun SplashDialog(game: Game, onDismiss: () -> Unit) {
@@ -85,13 +85,12 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     LaunchedEffect(layout) { delay(300); Splashes.setLayout(context, game.id, layout) }
     val homeAspect = rememberGameAspect()
 
-    // A picture chosen for the box or the home picture goes to the crop first; the others are set at once.
+    // A picture chosen for the box, home or loading picture goes to the crop first; the logo is set at once.
     var crop by remember { mutableStateOf<Pair<Slot, File>?>(null) }
     fun chosen(slot: Slot, uri: Uri) {
         when (slot) {
-            Slot.LOADING -> Splashes.set(context, game.id, Splashes.Kind.BACKGROUND, uri)
             Slot.LOGO -> Splashes.set(context, game.id, Splashes.Kind.LOGO, uri)
-            Slot.BOX, Slot.HOME -> scope.launch {
+            Slot.BOX, Slot.HOME, Slot.LOADING -> scope.launch {
                 val staged = withContext(Dispatchers.IO) { ArtSources.stage(context, game.id, slot.key, uri) }
                 if (staged != null) crop = slot to staged
             }
@@ -119,6 +118,8 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                 ArtSources.file(context, game.id, slot.key) ?: when (slot) {
                     Slot.BOX -> TileSettings.artFile(context, game.id, false)?.let { ArtSources.stage(context, game.id, slot.key, Uri.fromFile(it)) }
                         ?: ArtSources.stageResource(context, game.id, slot.key, game.cover)
+                    Slot.LOADING -> Splashes.file(context, game.id, Splashes.Kind.BACKGROUND)?.let { ArtSources.stage(context, game.id, slot.key, Uri.fromFile(it)) }
+                        ?: ArtSources.stageResource(context, game.id, slot.key, game.splash ?: game.wide ?: game.cover)
                     else -> Splashes.file(context, game.id, Splashes.Kind.HEADER)?.let { ArtSources.stage(context, game.id, slot.key, Uri.fromFile(it)) }
                         ?: ArtSources.stageResource(context, game.id, slot.key, game.wide ?: game.splash ?: game.cover)
                 }
@@ -139,7 +140,11 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
         CropDialog(
             "Crop · ${slot.label}", file, if (slot == Slot.BOX) 2f / 3f else homeAspect,
             onSave = { bitmap ->
-                if (slot == Slot.BOX) TileSettings.setArtBitmap(context, game.id, bitmap) else Splashes.setBitmap(context, game.id, Splashes.Kind.HEADER, bitmap)
+                when (slot) {
+                    Slot.BOX -> TileSettings.setArtBitmap(context, game.id, bitmap)
+                    Slot.LOADING -> Splashes.setBitmap(context, game.id, Splashes.Kind.BACKGROUND, bitmap)
+                    else -> Splashes.setBitmap(context, game.id, Splashes.Kind.HEADER, bitmap)
+                }
                 crop = null
             },
             onDismiss = { crop = null },
@@ -172,7 +177,7 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
                     ArtCard(
                         Slot.LOADING, Modifier.weight(1.6f), 3f / 2f, own = ownLoading != null,
-                        onChange = { change(Slot.LOADING) }, onCrop = null, onReset = { reset(Slot.LOADING) },
+                        onChange = { change(Slot.LOADING) }, onCrop = { cropExisting(Slot.LOADING) }, onReset = { reset(Slot.LOADING) },
                     ) {
                         val art = ownLoading?.let { BitmapPainter(it) } ?: painterResource(game.splash ?: game.wide ?: game.cover)
                         Image(art, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
