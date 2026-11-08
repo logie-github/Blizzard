@@ -8,14 +8,20 @@ RES = Path("app/src/main/res")
 NODPI = RES / "drawable-nodpi"
 NODPI.mkdir(parents=True, exist_ok=True)
 
-# Box art: 600x800 (3:4), cut from the 2:3 art. How much of the cut comes off the top: the rest
-# comes off the bottom, so each game's logo stays whole.
-TOP_SHARE = {"diablo": 0.5, "diablo2": 0.5, "warcraft3_tft": 0.6}
+# Box art: 600x900 (2:3), the SteamGridDB grid scale (its full frame). A source that isn't 2:3 is
+# centre-cropped to it (its sides or its top and bottom), then scaled to 600x900.
+TARGET = 2 / 3
 for f in sorted((B / "covers").iterdir()):
-    im = Image.open(f).convert("RGB").resize((600, 900), Image.LANCZOS)
-    cut = 100
-    top = round(cut * TOP_SHARE.get(f.stem, 1.0))
-    im = im.crop((0, top, 600, top + 800))
+    im = Image.open(f).convert("RGB")
+    w, h = im.size
+    if abs(w / h - TARGET) > 1e-3:
+        if w / h > TARGET:  # too wide: trim the sides
+            nw = round(h * TARGET)
+            im = im.crop(((w - nw) // 2, 0, (w - nw) // 2 + nw, h))
+        else:               # too tall: trim top and bottom evenly
+            nh = round(w / TARGET)
+            im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))
+    im = im.resize((600, 900), Image.LANCZOS)
     im.save(NODPI / f"cover_{f.stem}.webp", quality=90)
 
 # Wide art for the tile layout (branding/wide/<game>.*), 2:1 or wider, kept whole (1200 wide at most).

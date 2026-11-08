@@ -245,8 +245,8 @@ fun Launcher() {
     }
 }
 
-/** The box art's shape: 3:4. */
-const val COVER_RATIO = 3f / 4f
+/** The box art's shape: 2:3 (the SteamGridDB grid scale). */
+const val COVER_RATIO = 2f / 3f
 
 // The inner screen: one row of boxes
 

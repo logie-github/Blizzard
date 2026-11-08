@@ -137,7 +137,7 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
     }
     crop?.let { (slot, file) ->
         CropDialog(
-            "Crop · ${slot.label}", file, if (slot == Slot.BOX) 3f / 4f else homeAspect,
+            "Crop · ${slot.label}", file, if (slot == Slot.BOX) 2f / 3f else homeAspect,
             onSave = { bitmap ->
                 if (slot == Slot.BOX) TileSettings.setArtBitmap(context, game.id, bitmap) else Splashes.setBitmap(context, game.id, Splashes.Kind.HEADER, bitmap)
                 crop = null
@@ -152,7 +152,7 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                 SectionLabel("Home")
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
                     ArtCard(
-                        Slot.BOX, Modifier.weight(1f), 3f / 4f, own = ownBox != null,
+                        Slot.BOX, Modifier.weight(1f), 2f / 3f, own = ownBox != null,
                         onChange = { change(Slot.BOX) }, onCrop = { cropExisting(Slot.BOX) }, onReset = { reset(Slot.BOX) },
                     ) {
                         if (ownBox != null) Image(ownBox, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
@@ -160,7 +160,7 @@ fun SplashDialog(game: Game, onDismiss: () -> Unit) {
                     }
                     // as wide as makes it as tall as the box beside it
                     ArtCard(
-                        Slot.HOME, Modifier.weight(3f / 4f * 4f / 3f * homeAspect), homeAspect, own = ownHome != null,
+                        Slot.HOME, Modifier.weight(2f / 3f * 3f / 2f * homeAspect), homeAspect, own = ownHome != null,
                         onChange = { change(Slot.HOME) }, onCrop = { cropExisting(Slot.HOME) }, onReset = { reset(Slot.HOME) },
                     ) {
                         val art = ownHome?.let { BitmapPainter(it) } ?: painterResource(game.wide ?: game.splash ?: game.cover)
