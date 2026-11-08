@@ -12,7 +12,7 @@ import java.io.File
  * tar.*, disc image, or an installer with its data files), or, where Blizzard's legacy downloader
  * lists the product (its usage names WAR3 and W3XP), Blizzard's own servers. Nothing else is
  * downloaded; no Battle.net account is asked for. Maps and CD keys are optional (single player and
- * LAN need no key; the Wc3Keys box keeps the ones the person has).
+ * LAN need no key, and none is asked for).
  *
  * The two products share ONE install: Warcraft III 1.30 is one program and one CASC store, and 1.2x
  * has the base game's war3.mpq beside the expansion's war3x.mpq, so a full install plays both.

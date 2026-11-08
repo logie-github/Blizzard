@@ -209,8 +209,13 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     }
                 }
                 if (game.id == "diablo2" && !state.running && state.entry == null) CdKeys(game.id)
-                // Warcraft III asks for CD keys at its first start: the ones the person has, kept apart from the game.
-                if (game.id.startsWith("warcraft3") && !state.running) Wc3Keys()
+                // Warcraft III: single player needs no CD key, so none is asked for.
+                if (game.id.startsWith("warcraft3") && !state.running) {
+                    if (record.stage == Stage.NOT_INSTALLED && record.problem == null && state.missing.isEmpty()) {
+                        // One step: both games, whole, in one place.
+                        Text("Installs Reign of Chaos and The Frozen Throne together, with every campaign, from Blizzard (about 1.4 GB). Nothing to pick or enter.", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
             }
 
             // Play stands alone on top at full width; the housekeeping buttons sit below it.
@@ -254,7 +259,7 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                             } else FrameButton("Delete the export", primary = false) { confirmDeleteExport = true }
                         }
                     }
-                    record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton("Auto Import") { GameImportManager.start(context, game.id) }
+                    record.stage == Stage.NOT_INSTALLED && record.problem == null -> FrameButton(if (game.id.startsWith("warcraft3")) "Auto Install" else "Auto Import") { GameImportManager.start(context, game.id) }
                     record.problem == Problem.INSTALLER_MUST_RUN || state.installer != null -> {
                         val ended = state.installer is InstallerRun.Status.Finished
                         val partial = state.installer is InstallerRun.Status.PartialCopy
