@@ -128,6 +128,8 @@ import kotlinx.coroutines.withContext
  */
 /** Opens a game's import wizard (Repair, a status line): set by [Launcher]. */
 internal val LocalOpenSplash = androidx.compose.runtime.staticCompositionLocalOf<(Game) -> Unit> { {} }
+/** Hold a box: its menu ([HoldMenu]). */
+internal val LocalOpenHold = androidx.compose.runtime.staticCompositionLocalOf<(Game) -> Unit> { {} }
 
 /** Opens a game's import wizard (Repair, a status line): set by [Launcher]. */
 internal val LocalOpenWizard = androidx.compose.runtime.staticCompositionLocalOf<(Game) -> Unit> { {} }
@@ -147,6 +149,10 @@ fun Launcher(fold: Fold? = rememberFold()) {
     val open = Games.all.firstOrNull { it.id == openId }
     var wizardFor by remember { mutableStateOf<Game?>(null) }
     var splashFor by remember { mutableStateOf<Game?>(null) }
+    var holdFor by remember { mutableStateOf<Game?>(null) }
+    var optionsFor by remember { mutableStateOf<Game?>(null) }
+    var addonsFor by remember { mutableStateOf<Game?>(null) }
+    var modulesOpen by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     remember { TileSettings.load(context) }
     val tiles by TileSettings.state.collectAsState()
@@ -192,6 +198,10 @@ fun Launcher(fold: Fold? = rememberFold()) {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalOpenWizard provides { g: Game -> wizardFor = g },
             LocalOpenSplash provides { g: Game -> splashFor = Variants.effective(g) },
+            LocalOpenHold provides { g: Game -> holdFor = g },
+            LocalOpenOptions provides { g: Game -> optionsFor = Variants.effective(g) },
+            LocalOpenAddons provides { g: Game -> addonsFor = Variants.effective(g) },
+            LocalOpenModules provides { modulesOpen = true },
             LocalOpenSettings provides { settingsOpen = true },
         ) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
@@ -220,6 +230,10 @@ fun Launcher(fold: Fold? = rememberFold()) {
         }
         UpdateBanner()
         splashFor?.let { SplashDialog(it, onDismiss = { splashFor = null }) }
+        holdFor?.let { HoldMenu(it, onDismiss = { holdFor = null }) }
+        optionsFor?.let { GameOptionsDialog(it, onDismiss = { optionsFor = null }) }
+        addonsFor?.let { WowAddonManager(it.id, onDismiss = { addonsFor = null }) }
+        if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
@@ -453,7 +467,7 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
     }
     val linked = remember(linkKey) { Links.packageFor(context, game) }
     val haptic = LocalHapticFeedback.current
-    val openSplash = LocalOpenSplash.current
+    val openHold = LocalOpenHold.current
 
     Box(
         modifier
@@ -469,7 +483,7 @@ private fun Cover(game: Game, linkKey: Int, index: Int, selected: Boolean, modif
             }
             .combinedClickable(
                 interactionSource = interaction, indication = null, onClick = onClick,
-                onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openSplash(game) },
+                onLongClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); openHold(game) },
             ),
     ) {
         Image(
@@ -530,7 +544,7 @@ private fun GamePage(game: Game, linkKey: Int, onBack: (() -> Unit)?, onPlay: ()
 @Composable
 private fun BigCover(game: Game, modifier: Modifier) {
     val haptic = LocalHapticFeedback.current
-    val openSplash = LocalOpenSplash.current
+    val openHold = LocalOpenHold.current
     val float = rememberInfiniteTransition(label = "float")
     val y by float.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "y")
     Image(
@@ -541,7 +555,7 @@ private fun BigCover(game: Game, modifier: Modifier) {
             .drawBehind { drawRect(Brush.radialGradient(listOf(Colors.Ice.copy(alpha = 0.35f), Color.Transparent), radius = size.maxDimension * 0.8f)) }
             .drawWithContent { drawContent(); drawFrame(arm = 14.dp.toPx(), stroke = 1.8.dp.toPx()) }
             .combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}, onLongClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress); openSplash(game)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress); openHold(game)
             }),
     )
 }

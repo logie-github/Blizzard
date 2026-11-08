@@ -846,10 +846,21 @@ private fun TokenDialog(onDismiss: () -> Unit) {
         ) {
             FrameTitle("GitHub token")
             Line(
-                "On github.com: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. " +
-                    "Repository access: only ${ModuleSource.REPO}. Permissions: Actions, read and write; and Contents, read (to download the built realm if the repository is private). " +
-                    "Paste it here: it's checked with GitHub, then kept in this app's own storage and sent to GitHub alone.",
+                "A token is a long password you make on GitHub that lets this app ask GitHub to build your realm, and nothing else: " +
+                    "it works for one repository only, with the two permissions below, and you can delete it on GitHub whenever you like.",
                 color = Colors.Mist, small = true,
+            )
+            Line(
+                "1. In a browser, sign in to github.com and open github.com/settings/personal-access-tokens/new.\n" +
+                    "2. Token name: Blizzard realm builds.\n" +
+                    "3. Expiration: 90 days (GitHub asks again after that).\n" +
+                    "4. Resource owner: logie-github.\n" +
+                    "5. Repository access: Only select repositories, then Select repositories, then ${ModuleSource.REPO.substringAfter('/')}.\n" +
+                    "6. Permissions: Add permissions, then tick Actions and Contents. Set Actions to Read and write, and Contents to Read-only.\n" +
+                    "7. Generate token, then Generate token again in the box that opens.\n" +
+                    "8. Copy the token it shows (it starts with github_pat_, and is shown once).\n" +
+                    "9. Come back here, paste it below and tap Save: it's checked with GitHub, then kept in this app's own storage and sent to GitHub alone.",
+                color = Colors.Text, small = true,
             )
             OutlinedTextField(
                 value = token,

@@ -50,6 +50,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Refresh
@@ -122,6 +124,8 @@ fun TileScreen(onOpen: (Game) -> Unit) {
     var dragAt by remember { mutableStateOf(Offset.Zero) }
     var artFor by remember { mutableStateOf<Game?>(null) }
     var optionsFor by remember { mutableStateOf<Game?>(null) }
+    val openAddons = LocalOpenAddons.current
+    val openModules = LocalOpenModules.current
     var reinstallFor by remember { mutableStateOf<Game?>(null) }
     val openWizard = LocalOpenWizard.current
     val openSplash = LocalOpenSplash.current
@@ -218,6 +222,8 @@ fun TileScreen(onOpen: (Game) -> Unit) {
                             onReinstall = { reinstallFor = game },
                             onLoadingScreen = { openSplash(game) },
                             onLaunchOptions = { optionsFor = game },
+                            onAddons = { openAddons(game) },
+                            onModules = { openModules() },
                         )
                     }
                 }
@@ -260,6 +266,7 @@ fun TileScreen(onOpen: (Game) -> Unit) {
 private fun Tile(
     game: Game, index: Int, wide: Boolean, rearranging: Boolean, isDragging: Boolean, artVersion: Int, modifier: Modifier,
     onClick: () -> Unit, onChangeArt: () -> Unit, onRearrange: () -> Unit, onReinstall: () -> Unit, onLoadingScreen: () -> Unit, onLaunchOptions: () -> Unit,
+    onAddons: () -> Unit = {}, onModules: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -314,6 +321,8 @@ private fun Tile(
             if (GameImportManager.importable(Variants.effective(game).id)) MenuItem(Icons.Default.Refresh, "Reinstall") { menu = false; onReinstall() }
             MenuItem(Icons.Default.Tune, "Loading screen") { menu = false; onLoadingScreen() }
             if (Variants.effective(game).id != com.logie.blizz.d2r.D2r.GAME_ID) MenuItem(Icons.Default.Settings, "Launch options") { menu = false; onLaunchOptions() }
+            if (hasAddons(Variants.effective(game).id)) MenuItem(Icons.Default.Extension, "Add-ons") { menu = false; onAddons() }
+            if (hasModules(Variants.effective(game).id)) MenuItem(Icons.Default.Storage, "Modules") { menu = false; onModules() }
         }
     }
 }
