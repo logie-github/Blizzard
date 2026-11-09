@@ -13,6 +13,13 @@
   it pushes. Where both changes cannot stand together even then, keep the one merged first, adapt
   the later one to it, and say so in the commit message; never drop or overwrite the other
   session's work to make a merge go through.
+- **Before every push to `main`, make sure nothing of another session's was gone over** (the user: "be sure
+  that nothing else hasn't gone over"). Right before pushing: `git fetch origin main`, merge it (never rebase or
+  force), then read what came in (`git log --stat <your last pushed sha>..origin/main`) and, for every file both
+  you and it touched, check that the other session's recent additions are still there after the merge (a merge
+  that takes only your side of a conflict, or a file rewritten from an old copy, undoes their work). Re-run the
+  tests after the merge, then push; if the push is refused because `main` moved, do it all again. A
+  `build-apk` run cancelled by a newer push isn't a failure: confirm the newest run that contains your commit.
 - Build and run the unit tests before pushing:
   `./gradlew --init-script <maven-mirror.init.gradle> :app:testDebugUnitTest` (the init script is in
   YeaBwoi's `scripts/` when it is cloned beside this repository). Say what was tested and what wasn't:
