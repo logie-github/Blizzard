@@ -135,6 +135,11 @@ object WindowsRuntime {
                 LegionClientSetup.installCertificateBundle(com.logie.blizz.wow.RealmSpecsAccess.certBundle(layout), File(container.rootDir, ".wine/drive_c"))
             }
         }
+        // Every game: no window decorations ([CommonSetup]). Diablo II before 1.14: Windows 98 for Game.exe ([Diablo2Setup]).
+        withContext(Dispatchers.IO) {
+            runCatching { CommonSetup.apply(container.rootDir) }
+            if (entry.gameId == "diablo2") runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) }
+        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {

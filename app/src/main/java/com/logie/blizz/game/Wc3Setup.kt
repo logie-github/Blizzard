@@ -80,7 +80,6 @@ object Wc3Setup {
         add(Write(Hive.USER, VIDEO, "reswidth", width))
         add(Write(Hive.USER, VIDEO, "resheight", height))
         add(Write(Hive.USER, VIDEO, "windowmode", WINDOW_MODE_FULLSCREEN))
-        add(Write(Hive.USER, X11, "Decorated", "N"))
         if (locale.isNullOrEmpty()) add(Write(Hive.USER, LAUNCHER, "Locale", "enUS"))
         if (installDos != null) {
             val dos = if (installDos.endsWith("\\")) installDos else "$installDos\\"
@@ -98,9 +97,17 @@ object Wc3Setup {
      */
     fun apply(containerRoot: File, width: Int, height: Int, installDos: String?, open: (File) -> Registry = ::wine) {
         val userReg = File(containerRoot, ".wine/user.reg")
-        val systemReg = File(containerRoot, ".wine/system.reg")
         val locale = if (userReg.isFile) open(userReg).use { it.getString(LAUNCHER, "Locale") } else ""
-        val all = writes(width, height, locale, installDos)
+        applyWrites(containerRoot, writes(width, height, locale, installDos), open)
+    }
+
+    /**
+     * Makes [all] in the games' Windows at [containerRoot] (the Winlator container's rootDir): `user.reg` and `system.reg` under
+     * `.wine`. A hive that isn't there yet (Wine makes them at the first start) is skipped.
+     */
+    fun applyWrites(containerRoot: File, all: List<Write>, open: (File) -> Registry = ::wine) {
+        val userReg = File(containerRoot, ".wine/user.reg")
+        val systemReg = File(containerRoot, ".wine/system.reg")
         for ((hive, file) in listOf(Hive.USER to userReg, Hive.SYSTEM to systemReg)) {
             if (!file.isFile) continue
             open(file).use { registry ->
@@ -120,6 +127,8 @@ object Wc3Setup {
         fun setString(key: String, name: String, value: String)
         fun setDword(key: String, name: String, value: Int)
     }
+
+    internal fun wineRegistry(file: File): Registry = wine(file)
 
     private fun wine(file: File): Registry = object : Registry {
         private val editor = WineRegistryEditor(file)
@@ -265,9 +274,50 @@ object Wc3CdKeys {
 }
 
 /**
- * Diablo II's start-up switches. Version 1.13 (the download's) opened its fullscreen window and died in Fog.dll with a stack
- * overflow before any graphics wrapper loaded (the phone's report of 9 November 2026), so it starts in a window (`-w`), which the
- * wrapper then stretches to the screen. Plain Kotlin, unit-tested.
+ * What every game's Windows gets at each start: no window decorations (Wine's X11 driver `Decorated` N), so a windowed game's
+ * picture is the whole screen; Winlator's X server drew a title bar over Warcraft III on 9 November 2026, pushing the picture down.
+ */
+object CommonSetup {
+    fun writes(): List<Wc3Setup.Write> = listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.X11, "Decorated", "N"))
+
+    fun apply(containerRoot: File, open: (File) -> Wc3Setup.Registry = Wc3Setup::wineRegistry) = Wc3Setup.applyWrites(containerRoot, writes(), open)
+}
+
+/**
+ * Diablo II before 1.14 on Wine 10 (Winlator 11's): the game's Fog.dll, on a Windows it takes for NT, checks every critical section
+ * it locks for the debug block Windows NT puts behind it, and Wine 10.10 stores the "no debug block" marker (0xffffffff) instead
+ * (`RtlInitializeCriticalSectionEx`, unless asked to force one). The first lock after Fog's init fails the check, Fog reports
+ * "Unrecoverable internal error", and its reporter locks again: a stack overflow in Fog.dll within six seconds of the start, on
+ * the phone (9 November 2026) and in Winlator's own Wine run on a desktop, where the chain was read from a relay trace. Told it
+ * runs on Windows 98 (a platform 1.13 shipped for), Fog skips the check, and the game runs to its menu and into a game (verified
+ * on that desktop). So Game.exe of a 1.13 install gets Wine's per-program Windows version 98; 1.14 (Windows 7 and later only,
+ * and without the check) is left alone. Plain Kotlin, unit-tested.
+ */
+object Diablo2Setup {
+    const val APP_DEFAULTS = "Software\\Wine\\AppDefaults\\Game.exe"
+    const val WIN98 = "win98"
+
+    /** Whether [clientVersion] (a title with the version in it, or the program's 1.0.13.60) is a 1.0 to 1.13 client. */
+    fun isBefore114(clientVersion: String?): Boolean {
+        val v = clientVersion ?: return false
+        if (Regex("""(^|\D)1\.0\.(\d{1,2})\.""").containsMatchIn(v)) return true
+        val m = Regex("""(^|\D)1\.(\d{1,2})(\D|$)""").find(v) ?: return false
+        val minor = m.groupValues[2].toIntOrNull() ?: return false
+        return minor in 0..13
+    }
+
+    /** The writes for a Diablo II of [clientVersion]: the Windows 98 version for Game.exe before 1.14, nothing after. */
+    fun writes(clientVersion: String?): List<Wc3Setup.Write> =
+        if (isBefore114(clientVersion)) listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, APP_DEFAULTS, "Version", WIN98)) else emptyList()
+
+    fun apply(containerRoot: File, clientVersion: String?, open: (File) -> Wc3Setup.Registry = Wc3Setup::wineRegistry) =
+        Wc3Setup.applyWrites(containerRoot, writes(clientVersion), open)
+}
+
+/**
+ * Diablo II's start-up switches: a window (`-w`), which Winlator stretches to the screen. Fullscreen asks the X server for an
+ * 800x600 display mode, which it has not (Error 22, "initializing DirectDraw", seen in Winlator's Wine on a desktop); in a window
+ * 1.13 draws through GDI (D2Gdi.dll) and ran to its menu and into a game there. Plain Kotlin, unit-tested.
  */
 object Diablo2Arguments {
     private val WINDOW = Regex("(?i)(^|\\s)-w(\\s|$)")

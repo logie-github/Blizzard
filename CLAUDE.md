@@ -33,4 +33,8 @@
   is downloaded, which version, what is written into the archives). The app then installs that game again by itself at
   the next start or Play (saves kept, as a reset), without asking. Never raise it for a change that an installed game
   plays fine without.
+- **A game that fails on the phone is run here first** (the user: "Do testing. Don't skip it"). Winlator's Wine is an x86_64
+  build and runs natively on this machine against the downloader's own game folders under Xvfb: README, "Testing the
+  Windows games here". Reproduce the failure there, read the dialogs, the `+seh`/`+relay` traces and the game's code, fix,
+  and see the game run before pushing. A change to how a Windows game starts that was not run there is a guess; say so.
 - Never commit build outputs, downloaded tools, or any game files.

@@ -69,7 +69,6 @@ class Wc3SetupTest {
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, "reswidth", 2400),
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, "resheight", 1080),
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, "windowmode", 2),
-                Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.X11, "Decorated", "N"),
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.LAUNCHER, "Locale", "enUS"),
             ),
             writes,
@@ -257,5 +256,40 @@ class Wc3KeyPasteTest {
         org.junit.Assert.assertFalse(k.any)
         org.junit.Assert.assertEquals(1, k.unrecognised)
         org.junit.Assert.assertFalse(Wc3CdKeys.wc3("").any)
+    }
+}
+
+/** Diablo II before 1.14 is told it runs on Windows 98 (Fog's critical-section check); every game loses its window decorations. */
+class Diablo2SetupTest {
+    @org.junit.Test fun only113AndOlderGetWindows98() {
+        org.junit.Assert.assertEquals(
+            listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, Diablo2Setup.APP_DEFAULTS, "Version", "win98")),
+            Diablo2Setup.writes("Diablo II + Lord of Destruction 1.13c"),
+        )
+        org.junit.Assert.assertTrue(Diablo2Setup.isBefore114("1.0.13.60"))
+        org.junit.Assert.assertTrue(Diablo2Setup.isBefore114("Diablo II + Lord of Destruction 1.13"))
+        org.junit.Assert.assertTrue(Diablo2Setup.isBefore114("1.12a"))
+        org.junit.Assert.assertFalse(Diablo2Setup.isBefore114("Diablo II + Lord of Destruction 1.14.1.68"))
+        org.junit.Assert.assertFalse(Diablo2Setup.isBefore114("1.14.3.71"))
+        org.junit.Assert.assertFalse(Diablo2Setup.isBefore114(null))
+        org.junit.Assert.assertTrue(Diablo2Setup.writes("1.14.1.68").isEmpty())
+    }
+
+    @org.junit.Test fun theWritesLandInUserReg() {
+        val tmp = java.nio.file.Files.createTempDirectory("d2setup").toFile()
+        java.io.File(tmp, ".wine").mkdirs()
+        java.io.File(tmp, ".wine/user.reg").writeText("WINE REGISTRY Version 2\n")
+        val values = HashMap<String, Any>()
+        val fake = object : Wc3Setup.Registry {
+            override fun getString(key: String, name: String) = values["$key|$name"] as? String ?: ""
+            override fun setString(key: String, name: String, value: String) { values["$key|$name"] = value }
+            override fun setDword(key: String, name: String, value: Int) { values["$key|$name"] = value }
+            override fun close() {}
+        }
+        Diablo2Setup.apply(tmp, "Diablo II + Lord of Destruction 1.13c") { fake }
+        CommonSetup.apply(tmp) { fake }
+        org.junit.Assert.assertEquals("win98", values["${Diablo2Setup.APP_DEFAULTS}|Version"])
+        org.junit.Assert.assertEquals("N", values["${Wc3Setup.X11}|Decorated"])
+        tmp.deleteRecursively()
     }
 }
