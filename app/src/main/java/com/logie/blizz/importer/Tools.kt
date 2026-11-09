@@ -32,6 +32,7 @@ object Tools {
             }
         }
         val tail = ArrayDeque<String>()
+        try {
         process.inputStream.bufferedReader().use { reader ->
             // Progress is drawn with carriage returns: each one is a line of its own here.
             val line = StringBuilder()
@@ -50,6 +51,12 @@ object Tools {
                     line.append(c.toChar())
                 }
             }
+        }
+        } catch (e: java.io.IOException) {
+            // The watcher ended the program on a cancel, which closes its output under the reader ("read interrupted by close()"):
+            // that is the cancel, not a file that could not be read.
+            if (cancel.cancelled) cancel.check()
+            throw e
         }
         val code = process.waitFor()
         watcher.interrupt()

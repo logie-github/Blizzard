@@ -66,6 +66,12 @@ class ImportPipeline(private val repo: ImportStateRepository, private val librar
                 fail(id, e, null)
             }
         } catch (e: java.io.IOException) {
+            // A read or write cut off by the cancel (the download's program ended under its reader) is the cancel, not a failure to report.
+            if (env.cancel.cancelled) {
+                val installed = library.get(id)
+                val record = repo.update(id) { it.copy(stage = installed?.stage ?: Stage.NOT_INSTALLED, outcome = null, problem = Problem.CANCELLED, message = "Cancelled. Downloads so far are kept.", detail = null) }
+                return Result.Failed(record, ImportException(Problem.CANCELLED, "Cancelled.", null, e))
+            }
             val problem = if (e.message?.contains("ENOSPC") == true || e.message?.contains("No space", true) == true) Problem.INSUFFICIENT_STORAGE else Problem.PERMISSION_DENIED
             fail(id, ImportException(problem, if (problem == Problem.INSUFFICIENT_STORAGE) "The phone ran out of space. Free some and retry." else "A file couldn't be read or written (${e.message}).", e.toString(), e), null)
         } catch (e: SecurityException) {
