@@ -97,9 +97,9 @@ class StarCraftClassicImporter : GameImporter {
             // StarCraft's install script stores a key and owner in StarDat.mpq (font\font.gid, font.clh), and the game
             // reports "File not found" when they're missing. The game runs offline, so a placeholder key does.
             val keys = LegacyDownloader.Keys(
-                classic = env.keys?.classic ?: "00000000000000000000000000",
+                classic = env.keys?.classic ?: LegacyDownloader.PLACEHOLDER_KEY,
                 expansion = null,
-                owner = env.keys?.owner ?: "Player",
+                owner = env.keys?.owner ?: LegacyDownloader.PLACEHOLDER_OWNER,
             )
             legacy.install("STAR", staging, noBase = false, keys = keys, cancel = env.cancel, onProgress = env.progress)
             File(staging, MARK).writeText("STAR\n")
