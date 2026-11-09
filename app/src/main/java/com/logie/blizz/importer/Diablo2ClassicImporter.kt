@@ -15,6 +15,8 @@ import java.io.File
 class Diablo2ClassicImporter : GameImporter {
     override val gameId = "diablo2"
     override val title = "Diablo II"
+    /** 2: the download is 1.13c (the first installs were 1.14b, whose Direct3D the wrapper has no answer to). */
+    override val recipe = 2
     /** 1.13 keeps characters and saved games in the game's own Save folder: a reset leaves them. */
     override val keptInGame = listOf("Save")
 

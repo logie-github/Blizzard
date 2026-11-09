@@ -315,6 +315,39 @@ object GameImportManager {
         }
     }
 
+    /** Whether [gameId]'s install was made by an older recipe than this build's importer uses: a change that needs it installed again. */
+    fun stale(context: Context, gameId: String): Boolean {
+        val factory = importers[gameId] ?: return false
+        if (library(context).get(gameId) == null) return false
+        return Recipes.stale(repo(context).load(gameId), factory().recipe)
+    }
+
+    /**
+     * Installs [gameId] again from nothing, as a change to how it is installed needs (the person: "if a game update requires a
+     * true install, force it"): the game's files go (saves kept, as a reset), then this build's install runs as Auto Install does.
+     */
+    fun reinstall(context: Context, gameId: String) {
+        val app = context.applicationContext
+        val factory = importers[gameId] ?: return
+        if (synchronized(cancels) { cancels.containsKey(gameId) }) return
+        scope.launch {
+            publish(WizardState(gameId, repo(app).load(gameId), running = true, progress = Progress(Stage.DETECTING, "This update changed how ${factory().title} is installed: installing it again (saves kept)")))
+            GameReset.reset(paths(app), gameId, factory().keptInGame)
+            start(app, gameId)
+        }
+    }
+
+    /** Every installed game an update left with an old install: installed again by itself, when the phone is online (a download is what it takes). */
+    fun reinstallStale(context: Context) {
+        if (!connected(context)) return
+        for (id in importers.keys) if (stale(context, id)) reinstall(context, id)
+    }
+
+    private fun connected(context: Context): Boolean = runCatching {
+        val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        cm.activeNetwork != null
+    }.getOrDefault(false)
+
     /** Back to not installed (not while it's importing): the game's files, entry and record go; saves and downloads stay. */
     fun reset(context: Context, gameId: String) {
         val app = context.applicationContext

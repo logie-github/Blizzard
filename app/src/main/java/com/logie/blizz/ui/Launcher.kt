@@ -172,7 +172,7 @@ fun Launcher() {
     val musicGame = Variants.effective(shown, chosenVersions).id
     val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
-    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) } } }
+    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
@@ -181,6 +181,8 @@ fun Launcher() {
         if (game.id == "wow_forever") { com.logie.blizz.forever.ForeverPlay.play(context); return }
         // Diablo, Diablo II, StarCraft and StarCraft II: imported into the app and played on its Winlator.
         if (GameImportManager.importable(game.id)) {
+            // An install this update left behind (its recipe changed): made again first, in the wizard, where its progress shows.
+            if (GameImportManager.stale(context, game.id)) { GameImportManager.reinstall(context, game.id); wizardFor = game; return }
             val entry = GameImportManager.library(context).get(game.id)
             if (entry != null && (entry.runtime == com.logie.blizz.importer.LibraryEntry.RUNTIME_EXTERNAL || game.id in WOW_MODES) && java.io.File(entry.installPath, entry.executable).isFile) {
                 // World of Warcraft: the realm and the client, from the imported files (the WoW app isn't needed).
