@@ -41,14 +41,27 @@ class ForeverClientInstaller(
     /** Stops a running [install] at the next file; what is written is kept for the next run. */
     fun cancel() { cancelled = true }
 
-    private fun step(text: String, done: Long = 0, total: Long = 0) = onProgress(Progress(text, done, total))
+    @Volatile private var currentStep = ""
 
+    private fun step(text: String, done: Long = 0, total: Long = 0) { currentStep = text; onProgress(Progress(text, done, total)) }
+
+    /** Downloads and lays out the client (see the class). A failure says the step it happened in. */
     fun install() {
+        try {
+            installSteps()
+        } catch (e: NotEnoughSpaceException) {
+            throw e
+        } catch (e: Exception) {
+            throw IOException("$currentStep: ${e.message ?: e.javaClass.simpleName}", e)
+        }
+    }
+
+    private fun installSteps() {
         step("Asking Blizzard for the current Forever client")
         val version = cdn.version()
         val servers = cdn.servers()
-        val buildText = cdn.get("config", version.buildConfig)
-        val cdnText = cdn.get("config", version.cdnConfig)
+        val buildText = cdn.get("config", version.buildConfig) { Verify.config(it, version.buildConfig) }
+        val cdnText = cdn.get("config", version.cdnConfig) { Verify.config(it, version.cdnConfig) }
         val build = Tact.parseConfig(String(buildText, Charsets.UTF_8))
         val cdnConfig = Tact.parseConfig(String(cdnText, Charsets.UTF_8))
         val subfolder = runCatching { String(cdn.productConfig(version.productConfig), Charsets.UTF_8) }.getOrNull()
@@ -59,7 +72,7 @@ class ForeverClientInstaller(
         if (info.isFile && !File(root, STATE).isFile && info.readText().contains(version.buildConfig)) { step("The client is ready"); return }
 
         // The same build and selection resume; anything else starts over.
-        val signature = "${version.buildConfig} ${wanted.sorted()} ${excluded.sorted()} $maxPriority"
+        val signature = "$FORMAT ${version.buildConfig} ${wanted.sorted()} ${excluded.sorted()} $maxPriority"
         val state = File(root, STATE)
         if (!state.isFile || state.readText() != signature) {
             root.deleteRecursively()
@@ -105,6 +118,7 @@ class ForeverClientInstaller(
             val where = placed[targets.id[pos]] ?: throw IOException("${file.name} wasn't downloaded")
             val target = placeFor(game, file.name)
             val part = File(target.path + ".part")
+            step("Laying out ${file.name}")
             BlteInputStream(writer.read(where)).use { input -> part.outputStream().buffered(1 shl 20).use { input.copyTo(it) } }
             if (!part.renameTo(target)) { target.delete(); if (!part.renameTo(target)) throw IOException("Couldn't place ${file.name}") }
         }
@@ -170,9 +184,11 @@ class ForeverClientInstaller(
     /** A build file fetched once into [staging] (kept for a resumed run). */
     private fun staged(staging: File, name: String, ekeyHex: String): File {
         val file = File(staging, name)
-        if (file.isFile) return file
+        val key = Key16.hex(ekeyHex)
+        if (file.isFile && Verify.blte(file.readBytes(), key)) return file
         val part = File(staging, "$name.part")
-        part.writeBytes(cdn.get("data", ekeyHex))
+        part.writeBytes(cdn.get("data", ekeyHex) { Verify.blte(it, key) })
+        file.delete()
         part.renameTo(file)
         return file
     }
@@ -188,17 +204,23 @@ class ForeverClientInstaller(
             if (failure.get() != null || cancelled) return@execute
             try {
                 val file = File(indices, "$hash.index")
-                if (!file.isFile) {
+                var bytes = if (file.isFile) file.readBytes() else null
+                if (bytes == null || !Verify.index(bytes, hash)) {
+                    bytes = cdn.get("data", hash, ".index") { Verify.index(it, hash) }
                     val part = File(indices, "$hash.index.part")
-                    part.writeBytes(cdn.get("data", hash, ".index"))
+                    part.writeBytes(bytes)
+                    file.delete()
                     part.renameTo(file)
                 }
-                Tact.parseIndex(file.readBytes()) { data, o, size, offset ->
+                Tact.parseIndex(bytes) { data, o, size, offset ->
                     val pos = targets.find(beN(data, o, 8), beN(data, o + 8, 8))
-                    if (pos >= 0 && targets.archive[pos] == UNKNOWN) {
-                        targets.archive[pos] = number
-                        targets.offset[pos] = offset
-                        targets.size[pos] = size.toInt()
+                    // A key in two archives: one thread takes it whole (archive, offset and size together).
+                    if (pos >= 0) synchronized(targets) {
+                        if (targets.archive[pos] == UNKNOWN) {
+                            targets.archive[pos] = number
+                            targets.offset[pos] = offset
+                            targets.size[pos] = size.toInt()
+                        }
                     }
                 }
                 step("Finding the files on Blizzard's servers", done.incrementAndGet(), archives.size.toLong())
@@ -210,7 +232,7 @@ class ForeverClientInstaller(
 
         cdnConfig["file-index"]?.firstOrNull()?.let { hash ->
             val file = File(staging, "file-index")
-            if (!file.isFile) file.writeBytes(cdn.get("data", hash, ".index"))
+            if (!file.isFile || !Verify.index(file.readBytes(), hash)) file.writeBytes(cdn.get("data", hash, ".index") { Verify.index(it, hash) })
             Tact.parseIndex(file.readBytes()) { data, o, size, _ ->
                 val pos = targets.find(beN(data, o, 8), beN(data, o + 8, 8))
                 if (pos >= 0 && targets.archive[pos] == UNKNOWN) { targets.archive[pos] = LOOSE; targets.size[pos] = size.toInt() }
@@ -424,6 +446,8 @@ class ForeverClientInstaller(
         private val SYSTEM_FILES = setOf("encoding", "root", "install", "download", "size")
         private val SUBFOLDER = Regex("\"shared_container_default_subfolder\"\\s*:\\s*\"([^\"]+)\"")
         private const val STATE = ".blizz-download"
+        /** The download's format: a partial download of another format starts over (2: every file checked against its key). */
+        private const val FORMAT = "v2"
         private const val STAGING = ".blizz-staging"
         private const val UNKNOWN = -2
         private const val LOOSE = -1
