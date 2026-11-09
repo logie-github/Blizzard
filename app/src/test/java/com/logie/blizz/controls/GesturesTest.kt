@@ -62,17 +62,17 @@ class GesturesTest {
         assertEquals(listOf("+Left", "-Left"), out.events)
     }
 
-    @Test fun starcraftTapLeftClicksEverywhereHoldRightClicks() {
+    @Test fun starcraftTapRightClicksPanelsLeftClickHoldLeftClicks() {
         val out = Recorder()
         val g = engine("starcraft", out)
         g.tap(500f, 400f, 0)
-        assertEquals(listOf("to 500,400", "click LEFT"), out.events)
+        assertEquals(listOf("to 500,400", "click RIGHT"), out.events)
         out.events.clear()
         g.tap(500f, 900f, 1000)
         assertEquals(listOf("to 500,900", "click LEFT"), out.events)
         out.events.clear()
         g.down(0, 500f, 400f, 3000); g.tick(3000 + Gestures.HOLD_MS); g.up(0, 500f, 400f, 3000 + Gestures.HOLD_MS + 100)
-        assertTrue(out.events.toString(), out.events.any { it.contains("RIGHT") })
+        assertTrue(out.events.toString(), out.events.any { it.contains("LEFT") })
     }
 
     @Test fun starcraftSwipePansWithTheArrowKeys() {

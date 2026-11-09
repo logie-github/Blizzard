@@ -101,8 +101,9 @@ object ArtSources {
  * cropped bitmap.
  */
 @Composable
-fun CropDialog(title: String, source: File, aspect: Float, onSave: (Bitmap) -> Unit, onDismiss: () -> Unit) {
-    val bitmap by produceState<Bitmap?>(null, source) { value = withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeFile(source.path) }.getOrNull() } }
+fun CropDialog(title: String, source: File, aspect: Float, onSave: (Bitmap) -> Unit, onDismiss: () -> Unit, preloaded: Bitmap? = null) {
+    // [preloaded]: the picture already in memory (the tests', which run where no JPEG can be decoded); else it is opened off the main thread.
+    val bitmap by produceState<Bitmap?>(preloaded, source) { if (value == null) value = withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeFile(source.path) }.getOrNull() } }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Sheet(title, onDismiss, maxWidth = 560.dp) {
             val bmp = bitmap

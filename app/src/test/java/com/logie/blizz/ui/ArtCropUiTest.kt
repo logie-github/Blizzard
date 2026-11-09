@@ -28,33 +28,29 @@ class ArtCropUiTest {
     @get:Rule val rule = createComposeRule()
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    /** The first picture a cold test JVM opens fails ("Failed to create image decoder"): opened once here, so the tests' own pictures open. */
-    @org.junit.Before fun warmUpTheImageDecoder() {
-        val f = File(context.cacheDir, "warm.jpg")
-        Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.JPEG, 90, f.outputStream())
-        repeat(3) { runCatching { android.graphics.BitmapFactory.decodeFile(f.path) } }
-    }
-
-    /** The picture is opened off the main thread: the clock runs until the Save button is there and on screen (a full run's load can make that slow). */
+    /** The clock runs until the Save button is there and on screen. */
     private fun untilSaveShows() {
         rule.mainClock.autoAdvance = true
-        rule.waitUntil(120_000) {
+        rule.waitUntil(30_000) {
             runCatching { rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed() }.isSuccess
         }
         rule.waitForIdle()
     }
 
-    private fun picture(w: Int, h: Int): File {
+    /** A picture in memory and a file name for it: the test JVM (Robolectric, on CI too) cannot decode a JPEG, so the dialog is given the bitmap. */
+    private fun picture(w: Int, h: Int): Pair<File, Bitmap> {
         val f = File(context.cacheDir, "crop-$w.jpg")
-        Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }.compress(Bitmap.CompressFormat.JPEG, 90, f.outputStream())
-        return f
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        f.writeBytes(ByteArray(16))
+        return f to bmp
     }
 
     @Test fun theBoxCropCanBeSavedOnAPhone() {
         // The box's frame is tall (3:4): on a phone it used to push Save off the screen.
         rule.mainClock.autoAdvance = false
         var saved: Bitmap? = null
-        rule.setContent { BlizzTheme { CropDialog("Crop · Box", picture(1600, 1200), 3f / 4f, onSave = { saved = it }, onDismiss = {}) } }
+        val (file, bmp) = picture(1600, 1200)
+        rule.setContent { BlizzTheme { CropDialog("Crop · Box", file, 3f / 4f, onSave = { saved = it }, onDismiss = {}, preloaded = bmp) } }
         untilSaveShows()
         rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed()
         UiShots.saveAll("modern-crop-box", rule)
@@ -68,7 +64,8 @@ class ArtCropUiTest {
     @Test fun theHomeCropCanBeSavedToo() {
         rule.mainClock.autoAdvance = false
         var saved: Bitmap? = null
-        rule.setContent { BlizzTheme { CropDialog("Crop · Home picture", picture(2000, 800), 1.077f, onSave = { saved = it }, onDismiss = {}) } }
+        val (file, bmp) = picture(2000, 800)
+        rule.setContent { BlizzTheme { CropDialog("Crop · Home picture", file, 1.077f, onSave = { saved = it }, onDismiss = {}, preloaded = bmp) } }
         untilSaveShows()
         rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Save", ignoreCase = true).performClick()
