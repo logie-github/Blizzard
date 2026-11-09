@@ -18,12 +18,34 @@ object Wc3Arguments {
     private val WINDOW = Regex("(?i)(^|\\s)-(window|windowmode|fullscreen|nativefullscr)(\\s|$)")
     private val RENDERER = Regex("(?i)(^|\\s)-(opengl|d3d|graphicsapi)(\\s|$)")
 
-    /** [own] with the window mode and renderer added, unless [own] already sets them. */
-    fun of(own: String, openGl: Boolean): String {
+    /**
+     * 1.0 to 1.27's window: `-window`. Those versions know none of 1.30's switches and so ran exclusive fullscreen under Wine, where the
+     * first dialog to take the focus (the game's own "video hardware changed" at a first start) left a black screen with the menu music
+     * playing (the phone, 9 November 2026). A window the launcher stretches to the screen is what the game gets instead.
+     */
+    const val WINDOW_1_2X = "-window"
+
+    private val VERSION = Regex("""(?:^|\D)1\.(\d{1,2})\.""")
+
+    /** Whether [clientVersion] (a program version such as 1.27.0.52240, or a title with one in it) is from before 1.28. */
+    fun isBefore128(clientVersion: String?): Boolean {
+        val minor = clientVersion?.let { VERSION.find(it)?.groupValues?.get(1)?.toIntOrNull() } ?: return false
+        return minor < 28
+    }
+
+    /** [own] with the window mode and renderer added, unless [own] already sets them; the window mode of [clientVersion] when given. */
+    fun of(own: String, openGl: Boolean, clientVersion: String? = null): String {
         val parts = mutableListOf(own.trim())
-        if (!WINDOW.containsMatchIn(own)) parts += FULLSCREEN
-        if (openGl && !RENDERER.containsMatchIn(own)) parts += OPENGL
+        if (!WINDOW.containsMatchIn(own)) parts += if (isBefore128(clientVersion)) WINDOW_1_2X else FULLSCREEN
+        if (openGl && !RENDERER.containsMatchIn(own)) parts += if (isBefore128(clientVersion)) "-opengl" else OPENGL
         return parts.filter { it.isNotEmpty() }.joinToString(" ")
+    }
+
+    /** [stored] (a library entry's arguments, made for 1.30) as [clientVersion] wants them: 1.2x's window switch in place of 1.30's fullscreen ones. */
+    fun forVersion(stored: String, clientVersion: String?): String {
+        if (!isBefore128(clientVersion)) return stored
+        val own = stored.replace(FULLSCREEN, "").replace(OPENGL, "-opengl").trim()
+        return of(own, openGl = false, clientVersion = clientVersion)
     }
 }
 
@@ -253,6 +275,11 @@ object Diablo2Arguments {
 
 /** The command line a game starts with: the library entry's arguments, the app's own switches, then the person's extra ones (Launch options). */
 object GameArguments {
-    fun of(gameId: String, entryArguments: String, extra: String): String =
-        listOf(Diablo2Arguments.of(gameId, entryArguments), extra.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+    fun of(gameId: String, entryArguments: String, extra: String, clientVersion: String? = null): String {
+        val base = when {
+            gameId.startsWith("warcraft3") -> Wc3Arguments.forVersion(entryArguments, clientVersion)
+            else -> Diablo2Arguments.of(gameId, entryArguments)
+        }
+        return listOf(base, extra.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+    }
 }

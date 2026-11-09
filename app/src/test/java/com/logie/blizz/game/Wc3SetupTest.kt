@@ -21,6 +21,19 @@ class Wc3SetupTest {
 
     @Test fun theGameStartsFullscreenIn130sWordsAnd131s() {
         assertEquals("-windowmode fullscreen -nativefullscr", Wc3Arguments.of("", openGl = false))
+        // 1.0 to 1.27 know none of those: a window, which the launcher stretches.
+        assertEquals("-window", Wc3Arguments.of("", openGl = false, clientVersion = "1.27.0.52240"))
+        assertEquals("-window -opengl", Wc3Arguments.of("", openGl = true, clientVersion = "Warcraft III: Reign of Chaos 1.26.0.6401"))
+        assertEquals("-windowmode fullscreen -nativefullscr", Wc3Arguments.of("", openGl = false, clientVersion = "1.30.4.11274"))
+        assertFalse(Wc3Arguments.isBefore128("1.28.5.7680"))
+        assertTrue(Wc3Arguments.isBefore128("1.27.0.52240"))
+        assertFalse(Wc3Arguments.isBefore128(null))
+        // An entry made before this (1.30's switches stored) gets 1.27's at the start.
+        assertEquals("-window", Wc3Arguments.forVersion("-windowmode fullscreen -nativefullscr", "1.27.0.52240"))
+        assertEquals("-loadfile Maps/x.w3x -window", Wc3Arguments.forVersion("-loadfile Maps/x.w3x -windowmode fullscreen -nativefullscr", "1.27.0.52240"))
+        assertEquals("-windowmode fullscreen -nativefullscr", Wc3Arguments.forVersion("-windowmode fullscreen -nativefullscr", "1.30.4.11274"))
+        assertEquals("-window", GameArguments.of("warcraft3_roc", "-windowmode fullscreen -nativefullscr", "", "Warcraft III: Reign of Chaos 1.27.0.52240"))
+        assertEquals("-window -opengl", GameArguments.of("warcraft3_tft", "-windowmode fullscreen -nativefullscr", "-opengl", "1.27.0.52240"))
     }
 
     @Test fun openGlIsAddedAfterThePersonsOwnArguments() {

@@ -377,8 +377,8 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
             installPath = dir.path,
             executable = programFor(dir, product)?.name ?: product.programs.first(),
             runtime = LibraryEntry.RUNTIME_WINLATOR,
-            // Fullscreen at the screen's size, in 1.30's and 1.31's words; the registry (Wc3Setup) gives the size.
-            arguments = Wc3Arguments.of("", openGl = false),
+            // 1.2x: a window (`-window`) the launcher stretches to the screen; 1.30 and 1.31: fullscreen in their words. The registry (Wc3Setup) gives the size.
+            arguments = Wc3Arguments.of("", openGl = false, clientVersion = validation.clientVersion),
             stage = Stage.IMPORTED_UNTESTED,
             saveLocation = DOCUMENTS,
             controlProfile = "warcraft3",
