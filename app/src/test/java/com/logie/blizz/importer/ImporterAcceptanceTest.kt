@@ -219,8 +219,8 @@ class ImporterAcceptanceTest {
         Fixtures.starcraft2Install(paths.game("starcraft2"))
         val expected = mapOf(
             Diablo2ClassicImporter() to Triple("Game.exe", "diablo2", "click"),
-            StarCraftClassicImporter() to Triple("StarCraft.exe", "starcraft", "rclick"),
-            StarCraft2OfflineImporter() to Triple("StarCraft II Offline.exe", "starcraft2", "rclick"),
+            StarCraftClassicImporter() to Triple("StarCraft.exe", "starcraft", "click"),
+            StarCraft2OfflineImporter() to Triple("StarCraft II Offline.exe", "starcraft2", "click"),
         )
         for ((importer, want) in expected) {
             val entry = (run(importer) as ImportPipeline.Result.Done).entry
