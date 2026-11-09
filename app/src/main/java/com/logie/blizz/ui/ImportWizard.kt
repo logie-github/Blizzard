@@ -237,13 +237,14 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
             androidx.compose.foundation.layout.FlowRow(
                 Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                // Reset, at any time but while it's working: the game's files go, its saves stay.
-                val resettable = !state.running && (state.entry != null || record.stage != Stage.NOT_INSTALLED || record.problem != null || state.installer != null)
+                // Reset, at any time but while it's working, on every game: the game is deleted and installed again from the start
+                // (its saves stay). Repair, beside it, only checks the files and mends what is wrong.
+                val resettable = !state.running
                 if (resettable) {
                     if (confirmReset) {
-                        Text(if (state.installer != null) "Delete the installed game and the installer's copy?" else "Delete the installed game?", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold, modifier = Modifier.weight(1f))
+                        Text(if (state.installer != null) "Delete the game and the installer's copy, then install again? Saves stay." else "Delete the game and install it again? Saves stay.", style = MaterialTheme.typography.bodyMedium, color = Colors.Gold, modifier = Modifier.weight(1f))
                         FrameButton("No", primary = false) { confirmReset = false }
-                        FrameButton("Reset") { confirmReset = false; GameImportManager.reset(context, game.id) }
+                        FrameButton("Reset") { confirmReset = false; GameImportManager.reinstall(context, game.id) }
                     } else {
                         FrameButton("Reset", primary = false) { confirmReset = true }
                     }

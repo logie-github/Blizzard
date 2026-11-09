@@ -52,10 +52,5 @@ fun Wc3Keys(installed: Boolean, onInstallAgain: () -> Unit, modifier: Modifier =
                 if (installed) onInstallAgain()
             }
         }
-        Text(
-            if (installed) "The key is written into the game's files as it is installed, so this installs it again (the download again; your saves stay)."
-            else "Kept on this phone only. They are written into the game's files when it is installed.",
-            style = MaterialTheme.typography.bodySmall, color = Colors.Steel,
-        )
     }
 }

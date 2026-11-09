@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mouse
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
@@ -24,7 +25,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -74,6 +80,26 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             HoldItem(Icons.Default.MusicNote, "Music") { onDismiss(); openMusic(game) }
             if (importable) HoldItem(Icons.Default.Build, "Install & repair") { onDismiss(); openWizard(effective) }
             else HoldItem(Icons.Default.Apps, "App") { onDismiss(); chooseApp(game) }
+            // Reset, on every game: it is deleted and installed again from the start (saves stay).
+            val context = LocalContext.current
+            var confirm by remember { mutableStateOf(false) }
+            if (importable || effective.id == "wow_forever") HoldItem(Icons.Default.RestartAlt, "Reset") { confirm = true }
+            if (confirm) {
+                val forever = effective.id == "wow_forever"
+                ConfirmDialog(
+                    title = "Reset ${effective.fullTitle}?",
+                    text = if (forever) "The realm (its server, characters and map data) is deleted and downloaded again on the next Play. The game client stays."
+                    else "The game is deleted and installed again from the start. Your saves stay.",
+                    confirm = "Reset",
+                    onDismiss = { confirm = false },
+                    onConfirm = {
+                        confirm = false
+                        onDismiss()
+                        if (forever) com.logie.blizz.forever.ForeverPlay.reset(context, client = false)
+                        else { com.logie.blizz.importer.GameImportManager.reinstall(context, effective.id); openWizard(effective) }
+                    },
+                )
+            }
         }
     }
 }
