@@ -22,8 +22,11 @@ class ForeverLayout(val root: File) {
     /** The Forever client folder (the one with .build.info and _forever_), copied or installed here. */
     val client = File(root, "client")
 
-    /** Whether the client is present (its _forever_ folder with a Wow program). */
-    fun hasClient() = clientExe() != null
+    /** Whether the client is present: its `.build.info`, `Data` and `_forever_`, and a program to start. */
+    fun hasClient() = File(client, ".build.info").isFile && File(client, "Data").isDirectory && clientExe() != null
+
+    /** The client's build (from its `.build.info`), or null when it can't be read. */
+    fun clientBuild(): Int? = runCatching { ForeverCtl.clientBuild(File(client, ".build.info").readText()) }.getOrNull()
 
     /** The program to start: the Forever Launcher if the user placed one (it sets the server key), else the client exe. */
     fun clientExe(): File? {

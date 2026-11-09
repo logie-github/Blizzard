@@ -55,10 +55,11 @@ object ForeverRealm {
     private val ready = Regex("""World initialized in|\(worldserver-daemon\) ready""")
 
     /**
-     * Brings the realm up: MariaDB, then the login server, then the world server, waiting for each.
-     * Returns once the world server is ready (or throws on failure). Call off the main thread.
+     * Brings the realm up: MariaDB, then the login server, then the world server, waiting for each. The realm is
+     * offered at [clientBuild] (the client lists only realms of its own build) and the game [account] (e-mail,
+     * password) is made sure of once the world server is up. Returns at once; [status] follows. Call off the main thread.
      */
-    fun start(context: Context) {
+    fun start(context: Context, clientBuild: Int? = null, account: Pair<String, String>? = null) {
         if (_status.value.phase == Phase.STARTING || _status.value.phase == Phase.RUNNING) return
         val layout = ForeverLayout.of(context)
         _status.value = Status(Phase.STARTING, Step.CONFIGURING, "Setting up the realm")
@@ -72,6 +73,7 @@ object ForeverRealm {
                 _status.value = Status(Phase.STARTING, Step.DATABASE, "Starting the database")
                 db = startProcess(layout, "db", layout.log("mariadb-run"))
                 awaitDatabase(layout)
+                if (clientBuild != null) run(layout, "realm-build", clientBuild.toString())
 
                 _status.value = Status(Phase.STARTING, Step.LOGIN, "Starting the login server")
                 login = startProcess(layout, "bnetserver", layout.log("bnetserver"))
@@ -79,6 +81,7 @@ object ForeverRealm {
                 _status.value = Status(Phase.STARTING, Step.WORLD, "Starting the world (first time: several minutes)")
                 world = startProcess(layout, "worldserver", layout.log("worldserver"), keepInput = true)
                 awaitWorld(layout)
+                account?.let { (name, password) -> ensureAccount(name, password) }
 
                 _status.value = Status(Phase.RUNNING, null, "Realm running")
             } catch (e: Throwable) {
@@ -124,11 +127,26 @@ object ForeverRealm {
     private fun startProcess(layout: ForeverLayout, arg: String, log: File, keepInput: Boolean = false): RealmProcess =
         runner.start(ForeverCtl.command(layout, arg), log, keepInput)
 
-    /** Runs a one-shot control command to its end. */
+    /**
+     * Makes sure the game account exists with this password, through the running world server's console
+     * (TrinityCore's `bnetaccount create`, which also makes its game account; "already exists" is harmless). The
+     * console splits on spaces, so a name or password with one is left out (the game asks at its login screen).
+     */
+    private fun ensureAccount(name: String, password: String) {
+        if (name.isBlank() || password.isBlank() || '@' !in name || (name + password).any(Char::isWhitespace)) return
+        world?.send("bnetaccount create $name $password")
+        world?.send("bnetaccount set password $name $password $password")
+    }
+
+    /** Runs a one-shot control command to its end; a failure carries the last line it printed (the reason). */
     private fun run(layout: ForeverLayout, vararg args: String) {
-        val process = runner.start(ForeverCtl.command(layout, *args), layout.log(args.first()), false)
+        val log = layout.log(args.first())
+        val process = runner.start(ForeverCtl.command(layout, *args), log, false)
         if (!process.waitFor(20 * 60_000L)) { process.destroyForcibly(); throw IllegalStateException("'${args.first()}' timed out") }
-        if (process.exitValue() != 0) throw IllegalStateException("'${args.first()}' failed (see logs/${args.first()}.log)")
+        if (process.exitValue() != 0) {
+            val reason = runCatching { log.readLines().lastOrNull { it.isNotBlank() }?.trim() }.getOrNull()
+            throw IllegalStateException(reason ?: "'${args.first()}' failed (see logs/${args.first()}.log)")
+        }
     }
 
     private fun awaitDatabase(layout: ForeverLayout) {

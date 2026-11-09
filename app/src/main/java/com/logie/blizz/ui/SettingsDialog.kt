@@ -364,6 +364,43 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         if (ownMusic) FrameButton("Original", primary = false) { MusicCustom.clear(context, game.id) }
                     }
                 }
+                // Forever's offline realm makes this account at every start (forever@forever.local / forever unless changed here).
+                if (game.id == com.logie.blizz.forever.ForeverPlay.VERSION) {
+                    remember(game.id) { com.logie.blizz.forever.ForeverPlay.login(context) }
+                    AutoLoginCard(game.id, "E-mail")
+                    // Start over: the realm alone, or the realm and the downloaded client. Each asks first.
+                    var confirmReset by remember { mutableStateOf<Boolean?>(null) }
+                    SettingCard("Reset") {
+                        Text(
+                            "Reset realm deletes the realm server, its database (your characters) and its map data; the next Play downloads " +
+                                "the server again (263 MB). Reset everything also deletes the game client (${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB, downloaded again on Play).",
+                            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FrameButton("Reset realm", primary = false) { confirmReset = false }
+                            FrameButton("Reset everything", primary = false) { confirmReset = true }
+                        }
+                    }
+                    confirmReset?.let { everything ->
+                        Dialog(onDismissRequest = { confirmReset = null }) {
+                            Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                Text(if (everything) "Reset everything?" else "Reset the realm?", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    if (everything) "Deletes the realm, your characters and the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client. This can't be undone."
+                                    else "Deletes the realm server, its database with your characters, and its map data. The game client stays. This can't be undone.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    FrameButton("Cancel", primary = false) { confirmReset = null }
+                                    FrameButton("Reset") {
+                                        com.logie.blizz.forever.ForeverPlay.reset(context, client = everything)
+                                        confirmReset = null
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
                     AutoLoginCard(game.id, if (game.id == "wow_legion") "E-mail" else "Account name")
                     SettingCard("Add-ons") {
