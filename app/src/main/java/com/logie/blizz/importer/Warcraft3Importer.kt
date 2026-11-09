@@ -44,6 +44,8 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
 
     override val gameId = product.id
     override val title = product.title
+    /** 2: the stand-in CD keys are written into the archives at install (the first installs had none and stopped at start). */
+    override val recipe = 2
     /** Saved games kept beside the game (1.2x keeps them in the game folder) survive a reset. */
     override val keptInGame = listOf("Save")
 

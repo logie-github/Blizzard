@@ -21,4 +21,9 @@
 - Reports from the app (crashes, failed installs, the launch test) arrive as GitHub issues on this
   repository once the `BLIZZ_REPORT_TOKEN` secret is set (it is). Read them with the issues tools
   before asking the user to paste anything.
+- **A change that needs a game installed again forces it** (the user: "if a game update requires a true install, force
+  it"). Each importer has a `recipe` number (`GameImporter.recipe`); raise it whenever the install itself changes (what
+  is downloaded, which version, what is written into the archives). The app then installs that game again by itself at
+  the next start or Play (saves kept, as a reset), without asking. Never raise it for a change that an installed game
+  plays fine without.
 - Never commit build outputs, downloaded tools, or any game files.

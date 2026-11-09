@@ -389,6 +389,17 @@ class Warcraft3Test {
         assertTrue(run(roc, zip) is ImportPipeline.Result.Failed)
     }
 
+    @Test fun anInstallCarriesItsRecipeAndAnOlderOneIsStale() {
+        val done = assertDone(run(roc, casc130(tmp.newFolder("src"))))
+        assertEquals(roc.recipe, done.record.recipe)
+        assertEquals(2, done.record.recipe)
+        assertFalse(Recipes.stale(done.record, roc.recipe))
+        assertFalse(Recipes.stale(ImportStateRepository(paths).load("warcraft3_roc"), roc.recipe))
+        // Records from before recipes existed carry 0, counted as the first recipe: only a real change installs a game again.
+        assertTrue(Recipes.stale(ImportRecord("warcraft3_roc", stage = Stage.IMPORTED_UNTESTED), 2))
+        assertFalse(Recipes.stale(ImportRecord("diablo", stage = Stage.READY), 1))
+    }
+
     @Test fun aWholeFolderOnThePhoneIsFoundAndNothingIsDownloaded() {
         setUp()
         online = true

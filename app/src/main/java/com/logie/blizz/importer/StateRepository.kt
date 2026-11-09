@@ -16,6 +16,8 @@ data class ImportRecord(
     val supplied: Map<String, String> = emptyMap(),
     val skipped: Set<String> = emptySet(),
     val updatedAt: Long = 0,
+    /** The importer's install recipe ([GameImporter.recipe]) that made this install; 0 before recipes existed. */
+    val recipe: Int = 0,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("gameId", gameId)
@@ -28,6 +30,7 @@ data class ImportRecord(
         .put("supplied", JSONObject(supplied as Map<*, *>))
         .put("skipped", org.json.JSONArray(skipped.toList()))
         .put("updatedAt", updatedAt)
+        .put("recipe", recipe)
 
     companion object {
         fun fromJson(o: JSONObject): ImportRecord {
@@ -44,6 +47,7 @@ data class ImportRecord(
                 supplied = supplied,
                 skipped = skipped,
                 updatedAt = o.optLong("updatedAt"),
+                recipe = o.optInt("recipe", 0),
             )
         }
 

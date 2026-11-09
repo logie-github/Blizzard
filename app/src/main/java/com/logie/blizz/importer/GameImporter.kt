@@ -50,6 +50,12 @@ interface GameImporter {
     /** Folders in the game's own folder that are the player's (saved games kept beside the game): a reset leaves them. */
     val keptInGame: List<String> get() = emptyList()
 
+    /**
+     * The install recipe's number: raised whenever the install itself changes (what is downloaded, which version, what is written
+     * into the archives), so an install made by an older recipe is made again by itself ([Recipes.stale]). 1 is the first.
+     */
+    val recipe: Int get() = 1
+
     fun detect(env: ImportEnv): Detection
     fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource>
     fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>)
@@ -153,6 +159,11 @@ fun localCopy(source: SourceNode, scratch: File, cancel: CancelToken, onBytes: (
  * library entry, its import record and anything half-made. Saves and settings in `saves/` stay, and
  * so do downloads (they're checked piece by piece, so importing again is quick). Plain Kotlin, unit-tested.
  */
+/** Whether an install needs making again: made by a recipe older than the importer's. Records from before recipes carry 0, counted as 1. */
+object Recipes {
+    fun stale(record: ImportRecord, recipe: Int): Boolean = maxOf(record.recipe, 1) < recipe
+}
+
 object GameReset {
     fun reset(paths: GamePaths, gameId: String, kept: List<String> = emptyList()) {
         Library(paths).remove(gameId)

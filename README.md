@@ -44,6 +44,8 @@ computer can copy into over USB) and every folder chosen with **Search a folder*
 | **StarCraft II** any build (made for 3.0.5.39117 and 3.1.4.41219) | Your files only; never downloaded | The installation in any form: its folder, a zip, 7z, tar (gz, xz, bz2, zst), a disc image, or an installer (`Setup.exe` with its data files beside it, whatever they're called: innoextract reads Inno Setup ones). `StarCraft II Offline.exe` if it isn't in it (else the game's own program starts). Any build with a `Versions/Base<number>` folder is taken as it is. |
 | **StarCraft: Remastered** 1.23.10.12409 | Your files only, in any of those forms | A second installation beside the classic StarCraft (its own folder, saves and controls): the game's page has a **Classic · Remastered** switch. Imported — Launch Untested. |
 
+**An update that changes how a game is installed installs it again by itself** (what is downloaded, which version, what goes into its archives: each game's install carries a recipe number, and an install made by an older one is made again at the app's next start when online, or at Play, with its progress in the wizard; saves are kept, as with Reset). Build 157 does this for Warcraft III (the stand-in keys) and Diablo II (1.13c).
+
 Statuses: Ready to Play, Imported — Launch Untested, Import Incomplete, Missing Required File,
 Unsupported Client Version, Launch Test Failed. A game's first window coming up under Winlator is
 recorded apart from the file checks.
