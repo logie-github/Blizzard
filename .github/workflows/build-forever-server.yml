@@ -62,7 +62,10 @@ jobs:
       - name: Package (MariaDB, seed database, ctl.sh)
         run: scripts/package-trinity-forever.sh
 
+      # Only main publishes: the app re-downloads whenever the published package changes, so other branches' builds
+      # (other sessions' checks) must not replace it.
       - name: Publish (release forever-server)
+        if: github.ref == 'refs/heads/main'
         working-directory: realm/build/forever
         env:
           GH_TOKEN: ${{ github.token }}
