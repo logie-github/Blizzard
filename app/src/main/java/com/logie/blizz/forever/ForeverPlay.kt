@@ -82,9 +82,11 @@ object ForeverPlay {
         if (!ForeverServerPackage.installed(context)) {
             _state.value = State.Preparing("Downloading the realm server", 0f)
             withContext(Dispatchers.IO) {
-                ForeverServerPackage.install(context) { done, total ->
-                    _state.value = State.Preparing("Downloading the realm server", if (total > 0) done.toFloat() / total else null)
-                }
+                ForeverServerPackage.install(
+                    context,
+                    onStage = { message -> _state.value = State.Preparing(message) },
+                    onProgress = { done, total -> _state.value = State.Preparing("Downloading the realm server", if (total > 0) done.toFloat() / total else null) },
+                )
             }
         }
 
