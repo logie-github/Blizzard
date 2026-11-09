@@ -27,11 +27,12 @@ class ArtCropUiTest {
     @get:Rule val rule = createComposeRule()
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    /** The picture is opened off the main thread: the clock is moved on until the Save button is there. */
+    /** The picture is opened off the main thread: the clock is moved on until the Save button is there and on screen (under a full run's load, it exists before it is laid out). */
     private fun untilSaveShows() {
-        repeat(80) {
+        repeat(300) {
             rule.mainClock.advanceTimeBy(100); rule.waitForIdle(); Thread.sleep(20)
-            if (rule.onAllNodesWithText("Save", ignoreCase = true).fetchSemanticsNodes().isNotEmpty()) { rule.mainClock.advanceTimeBy(500); rule.waitForIdle(); return }
+            val shown = runCatching { rule.onNodeWithText("Save", ignoreCase = true).assertIsDisplayed() }.isSuccess
+            if (shown) { rule.mainClock.advanceTimeBy(500); rule.waitForIdle(); return }
         }
     }
 
