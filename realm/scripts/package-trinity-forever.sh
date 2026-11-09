@@ -126,28 +126,60 @@ creatures=$(echo "SELECT COUNT(*) FROM world.creature_template;" | sqlc -N)
 echo "world: $creatures creature templates"
 [ "$creatures" -gt 10000 ] || { echo "The world database looks empty" >&2; exit 1; }
 
-# The database updates (TrinityCore's and the branch's sql/custom, including the realm's move to 70 and the client
-# build), applied here by the world server's own updater so the phone's first start doesn't spend its time on them.
-# The world server stops by itself after the updates (no client data here); what it printed is kept in the log.
+# The database updates (TrinityCore's and the branch's sql/custom: the realms the Forever client accepts, 70-74, and
+# its builds), applied here by the world server's own updater so the phone starts from an up-to-date database. The
+# world server stops by itself after the updates (no client data here); what it printed is kept in the log.
+# - It loads libopenssl_ed25519.so from the build (it's not an Alpine library): LD_LIBRARY_PATH.
+# - The settings replace the .dist's own lines (setkey): TrinityCore's config reader refuses a key given twice.
+setkey() {
+	file=$1 key=$2 value=$3
+	if grep -q "^$key[[:space:]]*=" "$file"; then
+		escaped=$(printf '%s' "$value" | sed 's/[|&\\]/\\&/g')
+		sed -i "s|^$key[[:space:]]*=.*|$key = $escaped|" "$file"
+	else
+		printf '%s = %s\n' "$key" "$value" >> "$file"
+	fi
+}
 mkdir -p /tmp/ws-etc /tmp/ws-logs
-cp "$DIST/etc/worldserver.conf.dist" /tmp/ws-etc/worldserver.conf
-cat >> /tmp/ws-etc/worldserver.conf <<EOF
-LoginDatabaseInfo = "127.0.0.1;3399;root;;auth"
-WorldDatabaseInfo = "127.0.0.1;3399;root;;world"
-CharacterDatabaseInfo = "127.0.0.1;3399;root;;characters"
-HotfixDatabaseInfo = "127.0.0.1;3399;root;;hotfixes"
-SourceDirectory = "$pkg"
-MySQLExecutable = "/usr/bin/mariadb"
-Updates.EnableDatabases = 15
-Updates.AutoSetup = 0
-DataDir = "/tmp/ws-nodata"
-LogsDir = "/tmp/ws-logs"
-RealmID = $REALM_ID
-Console.Enable = 0
-EOF
+ws_conf=/tmp/ws-etc/worldserver.conf
+cp "$DIST/etc/worldserver.conf.dist" "$ws_conf"
+setkey "$ws_conf" LoginDatabaseInfo '"127.0.0.1;3399;root;;auth"'
+setkey "$ws_conf" WorldDatabaseInfo '"127.0.0.1;3399;root;;world"'
+setkey "$ws_conf" CharacterDatabaseInfo '"127.0.0.1;3399;root;;characters"'
+setkey "$ws_conf" HotfixDatabaseInfo '"127.0.0.1;3399;root;;hotfixes"'
+setkey "$ws_conf" SourceDirectory "\"$pkg\""
+setkey "$ws_conf" MySQLExecutable '"/usr/bin/mariadb"'
+setkey "$ws_conf" Updates.EnableDatabases 15
+setkey "$ws_conf" Updates.AutoSetup 0
+setkey "$ws_conf" DataDir '"/tmp/ws-nodata"'
+setkey "$ws_conf" LogsDir '"/tmp/ws-logs"'
+setkey "$ws_conf" RealmID "$REALM_ID"
+setkey "$ws_conf" Console.Enable 0
+dupes=$(sed -n 's/^\([A-Za-z][A-Za-z0-9_.]*\)[[:space:]]*=.*/\1/p' "$ws_conf" | sort | uniq -d)
+[ -z "$dupes" ] || { echo "worldserver.conf has keys set twice: $dupes" >&2; exit 1; }
 echo "ALTER USER 'root'@'localhost' IDENTIFIED BY ''; FLUSH PRIVILEGES;" | sqlc || true
-(cd /tmp && timeout 3600 "$DIST/bin/worldserver" -c /tmp/ws-etc/worldserver.conf > /tmp/ws-update.log 2>&1) || true
-grep -iE "updat|applied|error" /tmp/ws-update.log | tail -40 || true
+world_updates() {
+	(cd /tmp && LD_LIBRARY_PATH="$DIST/lib" timeout 3600 "$DIST/bin/worldserver" -c "$ws_conf" > "$1" 2>&1) || true
+	grep -E "Updating|Containing|up-to-date|Applying update|Deleting orphaned|rror" "$1" | tail -40 || true
+}
+world_updates /tmp/ws-update.log
+grep -q "database is up-to-date\|Applying update" /tmp/ws-update.log ||
+	{ echo "The world server's updater didn't run:" >&2; tail -60 /tmp/ws-update.log >&2; exit 1; }
+realms=$(echo "SELECT COUNT(*) FROM auth.realmlist WHERE id = $REALM_ID;" | sqlc -N)
+[ "$realms" = 1 ] || { echo "The updates didn't make realm $REALM_ID:" >&2; tail -60 /tmp/ws-update.log >&2; exit 1; }
+
+# sql/old is TrinityCore's history back to 2014 (~4 GB): every file in it is already in the release the seed came from,
+# so it isn't shipped. The databases' records of those files go with it: the archived include folders, and (one more
+# updater pass without sql/old, allowed to clean all it no longer finds) the applied-update entries pointing into it.
+# The phone's updater, which runs at every start, then finds exactly the files it has: no missing files, no 4 GB to read.
+rm -rf "$pkg/sql/old"
+for db in auth characters world hotfixes; do
+	echo "DELETE FROM \`$db\`.updates_include WHERE path LIKE '\$/sql/old%';" | sqlc
+done
+setkey "$ws_conf" Updates.CleanDeadRefMaxCount -1
+world_updates /tmp/ws-update-clean.log
+grep -q "database is up-to-date" /tmp/ws-update-clean.log ||
+	{ echo "The cleaning pass didn't finish:" >&2; tail -60 /tmp/ws-update-clean.log >&2; exit 1; }
 echo "SELECT id, name, address, gamebuild FROM auth.realmlist;" | sqlc
 # The realm the client accepts (70), on this phone, on the realm's own ports (ctl.sh WORLD_PORT, INSTANCE_PORT).
 echo "UPDATE auth.realmlist SET address = '127.0.0.1', localAddress = '127.0.0.1', port = 8105 WHERE id = $REALM_ID;" | sqlc
@@ -174,6 +206,7 @@ sha=$(sha256sum "$OUT/forever-server.tar.xz" | cut -d' ' -f1)
 unpacked=$(du -sb "$pkg" | cut -f1)
 cat > "$OUT/forever-server.json" <<EOF
 {
+  "format": 2,
   "file": "forever-server.tar.xz",
   "size": $size,
   "sha256": "$sha",

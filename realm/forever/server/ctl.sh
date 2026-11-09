@@ -7,11 +7,12 @@
 #
 #   ctl.sh configure               write the configs (from the shipped .dist files), the folders and, the first time,
 #                                  this phone's own certificate authority and the login server's certificate
-#   ctl.sh db-init                 make MariaDB's data folder from the seed, if there's none
+#   ctl.sh db-init                 make MariaDB's data folder from the seed (moved, not copied), if there's none
 #   ctl.sh db                      run MariaDB (makes its data folder from the seed first)
 #   ctl.sh db-ping | db-stop       ask MariaDB if it's up / to shut down
 #   ctl.sh sql [database]          run the SQL on stdin (prints tab-separated rows)
 #   ctl.sh account NAME PASSWORD   make a game account (NAME is an e-mail address), or set its password
+#   ctl.sh realm-build BUILD       offer realm 70 at the client's build (fails, saying which it supports, if unknown)
 #   ctl.sh bnetserver | worldserver run the login server / world server
 #   ctl.sh maps|vmaps|mmaps CLIENT make the server's data from the Forever client's folder (the one with .build.info)
 #   ctl.sh data-done               put the data made (data.work) in place of data
@@ -167,11 +168,28 @@ db_client() {
 
 db_init() {
 	if [ ! -d "$DB_DIR/mysql" ]; then
-		rm -rf "$DB_DIR.new"
-		cp -r "$SERVER/mariadb-seed" "$DB_DIR.new"
+		[ -d "$SERVER/mariadb-seed/mysql" ] || { echo "No database and no seed to make it from: reinstall the realm server." >&2; exit 1; }
 		rm -rf "$DB_DIR"
-		mv "$DB_DIR.new" "$DB_DIR"
+		# Moved, not copied: the seed is ~2 GB and is only ever used once (same file system: instant).
+		mv "$SERVER/mariadb-seed" "$DB_DIR"
 	fi
+	# A newer package brings a seed of its own; the database made from the first one is kept (it holds the characters).
+	rm -rf "$SERVER/mariadb-seed"
+}
+
+# The realm on offer (70) at the client's own build: the client lists only realms of its build, and the login server
+# accepts only builds it knows (build_info). ctl.sh realm-build BUILD
+realm_build() {
+	case "$1" in ''|*[!0-9]*) echo "Not a build number: $1" >&2; exit 2 ;; esac
+	known=$(echo "SELECT COUNT(*) FROM build_info WHERE build = $1;" | db_client --batch --skip-column-names auth)
+	if [ "$known" != 1 ]; then
+		builds=$(echo "SELECT GROUP_CONCAT(build ORDER BY build) FROM build_info WHERE build >= 70000;" |
+			db_client --batch --skip-column-names auth)
+		echo "This realm doesn't support Forever client build $1 (it supports: $builds). Update the client, or wait for an app update." >&2
+		exit 3
+	fi
+	echo "UPDATE realmlist SET gamebuild = $1 WHERE id = 70;" | db_client auth
+	echo "Realm 70 offered at build $1"
 }
 
 cmd=${1:-}
@@ -209,6 +227,10 @@ db-stop)
 	;;
 sql)
 	db_client --batch --skip-column-names ${1:+"$1"}
+	;;
+realm-build)
+	[ $# -eq 1 ] || { echo "ctl.sh realm-build BUILD" >&2; exit 2; }
+	realm_build "$1"
 	;;
 account)
 	# TrinityCore's own command, through the world server's console: bnetaccount create (or set password).
@@ -256,7 +278,7 @@ data-done)
 	rm -rf "$DATA.old"
 	;;
 *)
-	sed -n '2,22p' "$0" >&2
+	sed -n '2,20p' "$0" >&2
 	exit 2
 	;;
 esac
