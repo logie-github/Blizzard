@@ -112,17 +112,59 @@ class TactTest {
         assertEquals(2, t.find(-1L, 5)); assertEquals(0, t.find(0, 1)); assertEquals(-1, t.find(7, 7))
     }
 
+    private fun md5(b: ByteArray) = java.security.MessageDigest.getInstance("MD5").digest(b)
+
+    @Test
+    fun `downloads are checked against their names`() {
+        val config = "# Build Configuration\nroot = 00\n".toByteArray()
+        val configHash = md5(config).joinToString("") { "%02x".format(it) }
+        assertTrue(Verify.config(config, configHash))
+        assertTrue(!Verify.config(config + 1, configHash))
+
+        val index = ByteArray(100) { it.toByte() }
+        val indexHash = md5(index.copyOfRange(72, 100)).joinToString("") { "%02x".format(it) }
+        assertTrue(Verify.index(index, indexHash))
+        assertTrue(!Verify.index(index.copyOf().also { it[99] = 0 }, indexHash))
+
+        val framed = blte(byteArrayOf('N'.code.toByte()) + "hello".toByteArray())
+        val key = Key16.of(md5(framed.copyOf(be32(framed, 4))))
+        assertTrue(Verify.blte(framed, key))
+        assertTrue(!Verify.blte("<html>error</html>".toByteArray(), key))
+        val single = "BLTE".toByteArray() + ByteArray(4) + "Nraw".toByteArray()
+        assertTrue(Verify.blte(single, Key16.of(md5(single))))
+    }
+
+    @Test
+    fun `an entry that doesn't match its key is taken back out and nothing is recorded`() {
+        val dir = Files.createTempDirectory("casc").toFile()
+        val w = CascStorageWriter(dir)
+        val s = w.newSegment()
+        val good = blte(byteArrayOf('N'.code.toByte()) + "hello".toByteArray())
+        val key = Key16.of(md5(good.copyOf(be32(good, 4))))
+        val bad = good.copyOf().also { it[it.size - 1] = 'X'.code.toByte(); it[5] = 0x7F } // header changed
+        var threw = false
+        try { s.write(1, key, bad.inputStream(), bad.size.toLong()) } catch (_: CorruptDownloadException) { threw = true }
+        assertTrue(threw)
+        assertEquals(0L, File(dir, "data.000").length())
+        val placed = s.write(1, key, good.inputStream(), good.size.toLong())
+        s.close()
+        assertEquals(0, placed.offset)
+        assertEquals(30L + good.size, File(dir, "data.000").length())
+        assertEquals(setOf(1), CascStorageWriter(dir).resume().keys)
+    }
+
     @Test
     fun `a storage written, cut short and resumed keeps only whole entries`() {
         val dir = Files.createTempDirectory("casc").toFile()
         val w = CascStorageWriter(dir)
         val s = w.newSegment()
-        val key = Key16.hex("ffffffffffffffffffffffffffffffff")
-        s.write(7, key, ByteArray(100).inputStream(), 100)
+        val data = blte(byteArrayOf('N'.code.toByte()) + ByteArray(87))
+        val key = Key16.of(md5(data.copyOf(be32(data, 4))))
+        s.write(7, key, data.inputStream(), data.size.toLong())
         s.close()
         File(dir, "data.000").appendBytes(ByteArray(55)) // a write the app was killed in
         val placed = CascStorageWriter(dir).resume()
         assertEquals(setOf(7), placed.keys)
-        assertEquals(130L, File(dir, "data.000").length())
+        assertEquals(30L + data.size, File(dir, "data.000").length())
     }
 }

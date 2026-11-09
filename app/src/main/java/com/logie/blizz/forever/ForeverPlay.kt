@@ -133,8 +133,22 @@ object ForeverPlay {
                 _state.value = State.Idle
                 throw e
             } catch (e: Throwable) {
+                val step = (_state.value as? State.Preparing)?.message
                 _state.value = State.Failed(e.message ?: e.javaClass.simpleName)
+                report(app, e, step)
             }
+        }
+    }
+
+    /** A failure goes to the app's GitHub issues (with its step and trace), as the importers' do; a full phone isn't a bug. */
+    private fun report(context: Context, e: Throwable, step: String?) {
+        if (e is com.logie.blizz.forever.tact.ForeverClientInstaller.NotEnoughSpaceException) return
+        runCatching {
+            com.logie.blizz.reports.BugReports.report(
+                context, "WoW Forever", e.message ?: e.javaClass.simpleName,
+                listOf("Step" to step, "Error" to e.javaClass.name, "Cause" to e.cause?.let { "${it.javaClass.name}: ${it.message}" }),
+                log = e.stackTraceToString().take(7000),
+            )
         }
     }
 

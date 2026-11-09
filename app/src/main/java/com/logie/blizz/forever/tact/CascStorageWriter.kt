@@ -62,7 +62,8 @@ class CascStorageWriter(val dataDir: File) {
 
     /** A data segment a single worker appends to; a new one is begun when it is full. */
     inner class Segment internal constructor(val index: Int) {
-        private val out = BufferedOutputStream(FileOutputStream(segmentFile(index), true), 1 shl 20)
+        private val file = FileOutputStream(segmentFile(index), true)
+        private val out = BufferedOutputStream(file, 1 shl 20)
         var size = 0L
             private set
 
@@ -70,18 +71,28 @@ class CascStorageWriter(val dataDir: File) {
 
         /**
          * Appends one entry (its BLTE data read from [data], exactly [length] bytes) and records it as [id] once it
-         * is written. Returns where it went.
+         * is written and checked against its key. Data that doesn't match its key (or ends early) is taken back
+         * out of the segment and the call throws, so it can be fetched again. Returns where it went.
          */
         fun write(id: Int, ekey: Key16, data: InputStream, length: Long): Placed {
             val offset = size
-            out.write(header(ekey, length, offset))
-            val buffer = ByteArray(1 shl 16)
-            var left = length
-            while (left > 0) {
-                val n = data.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
-                if (n < 0) throw EOFException("The download ended ${left} bytes early")
-                out.write(buffer, 0, n)
-                left -= n
+            val check = Verify.BlteStream(ekey)
+            try {
+                out.write(header(ekey, length, offset))
+                val buffer = ByteArray(1 shl 16)
+                var left = length
+                while (left > 0) {
+                    val n = data.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+                    if (n < 0) throw EOFException("The download of ${ekey.hex()} ended $left bytes early")
+                    check.update(buffer, 0, n)
+                    out.write(buffer, 0, n)
+                    left -= n
+                }
+                if (!check.matches()) throw CorruptDownloadException("${ekey.hex()} came with the wrong content (it begins ${check.preview()})")
+            } catch (e: java.io.IOException) {
+                out.flush()
+                file.channel.truncate(offset)
+                throw e
             }
             out.flush()
             size += HEADER + length

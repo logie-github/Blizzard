@@ -92,6 +92,58 @@ data class Key16(val hi: Long, val lo: Long) : Comparable<Key16> {
 
 class EncryptedContentException : Exception("This file is encrypted")
 
+/** What came from a server isn't what its name (its hash) says: retried from another server. */
+class CorruptDownloadException(message: String) : java.io.IOException(message)
+
+/**
+ * Every file on Blizzard's CDN is named by a hash of itself, so each download is checked before it is kept: a
+ * config by the MD5 of its text, an archive index by the MD5 of its 28-byte footer, an encoded (BLTE) file by its
+ * encoding key = the MD5 of its BLTE header (or of the whole file when it has none).
+ */
+object Verify {
+    private fun md5(b: ByteArray, off: Int, len: Int): ByteArray = java.security.MessageDigest.getInstance("MD5").apply { update(b, off, len) }.digest()
+    private fun hex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
+
+    fun config(bytes: ByteArray, hash: String) = hex(md5(bytes, 0, bytes.size)).equals(hash, ignoreCase = true)
+
+    fun index(bytes: ByteArray, hash: String) = bytes.size >= 28 && hex(md5(bytes, bytes.size - 28, 28)).equals(hash, ignoreCase = true)
+
+    fun blte(bytes: ByteArray, ekey: Key16): Boolean {
+        if (bytes.size < 8 || String(bytes, 0, 4, Charsets.ISO_8859_1) != "BLTE") return false
+        val headerSize = be32(bytes, 4)
+        if (headerSize < 0 || headerSize > bytes.size) return false
+        return md5(bytes, 0, if (headerSize == 0) bytes.size else headerSize).contentEquals(ekey.bytes())
+    }
+
+    /** The first bytes of what came, for an error message ("<html>…" says a lot). */
+    fun preview(bytes: ByteArray, n: Int = 16): String = bytes.take(n).joinToString(" ") { "%02x".format(it) }
+
+    /** [Verify.blte] for data that streams through (an entry being written to the storage). */
+    class BlteStream(private val ekey: Key16) {
+        private val digest = java.security.MessageDigest.getInstance("MD5")
+        private val head = ByteArray(8)
+        private var seen = 0L
+        private var limit = Long.MAX_VALUE
+
+        fun update(b: ByteArray, off: Int, len: Int) {
+            for (i in 0 until len) {
+                if (seen + i < 8) head[(seen + i).toInt()] = b[off + i] else break
+            }
+            val before = seen
+            seen += len
+            if (before < 8 && seen >= 8) {
+                val hs = be32(head, 4)
+                limit = if (hs <= 0) Long.MAX_VALUE else hs.toLong()
+            }
+            if (before < limit) digest.update(b, off, minOf(len.toLong(), limit - before).toInt())
+        }
+
+        fun matches(): Boolean = seen >= 8 && String(head, 0, 4, Charsets.ISO_8859_1) == "BLTE" && digest.digest().contentEquals(ekey.bytes())
+
+        fun preview(): String = head.take(minOf(8, seen.toInt())).joinToString(" ") { "%02x".format(it) }
+    }
+}
+
 /** BLTE, the frame format every file on the CDN and in local storage is wrapped in. */
 object Blte {
     /** Decodes a whole BLTE file held in memory (small files: manifests, configs, install files). */
@@ -128,7 +180,7 @@ class BlteInputStream(private val source: InputStream) : InputStream() {
 
     init {
         val head = readFully(8)
-        require(String(head, 0, 4, Charsets.ISO_8859_1) == "BLTE") { "Not BLTE" }
+        if (String(head, 0, 4, Charsets.ISO_8859_1) != "BLTE") throw java.io.IOException("Not BLTE data (it begins ${Verify.preview(head, 8)})")
         val headerSize = be32(head, 4)
         if (headerSize == 0) {
             frameSizes = IntArray(0)

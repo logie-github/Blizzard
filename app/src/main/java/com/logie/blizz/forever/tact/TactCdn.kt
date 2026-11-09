@@ -44,8 +44,15 @@ class TactCdn(val product: String = "wowf", val region: String = "us") {
 
     private fun path(kind: String, hash: String, suffix: String) = "$kind/${hash.substring(0, 2)}/${hash.substring(2, 4)}/$hash$suffix"
 
-    /** A whole CDN file: `config`, or `data` (with [suffix] `.index` for an archive's index). */
-    fun get(kind: String, hash: String, suffix: String = ""): ByteArray = withServers { base -> fetch(URL("$base/${servers().path}/${path(kind, hash, suffix)}"), null) }
+    /**
+     * A whole CDN file: `config`, or `data` (with [suffix] `.index` for an archive's index). What fails [verify] (it
+     * isn't what its hash says) is fetched again, from the next server.
+     */
+    fun get(kind: String, hash: String, suffix: String = "", verify: (ByteArray) -> Boolean = { true }): ByteArray = withServers { base ->
+        val bytes = fetch(URL("$base/${servers().path}/${path(kind, hash, suffix)}"), null)
+        if (!verify(bytes)) throw CorruptDownloadException("$base gave $kind $hash$suffix with the wrong content (${bytes.size} bytes, beginning ${Verify.preview(bytes)})")
+        bytes
+    }
 
     /** The product's own config (from the configs path, not the product's). */
     fun productConfig(hash: String): ByteArray = withServers { base -> fetch(URL("$base/${servers().configPath}/${path("", hash, "").removePrefix("/")}"), null) }
@@ -87,6 +94,8 @@ class TactCdn(val product: String = "wowf", val region: String = "us") {
         c.connectTimeout = 30_000
         c.readTimeout = 60_000
         c.setRequestProperty("User-Agent", "Blizzard-Launcher")
+        // The bytes as stored: Android's client asks for gzip and unpacks it by itself otherwise, which a byte range can't survive.
+        c.setRequestProperty("Accept-Encoding", "identity")
         if (range != null) c.setRequestProperty("Range", "bytes=${range.first}-${range.last}")
         val code = c.responseCode
         when {
