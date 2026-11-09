@@ -187,10 +187,26 @@ object ForeverPlay {
     private suspend fun fetchClient(context: Context, layout: ForeverLayout): String? = withContext(Dispatchers.IO) {
         val target = File(layout.root, DOWNLOAD)
         var notified = 0L
+        // The speed over the last few seconds, and the time left at that speed.
+        var rateAt = 0L
+        var rateDone = 0L
+        var rate = 0.0
         val install = com.logie.blizz.forever.tact.ForeverClientInstaller(target, onProgress = { p ->
             val label = when {
                 p.total <= 0 -> p.step
-                p.step.startsWith("Downloading") -> "%s… %.1f / %.1f GB".format(p.step, p.done / 1e9, p.total / 1e9)
+                p.step.startsWith("Downloading") -> {
+                    val now = System.currentTimeMillis()
+                    if (rateAt == 0L) { rateAt = now; rateDone = p.done } else if (now - rateAt >= 2000) {
+                        val instant = (p.done - rateDone) * 1000.0 / (now - rateAt)
+                        rate = if (rate == 0.0) instant else rate * 0.7 + instant * 0.3
+                        rateAt = now; rateDone = p.done
+                    }
+                    val speed = if (rate > 0) {
+                        val left = ((p.total - p.done) / rate).toLong()
+                        " · %.0f MB/s · %s left".format(rate / 1e6, if (left >= 3600) "%dh %02dm".format(left / 3600, left % 3600 / 60) else "%dm %02ds".format(left / 60, left % 60))
+                    } else ""
+                    "%s… %.1f / %.1f GB%s".format(p.step, p.done / 1e9, p.total / 1e9, speed)
+                }
                 else -> "${p.step}… ${p.done} / ${p.total}"
             }
             _state.value = State.Preparing(label, if (p.total > 0) p.done.toFloat() / p.total else null, pausable = true)

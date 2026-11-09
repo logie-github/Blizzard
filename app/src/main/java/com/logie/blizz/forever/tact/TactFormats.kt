@@ -108,39 +108,80 @@ object Verify {
 
     fun index(bytes: ByteArray, hash: String) = bytes.size >= 28 && hex(md5(bytes, bytes.size - 28, 28)).equals(hash, ignoreCase = true)
 
-    fun blte(bytes: ByteArray, ekey: Key16): Boolean {
-        if (bytes.size < 8 || String(bytes, 0, 4, Charsets.ISO_8859_1) != "BLTE") return false
-        val headerSize = be32(bytes, 4)
-        if (headerSize < 0 || headerSize > bytes.size) return false
-        return md5(bytes, 0, if (headerSize == 0) bytes.size else headerSize).contentEquals(ekey.bytes())
-    }
+    /** A whole BLTE file: its key (the header's MD5, or the file's without a header) and every frame's MD5. */
+    fun blte(bytes: ByteArray, ekey: Key16): Boolean = BlteStream(ekey).apply { update(bytes, 0, bytes.size) }.matches()
 
     /** The first bytes of what came, for an error message ("<html>…" says a lot). */
     fun preview(bytes: ByteArray, n: Int = 16): String = bytes.take(n).joinToString(" ") { "%02x".format(it) }
 
-    /** [Verify.blte] for data that streams through (an entry being written to the storage). */
+    /**
+     * [Verify.blte] for data streaming through (an entry being written to the storage): the BLTE header's MD5 is
+     * the encoding key, and the header lists each frame's MD5, so every byte is checked, a frame at a time.
+     */
     class BlteStream(private val ekey: Key16) {
-        private val digest = java.security.MessageDigest.getInstance("MD5")
-        private val head = ByteArray(8)
+        private val keyDigest = java.security.MessageDigest.getInstance("MD5")
+        private val frameDigest = java.security.MessageDigest.getInstance("MD5")
+        private val header = java.io.ByteArrayOutputStream(64)
+        private var headerSize = -1 // -1: not read yet; 0: no frame table (the key covers the whole file)
         private var seen = 0L
-        private var limit = Long.MAX_VALUE
+        private var sizes = IntArray(0)
+        private var hashes = emptyArray<ByteArray>()
+        private var frame = 0
+        private var frameLeft = 0L
+        private var ok = true
 
         fun update(b: ByteArray, off: Int, len: Int) {
-            for (i in 0 until len) {
-                if (seen + i < 8) head[(seen + i).toInt()] = b[off + i] else break
+            var o = off
+            var n = len
+            while (n > 0) {
+                if (headerSize < 0 || seen < headerSize) {
+                    val want = (if (headerSize < 0) 8 - seen else headerSize - seen).toInt()
+                    val take = minOf(want, n)
+                    header.write(b, o, take); keyDigest.update(b, o, take)
+                    seen += take; o += take; n -= take
+                    if (headerSize < 0 && seen == 8L) {
+                        val h = header.toByteArray()
+                        if (String(h, 0, 4, Charsets.ISO_8859_1) != "BLTE") ok = false
+                        headerSize = be32(h, 4)
+                        if (headerSize != 0 && (headerSize < 12 || headerSize > (1 shl 24))) { ok = false; headerSize = 0 }
+                    }
+                    if (headerSize > 0 && seen == headerSize.toLong()) frames()
+                    continue
+                }
+                if (headerSize == 0) { keyDigest.update(b, o, n); seen += n; return }
+                if (frame >= sizes.size) { ok = false; seen += n; return } // more data than the frames say
+                val take = minOf(frameLeft, n.toLong()).toInt()
+                frameDigest.update(b, o, take)
+                frameLeft -= take; seen += take; o += take; n -= take
+                if (frameLeft == 0L) next()
             }
-            val before = seen
-            seen += len
-            if (before < 8 && seen >= 8) {
-                val hs = be32(head, 4)
-                limit = if (hs <= 0) Long.MAX_VALUE else hs.toLong()
-            }
-            if (before < limit) digest.update(b, off, minOf(len.toLong(), limit - before).toInt())
         }
 
-        fun matches(): Boolean = seen >= 8 && String(head, 0, 4, Charsets.ISO_8859_1) == "BLTE" && digest.digest().contentEquals(ekey.bytes())
+        private fun frames() {
+            val h = header.toByteArray()
+            val count = ((h[9].toInt() and 0xFF) shl 16) or ((h[10].toInt() and 0xFF) shl 8) or (h[11].toInt() and 0xFF)
+            if (h[8].toInt() != 0x0F || 12 + 24 * count != headerSize) { ok = false; return }
+            sizes = IntArray(count) { be32(h, 12 + it * 24) }
+            hashes = Array(count) { h.copyOfRange(12 + it * 24 + 8, 12 + it * 24 + 24) }
+            frame = -1
+            frameLeft = 0
+            next()
+        }
 
-        fun preview(): String = head.take(minOf(8, seen.toInt())).joinToString(" ") { "%02x".format(it) }
+        /** Closes the current frame (its MD5 checked) and opens the next; empty frames are checked at once. */
+        private fun next() {
+            if (frame >= 0 && !frameDigest.digest().contentEquals(hashes[frame])) ok = false
+            frame++
+            while (frame < sizes.size && sizes[frame] == 0) {
+                if (!frameDigest.digest().contentEquals(hashes[frame])) ok = false
+                frame++
+            }
+            frameLeft = if (frame < sizes.size) sizes[frame].toLong() else 0L
+        }
+
+        fun matches(): Boolean = ok && seen >= 8 && keyDigest.digest().contentEquals(ekey.bytes()) && (headerSize == 0 || frame == sizes.size)
+
+        fun preview(): String = header.toByteArray().take(8).joinToString(" ") { "%02x".format(it) }
     }
 }
 

@@ -69,10 +69,13 @@ class CascStorageWriter(val dataDir: File) {
 
         fun fits(length: Long) = size + HEADER + length <= SEGMENT_LIMIT
 
+        private val pending = ArrayList<Pair<Int, Placed>>()
+
         /**
-         * Appends one entry (its BLTE data read from [data], exactly [length] bytes) and records it as [id] once it
-         * is written and checked against its key. Data that doesn't match its key (or ends early) is taken back
-         * out of the segment and the call throws, so it can be fetched again. Returns where it went.
+         * Appends one entry (its BLTE data read from [data], exactly [length] bytes) checked against its key as it
+         * streams in (the BLTE header's MD5 is the key, and each frame's MD5 is in the header). Data that doesn't
+         * match (or ends early) is taken back out of the segment and the call throws, so it can be fetched again.
+         * The entry is recorded in the journal at the next [commit] (after its data is on disk). Returns where it went.
          */
         fun write(id: Int, ekey: Key16, data: InputStream, length: Long): Placed {
             val offset = size
@@ -94,14 +97,19 @@ class CascStorageWriter(val dataDir: File) {
                 file.channel.truncate(offset)
                 throw e
             }
-            out.flush()
             size += HEADER + length
             val placed = Placed(index, offset.toInt(), (HEADER + length).toInt())
-            record(id, placed)
+            pending += id to placed
             return placed
         }
 
-        fun close() = out.close()
+        /** Puts the written entries' data on disk, then records them in the journal (so a record never runs ahead of its data). */
+        fun commit() {
+            out.flush()
+            if (pending.isNotEmpty()) { recordAll(pending); pending.clear() }
+        }
+
+        fun close() { commit(); out.close() }
     }
 
     @Synchronized
@@ -110,11 +118,15 @@ class CascStorageWriter(val dataDir: File) {
     fun segmentFile(index: Int) = File(dataDir, "data.%03d".format(index))
 
     @Synchronized
-    private fun record(id: Int, placed: Placed) {
+    private fun recordAll(records: List<Pair<Int, Placed>>) {
         val out = journalOut ?: FileOutputStream(journal, true).also { journalOut = it }
-        val r = ByteArray(RECORD)
-        for ((i, v) in listOf(id, placed.segment, placed.offset, placed.size).withIndex()) {
-            r[i * 4] = (v ushr 24).toByte(); r[i * 4 + 1] = (v ushr 16).toByte(); r[i * 4 + 2] = (v ushr 8).toByte(); r[i * 4 + 3] = v.toByte()
+        val r = ByteArray(RECORD * records.size)
+        for ((n, record) in records.withIndex()) {
+            val (id, placed) = record
+            for ((i, v) in listOf(id, placed.segment, placed.offset, placed.size).withIndex()) {
+                val o = n * RECORD + i * 4
+                r[o] = (v ushr 24).toByte(); r[o + 1] = (v ushr 16).toByte(); r[o + 2] = (v ushr 8).toByte(); r[o + 3] = v.toByte()
+            }
         }
         out.write(r)
     }
