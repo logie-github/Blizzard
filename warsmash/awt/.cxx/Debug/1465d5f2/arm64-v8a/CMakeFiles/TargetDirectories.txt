@@ -1,0 +1,3 @@
+/home/user/Blizzard/warsmash/awt/.cxx/Debug/1465d5f2/arm64-v8a/CMakeFiles/awtcompat-native-components.dir
+/home/user/Blizzard/warsmash/awt/.cxx/Debug/1465d5f2/arm64-v8a/CMakeFiles/edit_cache.dir
+/home/user/Blizzard/warsmash/awt/.cxx/Debug/1465d5f2/arm64-v8a/CMakeFiles/rebuild_cache.dir

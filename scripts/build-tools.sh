@@ -51,6 +51,14 @@ grep -q "\.path = \"../libd2\"" "$WORK/bldl/build.zig.zon" || { echo "build.zig.
 ) || { tail -40 "$WORK/bldl.log"; exit 1; }
 "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" -o "$OUT/libbldl.so" "$WORK/bldl-out/bin/blizzard-legacy-dl"
 
+# borderless.exe (tools/borderless/borderless.c): the Windows program the app runs beside a windowed game to
+# take its title bar and frame away (the picture is then the whole screen). Built with the same Zig for
+# x86_64 Windows, the Windows subsystem (no console), into app/tools/assets, which the app packages.
+ASSETS="$ROOT/app/tools/assets"
+mkdir -p "$ASSETS"
+"$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/borderless/borderless.c" -luser32 -lkernel32 -o "$ASSETS/borderless.exe" 2> "$WORK/borderless.log" ||
+	{ tail -40 "$WORK/borderless.log"; exit 1; }
+
 # innoextract ----------------------------------------------------------------------------------
 android() { # source build [cmake args...]
 	src="$1"; build="$2"; shift 2

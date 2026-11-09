@@ -34,7 +34,8 @@ import com.winlator.xserver.XServer
  * The games' touch controls ([Gestures]) over Winlator's game screen, in place of its touchpad:
  * Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004). The game's rules (its
  * Controls, [ControlsStore]) say what each gesture does where; this turns that into the X server's
- * pointer, buttons and keys, where Wine passes them to the game. Back is the game's Escape.
+ * pointer, buttons and keys, where Wine passes them to the game. Back opens the app's menu (the game's Escape is in it, and
+ * the app's keyboard, [GameKeyboard]); each click is noted for the reports ([GameLog]: where in the X server it went).
  */
 @SuppressLint("ViewConstructor")
 class GestureView(
@@ -56,6 +57,8 @@ class GestureView(
     /** The controls file as it was when [gestures] were made: a game kept running in the background doesn't restart when the controls change. */
     private var controlsStamp = controlsStore.stamp(gameId ?: "")
     private var gestures = makeGestures()
+    /** The app's own keyboard over the game (three fingers, or the menu); its keys go to the X server. */
+    private val keyboard = GameKeyboard(activity, { parent as? ViewGroup }) { key, mods -> pressKey(key, mods) }
 
     private fun makeGestures() = Gestures(this, density, Bindings.of(gameId ?: "", controlsStore.load(gameId ?: "")), locate = ::locate)
 
@@ -185,15 +188,18 @@ class GestureView(
     private var lastBack = 0L
     private var windowShown = false
 
-    /** Back: the game's Escape; twice in a second, the app's menu (a way in when four fingers don't open it). */
+    /**
+     * Back: the app's menu (the game's Escape key is in it, with the keyboard), or the keyboard away when it is up. As Escape,
+     * Back took the person out of Diablo II's screens when they were after the keyboard (9 November 2026). World of Warcraft
+     * keeps its own: Escape, and the menu on a second press within a second.
+     */
     fun backPressed() {
-        val now = SystemClock.uptimeMillis()
         if (wow) {
-            // Back is the game's Escape; twice, the app's menu.
+            val now = SystemClock.uptimeMillis()
             if (now - lastBack < 1000) { lastBack = 0; wowView?.showMenu() } else { lastBack = now; wowView?.escape() }
             return
         }
-        if (now - lastBack < 1000) { lastBack = 0; showMenu() } else { lastBack = now; escape() }
+        if (keyboard.shown) keyboard.hide() else showMenu()
     }
 
     /** No game window after a minute and a half: the log is sent without anyone having to reach the menu. */
@@ -236,6 +242,12 @@ class GestureView(
         if (gameId != null && (gameId.startsWith("warcraft3") || gameId == "starcraft")) {
             activity.runOnUiThread { android.widget.Toast.makeText(activity, "Hold to select or press a button · tap to move or attack", android.widget.Toast.LENGTH_LONG).show() }
         }
+        // The games played in a window: borderless.exe takes the title bar and frame off their window, which is then the
+        // whole screen ([Borderless]); it runs inside the games' Windows, through winhandler, and ends with it.
+        if (Borderless.wanted(gameId)) {
+            xServer.winHandler?.exec(Borderless.PATH)
+            GameLog.note("borderless.exe started for the game's window")
+        }
         removeCallbacks(noWindowReport)
         postDelayed(minuteReport, 60_000)
         // Recorded apart from the import's file checks: the program started under Winlator.
@@ -253,11 +265,37 @@ class GestureView(
     }
 
     override fun click(button: Button) {
+        GameLog.note(describe("$button click"))
         xServer.injectPointerButtonPress(button.x)
         postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
     }
 
+    /**
+     * For the reports: where a click goes in the X server (the pointer, the window under it, a grab that takes the events, the
+     * focus), so a click that does nothing in a game can be read off the phone's report instead of guessed at.
+     */
+    private fun describe(what: String): String = runCatching {
+        val under = xServer.inputDeviceManager.pointWindow
+        val grab = xServer.grabManager.window
+        val focus = xServer.windowManager.focusedWindow
+        buildString {
+            append(what).append(" at X ").append(xServer.pointer.x.toInt()).append(',').append(xServer.pointer.y.toInt())
+            append(": under ").append(window(under))
+            if (grab != null) append("; grab ").append(window(grab))
+            append("; focus ").append(window(focus))
+        }
+    }.getOrElse { "$what: ${it.javaClass.simpleName}" }
+
+    private fun window(w: com.winlator.xserver.Window?): String {
+        if (w == null) return "none"
+        val type = if (w.type == com.winlator.xserver.Window.Type.DIALOG) " dialog" else ""
+        val io = if (w.isInputOutput) "" else " input-only"
+        val press = if (w.hasEventListenerFor(com.winlator.xserver.events.Event.BUTTON_PRESS)) " takes presses" else ""
+        return "0x${Integer.toHexString(w.id)} '${w.name}' ${w.className} ${w.width}x${w.height}@${w.rootX},${w.rootY}$type$io$press"
+    }
+
     override fun doubleClick(button: Button) {
+        GameLog.note(describe("$button double click"))
         xServer.injectPointerButtonPress(button.x)
         postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
         postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS * 2)
@@ -282,12 +320,27 @@ class GestureView(
         runCatching { XKeycode.valueOf(xKeyName(key)) }.getOrNull()?.let { xServer.injectKeyRelease(it) }
     }
 
-    override fun openKeyboard() = askText(chat = true)
+    /** Three fingers: the app's keyboard, up or away. */
+    override fun openKeyboard() = keyboard.toggle()
+
+    /** A key of the app's keyboard: its modifiers down, the key pressed and let go, the modifiers up. */
+    private fun pressKey(key: String, mods: Set<String>) {
+        val code = runCatching { XKeycode.valueOf(xKeyName(key)) }.getOrNull() ?: return
+        val held = mods.mapNotNull { runCatching { XKeycode.valueOf(xKeyName(it)) }.getOrNull() }
+        held.forEach { xServer.injectKeyPress(it) }
+        xServer.injectKeyPress(code)
+        postDelayed({
+            xServer.injectKeyRelease(code)
+            held.reversed().forEach { xServer.injectKeyRelease(it) }
+        }, KEY_MS)
+    }
 
     override fun showMenu() = GameMenu.show(
         activity,
         gameId,
-        onKeyboard = { askText(chat = false) },
+        onKeyboard = { keyboard.show() },
+        onType = { askText(chat = false) },
+        onEscape = { escape() },
         onChat = { askText(chat = true) },
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { leave() },
@@ -352,6 +405,7 @@ class GestureView(
     private fun leave() {
         left = true
         gestures.cancel()
+        keyboard.hide()
         onLeave.run()
     }
 

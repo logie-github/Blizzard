@@ -62,8 +62,6 @@ object Wc3Setup {
     data class Write(val hive: Hive, val key: String, val name: String, val value: Any)
 
     const val VIDEO = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
-    /** Wine's X11 driver: `Decorated` N asks for no title bar or border, so a windowed game's picture is the whole screen (Winlator's X server draws them otherwise). */
-    const val X11 = "Software\\Wine\\X11 Driver"
     const val LAUNCHER = "Software\\Blizzard Entertainment\\Classic Launcher\\w3"
     private val INSTALL_KEYS = listOf("Software\\Blizzard Entertainment\\Warcraft III", "Software\\Wow6432Node\\Blizzard Entertainment\\Warcraft III")
 
@@ -71,10 +69,10 @@ object Wc3Setup {
     const val WINDOW_MODE_FULLSCREEN = 2
 
     /**
-     * The values to write: the game's resolution at the phone's size and fullscreen, no window decorations (a 1.2x window is the
-     * whole screen; the title bar Winlator drew over it on 9 November 2026 pushed the picture down), the repack's
-     * launcher language (kept if [locale] already has one; enUS otherwise), and, when [installDos] is
-     * given (`D:\warcraft3_roc\`), the folder where the game's installer would have recorded it.
+     * The values to write: the game's resolution at the phone's size and fullscreen, the repack's launcher language (kept if
+     * [locale] already has one; enUS otherwise), and, when [installDos] is given (`D:\warcraft3_roc\`), the folder where the
+     * game's installer would have recorded it. (A 1.2x window's title bar is taken off by borderless.exe, not here: Wine 10.10
+     * draws it itself in its desktop and has no setting against it.)
      */
     fun writes(width: Int, height: Int, locale: String?, installDos: String?): List<Write> = buildList {
         add(Write(Hive.USER, VIDEO, "reswidth", width))
@@ -274,16 +272,6 @@ object Wc3CdKeys {
 }
 
 /**
- * What every game's Windows gets at each start: no window decorations (Wine's X11 driver `Decorated` N), so a windowed game's
- * picture is the whole screen; Winlator's X server drew a title bar over Warcraft III on 9 November 2026, pushing the picture down.
- */
-object CommonSetup {
-    fun writes(): List<Wc3Setup.Write> = listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.X11, "Decorated", "N"))
-
-    fun apply(containerRoot: File, open: (File) -> Wc3Setup.Registry = Wc3Setup::wineRegistry) = Wc3Setup.applyWrites(containerRoot, writes(), open)
-}
-
-/**
  * Diablo II before 1.14 on Wine 10 (Winlator 11's): the game's Fog.dll, on a Windows it takes for NT, checks every critical section
  * it locks for the debug block Windows NT puts behind it, and Wine 10.10 stores the "no debug block" marker (0xffffffff) instead
  * (`RtlInitializeCriticalSectionEx`, unless asked to force one). The first lock after Fog's init fails the check, Fog reports
@@ -306,9 +294,19 @@ object Diablo2Setup {
         return minor in 0..13
     }
 
-    /** The writes for a Diablo II of [clientVersion]: the Windows 98 version for Game.exe before 1.14, nothing after. */
-    fun writes(clientVersion: String?): List<Wc3Setup.Write> =
-        if (isBefore114(clientVersion)) listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, APP_DEFAULTS, "Version", WIN98)) else emptyList()
+    const val GAME_KEY = "Software\\Blizzard Entertainment\\Diablo II"
+    /** The game's `Resolution` value: 0 is 640x480, 1 is 800x600 (Lord of Destruction's largest, the game screen's size here). */
+    const val RESOLUTION_800 = 1
+
+    /**
+     * The writes for a Diablo II of [clientVersion]: the Windows 98 version for Game.exe before 1.14 (nothing after), and 800x600
+     * in game for every version (Lord of Destruction's menus are 800x600 already), so the picture is the whole 800x600 screen
+     * instead of 640x480 inside it (seen on the desktop rig, 9 November 2026: Act I at 800x600).
+     */
+    fun writes(clientVersion: String?): List<Wc3Setup.Write> = buildList {
+        if (isBefore114(clientVersion)) add(Wc3Setup.Write(Wc3Setup.Hive.USER, APP_DEFAULTS, "Version", WIN98))
+        add(Wc3Setup.Write(Wc3Setup.Hive.USER, GAME_KEY, "Resolution", RESOLUTION_800))
+    }
 
     fun apply(containerRoot: File, clientVersion: String?, open: (File) -> Wc3Setup.Registry = Wc3Setup::wineRegistry) =
         Wc3Setup.applyWrites(containerRoot, writes(clientVersion), open)

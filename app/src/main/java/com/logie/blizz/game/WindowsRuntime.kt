@@ -137,11 +137,11 @@ object WindowsRuntime {
                 LegionClientSetup.installCertificateBundle(com.logie.blizz.wow.RealmSpecsAccess.certBundle(layout), File(container.rootDir, ".wine/drive_c"))
             }
         }
-        // Every game: no window decorations ([CommonSetup]). Diablo II before 1.14: Windows 98 for Game.exe ([Diablo2Setup]).
-        withContext(Dispatchers.IO) {
-            runCatching { CommonSetup.apply(container.rootDir) }
-            if (entry.gameId == "diablo2") runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) }
-        }
+        // Diablo II: Windows 98 for Game.exe before 1.14, 800x600 in game ([Diablo2Setup]).
+        if (entry.gameId == "diablo2") withContext(Dispatchers.IO) { runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) } }
+        // borderless.exe (tools/borderless): the program the game screen runs beside a windowed game to take its title bar
+        // away ([GestureView.onGameWindowShown]), put into the games' Windows at every start (the app's copy may be newer).
+        withContext(Dispatchers.IO) { runCatching { Borderless.install(context, container.rootDir) } }
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
         if (foreverClient) {

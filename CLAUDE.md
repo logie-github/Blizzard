@@ -37,4 +37,7 @@
   build and runs natively on this machine against the downloader's own game folders under Xvfb: README, "Testing the
   Windows games here". Reproduce the failure there, read the dialogs, the `+seh`/`+relay` traces and the game's code, fix,
   and see the game run before pushing. A change to how a Windows game starts that was not run there is a guess; say so.
+- **Anything run beside a game must run on its desktop.** The games run in Wine's virtual desktop (`explorer /desktop=shell,WxH`);
+  a helper started with plain `wine` lands on another desktop and sees none of the game's windows. On the phone, run it through
+  winhandler's `exec` (as `borderless.exe` is); on the test rig, `wine explorer /desktop=shell,WxH C:\windows\helper.exe`.
 - Never commit build outputs, downloaded tools, or any game files.

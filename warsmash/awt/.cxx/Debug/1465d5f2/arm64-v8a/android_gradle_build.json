@@ -1,0 +1,38 @@
+{
+  "buildFiles": [
+    "/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/opt/android-sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/home/user/Blizzard/warsmash/awt/.cxx/Debug/1465d5f2/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/opt/android-sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/home/user/Blizzard/warsmash/awt/.cxx/Debug/1465d5f2/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "awtcompat-native-components::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "arm64-v8a",
+      "artifactName": "awtcompat-native-components",
+      "output": "/home/user/Blizzard/warsmash/awt/build/intermediates/cxx/Debug/1465d5f2/obj/arm64-v8a/libawtcompat-native-components.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/opt/android-sdk/ndk/24.0.8215888/toolchains/llvm/prebuilt/linux-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/opt/android-sdk/ndk/24.0.8215888/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": []
+}

@@ -15,8 +15,8 @@ def winlator = file("winlator")
 if (!new File(winlator, "java").isDirectory()) {
 	throw new GradleException("Winlator isn't in app/winlator: run scripts/prepare-winlator.sh")
 }
-if (!file("tools/jniLibs/arm64-v8a/libbldl.so").isFile()) {
-	throw new GradleException("The importers' programs aren't in app/tools: run scripts/build-tools.sh")
+if (!file("tools/jniLibs/arm64-v8a/libbldl.so").isFile() || !file("tools/assets/borderless.exe").isFile()) {
+	throw new GradleException("The importers' programs (and borderless.exe) aren't in app/tools: run scripts/build-tools.sh")
 }
 // Warcraft I and II, native: the Stratagus engine, its data tools, SDL's Java activity and the games'
 // scripts (scripts/build-stratagus.sh puts them in app/stratagus; --placeholders for a quick local
@@ -99,7 +99,7 @@ android {
 
 	sourceSets {
 		main {
-			assets.srcDirs += ['winlator/assets', 'stratagus/assets']
+			assets.srcDirs += ['winlator/assets', 'stratagus/assets', 'tools/assets']
 			java.srcDirs += ['winlator/java', 'stratagus/java']
 			res.srcDirs += ['winlator/res']
 			jniLibs.srcDirs += ['winlator/jniLibs', 'tools/jniLibs', 'stratagus/jniLibs']

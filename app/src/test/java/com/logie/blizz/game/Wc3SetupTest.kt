@@ -259,11 +259,13 @@ class Wc3KeyPasteTest {
     }
 }
 
-/** Diablo II before 1.14 is told it runs on Windows 98 (Fog's critical-section check); every game loses its window decorations. */
+/** Diablo II before 1.14 is told it runs on Windows 98 (Fog's critical-section check); every Diablo II plays at 800x600. */
 class Diablo2SetupTest {
+    private val resolution = Wc3Setup.Write(Wc3Setup.Hive.USER, Diablo2Setup.GAME_KEY, "Resolution", Diablo2Setup.RESOLUTION_800)
+
     @org.junit.Test fun only113AndOlderGetWindows98() {
         org.junit.Assert.assertEquals(
-            listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, Diablo2Setup.APP_DEFAULTS, "Version", "win98")),
+            listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, Diablo2Setup.APP_DEFAULTS, "Version", "win98"), resolution),
             Diablo2Setup.writes("Diablo II + Lord of Destruction 1.13c"),
         )
         org.junit.Assert.assertTrue(Diablo2Setup.isBefore114("1.0.13.60"))
@@ -272,7 +274,7 @@ class Diablo2SetupTest {
         org.junit.Assert.assertFalse(Diablo2Setup.isBefore114("Diablo II + Lord of Destruction 1.14.1.68"))
         org.junit.Assert.assertFalse(Diablo2Setup.isBefore114("1.14.3.71"))
         org.junit.Assert.assertFalse(Diablo2Setup.isBefore114(null))
-        org.junit.Assert.assertTrue(Diablo2Setup.writes("1.14.1.68").isEmpty())
+        org.junit.Assert.assertEquals(listOf(resolution), Diablo2Setup.writes("1.14.1.68"))
     }
 
     @org.junit.Test fun theWritesLandInUserReg() {
@@ -287,9 +289,8 @@ class Diablo2SetupTest {
             override fun close() {}
         }
         Diablo2Setup.apply(tmp, "Diablo II + Lord of Destruction 1.13c") { fake }
-        CommonSetup.apply(tmp) { fake }
         org.junit.Assert.assertEquals("win98", values["${Diablo2Setup.APP_DEFAULTS}|Version"])
-        org.junit.Assert.assertEquals("N", values["${Wc3Setup.X11}|Decorated"])
+        org.junit.Assert.assertEquals(1, values["${Diablo2Setup.GAME_KEY}|Resolution"])
         tmp.deleteRecursively()
     }
 }

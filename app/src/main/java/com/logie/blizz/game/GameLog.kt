@@ -39,7 +39,7 @@ object GameLog {
 
     fun note(text: String) {
         synchronized(notes) {
-            if (notes.size >= 60) notes.removeFirst()
+            if (notes.size >= 120) notes.removeFirst()
             notes.addLast("[app] " + text.take(300))
         }
     }

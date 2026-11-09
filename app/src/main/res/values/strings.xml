@@ -11,7 +11,9 @@
     <string name="blizz_game_loading_update">Updating Windows\' files…</string>
     <string name="game_menu_back">Back to the game</string>
     <string name="game_menu_keyboard">Keyboard</string>
+    <string name="game_menu_type">Type text (phone keyboard)</string>
     <string name="game_menu_chat">Chat</string>
+    <string name="game_menu_escape">Esc key</string>
     <string name="game_menu_leave">Leave the game</string>
     <string name="game_menu_leave_note">Save first: leaving closes the game.</string>
     <string name="game_prompt_send">Send</string>
