@@ -37,11 +37,33 @@ import java.io.File
 object ForeverPlay {
     sealed interface State {
         data object Idle : State
-        data class Preparing(val message: String, val progress: Float? = null) : State
-        /** The Forever client isn't in the app yet: the launcher asks the user to pick its folder. */
+        /** [pausable]: the client download, which can be paused (it resumes on the next Play). */
+        data class Preparing(val message: String, val progress: Float? = null, val pausable: Boolean = false) : State
+        /**
+         * The Forever client isn't here and the connection is metered (mobile data): the launcher asks before
+         * downloading ~47 GB, or lets the person pick a client folder already on the phone.
+         */
         data object NeedsClient : State
         data class Failed(val message: String) : State
     }
+
+    /** About how big the client download is (build 70862: Windows, x86_64, English, text and speech). */
+    const val CLIENT_SIZE_GB = 47
+
+    @Volatile private var installer: com.logie.blizz.forever.tact.ForeverClientInstaller? = null
+
+    /** Pauses the client download; what is downloaded is kept and the next Play goes on from there. */
+    fun pauseDownload() { installer?.cancel() }
+
+    /** Whether a client download was begun and not finished. */
+    fun downloadPaused(context: Context) = File(ForeverLayout.of(context).root, "$DOWNLOAD/.blizz-download").isFile
+
+    private fun metered(context: Context): Boolean = runCatching {
+        context.getSystemService(android.net.ConnectivityManager::class.java).isActiveNetworkMetered
+    }.getOrDefault(true)
+
+    /** Play, downloading the client even on a metered connection (the person said so). */
+    fun downloadClient(context: Context) = play(context, allowMetered = true)
 
     /** The client's touch controls id (the same `wow` gestures as the other WoW clients). */
     private const val GAME_ID = "wow-client"
@@ -67,16 +89,16 @@ object ForeverPlay {
         if (_state.value is State.Failed || _state.value is State.NeedsClient) _state.value = State.Idle
     }
 
-    fun play(context: Context) {
+    fun play(context: Context, allowMetered: Boolean = false) {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
         _state.value = State.Preparing("Preparing")
         scope.launch {
             try {
-                val failure = run(app, width to height)
+                val failure = run(app, width to height, allowMetered)
                 _state.value = when (failure) {
-                    null -> State.Idle
+                    null, PAUSED -> State.Idle
                     NEEDS_CLIENT -> State.NeedsClient
                     else -> State.Failed(failure)
                 }
@@ -111,6 +133,45 @@ object ForeverPlay {
     }
 
     private const val NEEDS_CLIENT = "\u0000needs-client"
+    private const val PAUSED = "\u0000paused"
+
+    /** Where the client is downloaded to; renamed to [ForeverLayout.client] once complete. */
+    private const val DOWNLOAD = "client.download"
+
+    /**
+     * Downloads the client from Blizzard's CDN ([com.logie.blizz.forever.tact.ForeverClientInstaller]) with the
+     * app kept alive by the import service (its notification shows the progress). Null when the client is in place;
+     * [PAUSED] when paused; else what went wrong.
+     */
+    private suspend fun fetchClient(context: Context, layout: ForeverLayout): String? = withContext(Dispatchers.IO) {
+        val target = File(layout.root, DOWNLOAD)
+        var notified = 0L
+        val install = com.logie.blizz.forever.tact.ForeverClientInstaller(target, onProgress = { p ->
+            val label = when {
+                p.total <= 0 -> p.step
+                p.step.startsWith("Downloading") -> "%s… %.1f / %.1f GB".format(p.step, p.done / 1e9, p.total / 1e9)
+                else -> "${p.step}… ${p.done} / ${p.total}"
+            }
+            _state.value = State.Preparing(label, if (p.total > 0) p.done.toFloat() / p.total else null, pausable = true)
+            val now = System.currentTimeMillis()
+            if (now - notified >= 1000) {
+                notified = now
+                com.logie.blizz.importer.ImportService.update(context, com.logie.blizz.importer.Progress(com.logie.blizz.importer.Stage.DOWNLOADING, label, p.done, p.total))
+            }
+        })
+        installer = install
+        com.logie.blizz.importer.ImportService.start(context)
+        try {
+            install.install()
+        } finally {
+            installer = null
+            com.logie.blizz.importer.ImportService.stop(context)
+        }
+        if (!File(target, ".build.info").isFile) return@withContext PAUSED
+        layout.client.deleteRecursively()
+        if (!target.renameTo(layout.client)) return@withContext "The downloaded client couldn't be put in place."
+        null
+    }
 
     /** Folders a client makes as it runs; not copied (the game remakes them). */
     private val SKIPPED = setOf("cache", "logs", "errors")
@@ -179,7 +240,7 @@ object ForeverPlay {
         }
     }
 
-    private suspend fun run(context: Context, size: Pair<Int, Int>): String? {
+    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean): String? {
         val layout = ForeverLayout.of(context)
         val running = ForeverRealm.status.value.phase.let { it == ForeverRealm.Phase.RUNNING || it == ForeverRealm.Phase.STARTING }
 
@@ -198,7 +259,11 @@ object ForeverPlay {
             }
         }
 
-        if (!layout.hasClient()) return NEEDS_CLIENT
+        // The client: downloaded from Blizzard's CDN as part of Play (on mobile data only once the person agrees).
+        if (!layout.hasClient()) {
+            if (!allowMetered && metered(context)) return NEEDS_CLIENT
+            fetchClient(context, layout)?.let { return it }
+        }
 
         if (!layout.hasServerData()) {
             _state.value = State.Preparing("Preparing the game data (first time, several minutes)")

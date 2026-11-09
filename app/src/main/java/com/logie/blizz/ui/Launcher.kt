@@ -302,9 +302,12 @@ private fun RuntimeOverlay() {
     val busy = running != null || wow is com.logie.blizz.game.WowPlay.State.Preparing || foreverBusy != null
     var held by remember { mutableStateOf<String?>(null) }
     var holding by remember { mutableStateOf(false) }
-    if (busy) { held = loadingId ?: held; holding = true }
+    // A paused client download has no game window coming: its screen goes at once.
+    var downloading by remember { mutableStateOf(false) }
+    if (busy) { held = loadingId ?: held; holding = true; downloading = foreverBusy?.pausable == true }
     LaunchedEffect(busy) {
         if (busy) return@LaunchedEffect
+        if (downloading) { downloading = false; holding = false; return@LaunchedEffect }
         // Until the launcher is out of sight (the game's screen is up), at most a few seconds.
         val until = System.currentTimeMillis() + 4_000
         while (com.logie.blizz.MainActivity.visible && System.currentTimeMillis() < until && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) delay(100)
@@ -319,6 +322,12 @@ private fun RuntimeOverlay() {
                 if (fb != null) {
                     val fp = fb.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty()
                     com.logie.blizz.game.Loading(held, fb.message + fp)
+                    // The client download takes hours: it can be paused, and the next Play goes on from where it stopped.
+                    if (fb.pausable) {
+                        FrameButton("Pause download", Modifier.align(Alignment.BottomEnd).padding(24.dp), primary = false) {
+                            com.logie.blizz.forever.ForeverPlay.pauseDownload()
+                        }
+                    }
                 } else {
                     com.logie.blizz.game.Loading(held, rememberLoadingLine(held) + percent)
                 }
@@ -365,19 +374,25 @@ private fun RuntimeOverlay() {
             val pickClient = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { tree ->
                 if (tree != null) com.logie.blizz.forever.ForeverPlay.importClient(context, tree)
             }
+            val resuming = remember { com.logie.blizz.forever.ForeverPlay.downloadPaused(context) }
             Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FrameTitle("The Forever client is needed")
+                FrameTitle("Download the Forever client?")
                 Text(
-                    "World of Warcraft: Forever runs its own offline realm here, but it needs the game client once.\n\n" +
-                        "Put the Forever client folder (the one with .build.info, Data and _forever_, from a PC's Battle.net install) " +
-                        "anywhere on this phone, such as Downloads or an SD card, then choose it below. The app copies it in " +
-                        "(you can delete your copy afterwards).\n\n" +
-                        "To connect the client to the local realm, the Forever Launcher must be in that folder too (it sets the server key).",
+                    "World of Warcraft: Forever needs its game client once: about ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB from " +
+                        "Blizzard's servers (it needs a little more than that free on the phone).\n\n" +
+                        "This phone is on a metered connection (mobile data). Download anyway, wait for Wi-Fi (Play downloads it " +
+                        "by itself there), or choose a Forever client folder already on the phone (from a PC's Battle.net install: " +
+                        "the one with .build.info, Data and _forever_).\n\n" +
+                        "To connect the client to the local realm, the Forever Launcher must be in the client folder (it sets the server key).",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     FrameButton("Cancel", primary = false) { com.logie.blizz.forever.ForeverPlay.dismiss() }
-                    FrameButton("Choose client folder") { pickClient.launch(null) }
+                    FrameButton("Choose client folder", primary = false) { pickClient.launch(null) }
+                    FrameButton(if (resuming) "Resume download" else "Download") {
+                        com.logie.blizz.forever.ForeverPlay.dismiss()
+                        com.logie.blizz.forever.ForeverPlay.downloadClient(context)
+                    }
                 }
             }
         }
