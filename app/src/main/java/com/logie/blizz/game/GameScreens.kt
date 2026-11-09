@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -155,14 +156,24 @@ internal fun rememberGameAspect(): Float {
 }
 
 /**
- * The loading screen, framed at the game's own shape (the Fold's inside screen) wherever it shows: the art fills it
- * edge to edge and what is beyond that shape is cut. On the cover screen the frame sits between black bars, as the game will.
+ * The loading screen, framed at the game's own shape (the Fold's inside screen) wherever it shows, so the art, the logo and the
+ * editor's preview all sit as they will. When the screen is nearly that shape (within a fifth) the frame is scaled up to cover
+ * the whole screen, the little beyond it cut, so no bar shows beside or beneath the picture; on a screen of another shape (the
+ * cover screen) the frame sits between black bars, as the game will.
  */
 @Composable
 internal fun Loading(gameId: String?, text: String, layoutOverride: Splashes.Layout? = null, grid: Boolean = false) {
     val aspect = rememberGameAspect()
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-        Box(Modifier.aspectRatio(aspect).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid) }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).clipToBounds(), contentAlignment = Alignment.Center) {
+        val screen = maxWidth / maxHeight
+        val close = maxOf(screen / aspect, aspect / screen) <= 1.2f
+        if (close) {
+            // The frame at the size that covers the screen: width-limited when the screen is the wider.
+            val (w, h) = if (screen >= aspect) maxWidth to maxWidth / aspect else maxHeight * aspect to maxHeight
+            Box(Modifier.requiredSize(w, h).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid) }
+        } else {
+            Box(Modifier.aspectRatio(aspect).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid) }
+        }
     }
 }
 
