@@ -112,10 +112,12 @@ The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfi
 
 | | StarCraft, StarCraft II | Diablo, Diablo II |
 | --- | --- | --- |
-| Tap | Left click: select, press a button | Left click: walk, attack, pick up |
-| Hold | Right click: move, attack, gather (double-tap and hold: double click) | Right click: cast |
+| Tap | Right click: move, attack, gather. On the game's panels and bars (Warcraft III's bottom panel and top bar, StarCraft's console), where a right click does nothing, a left click | Left click: walk, attack, pick up |
+| Touch and hold | Left click when you lift: select a unit or building, press a menu button (hold twice on a spot: double click) | Right click: cast |
+
+As a strategy game's window comes up, one line says so: *Hold to select or press a button · tap to move or attack*.
 | Swipe | Pan the map | Drag: walk after the finger. Quick flick: the arrow key its way (menus) |
-| Resting finger, then tap / hold | Shift + left click (add to the selection) / Shift + right click (queue an order) | Shift |
+| Resting finger, then tap / hold | Shift + right click (queue an order) / Shift + left click (add to the selection) | Shift |
 | Two / three / four fingers | Game menu / keyboard / app menu | Same |
 
 A mouse, keyboard or controller works as on a PC. Back is Escape.

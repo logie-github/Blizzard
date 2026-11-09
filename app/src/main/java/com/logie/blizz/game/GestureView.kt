@@ -232,6 +232,10 @@ class GestureView(
         if (wow) wowView?.onGameWindowShown()
         xServer.renderer.isCursorVisible = false
         windowShown = true
+        // The strategy games' touch (the Warcraft app's): a tap is the right click, so a menu button or a unit takes a hold. Said once, as the game comes up.
+        if (gameId != null && (gameId.startsWith("warcraft3") || gameId == "starcraft")) {
+            activity.runOnUiThread { android.widget.Toast.makeText(activity, "Hold to select or press a button · tap to move or attack", android.widget.Toast.LENGTH_LONG).show() }
+        }
         removeCallbacks(noWindowReport)
         postDelayed(minuteReport, 60_000)
         // Recorded apart from the import's file checks: the program started under Winlator.
