@@ -24,15 +24,39 @@ object ForeverServerPackage {
     private const val MANIFEST_URL = "$BASE/forever-server.json"
     private const val PACKAGE_URL = "$BASE/forever-server.tar.xz"
 
-    data class Manifest(val size: Long, val sha256: String, val clientBuild: Int, val unpacked: Long)
+    data class Manifest(val size: Long, val sha256: String, val clientBuild: Int, val unpacked: Long, val format: Int)
+
+    /**
+     * The oldest package format this app installs. 2: the seed database has the branch's updates applied (realm 70 and
+     * the client builds) and sql/old is left out. Format 1 packages were broken (their updates never ran).
+     */
+    const val MIN_FORMAT = 2
 
     fun manifest(): Manifest {
         val json = JSONObject(fetchText(MANIFEST_URL))
-        return Manifest(json.getLong("size"), json.getString("sha256"), json.optInt("client_build"), json.optLong("unpacked"))
+        return Manifest(
+            json.getLong("size"), json.getString("sha256"), json.optInt("client_build"), json.optLong("unpacked"),
+            json.optInt("format", 1),
+        )
     }
 
     /** Whether a package is unpacked and ready to run. */
     fun installed(context: Context) = ForeverLayout.of(context).ctl.isFile
+
+    /** The SHA-256 of the package the server folder was unpacked from (written after a complete install). */
+    private const val MARKER = "PACKAGE_SHA256"
+
+    private fun installedSha(layout: ForeverLayout): String? =
+        File(layout.server, MARKER).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * Whether a different package is published than the one installed (a fixed or newer realm). False when the
+     * manifest can't be read (offline): the installed realm is used as it is.
+     */
+    fun outdated(context: Context): Boolean {
+        val installed = installedSha(ForeverLayout.of(context))
+        return runCatching { !manifest().sha256.equals(installed, ignoreCase = true) }.getOrDefault(false)
+    }
 
     /**
      * Downloads the package (checking its SHA-256) and unpacks it to `files/forever/server`. Call
@@ -44,6 +68,17 @@ object ForeverServerPackage {
         val layout = ForeverLayout.of(context)
         layout.root.mkdirs()
         val manifest = manifest()
+        if (manifest.format < MIN_FORMAT) {
+            throw IllegalStateException("The realm server is being updated. Try again in a few minutes.")
+        }
+        // The first package (from before packages were versioned) shipped a database its updates were never applied to:
+        // no realm 70, so no realm could have run from it. It goes whole, with the database made from it, which also
+        // frees its ~6.5 GB before the new download. Later upgrades keep the database (it holds the characters).
+        if (layout.server.isDirectory && installedSha(layout) == null) {
+            onStage("Removing the previous realm server")
+            layout.server.deleteRecursively()
+            layout.databases.deleteRecursively()
+        }
         val archive = File(layout.root, "forever-server.tar.xz.part")
         onStage("Downloading the realm server")
         download(PACKAGE_URL, archive, manifest.size, onProgress)
@@ -81,6 +116,7 @@ object ForeverServerPackage {
         File(layout.root, "server.old").deleteRecursively()
         staging.deleteRecursively()
         ForeverCtl.makeExecutable(layout)
+        File(layout.server, MARKER).writeText(manifest.sha256)
     }
 
     /** Where a tar entry goes under [base], refusing any path that would escape it (never absolute, never `..`). */

@@ -364,6 +364,11 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         if (ownMusic) FrameButton("Original", primary = false) { MusicCustom.clear(context, game.id) }
                     }
                 }
+                // Forever's offline realm makes this account at every start (forever@forever.local / forever unless changed here).
+                if (game.id == com.logie.blizz.forever.ForeverPlay.VERSION) {
+                    remember(game.id) { com.logie.blizz.forever.ForeverPlay.login(context) }
+                    AutoLoginCard(game.id, "E-mail")
+                }
                 if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
                     AutoLoginCard(game.id, if (game.id == "wow_legion") "E-mail" else "Account name")
                     SettingCard("Add-ons") {

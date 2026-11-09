@@ -361,18 +361,24 @@ private fun RuntimeOverlay() {
             }
         }
         is com.logie.blizz.forever.ForeverPlay.State.NeedsClient -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            val clientPath = remember { com.logie.blizz.forever.ForeverLayout.of(context).client.path }
+            // Android's folder picker: the app's own storage can't be reached from a file manager, so the client is copied in from wherever it was put.
+            val pickClient = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { tree ->
+                if (tree != null) com.logie.blizz.forever.ForeverPlay.importClient(context, tree)
+            }
             Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FrameTitle("The Forever client is needed")
                 Text(
-                    "World of Warcraft: Forever runs its own offline realm here, but it needs the game client once. " +
-                        "Install Forever through Battle.net on a PC (or on this phone with the WoW Forever app), then copy its " +
-                        "folder (the one with .build.info and _forever_) into:\n\n$clientPath\n\n" +
-                        "To connect the client to the local realm, also place the Forever Launcher there (it sets the server key). " +
-                        "Then press Play again.",
+                    "World of Warcraft: Forever runs its own offline realm here, but it needs the game client once.\n\n" +
+                        "Put the Forever client folder (the one with .build.info, Data and _forever_, from a PC's Battle.net install) " +
+                        "anywhere on this phone, such as Downloads or an SD card, then choose it below. The app copies it in " +
+                        "(you can delete your copy afterwards).\n\n" +
+                        "To connect the client to the local realm, the Forever Launcher must be in that folder too (it sets the server key).",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                FrameButton("OK", Modifier.align(Alignment.End)) { com.logie.blizz.forever.ForeverPlay.dismiss() }
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FrameButton("Cancel", primary = false) { com.logie.blizz.forever.ForeverPlay.dismiss() }
+                    FrameButton("Choose client folder") { pickClient.launch(null) }
+                }
             }
         }
         else -> {}
