@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <b@x>
+Date: Mon, 9 Nov 2026 00:00:00 +0000
+Subject: [PATCH] Warcraft III: store its keys (products 14 and 18) where its
+ scripts put them
+
+1.0 to 1.27 read the keys from font\font.gid (war3.mpq) and font\font.exp (War3x.mpq); without them the game stops with
+"Warcraft III was unable to find a CD Key".
+---
+ src/installer.zig | 6 ++++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/installer.zig b/src/installer.zig
+index 7ae945f..17ac49f 100644
+--- a/src/installer.zig
++++ b/src/installer.zig
+@@ -99,6 +99,11 @@ pub const Secrets = struct {
+             // StarCraft's own key (its script's product 23): StarCraft opens the font\font.gid it's
+             // written into at start, and stops with "unable to open a required file" without it.
+             23 => self.classic,
++            // Warcraft III's keys (its scripts' products 14 and 18, cdkey26): the game opens the font\font.gid (Reign of Chaos,
++            // in war3.mpq) and font\font.exp (The Frozen Throne, in War3x.mpq) they are written into at start, and stops with
++            // "Warcraft III was unable to find a CD Key" without them.
++            14 => self.classic,
++            18 => self.expansion,
+             else => null,
+         };
+     }

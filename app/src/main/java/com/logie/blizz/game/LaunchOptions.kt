@@ -24,6 +24,8 @@ data class LaunchOptions(
     val vsync: Tri = Tri.DEFAULT,
     val singleCpu: Tri = Tri.DEFAULT,
     val redraw: Tri = Tri.DEFAULT,
+    /** Switches of the person's own on the game's command line (`-w -ns`, `-3dfx`), after the app's. */
+    val extraArgs: String = "",
 ) {
     /** Which DirectDraw the classic 2D games draw with (cnc-ddraw's renderers, or Wine's own). */
     enum class DDraw(val label: String, val note: String) {
@@ -125,6 +127,8 @@ data class LaunchOptions(
         val preset = when {
             s -> Box64.Preset.STABILITY.id!!
             box64.id != null -> box64.id
+            // Diablo II 1.13 died inside Fog.dll (a stack overflow at its window's creation) under Intermediate: the safest preset.
+            key == "diablo2" -> Box64.Preset.STABILITY.id!!
             classic -> Box64.Preset.INTERMEDIATE.id!!
             else -> Box64.Preset.PERFORMANCE.id!! // Winlator's own default (Box64Preset.DEFAULT)
         }
@@ -220,6 +224,7 @@ class LaunchOptionsStore(private val prefs: SharedPreferences) {
             vsync = read("vsync", LaunchOptions.Tri.entries.toTypedArray(), LaunchOptions.Tri.DEFAULT),
             singleCpu = read("singlecpu", LaunchOptions.Tri.entries.toTypedArray(), LaunchOptions.Tri.DEFAULT),
             redraw = read("redraw", LaunchOptions.Tri.entries.toTypedArray(), LaunchOptions.Tri.DEFAULT),
+            extraArgs = prefs.getString("$g.args", "") ?: "",
         )
     }
 
@@ -233,6 +238,7 @@ class LaunchOptionsStore(private val prefs: SharedPreferences) {
             .putString("$g.vsync", o.vsync.name)
             .putString("$g.singlecpu", o.singleCpu.name)
             .putString("$g.redraw", o.redraw.name)
+            .putString("$g.args", o.extraArgs.trim())
             .apply()
     }
 

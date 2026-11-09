@@ -194,3 +194,22 @@ object Wc3CdKeys {
     fun offered(filesDir: File, gameDir: File?): List<Found> =
         (stored(filesDir) + (gameDir?.let { inGame(it) } ?: emptyList())).distinctBy { it.key }
 }
+
+/**
+ * Diablo II's start-up switches. Version 1.13 (the download's) opened its fullscreen window and died in Fog.dll with a stack
+ * overflow before any graphics wrapper loaded (the phone's report of 9 November 2026), so it starts in a window (`-w`), which the
+ * wrapper then stretches to the screen. Plain Kotlin, unit-tested.
+ */
+object Diablo2Arguments {
+    private val WINDOW = Regex("(?i)(^|\\s)-w(\\s|$)")
+
+    /** [own] for [gameId], with `-w` added for Diablo II unless it is there. */
+    fun of(gameId: String, own: String): String =
+        if (gameId != "diablo2" || WINDOW.containsMatchIn(own)) own else listOf(own.trim(), "-w").filter { it.isNotEmpty() }.joinToString(" ")
+}
+
+/** The command line a game starts with: the library entry's arguments, the app's own switches, then the person's extra ones (Launch options). */
+object GameArguments {
+    fun of(gameId: String, entryArguments: String, extra: String): String =
+        listOf(Diablo2Arguments.of(gameId, entryArguments), extra.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+}

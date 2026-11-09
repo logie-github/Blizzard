@@ -81,6 +81,20 @@ class LegacyDownloader(private val program: File, private val cache: File) {
     }
 
     companion object {
+        /**
+         * What is stored where the games keep their CD key when the person gave none: Warcraft III 1.0 to 1.27 and StarCraft stop at start
+         * ("unable to find a CD Key", "unable to open a required file") without one, and single player never checks it. A key of the
+         * right shape and alphabet that no one was ever issued: it signs in nowhere.
+         */
+        const val PLACEHOLDER_KEY = "ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
+        /**
+         * Warcraft III's: the game decodes the stored key and reads its product from it (Reign of Chaos 14, The Frozen Throne 18), so each
+         * slot gets a key of the key alphabet that decodes to its product (found by trying keys against the decoder; no one was ever issued them).
+         */
+        const val PLACEHOLDER_KEY_WAR3 = "H7JNf2vrehWyRNmr9XKwCHxxrV"
+        const val PLACEHOLDER_KEY_W3XP = "KyRxmkd9vxXt8CNzyBPPG9wnTE"
+        const val PLACEHOLDER_OWNER = "Player"
+
         private val PIECES = Regex("""(\d+)/(\d+) pieces""")
 
         /** A progress line of the tool's, as [Progress]. Plain Kotlin, unit-tested. */

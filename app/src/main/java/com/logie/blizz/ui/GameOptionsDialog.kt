@@ -107,6 +107,17 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
                         ChoiceList(LaunchOptions.Box64.Preset.entries.map { it.label to it }, o.box64) { change(o.copy(box64 = it)) }
                     }
                 }
+                SettingCard("Command line") {
+                    Note("Switches of your own, added after the app's at the game's start (Diablo II: -w -ns -3dfx -ddraw -d3d; Warcraft III: -opengl -window). For trying a fix without a new build.")
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().background(Colors.Abyss).padding(10.dp)) {
+                        if (o.extraArgs.isEmpty()) Text("none", style = MaterialTheme.typography.bodyMedium, color = Colors.Steel)
+                        androidx.compose.foundation.text.BasicTextField(
+                            o.extraArgs, { v -> change(o.copy(extraArgs = v.replace("\n", " "))) },
+                            singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(color = Colors.Text, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Colors.Ice), modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)) {
                     FrameButton("Reset", primary = false) { store.reset(game.id); o = store.get(game.id) }
