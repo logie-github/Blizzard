@@ -62,6 +62,8 @@ object Wc3Setup {
     data class Write(val hive: Hive, val key: String, val name: String, val value: Any)
 
     const val VIDEO = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
+    /** Wine's X11 driver: `Decorated` N asks for no title bar or border, so a windowed game's picture is the whole screen (Winlator's X server draws them otherwise). */
+    const val X11 = "Software\\Wine\\X11 Driver"
     const val LAUNCHER = "Software\\Blizzard Entertainment\\Classic Launcher\\w3"
     private val INSTALL_KEYS = listOf("Software\\Blizzard Entertainment\\Warcraft III", "Software\\Wow6432Node\\Blizzard Entertainment\\Warcraft III")
 
@@ -69,7 +71,8 @@ object Wc3Setup {
     const val WINDOW_MODE_FULLSCREEN = 2
 
     /**
-     * The values to write: the game's resolution at the phone's size and fullscreen, the repack's
+     * The values to write: the game's resolution at the phone's size and fullscreen, no window decorations (a 1.2x window is the
+     * whole screen; the title bar Winlator drew over it on 9 November 2026 pushed the picture down), the repack's
      * launcher language (kept if [locale] already has one; enUS otherwise), and, when [installDos] is
      * given (`D:\warcraft3_roc\`), the folder where the game's installer would have recorded it.
      */
@@ -77,6 +80,7 @@ object Wc3Setup {
         add(Write(Hive.USER, VIDEO, "reswidth", width))
         add(Write(Hive.USER, VIDEO, "resheight", height))
         add(Write(Hive.USER, VIDEO, "windowmode", WINDOW_MODE_FULLSCREEN))
+        add(Write(Hive.USER, X11, "Decorated", "N"))
         if (locale.isNullOrEmpty()) add(Write(Hive.USER, LAUNCHER, "Locale", "enUS"))
         if (installDos != null) {
             val dos = if (installDos.endsWith("\\")) installDos else "$installDos\\"

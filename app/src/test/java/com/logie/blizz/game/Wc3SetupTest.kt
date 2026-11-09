@@ -69,6 +69,7 @@ class Wc3SetupTest {
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, "reswidth", 2400),
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, "resheight", 1080),
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, "windowmode", 2),
+                Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.X11, "Decorated", "N"),
                 Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.LAUNCHER, "Locale", "enUS"),
             ),
             writes,

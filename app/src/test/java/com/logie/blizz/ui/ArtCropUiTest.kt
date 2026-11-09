@@ -35,14 +35,13 @@ class ArtCropUiTest {
         repeat(3) { runCatching { android.graphics.BitmapFactory.decodeFile(f.path) } }
     }
 
-    /** The picture is opened off the main thread: the clock is moved on until the Save button is there and on screen (under a full run's load, it exists before it is laid out). */
+    /** The picture is opened off the main thread: the clock runs until the Save button is there and on screen (a full run's load can make that slow). */
     private fun untilSaveShows() {
-        repeat(3000) {
-            rule.mainClock.advanceTimeBy(100); rule.waitForIdle(); Thread.sleep(20)
-            // Save may sit below the screen while the picture is still opening (the page scrolls): brought into view, as a finger would.
-            val shown = runCatching { rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed() }.isSuccess
-            if (shown) { rule.mainClock.advanceTimeBy(500); rule.waitForIdle(); return }
+        rule.mainClock.autoAdvance = true
+        rule.waitUntil(120_000) {
+            runCatching { rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed() }.isSuccess
         }
+        rule.waitForIdle()
     }
 
     private fun picture(w: Int, h: Int): File {

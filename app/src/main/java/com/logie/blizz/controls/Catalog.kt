@@ -67,17 +67,21 @@ object Catalog {
         rule(Trigger.TWO_FINGER_TAP, menu),
     ) + SHARED_RULES
 
-    /** The strategy games': tap right-clicks (left on the panels), hold left-clicks, drag scrolls. */
+    /**
+     * The strategy games': tap left-clicks (select, press a button), hold right-clicks (move, attack, gather), drag scrolls.
+     * (Tap was the right click until 9 November 2026, when Warcraft III's menu took no taps on the phone: a menu button needs a left click.)
+     */
+    @Suppress("UNUSED_PARAMETER")
     private fun rtsRules(menu: String, panels: List<String>) = listOf(
-        rule(Trigger.TAP, "rclick"),
-        rule(Trigger.HOLD, "click"),
+        rule(Trigger.TAP, "click"),
+        rule(Trigger.HOLD, "rclick"),
         rule(Trigger.DOUBLE_TAP_HOLD, "dclick"),
         rule(Trigger.DRAG, "pan"),
-        rule(Trigger.REST_TAP, "shiftrclick"),
-        rule(Trigger.REST_HOLD, "shiftclick"),
+        rule(Trigger.REST_TAP, "shiftclick"),
+        rule(Trigger.REST_HOLD, "shiftrclick"),
         rule(Trigger.PINCH_OUT, "wheelup"), rule(Trigger.PINCH_IN, "wheeldown"),
         rule(Trigger.TWO_FINGER_TAP, menu),
-    ) + panels.map { rule(Trigger.TAP, "click", it) } + SHARED_RULES
+    ) + SHARED_RULES
 
     private fun groups(): List<GameFunction> =
         (1..10).map { n -> val k = (n % 10).toString(); key("group$k", "Select group $k", k) } +
