@@ -175,9 +175,12 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
             // The base game, then the expansion over it, as Blizzard's installers do: both campaigns whichever tile was tapped.
             // 1.27 stops at start ("unable to find a CD Key") without one stored in its archives, though single player never checks it:
             // each product's own slot gets the placeholder (Reign of Chaos' war3.mpq, The Frozen Throne's War3x.mpq).
-            val owner = LegacyDownloader.PLACEHOLDER_OWNER
-            legacy.install("WAR3", staging, noBase = true, keys = LegacyDownloader.Keys(classic = LegacyDownloader.PLACEHOLDER_KEY_WAR3, expansion = null, owner = owner), cancel = env.cancel, onProgress = env.progress)
-            legacy.install("W3XP", staging, noBase = true, keys = LegacyDownloader.Keys(classic = null, expansion = LegacyDownloader.PLACEHOLDER_KEY_W3XP, owner = owner), cancel = env.cancel, onProgress = env.progress)
+            // The person's own keys, when they gave them (Reign of Chaos' in `classic`, The Frozen Throne's in `expansion`), else the stand-ins.
+            val owner = env.keys?.owner ?: LegacyDownloader.PLACEHOLDER_OWNER
+            val roc = env.keys?.classic ?: LegacyDownloader.PLACEHOLDER_KEY_WAR3
+            val tft = env.keys?.expansion ?: LegacyDownloader.PLACEHOLDER_KEY_W3XP
+            legacy.install("WAR3", staging, noBase = true, keys = LegacyDownloader.Keys(classic = roc, expansion = null, owner = owner), cancel = env.cancel, onProgress = env.progress)
+            legacy.install("W3XP", staging, noBase = true, keys = LegacyDownloader.Keys(classic = null, expansion = tft, owner = owner), cancel = env.cancel, onProgress = env.progress)
             File(staging, MARK).writeText(DOWNLOAD_CODES.joinToString(" ") + "\n")
         } catch (e: Throwable) {
             staging.deleteTree()

@@ -29,9 +29,11 @@ class Warcraft3Test {
 
     private fun setUp() { if (!::paths.isInitialized) paths = GamePaths(tmp.newFolder("files")) }
 
+    private var keys: LegacyDownloader.Keys? = null
+
     private fun env() = ImportEnv(
         paths = paths, searchRoots = { roots }, online = { online }, downloads = DownloadManager(), releases = GitHubReleases(),
-        legacy = legacy, innoextract = innoextract, cancel = CancelToken(), progress = {},
+        legacy = legacy, innoextract = innoextract, cancel = CancelToken(), progress = {}, keys = keys,
     )
 
     private fun run(importer: GameImporter, source: File? = null): ImportPipeline.Result {
@@ -387,6 +389,34 @@ class Warcraft3Test {
         File(half, "Data/config").deleteRecursively()
         val zip = Fixtures.zip(tmp.newFile("wc3.zip"), filesOf(half))
         assertTrue(run(roc, zip) is ImportPipeline.Result.Failed)
+    }
+
+    @Test fun thePersonsOwnKeysAreWrittenInPlaceOfTheStandIns() {
+        setUp()
+        online = true
+        val base = mpq127(tmp.newFolder("template-WAR3"), expansion = false)
+        val exp = tmp.newFolder("template-W3XP").also { d -> Fixtures.mpq(File(d, "war3x.mpq")); Fixtures.pe(File(d, "Frozen Throne.exe"), "1.27.0.52240") }
+        val log = File(tmp.root, "calls.txt")
+        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base, "W3XP" to exp), log), paths.legacyCache)
+        keys = LegacyDownloader.Keys(classic = "MYROCKEY", expansion = "MYTFTKEY", owner = null)
+        assertDone(run(roc))
+        val calls = log.readLines()
+        assertTrue(calls[0].contains("--cdkey MYROCKEY") && !calls[0].contains(LegacyDownloader.PLACEHOLDER_KEY_WAR3))
+        assertTrue(calls[1].contains("--cdkey-expansion MYTFTKEY"))
+    }
+
+    @Test fun withOnlyOneKeyGivenTheOtherIsTheStandIn() {
+        setUp()
+        online = true
+        val base = mpq127(tmp.newFolder("template-WAR3"), expansion = false)
+        val exp = tmp.newFolder("template-W3XP").also { d -> Fixtures.mpq(File(d, "war3x.mpq")); Fixtures.pe(File(d, "Frozen Throne.exe"), "1.27.0.52240") }
+        val log = File(tmp.root, "calls.txt")
+        legacy = LegacyDownloader(fakeTool(mapOf("WAR3" to base, "W3XP" to exp), log), paths.legacyCache)
+        keys = LegacyDownloader.Keys(classic = "MYROCKEY", expansion = null, owner = null)
+        assertDone(run(roc))
+        val calls = log.readLines()
+        assertTrue(calls[0].contains("--cdkey MYROCKEY"))
+        assertTrue(calls[1].contains("--cdkey-expansion ${LegacyDownloader.PLACEHOLDER_KEY_W3XP}"))
     }
 
     @Test fun anInstallCarriesItsRecipeAndAnOlderOneIsStale() {

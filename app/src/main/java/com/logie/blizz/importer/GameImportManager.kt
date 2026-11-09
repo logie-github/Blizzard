@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
+import com.logie.blizz.game.Wc3CdKeys
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -154,6 +155,11 @@ object GameImportManager {
             cancels[gameId] = CancelToken()
         }
         val cancel = cancels[gameId]!!
+        // Warcraft III's keys the person saved ([Wc3CdKeys]): written into the game's archives as it is installed.
+        if (gameId.startsWith("warcraft3")) {
+            val saved = Wc3CdKeys.wc3(Wc3CdKeys.text(app.filesDir))
+            setKeys(gameId, saved.reignOfChaos, saved.frozenThrone, null)
+        }
         ImportService.start(app)
         scope.launch {
             val repo = repo(app)
@@ -332,7 +338,9 @@ object GameImportManager {
         if (synchronized(cancels) { cancels.containsKey(gameId) }) return
         scope.launch {
             publish(WizardState(gameId, repo(app).load(gameId), running = true, progress = Progress(Stage.DETECTING, "This update changed how ${factory().title} is installed: installing it again (saves kept)")))
-            GameReset.reset(paths(app), gameId, factory().keptInGame)
+            // Warcraft III's two products share one install: both go, and the install made again serves both.
+            val ids = if (gameId.startsWith("warcraft3")) listOf(Warcraft3Importer.ROC_ID, Warcraft3Importer.TFT_ID) else listOf(gameId)
+            for (id in ids) importers[id]?.let { GameReset.reset(paths(app), id, it().keptInGame) }
             start(app, gameId)
         }
     }

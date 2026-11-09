@@ -157,6 +157,49 @@ object Wc3CdKeys {
             }
         }.distinctBy { it.key }
 
+    /** The keys in a pasted text, each for the game its own product says. */
+    data class Wc3Keys(val reignOfChaos: String?, val frozenThrone: String?, val unrecognised: Int) {
+        val any: Boolean get() = reignOfChaos != null || frozenThrone != null
+    }
+
+    /**
+     * Warcraft III's keys in whatever [text] the person pasted: 26 letters and digits written with or without spaces and dashes, in any
+     * grouping (`XXXXXX XXXX-XXXXXX-XXXX-XXXXXX`), one a line or several, a label before one allowed. Each is put with the game its
+     * decoding says (14 Reign of Chaos, 18 The Frozen Throne). Returned upper-case, as typed into the game.
+     */
+    fun wc3(text: String): Wc3Keys {
+        val candidates = LinkedHashSet<String>()
+        val lines = text.lines().map { line -> line.filter { it.isLetterOrDigit() } }.filter { it.isNotEmpty() }
+        for (line in lines) {
+            if (line.length == 26) candidates += line
+            else if (line.length > 26) {
+                // A label before the key ("ROC", "Reign of Chaos"), or two keys on a line: the windows of 26 that are keys.
+                var i = 0
+                while (i + 26 <= line.length) {
+                    val w = line.substring(i, i + 26)
+                    if (Wc3KeyCodec.product(w.uppercase()) in listOf(Wc3KeyCodec.ROC, Wc3KeyCodec.TFT) && w.all { it in Wc3KeyCodec.ALPHABET || it.uppercaseChar() in Wc3KeyCodec.ALPHABET }) { candidates += w; i += 26 } else i++
+                }
+            }
+        }
+        // A key broken over several lines: all the text, run together, in keys of 26.
+        if (candidates.isEmpty()) {
+            val all = lines.joinToString("")
+            if (all.length % 26 == 0 && all.length in 26..52) all.chunked(26).forEach { candidates += it }
+        }
+        var roc: String? = null
+        var tft: String? = null
+        var other = 0
+        for (c in candidates) {
+            val key = c.uppercase()
+            when (Wc3KeyCodec.product(key)) {
+                Wc3KeyCodec.ROC -> if (roc == null) roc = key
+                Wc3KeyCodec.TFT -> if (tft == null) tft = key
+                else -> other++
+            }
+        }
+        return Wc3Keys(roc, tft, other)
+    }
+
     /** The store: `cdkeys.txt` in the app's files folder (`context.filesDir`). */
     fun file(filesDir: File) = File(filesDir, "cdkeys.txt")
 
