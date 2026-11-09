@@ -142,6 +142,10 @@ object WindowsRuntime {
         // borderless.exe (tools/borderless): the program the game screen runs beside a windowed game to take its title bar
         // away ([GestureView.onGameWindowShown]), put into the games' Windows at every start (the app's copy may be newer).
         withContext(Dispatchers.IO) { runCatching { Borderless.install(context, container.rootDir) } }
+        // Wine's GetAdaptersAddresses walks an empty adapter list as a full one here (this Wine lists no adapters), which
+        // ended World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one
+        // known iphlpapi.dll only, in every game's Wine alike so they all run the same one).
+        withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.WineAdapterFix.apply(RootFS.find(context).rootDir, container.rootDir) } }
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
         if (foreverClient) {

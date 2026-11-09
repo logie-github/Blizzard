@@ -172,6 +172,8 @@ fun Launcher() {
     val musicGame = Variants.effective(shown, chosenVersions).id
     val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
+    // World of Warcraft: Forever: a game that fell back here says why by itself (its own crash file, sent as a report).
+    LaunchedEffect(resumed) { com.logie.blizz.forever.ForeverPlay.reportClientStop(context) }
     LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).

@@ -86,6 +86,45 @@ class TactTest {
         assertArrayEquals(k1, idx.copyOfRange(40, 49))
         assertEquals((2L shl 30) or 0x100L, beN(idx, 49, 5))
         assertEquals(530, le32(idx, 54))
+        // After the entries: the (empty) update section, from the next 4 KiB to the end of a 64 KiB file, as the game writes it.
+        assertEquals(0x10000, idx.size)
+        assertTrue(idx.copyOfRange(40 + 36, idx.size).all { it.toInt() == 0 })
+    }
+
+    @Test
+    fun `the update section is at least 0x7800 bytes from the next 4 KiB, the file a multiple of 64 KiB`() {
+        // The game's own file: entries end at 0x5ce6, the section starts at 0x6000, the file is 0x10000.
+        assertEquals(0x10000, 0x5ce6 + CascStorageWriter.tail(0x5ce6))
+        // Entries ending at 0x8000 leave exactly 0x8000 of section; one byte more starts it at 0x9000, 0x7800 of it ends past 64 KiB.
+        assertEquals(0x10000, 0x8000 + CascStorageWriter.tail(0x8000))
+        assertEquals(0x20000, 0x8001 + CascStorageWriter.tail(0x8001))
+        // A full bucket of a whole client (65,000 entries).
+        val end = 40 + 65_000 * 18
+        assertEquals(0x130000, end + CascStorageWriter.tail(end))
+    }
+
+    @Test
+    fun `an index of the first downloads (no update section) is given one in place, its entries kept`() {
+        val dir = Files.createTempDirectory("idx").toFile()
+        val entries = (0 until 5000).map { n -> ByteArray(9) { (n shr (8 * (it % 3))).toByte() } to CascStorageWriter.Placed(1, n * 64, 64) }
+        val whole = CascStorageWriter.index(5, entries)
+        val end = CascStorageWriter.sortedEnd(whole)!!
+        assertEquals(40 + 5000 * 18, end)
+        assertEquals(0x20000, whole.size) // 90,040 bytes of entries: the section from 0x16000, the file 128 KiB
+        val old = File(dir, "0500000001.idx").apply { writeBytes(whole.copyOf(end)) }
+        File(dir, "data.000").writeBytes(ByteArray(10))
+        assertEquals(1, CascStorageWriter.repairIndexes(dir))
+        assertArrayEquals(whole, old.readBytes())
+        assertEquals(0, CascStorageWriter.repairIndexes(dir))
+        assertEquals(10, File(dir, "data.000").length())
+        // An index the game has written to since (entries in its section, a longer file) is left alone.
+        val games = whole.copyOf(0x30000).also { it[0x16000] = 1 }
+        File(dir, "0500000002.idx").writeBytes(games)
+        // Not an index file: left alone.
+        File(dir, "0600000001.idx").writeBytes(ByteArray(64) { 9 })
+        assertEquals(0, CascStorageWriter.repairIndexes(dir))
+        assertArrayEquals(games, File(dir, "0500000002.idx").readBytes())
+        assertEquals(64, File(dir, "0600000001.idx").length())
     }
 
     @Test
@@ -171,5 +210,25 @@ class TactTest {
         val placed = CascStorageWriter(dir).resume()
         assertEquals(setOf(7), placed.keys)
         assertEquals(30L + data.size, File(dir, "data.000").length())
+    }
+    @Test
+    fun `Wine's adapter listing is fixed in the one known file only`() {
+        val dll = ByteArray(0x6000) { (it * 7).toByte() }
+        val hash = com.logie.blizz.forever.WineAdapterFix.sha256(dll)
+        val fixed = com.logie.blizz.forever.WineAdapterFix.fixed(dll, original = hash)!!
+        // mov eax, 232 (ERROR_NO_DATA); ret, at GetAdaptersAddresses; nothing else changed.
+        assertArrayEquals(byteArrayOf(0xB8.toByte(), 0xE8.toByte(), 0, 0, 0, 0xC3.toByte()), fixed.copyOfRange(0x4cb0, 0x4cb6))
+        assertArrayEquals(dll.copyOf(0x4cb0), fixed.copyOf(0x4cb0))
+        assertArrayEquals(dll.copyOfRange(0x4cb6, dll.size), fixed.copyOfRange(0x4cb6, fixed.size))
+        // Another build of the file, the fixed one again, or a short file: left as it is.
+        assertEquals(null, com.logie.blizz.forever.WineAdapterFix.fixed(dll))
+        assertEquals(null, com.logie.blizz.forever.WineAdapterFix.fixed(fixed, original = hash))
+        assertEquals(null, com.logie.blizz.forever.WineAdapterFix.fixed(ByteArray(16), original = com.logie.blizz.forever.WineAdapterFix.sha256(ByteArray(16))))
+        // Wine's real file, when the test is pointed at it (BLIZZ_WINE_IPHLPAPI): the hashes written down are its.
+        System.getenv("BLIZZ_WINE_IPHLPAPI")?.let { path ->
+            val real = File(path).readBytes()
+            assertEquals(com.logie.blizz.forever.WineAdapterFix.ORIGINAL, com.logie.blizz.forever.WineAdapterFix.sha256(real))
+            assertEquals(com.logie.blizz.forever.WineAdapterFix.FIXED, com.logie.blizz.forever.WineAdapterFix.sha256(com.logie.blizz.forever.WineAdapterFix.fixed(real)!!))
+        }
     }
 }

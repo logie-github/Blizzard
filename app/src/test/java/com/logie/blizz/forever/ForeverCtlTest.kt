@@ -81,9 +81,18 @@ class ForeverCtlTest {
 
     @Test
     fun `the client's portal points at this phone, its other settings kept`() {
-        assertEquals("SET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(null))
+        val locale = "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\n"
+        assertEquals(locale + "SET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(null))
         val config = "SET gxWindow \"1\"\nSET portal \"us\"\nSET locale \"enUS\"\n"
-        assertEquals("SET gxWindow \"1\"\nSET locale \"enUS\"\nSET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(config))
+        assertEquals("SET gxWindow \"1\"\nSET locale \"enUS\"\n" + locale + "SET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(config))
+    }
+
+    @Test
+    fun `a language is set only where the client has none (no language list box at the start)`() {
+        val config = "SET textLocale \"deDE\"\nSET portal \"127.0.0.1\"\n"
+        assertEquals("SET textLocale \"deDE\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(config))
+        val both = "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\n"
+        assertEquals(both, ForeverCtl.withLocalPortal(both))
     }
 
     /** A folder tree for findClient: name -> children (a leaf has none). */
@@ -107,5 +116,50 @@ class ForeverCtlTest {
         assertNull(ForeverCtl.findClient(Node(mapOf("Wow.exe" to Node())), listing))
         assertNull(ForeverCtl.findClient(client.children.getValue("_forever_"), listing))
         assertNull(ForeverCtl.findClient(Node(mapOf(".build.info" to Node(), "_forever_" to Node())), listing))
+    }
+    @Test
+    fun `the game's own crash file since the start is what a report says, its newest`() {
+        val game = Files.createTempDirectory("game").toFile()
+        val errors = File(game, "Errors").apply { mkdirs() }
+        val old = File(errors, "2026-11-08_Crash_1.txt").apply { writeText("Exception: OLD"); setLastModified(1_000_000) }
+        File(errors, "2026-11-09_Crash_2.dmp").apply { writeText("x"); setLastModified(5_000_000) }
+        assertNull(ForeverCtl.clientStop(game, since = 2_000_000))
+        val crash = File(errors, "2026-11-09_Crash_2.txt")
+        crash.writeText("\uFEFF=====\nWorld of Warcraft: Retail Build (build 70862)\n\nException: ACCESS_VIOLATION - The instruction at \"0x1\" referenced memory at \"0x0\".\nmore\n")
+        crash.setLastModified(4_000_000)
+        val stop = ForeverCtl.clientStop(game, since = 2_000_000)!!
+        assertTrue(stop.title.startsWith("Exception: ACCESS_VIOLATION"))
+        assertTrue(stop.text.startsWith("====="))
+        assertEquals(4_000_000, stop.at)
+        // Reported once: nothing newer than it.
+        assertNull(ForeverCtl.clientStop(game, since = stop.at))
+        assertTrue(old.isFile)
+    }
+
+    @Test
+    fun `without a crash file the storage log's failures are, each once`() {
+        val game = Files.createTempDirectory("game").toFile()
+        val log = File(File(game, "Logs").apply { mkdirs() }, "Tact.log")
+        log.writeText(
+            "11/9 23:16:56.557  Truncated updated section in KMT file detected.\n" +
+                "11/9 23:16:56.557  Truncated updated section in KMT file detected.\n" +
+                "11/9 23:16:56.558  Opened something fine\n" +
+                "11/9 23:16:56.560  Failed to initialize dynamic container. Error(11): needs repair\n",
+        )
+        log.setLastModified(9_000_000)
+        val stop = ForeverCtl.clientStop(game, since = 1)!!
+        assertEquals(2, stop.text.lines().size)
+        assertTrue("Truncated" in stop.text && "needs repair" in stop.text)
+        log.writeText("11/9 23:22:44.000  Shutdown\n"); log.setLastModified(9_500_000)
+        assertNull(ForeverCtl.clientStop(game, since = 1))
+    }
+
+    @Test
+    fun `the last line of a log is its end's, without colour codes, shortened`() {
+        val log = File(Files.createTempDirectory("log").toFile(), "worldserver.log")
+        assertNull(ForeverCtl.lastLine(log))
+        log.writeText("first\n" + "x".repeat(6000) + "\n\u001B[32mLoading creature templates...\u001B[0m\n\n")
+        assertEquals("Loading creature templates...", ForeverCtl.lastLine(log))
+        assertEquals("Loading", ForeverCtl.lastLine(log, limit = 7))
     }
 }

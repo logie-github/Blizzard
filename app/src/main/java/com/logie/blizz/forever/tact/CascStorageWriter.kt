@@ -15,7 +15,8 @@ import java.io.RandomAccessFile
  *   key byte-reversed, the entry's size with the header, two checksums) followed by its BLTE data as on the CDN;
  * - sixteen `XX00000001.idx` index files (bucket XX of the key's first 9 bytes), version 7: a guarded header and a
  *   guarded block of 18-byte entries (9 key bytes, segment and offset in 5 big-endian bytes, size little-endian),
- *   each guard a Jenkins hash, sorted by key.
+ *   each guard a Jenkins hash, sorted by key; then zeros to the next 64 KiB and an (empty) update section, which
+ *   the game itself requires (CascLib doesn't).
  *
  * A journal records every entry once it is fully written, so a download that stops (the app closed, the network
  * gone) resumes with what is there: the segments are cut back to their last recorded entry.
@@ -236,8 +237,56 @@ class CascStorageWriter(val dataDir: File) {
             out.write(ByteArray(8)) // padding to 0x20
             putLe(guard, 0, body.size); putLe(guard, 4, hashHigh)
             out.write(guard); out.write(body)
+            out.write(ByteArray(tail(out.size())))
             return out.toByteArray()
         }
+
+        /** Where the sorted entries of an index file end (its two guarded blocks), or null when it isn't one. */
+        fun sortedEnd(index: ByteArray): Int? {
+            if (index.size < SORTED_START || getLe(index, 0) != 16 || index[8].toInt() != 7) return null
+            val entries = getLe(index, 0x20)
+            if (entries < 0 || entries % 18 != 0 || SORTED_START + entries.toLong() > index.size) return null
+            return SORTED_START + entries
+        }
+
+        /**
+         * The bytes after the sorted entries, all zero: the update section (512-byte pages the game adds entries to
+         * between compactions; zero is empty), which begins at the next 4 KiB and runs to the end of the file, at
+         * least 0x7800 bytes of it, the file a multiple of 64 KiB. This is the layout of the index files the game
+         * writes itself (read from the ones build 70862 wrote on 9 November 2026). The game refuses an index without
+         * the section ("Truncated updated section in KMT file", then "Your World of Warcraft installation is damaged").
+         */
+        fun tail(sortedEnd: Int): Int = align(updateStart(sortedEnd) + UPDATE_MIN, FILE_ALIGN) - sortedEnd
+
+        private fun updateStart(sortedEnd: Int) = align(sortedEnd, UPDATE_ALIGN)
+        private fun align(n: Int, to: Int) = (n + to - 1) / to * to
+
+        /**
+         * Gives the index files of a storage written before the update section was (the first downloads) theirs,
+         * in place: the data stays. An index with a whole section (ours, or one the game has rewritten since) is
+         * left as it is. Returns how many files were rewritten.
+         */
+        fun repairIndexes(dataDir: File): Int {
+            var repaired = 0
+            dataDir.listFiles()?.filter { it.name.endsWith(".idx") }?.forEach { file ->
+                val bytes = file.readBytes()
+                val end = sortedEnd(bytes) ?: return@forEach
+                if (bytes.size >= updateStart(end) + UPDATE_MIN) return@forEach
+                val temp = File(dataDir, file.name + ".tmp")
+                temp.writeBytes(bytes.copyOf(end) + ByteArray(tail(end)))
+                if (!temp.renameTo(file)) { temp.delete(); throw java.io.IOException("Couldn't rewrite ${file.name}") }
+                repaired++
+            }
+            return repaired
+        }
+
+        private const val SORTED_START = 0x28
+        private const val UPDATE_ALIGN = 0x1000
+        private const val UPDATE_MIN = 0x7800
+        private const val FILE_ALIGN = 0x10000
+
+        private fun getLe(b: ByteArray, o: Int): Int =
+            (b[o].toInt() and 0xFF) or ((b[o + 1].toInt() and 0xFF) shl 8) or ((b[o + 2].toInt() and 0xFF) shl 16) or ((b[o + 3].toInt() and 0xFF) shl 24)
 
         private fun putLe(b: ByteArray, o: Int, v: Int) {
             b[o] = v.toByte(); b[o + 1] = (v ushr 8).toByte(); b[o + 2] = (v ushr 16).toByte(); b[o + 3] = (v ushr 24).toByte()

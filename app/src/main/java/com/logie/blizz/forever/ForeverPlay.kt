@@ -351,6 +351,10 @@ object ForeverPlay {
             fetchClient(context, layout)?.let { return it }
         }
 
+        // The index files of a client downloaded by an earlier build lacked a part the game insists on ("Your World of
+        // Warcraft installation is damaged"): given it here, in place, the 47 GB untouched.
+        withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.tact.CascStorageWriter.repairIndexes(File(layout.client, "Data/data")) } }
+
         if (!layout.hasServerData()) {
             _state.value = State.Preparing("Preparing the game data (first time, several minutes)")
             withContext(Dispatchers.IO) {
@@ -361,7 +365,23 @@ object ForeverPlay {
         _state.value = State.Preparing("Starting the realm")
         val account = login(context)
         withContext(Dispatchers.IO) { ForeverRealm.start(context, layout.clientBuild(), account.name to account.password) }
-        val status = ForeverRealm.status.first { it.phase == ForeverRealm.Phase.RUNNING || it.phase == ForeverRealm.Phase.FAILED || it.phase == ForeverRealm.Phase.STOPPED }
+        // Each step of the start shows by its number, and under the long one (the world loading its database) the
+        // server's own latest line, so the wait is seen to move.
+        val following = scope.launch {
+            while (true) {
+                val now = ForeverRealm.status.value
+                if (now.phase == ForeverRealm.Phase.STARTING) {
+                    val step = now.step ?: ForeverRealm.Step.CONFIGURING
+                    val detail = if (step == ForeverRealm.Step.WORLD) withContext(Dispatchers.IO) { ForeverCtl.lastLine(layout.log("worldserver")) } else null
+                    val head = "Starting the realm (${step.ordinal + 1} of ${ForeverRealm.Step.entries.size}): ${now.message ?: step.name.lowercase()}"
+                    _state.value = State.Preparing(listOfNotNull(head, detail).joinToString("\n"))
+                }
+                kotlinx.coroutines.delay(700)
+            }
+        }
+        val status = try {
+            ForeverRealm.status.first { it.phase == ForeverRealm.Phase.RUNNING || it.phase == ForeverRealm.Phase.FAILED || it.phase == ForeverRealm.Phase.STOPPED }
+        } finally { following.cancel() }
         when (status.phase) {
             ForeverRealm.Phase.RUNNING -> {}
             ForeverRealm.Phase.FAILED -> return status.error ?: "The realm didn't start (see logs in files/forever/logs)."
@@ -381,9 +401,42 @@ object ForeverPlay {
                 config.writeText(ForeverCtl.withLocalPortal(config.takeIf { it.isFile }?.readText()))
             }
         }
+        started(context)
         withContext(Dispatchers.Main) { WindowsRuntime.play(context, launchEntry(layout.client, exe), size) }
         return null
     }
+
+    private fun prefs(context: Context) = context.getSharedPreferences("forever", Context.MODE_PRIVATE)
+
+    /** The game is about to start: what it writes about stopping from now on is this start's. */
+    private fun started(context: Context) = prefs(context).edit().putLong(STOP_SEEN, System.currentTimeMillis()).apply()
+
+    /**
+     * Sends what the game itself wrote about a start that went wrong (its crash file, or its storage log's
+     * failures: [ForeverCtl.clientStop]) to the app's reports, once. The launcher calls it as it comes back to the
+     * front: a game that fell back to it after a black screen has then said why, without the person doing anything.
+     */
+    fun reportClientStop(context: Context) {
+        val app = context.applicationContext
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val layout = ForeverLayout.of(app)
+                val game = File(layout.client, "_forever_").takeIf { it.isDirectory } ?: return@runCatching
+                val since = prefs(app).getLong(STOP_SEEN, 0L)
+                if (since == 0L) return@runCatching
+                val stop = ForeverCtl.clientStop(game, since) ?: return@runCatching
+                prefs(app).edit().putLong(STOP_SEEN, stop.at).apply()
+                com.logie.blizz.reports.BugReports.report(
+                    app, "WoW Forever", "The game stopped: ${stop.title}",
+                    listOf("Program" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
+                    log = stop.text,
+                )
+                Unit
+            }
+        }
+    }
+
+    private const val STOP_SEEN = "client.stop.seen"
 
     /** The client as its own game ("wow-client"), run under Winlator with the `wow` controls. */
     private fun launchEntry(client: File, exe: File) = LibraryEntry(
