@@ -129,6 +129,8 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId, options) }
         // Legion: the Battle.net certificate bundle the patched client trusts goes into the game's Windows.
         val legion = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == LegionClientSetup.VERSION
+        // World of Warcraft: Forever's client: modern WoW with the same Wow_loader.dll start-up protection as Legion.
+        val foreverClient = entry.gameId == "wow-client" && entry.clientVersion == "forever"
         if (legion) {
             withContext(Dispatchers.IO) {
                 val layout = com.logie.blizz.wow.WowLayout.legion(context)
@@ -142,7 +144,7 @@ object WindowsRuntime {
         }
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
-        if (entry.gameId == "wow-client" && entry.clientVersion == "forever") {
+        if (foreverClient) {
             withContext(Dispatchers.IO) {
                 val ca = com.logie.blizz.forever.ForeverLayout.of(context).caFile
                 if (ca.isFile) LegionClientSetup.installCertificateBundle(ca, File(container.rootDir, ".wine/drive_c"))
@@ -166,8 +168,9 @@ object WindowsRuntime {
             // (patches/winlator/0005): paths in them would otherwise break that conversion.
             .putExtra("exec_path", program.path)
             .putExtra("exec_args", GameArguments.of(entry.gameId, entry.arguments, LaunchOptionsStore(context).get(entry.gameId).extraArgs, entry.clientVersion))
-            // Legion's start-up protection needs the Box64 with the signal-flags fix (Winlator patch 0007).
-            .apply { if (legion) putExtra("box64_version", LegionClientSetup.BOX64) }
+            // Legion and the Forever client share the Wow_loader.dll start-up protection, which needs the Box64 with
+            // the signal-flags fix (Winlator patch 0007); without it the loader deadlocks on Wine's loader lock.
+            .apply { if (legion || foreverClient) putExtra("box64_version", LegionClientSetup.BOX64) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
