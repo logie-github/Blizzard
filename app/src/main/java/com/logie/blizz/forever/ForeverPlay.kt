@@ -65,6 +65,33 @@ object ForeverPlay {
     /** Play, downloading the client even on a metered connection (the person said so). */
     fun downloadClient(context: Context) = play(context, allowMetered = true)
 
+    /**
+     * Resets Forever: the realm (its server, database with the characters, map data, logs and run files; the next
+     * Play downloads the server again) and, with [client], the game client too (downloaded or copied, finished or
+     * not). A running download is paused and the realm stopped first.
+     */
+    fun reset(context: Context, client: Boolean) {
+        val app = context.applicationContext
+        pauseDownload()
+        _state.value = State.Preparing(if (client) "Resetting World of Warcraft: Forever" else "Resetting the realm")
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    // Let a paused download finish writing its current file before its folder goes.
+                    repeat(100) { if (installer == null) return@repeat; Thread.sleep(100) }
+                    if (ForeverRealm.status.value.phase != ForeverRealm.Phase.STOPPED) runCatching { ForeverRealm.stop(app) }
+                    val layout = ForeverLayout.of(app)
+                    val realm = listOf("server", "server.new", "server.old", "mysql", "data", "data.work", "data.old", "logs", "run", "etc", "forever-server.tar.xz.part")
+                    val game = if (client) listOf("client", "client.new", DOWNLOAD) else emptyList()
+                    for (name in realm + game) File(layout.root, name).deleteRecursively()
+                }
+                _state.value = State.Idle
+            } catch (e: Throwable) {
+                _state.value = State.Failed("The reset didn't finish: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
+    }
+
     /** The client's touch controls id (the same `wow` gestures as the other WoW clients). */
     private const val GAME_ID = "wow-client"
     private const val PROFILE = "wow"
