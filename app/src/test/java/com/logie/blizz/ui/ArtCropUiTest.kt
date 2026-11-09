@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import com.logie.blizz.Games
 import org.junit.Assert.assertEquals
@@ -27,11 +28,19 @@ class ArtCropUiTest {
     @get:Rule val rule = createComposeRule()
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    /** The first picture a cold test JVM opens fails ("Failed to create image decoder"): opened once here, so the tests' own pictures open. */
+    @org.junit.Before fun warmUpTheImageDecoder() {
+        val f = File(context.cacheDir, "warm.jpg")
+        Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.JPEG, 90, f.outputStream())
+        repeat(3) { runCatching { android.graphics.BitmapFactory.decodeFile(f.path) } }
+    }
+
     /** The picture is opened off the main thread: the clock is moved on until the Save button is there and on screen (under a full run's load, it exists before it is laid out). */
     private fun untilSaveShows() {
-        repeat(300) {
+        repeat(3000) {
             rule.mainClock.advanceTimeBy(100); rule.waitForIdle(); Thread.sleep(20)
-            val shown = runCatching { rule.onNodeWithText("Save", ignoreCase = true).assertIsDisplayed() }.isSuccess
+            // Save may sit below the screen while the picture is still opening (the page scrolls): brought into view, as a finger would.
+            val shown = runCatching { rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed() }.isSuccess
             if (shown) { rule.mainClock.advanceTimeBy(500); rule.waitForIdle(); return }
         }
     }
@@ -48,7 +57,7 @@ class ArtCropUiTest {
         var saved: Bitmap? = null
         rule.setContent { BlizzTheme { CropDialog("Crop · Box", picture(1600, 1200), 3f / 4f, onSave = { saved = it }, onDismiss = {}) } }
         untilSaveShows()
-        rule.onNodeWithText("Save", ignoreCase = true).assertIsDisplayed()
+        rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed()
         UiShots.saveAll("modern-crop-box", rule)
         rule.onNodeWithText("Save", ignoreCase = true).performClick()
         rule.waitForIdle()
@@ -62,7 +71,7 @@ class ArtCropUiTest {
         var saved: Bitmap? = null
         rule.setContent { BlizzTheme { CropDialog("Crop · Home picture", picture(2000, 800), 1.077f, onSave = { saved = it }, onDismiss = {}) } }
         untilSaveShows()
-        rule.onNodeWithText("Save", ignoreCase = true).assertIsDisplayed()
+        rule.onNodeWithText("Save", ignoreCase = true).performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("Save", ignoreCase = true).performClick()
         rule.waitForIdle()
         assertNotNull(saved)

@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: blizz <b@x>
+Date: Sun, 9 Nov 2026 02:00:00 +0000
+Subject: [PATCH] Archives are found whatever the case of their name
+
+The install script names an archive one way ("war3.mpq") and the files land another ("War3.mpq").
+The rewrite opened the archive by the script's spelling and skipped it in silence when that failed:
+on a case-sensitive disk (Android, Linux) nothing was ever stored in war3.mpq, neither the CD key nor
+the 144 other members Reign of Chaos' install adds to it. The archive is now looked for as named,
+then with its first letter upper-cased, then all lower, then all upper, and a miss is said.
+---
+ src/installer.zig | 46 ++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 44 insertions(+), 2 deletions(-)
+
+diff --git a/src/installer.zig b/src/installer.zig
+index 17ac49f..484940f 100644
+--- a/src/installer.zig
++++ b/src/installer.zig
+@@ -1307,9 +1307,15 @@ fn installPayload(
+             step += 1;
+             rep.set(.installing, step, steps, container);
+         }
+-        const path = try gpa.print("{s}/{s}", .{ game, container });
++        // The script names an archive in one case ("war3.mpq") and the files land in another ("War3.mpq"); on a
++        // case-sensitive disk the member would be lost in silence. The archive is looked for as named, then with
++        // its first letter upper-cased, then all lower, then all upper.
++        const path = try containerPath(gpa, io, game, container);
+         defer gpa.free(path);
+-        const before = readFile(big, io, path) catch continue;
++        const before = readFile(big, io, path) catch {
++            rep.say(.installing, "  !! {s} is not in the game folder: nothing stored in it\n", .{container});
++            continue;
++        };
+         defer big.free(before);
+         const grown = mpq.append(big, before, list.items) catch continue;
+         defer big.free(grown);
+@@ -1336,6 +1342,42 @@ fn installPayload(
+     , .{v});
+ }
+ 
++/// `game/container` as it is on disk: the name as the script wrote it, else its case variants (see the caller).
++fn pathExists(io: std.Io, path: []const u8) bool {
++    const f = Dir.cwd().openFile(io, path, .{}) catch return false;
++    f.close(io);
++    return true;
++}
++
++fn containerPath(gpa: std.mem.Allocator, io: std.Io, game: []const u8, container: []const u8) ![]u8 {
++    const exact = try gpa.print("{s}/{s}", .{ game, container });
++    if (pathExists(io, exact)) return exact;
++    var buf = try gpa.alloc(u8, container.len);
++    defer gpa.free(buf);
++    @memcpy(buf, container);
++    if (buf.len > 0) buf[0] = std.ascii.toUpper(buf[0]);
++    const first = try gpa.print("{s}/{s}", .{ game, buf });
++    if (pathExists(io, first)) {
++        gpa.free(exact);
++        return first;
++    }
++    gpa.free(first);
++    const lower = try gpa.print("{s}/{s}", .{ game, std.ascii.lowerString(buf, container) });
++    if (pathExists(io, lower)) {
++        gpa.free(exact);
++        return lower;
++    }
++    gpa.free(lower);
++    const upper = try gpa.print("{s}/{s}", .{ game, std.ascii.upperString(buf, container) });
++    if (pathExists(io, upper)) {
++        gpa.free(exact);
++        return upper;
++    }
++    gpa.free(upper);
++    return exact;
++}
++
++
+ /// Take a game directory back to an older version, the way Blizzard's patch installer does.
+ ///
+ /// The payload carries the original build of each product — 1.00 for the base game, 1.07 for the

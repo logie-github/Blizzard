@@ -44,8 +44,12 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
 
     override val gameId = product.id
     override val title = product.title
-    /** 2: the stand-in CD keys are written into the archives at install (the first installs had none and stopped at start). */
-    override val recipe = 2
+    /**
+     * 3: the keys reach war3.mpq (the downloader looked for the archive by the script's spelling, "war3.mpq", and the file is "War3.mpq":
+     * on the phone's case-sensitive disk nothing was stored, in silence, so Reign of Chaos stopped at "unable to find a CD Key").
+     * 2: the stand-in CD keys written into the archives at install (the first installs had none).
+     */
+    override val recipe = 3
     /** Saved games kept beside the game (1.2x keeps them in the game folder) survive a reset. */
     override val keptInGame = listOf("Save")
 
@@ -329,7 +333,7 @@ class Warcraft3Importer(private val product: Product) : GameImporter {
         val maps = FileValidator.find(dir, "Maps")?.takeIf { it.isDirectory }
         checks += Check("Maps (optional)", true, if (maps != null) "present" else "none: the game's own campaigns and maps are in its data")
         val keys = dir.listFiles().orEmpty().any { it.isFile && com.logie.blizz.game.Wc3CdKeys.isKeyFile(it.name) }
-        checks += Check("CD keys file (optional)", true, if (keys) "found beside the program" else "none: single player needs no key")
+        checks += Check("CD keys file beside the game (optional)", true, if (keys) "found" else "none")
         checks += Check("Started under Winlator", false, "not tested")
 
         val problem = when {
