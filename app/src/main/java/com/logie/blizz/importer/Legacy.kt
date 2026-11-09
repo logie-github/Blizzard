@@ -87,6 +87,12 @@ class LegacyDownloader(private val program: File, private val cache: File) {
          * right shape and alphabet that no one was ever issued: it signs in nowhere.
          */
         const val PLACEHOLDER_KEY = "ZZZZZZZZZZZZZZZZZZZZZZZZZZ"
+        /**
+         * Warcraft III's: the game decodes the stored key and reads its product from it (Reign of Chaos 14, The Frozen Throne 18), so each
+         * slot gets a key of the key alphabet that decodes to its product (found by trying keys against the decoder; no one was ever issued them).
+         */
+        const val PLACEHOLDER_KEY_WAR3 = "H7JNf2vrehWyRNmr9XKwCHxxrV"
+        const val PLACEHOLDER_KEY_W3XP = "KyRxmkd9vxXt8CNzyBPPG9wnTE"
         const val PLACEHOLDER_OWNER = "Player"
 
         private val PIECES = Regex("""(\d+)/(\d+) pieces""")

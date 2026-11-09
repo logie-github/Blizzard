@@ -42,6 +42,18 @@ class LaunchOptionsTest {
         assertEquals("PERFORMANCE", LaunchOptions(box64 = LaunchOptions.Box64.Preset.PERFORMANCE).resolve("diablo2").box64Preset)
     }
 
+    @Test fun thePersonsOwnSwitchesComeLastAndAreKept() {
+        assertEquals("-w -3dfx", GameArguments.of("diablo2", "", " -3dfx "))
+        assertEquals("-w", GameArguments.of("diablo2", "", ""))
+        assertEquals("-windowmode fullscreen -nativefullscr -opengl", GameArguments.of("warcraft3_roc", "-windowmode fullscreen -nativefullscr", "-opengl"))
+        val store = LaunchOptionsStore(context.getSharedPreferences("launch_options_test", android.content.Context.MODE_PRIVATE))
+        store.set("diablo2", LaunchOptions(extraArgs = " -ns "))
+        assertEquals("-ns", store.get("diablo2").extraArgs)
+        assertEquals("", store.get("starcraft").extraArgs)
+        store.reset("diablo2")
+        assertEquals("", store.get("diablo2").extraArgs)
+    }
+
     @Test fun otherGamesKeepWinlatorsDefaults() {
         val r = LaunchOptions().resolve("warcraft3")
         assertNull(r.ddrawWrapper)

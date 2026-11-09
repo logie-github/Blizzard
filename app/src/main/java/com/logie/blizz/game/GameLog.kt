@@ -10,9 +10,17 @@ import java.util.ArrayDeque
  */
 object GameLog {
     private const val MAX = 400
+    private const val MAX_LOADED = 80
     private val lines = ArrayDeque<String>()
+    /** The libraries loaded (the loaddll channel), apart: hundreds of them would push the errors and the exception trace out of the report. */
+    private val loaded = ArrayDeque<String>()
     private val callback = Callback<String> { line: String ->
-        synchronized(lines) {
+        if (line.contains(":loaddll:")) {
+            synchronized(loaded) {
+                if (loaded.size >= MAX_LOADED) loaded.removeFirst()
+                loaded.addLast(line.take(300))
+            }
+        } else synchronized(lines) {
             if (lines.size >= MAX) lines.removeFirst()
             lines.addLast(line.take(300))
         }
@@ -21,6 +29,7 @@ object GameLog {
     /** Starts listening to the programs' output (once; after Winlator has set up its own listeners). */
     fun start() {
         synchronized(lines) { lines.clear() }
+        synchronized(loaded) { loaded.clear() }
         synchronized(notes) { notes.clear() }
         ProcessHelper.addDebugCallback(callback)
     }
@@ -36,5 +45,6 @@ object GameLog {
     }
 
     fun snapshot(): String = synchronized(notes) { notes.joinToString("\n") } +
-        (if (notes.isEmpty()) "" else "\n") + synchronized(lines) { lines.joinToString("\n") }
+        (if (notes.isEmpty()) "" else "\n") + synchronized(lines) { lines.joinToString("\n") } +
+        synchronized(loaded) { if (loaded.isEmpty()) "" else "\n\n[last ${loaded.size} libraries loaded]\n" + loaded.joinToString("\n") }
 }

@@ -309,8 +309,8 @@ class Warcraft3Test {
         assertTrue(calls[0].startsWith("install WAR3"))
         assertTrue(calls[1].startsWith("install W3XP --no-base"))
         // The game stops at start without a key in its archives: each product's slot gets the placeholder, never a real key.
-        assertTrue(calls[0].contains("--cdkey ${LegacyDownloader.PLACEHOLDER_KEY}") && !calls[0].contains("--cdkey-expansion"))
-        assertTrue(calls[1].contains("--cdkey-expansion ${LegacyDownloader.PLACEHOLDER_KEY}"))
+        assertTrue(calls[0].contains("--cdkey ${LegacyDownloader.PLACEHOLDER_KEY_WAR3}") && !calls[0].contains("--cdkey-expansion"))
+        assertTrue(calls[1].contains("--cdkey-expansion ${LegacyDownloader.PLACEHOLDER_KEY_W3XP}"))
         assertFalse(File(paths.game("warcraft3_tft"), Warcraft3Importer.MARK).exists())
     }
 

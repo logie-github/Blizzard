@@ -207,3 +207,9 @@ object Diablo2Arguments {
     fun of(gameId: String, own: String): String =
         if (gameId != "diablo2" || WINDOW.containsMatchIn(own)) own else listOf(own.trim(), "-w").filter { it.isNotEmpty() }.joinToString(" ")
 }
+
+/** The command line a game starts with: the library entry's arguments, the app's own switches, then the person's extra ones (Launch options). */
+object GameArguments {
+    fun of(gameId: String, entryArguments: String, extra: String): String =
+        listOf(Diablo2Arguments.of(gameId, entryArguments), extra.trim()).filter { it.isNotEmpty() }.joinToString(" ")
+}
