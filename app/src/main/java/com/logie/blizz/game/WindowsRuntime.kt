@@ -152,7 +152,7 @@ object WindowsRuntime {
             // The program's path alone (Winlator makes it a Windows path); its arguments apart
             // (patches/winlator/0005): paths in them would otherwise break that conversion.
             .putExtra("exec_path", program.path)
-            .putExtra("exec_args", entry.arguments)
+            .putExtra("exec_args", Diablo2Arguments.of(entry.gameId, entry.arguments))
             // Legion's start-up protection needs the Box64 with the signal-flags fix (Winlator patch 0007).
             .apply { if (legion) putExtra("box64_version", LegionClientSetup.BOX64) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.

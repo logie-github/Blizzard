@@ -27,9 +27,19 @@ class LaunchOptionsTest {
             assertEquals("opengl", r.renderer)
             assertFalse(r.singleCpu)
             assertTrue(r.redraw)
-            assertEquals("INTERMEDIATE", r.box64Preset)
+            assertEquals(if (id == "diablo2") "STABILITY" else "INTERMEDIATE", r.box64Preset)
             assertEquals("ddrawWrapper=cnc-ddraw", r.dxwrapperConfig)
         }
+    }
+
+    @Test fun diabloIIStartsInAWindowWithTheSafestBox64() {
+        assertEquals("-w", Diablo2Arguments.of("diablo2", ""))
+        assertEquals("-skiptobnet -w", Diablo2Arguments.of("diablo2", "-skiptobnet"))
+        assertEquals("-w -ns", Diablo2Arguments.of("diablo2", "-w -ns"))
+        assertEquals("", Diablo2Arguments.of("starcraft", ""))
+        assertEquals("STABILITY", LaunchOptions().resolve("diablo2").box64Preset)
+        // A choice of the person's wins.
+        assertEquals("PERFORMANCE", LaunchOptions(box64 = LaunchOptions.Box64.Preset.PERFORMANCE).resolve("diablo2").box64Preset)
     }
 
     @Test fun otherGamesKeepWinlatorsDefaults() {

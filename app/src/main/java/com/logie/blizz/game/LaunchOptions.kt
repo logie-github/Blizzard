@@ -125,6 +125,8 @@ data class LaunchOptions(
         val preset = when {
             s -> Box64.Preset.STABILITY.id!!
             box64.id != null -> box64.id
+            // Diablo II 1.13 died inside Fog.dll (a stack overflow at its window's creation) under Intermediate: the safest preset.
+            key == "diablo2" -> Box64.Preset.STABILITY.id!!
             classic -> Box64.Preset.INTERMEDIATE.id!!
             else -> Box64.Preset.PERFORMANCE.id!! // Winlator's own default (Box64Preset.DEFAULT)
         }
