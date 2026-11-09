@@ -152,6 +152,35 @@ object ForeverPlay {
         }
     }
 
+    /** Whether the client is here but no Forever Launcher is (so the client can't yet connect to the realm). */
+    fun needsLauncher(context: Context): Boolean = ForeverLayout.of(context).let { it.hasClient() && !it.hasLauncher() }
+
+    /**
+     * Copies the Forever Launcher the person picked (a .exe they supply) into the client folder, so the app runs it
+     * in place of Wow.exe at the next Play. The file keeps a launcher name the client start looks for.
+     */
+    fun importLauncher(context: Context, uri: Uri) {
+        val app = context.applicationContext
+        _state.value = State.Preparing("Adding the Forever Launcher")
+        scope.launch {
+            try {
+                val failure = withContext(Dispatchers.IO) {
+                    val layout = ForeverLayout.of(app)
+                    if (!layout.client.isDirectory) return@withContext "Add the game client first, then the launcher."
+                    val picked = app.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                        ?.use { if (it.moveToFirst()) it.getString(0) else null }
+                    // Keep a launcher name the client start looks for; anything else becomes ForeverLauncher.exe.
+                    val target = File(layout.client, picked?.takeIf { it.endsWith(".exe", true) && it.contains("launcher", true) } ?: "ForeverLauncher.exe")
+                    app.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
+                        ?: return@withContext "That file couldn't be read."
+                    null
+                }
+                _state.value = if (failure != null) State.Failed(failure) else State.Idle
+            } catch (e: CancellationException) { _state.value = State.Idle; throw e }
+            catch (e: Throwable) { _state.value = State.Failed("The launcher couldn't be added: ${e.message ?: e.javaClass.simpleName}") }
+        }
+    }
+
     /**
      * Copies the client from a folder the person picked (Android's folder picker: Downloads, an SD card, a USB drive)
      * into the app, then goes on with Play. The picked folder may be the client itself or the folder holding it.

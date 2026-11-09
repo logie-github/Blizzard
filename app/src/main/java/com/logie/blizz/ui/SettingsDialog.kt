@@ -368,6 +368,22 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                 if (game.id == com.logie.blizz.forever.ForeverPlay.VERSION) {
                     remember(game.id) { com.logie.blizz.forever.ForeverPlay.login(context) }
                     AutoLoginCard(game.id, "E-mail")
+                    // The Forever Launcher the person supplies (it lets the client connect to the local realm): pick it once, the app keeps it.
+                    val forever by com.logie.blizz.forever.ForeverPlay.state.collectAsState()
+                    val hasLauncher = remember(forever) { com.logie.blizz.forever.ForeverLayout.of(context).hasLauncher() }
+                    val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                        if (uri != null) com.logie.blizz.forever.ForeverPlay.importLauncher(context, uri)
+                    }
+                    SettingCard("Forever Launcher") {
+                        Text(
+                            if (hasLauncher) "The Forever Launcher is in place; the client connects through it."
+                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play.",
+                            style = MaterialTheme.typography.bodySmall, color = if (hasLauncher) Colors.Ice else Colors.Mist,
+                        )
+                        FrameButton(if (hasLauncher) "Replace launcher" else "Choose launcher (.exe)", primary = false) {
+                            pickLauncher.launch(arrayOf("application/x-msdownload", "application/octet-stream", "application/vnd.microsoft.portable-executable", "*/*"))
+                        }
+                    }
                     // Start over: the realm alone, or the realm and the downloaded client. Each asks first.
                     var confirmReset by remember { mutableStateOf<Boolean?>(null) }
                     SettingCard("Reset") {

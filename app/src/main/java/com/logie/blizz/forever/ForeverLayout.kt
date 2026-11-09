@@ -39,7 +39,14 @@ class ForeverLayout(val root: File) {
         return names.map { File(client, it) }.firstOrNull { it.isFile }
     }
 
-    /** A [WowLayout] view of the same folder, for the shared process runner's leftover cleanup. */
+    /** The Forever Launcher the person placed (it sets the realm's game-server key in the client), or null. */
+    fun launcher(): File? = listOf("ForeverLauncher.exe", "Forever Launcher.exe", "forever-launcher.exe")
+        .map { File(client, it) }.firstOrNull { it.isFile }
+
+    /** Whether a launcher is in place (the client connects through it). */
+    fun hasLauncher() = launcher() != null
+
+        /** A [WowLayout] view of the same folder, for the shared process runner's leftover cleanup. */
     val wowLayout get() = WowLayout(root, root)
 
     fun log(name: String) = File(logs, "$name.log")
