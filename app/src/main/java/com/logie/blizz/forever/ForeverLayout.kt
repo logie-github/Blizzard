@@ -16,6 +16,8 @@ class ForeverLayout(val root: File) {
     val databases = File(root, "mysql")
     val logs = File(root, "logs")
     val run = File(root, "run")
+    /** This phone's own certificate authority (ctl.sh make_certificates), which the client must trust for the realm's HTTPS login. */
+    val caFile = File(File(root, "ca"), "ca.pem")
     /** The game's map data, made from the client (dbc and maps at least). */
     fun hasServerData() = listOf("dbc", "maps").all { File(data, it).list()?.isNotEmpty() == true }
 

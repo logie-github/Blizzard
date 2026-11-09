@@ -135,6 +135,14 @@ object WindowsRuntime {
                 LegionClientSetup.installCertificateBundle(com.logie.blizz.wow.RealmSpecsAccess.certBundle(layout), File(container.rootDir, ".wine/drive_c"))
             }
         }
+        // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
+        // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
+        if (entry.gameId == "wow-client" && entry.clientVersion == "forever") {
+            withContext(Dispatchers.IO) {
+                val ca = com.logie.blizz.forever.ForeverLayout.of(context).caFile
+                if (ca.isFile) LegionClientSetup.installCertificateBundle(ca, File(container.rootDir, ".wine/drive_c"))
+            }
+        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
