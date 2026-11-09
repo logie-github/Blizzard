@@ -124,8 +124,10 @@ object ForeverRealm {
         _status.value = Status(Phase.STOPPED)
     }
 
-    private fun startProcess(layout: ForeverLayout, arg: String, log: File, keepInput: Boolean = false): RealmProcess =
-        runner.start(ForeverCtl.command(layout, arg), log, keepInput)
+    private fun startProcess(layout: ForeverLayout, arg: String, log: File, keepInput: Boolean = false): RealmProcess {
+        ForeverCtl.prepare(layout)
+        return runner.start(ForeverCtl.command(layout, arg), log, keepInput)
+    }
 
     /**
      * Makes sure the game account exists with this password, through the running world server's console
@@ -141,6 +143,7 @@ object ForeverRealm {
     /** Runs a one-shot control command to its end; a failure carries the last line it printed (the reason). */
     private fun run(layout: ForeverLayout, vararg args: String) {
         val log = layout.log(args.first())
+        ForeverCtl.prepare(layout)
         val process = runner.start(ForeverCtl.command(layout, *args), log, false)
         if (!process.waitFor(20 * 60_000L)) { process.destroyForcibly(); throw IllegalStateException("'${args.first()}' timed out") }
         if (process.exitValue() != 0) {

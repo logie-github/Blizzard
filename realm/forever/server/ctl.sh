@@ -38,6 +38,9 @@ INSTANCE_PORT=8106
 DB_USER=forever
 DB_PASS=forever
 HOSTNAME_LOGIN=trinity.actual.battle.net
+# Android's shell (mksh) takes TMPDIR only if it is a writable folder when it is set (here-documents are written there;
+# otherwise it falls back to /data/local, which an app can't write): make the folder first.
+mkdir -p "$RUN/tmp"
 export HOME="$FILES" TMPDIR="$RUN/tmp"
 export OPENSSL_MODULES="$SERVER/lib/ossl-modules" OPENSSL_CONF="$SERVER/etc/openssl.cnf"
 

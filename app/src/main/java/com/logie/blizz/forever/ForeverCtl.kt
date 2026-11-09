@@ -19,6 +19,9 @@ object ForeverCtl {
         env = mapOf(
             "FILES" to layout.root.path,
             "TZ" to WowCtl.posixTimeZone(),
+            // Android's shell takes TMPDIR only if the folder exists when it starts (see [prepare]); else it writes
+            // its here-documents to /data/local, which an app can't.
+            "TMPDIR" to File(layout.run, "tmp").path,
         ),
         directory = layout.run,
     )
@@ -62,6 +65,12 @@ object ForeverCtl {
         }
         if (isClient(root)) return emptyList()
         return children(root).firstOrNull { isClient(it.second) }?.let { listOf(it.second) }
+    }
+
+    /** The folders ctl.sh needs before its shell starts: its temporary folder (TMPDIR) and the logs. */
+    fun prepare(layout: ForeverLayout) {
+        File(layout.run, "tmp").mkdirs()
+        layout.logs.mkdirs()
     }
 
     /** The package has no executable bits after a plain unpack: set them on the programs, the loader and ctl.sh. */
