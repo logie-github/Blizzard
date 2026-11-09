@@ -31,7 +31,10 @@ class TactTest {
         val header = 12 + 24 * frames.size
         out.write(byteArrayOf((header ushr 24).toByte(), (header ushr 16).toByte(), (header ushr 8).toByte(), header.toByte()))
         out.write(byteArrayOf(0x0F, 0, 0, frames.size.toByte()))
-        for (f in frames) { repeat(2) { out.write(byteArrayOf((f.size ushr 24).toByte(), (f.size ushr 16).toByte(), (f.size ushr 8).toByte(), f.size.toByte())) }; out.write(ByteArray(16)) }
+        for (f in frames) {
+            repeat(2) { out.write(byteArrayOf((f.size ushr 24).toByte(), (f.size ushr 16).toByte(), (f.size ushr 8).toByte(), f.size.toByte())) }
+            out.write(java.security.MessageDigest.getInstance("MD5").digest(f)) // each frame's MD5, as BLTE carries it
+        }
         frames.forEach { out.write(it) }
         return out.toByteArray()
     }
@@ -130,6 +133,8 @@ class TactTest {
         val key = Key16.of(md5(framed.copyOf(be32(framed, 4))))
         assertTrue(Verify.blte(framed, key))
         assertTrue(!Verify.blte("<html>error</html>".toByteArray(), key))
+        val tampered = framed.copyOf().also { it[it.size - 1] = 'X'.code.toByte() } // data changed, header (and so the key) intact
+        assertTrue(!Verify.blte(tampered, key))
         val single = "BLTE".toByteArray() + ByteArray(4) + "Nraw".toByteArray()
         assertTrue(Verify.blte(single, Key16.of(md5(single))))
     }

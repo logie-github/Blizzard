@@ -28,7 +28,9 @@ class ForeverClientInstaller(
     private val wanted: Set<String> = DEFAULT_TAGS,
     private val excluded: Set<String> = OPTIONAL_PACKS,
     private val maxPriority: Int = Int.MAX_VALUE,
-    private val workers: Int = 4,
+    private val workers: Int = 32,
+    /** Off only in a desktop benchmark that stops long before the disk would fill. */
+    private val checkSpace: Boolean = true,
     private val onProgress: (Progress) -> Unit = {},
 ) {
     data class Progress(val step: String, val done: Long = 0, val total: Long = 0)
@@ -98,7 +100,7 @@ class ForeverClientInstaller(
         val alreadyDone = (0 until targets.count).sumOf { p -> if (placed.containsKey(targets.id[p])) targets.size[p].toLong() else 0L }
         val need = (total - alreadyDone) + targets.count.toLong() * CascStorageWriter.HEADER + installFiles.sumOf { it.size } + (512L shl 20)
         val free = root.usableSpace
-        if (free in 1 until need) throw NotEnoughSpaceException(need, free)
+        if (checkSpace && free in 1 until need) throw NotEnoughSpaceException(need, free)
 
         // The encoding table is already here: stored from the staged copy.
         val encodingPos = targets.find(encodingKey.hi, encodingKey.lo)
@@ -145,7 +147,7 @@ class ForeverClientInstaller(
      */
     private fun plan(build: Map<String, List<String>>, staging: File): Plan {
         step("Reading the client's file list")
-        val download = BlteInputStream(staged(staging, "download.blte", build.getValue("download")[1]).inputStream().buffered(1 shl 20))
+        val download = BlteInputStream(staged(staging, "download.blte", build.getValue("download")[1], build["download-size"]?.getOrNull(1)?.toLongOrNull()).inputStream().buffered(1 shl 20))
             .use { Tact.parseDownload(it) }
         val install = Tact.parseInstall(Blte.decode(staged(staging, "install.blte", build.getValue("install")[1]).readBytes()))
         val installSelection = install.tags.select(wanted, excluded)
@@ -162,7 +164,7 @@ class ForeverClientInstaller(
             }
         }
         val encodingKey = system.getValue("encoding")
-        val encodingFile = staged(staging, "encoding.blte", encodingKey.hex())
+        val encodingFile = staged(staging, "encoding.blte", encodingKey.hex(), build["encoding-size"]?.getOrNull(1)?.toLongOrNull())
 
         step("Reading the encoding table")
         val contentKeys = installFiles.map { it.contentKey }.toSet() + systemByContent.values
@@ -181,13 +183,26 @@ class ForeverClientInstaller(
         return Plan(targets, installKeys, encodingKey, encodingFile)
     }
 
-    /** A build file fetched once into [staging] (kept for a resumed run). */
-    private fun staged(staging: File, name: String, ekeyHex: String): File {
+    /**
+     * A build file fetched once into [staging] (kept for a resumed run), checked against its key; a big one ([size]
+     * from the build config) over several connections at once.
+     */
+    private fun staged(staging: File, name: String, ekeyHex: String, size: Long? = null): File {
         val file = File(staging, name)
         val key = Key16.hex(ekeyHex)
-        if (file.isFile && Verify.blte(file.readBytes(), key)) return file
+        fun good(f: File) = f.isFile && Verify.BlteStream(key).also { v ->
+            f.inputStream().use { input -> val b = ByteArray(1 shl 20); while (true) { val n = input.read(b); if (n < 0) break; v.update(b, 0, n) } }
+        }.matches()
+        if (good(file)) return file
         val part = File(staging, "$name.part")
-        part.writeBytes(cdn.get("data", ekeyHex) { Verify.blte(it, key) })
+        if (size != null && size > (16L shl 20)) {
+            var attempt = 0
+            while (true) {
+                cdn.download(ekeyHex, size, part, 8)
+                if (good(part)) break
+                if (++attempt >= 3) throw CorruptDownloadException("$name came with the wrong content three times")
+            }
+        } else part.writeBytes(cdn.get("data", ekeyHex) { Verify.blte(it, key) })
         file.delete()
         part.renameTo(file)
         return file
@@ -199,7 +214,7 @@ class ForeverClientInstaller(
         val indices = File(root, "Data/indices").apply { mkdirs() }
         val done = AtomicLong()
         val failure = AtomicReference<Throwable?>()
-        val pool = Executors.newFixedThreadPool(8)
+        val pool = Executors.newFixedThreadPool(64)
         for ((number, hash) in archives.withIndex()) pool.execute {
             if (failure.get() != null || cancelled) return@execute
             try {
@@ -242,9 +257,17 @@ class ForeverClientInstaller(
         if (missing > 0) throw IOException("$missing of the client's files aren't on Blizzard's servers (the build may have just changed): try again.")
     }
 
+    /** One piece of work: a span of one archive (neighbouring files read in one request), or a batch of loose files. */
+    private class Job(val archive: String?, val positions: List<Int>)
+
+    /**
+     * Downloads every missing file with [workers] connections at once, spread over Blizzard's servers. The work is
+     * cut into spans of at most [SPAN_MAX] (files close together in an archive, read in one request), so all the
+     * connections stay busy to the end. Each worker writes its own segment; its journal records are committed after
+     * each job, once the job's data is on disk.
+     */
     private fun downloadAll(targets: Targets, placed: MutableMap<Int, CascStorageWriter.Placed>, writer: CascStorageWriter, archives: List<String>, total: Long) {
         val done = AtomicLong((0 until targets.count).sumOf { p -> if (placed.containsKey(targets.id[p])) targets.size[p].toLong() else 0L })
-        // Jobs: each archive's missing files in archive order, and the loose files in batches.
         val byArchive = HashMap<Int, MutableList<Int>>()
         val loose = ArrayList<Int>()
         for (p in 0 until targets.count) {
@@ -252,17 +275,36 @@ class ForeverClientInstaller(
             val a = targets.archive[p]
             if (a == LOOSE) loose += p else byArchive.getOrPut(a) { ArrayList() } += p
         }
-        val jobs = ConcurrentLinkedQueue<Pair<String, List<Int>>>()
-        for (a in byArchive.keys.sorted()) jobs += archives[a] to byArchive.getValue(a).sortedBy { targets.offset[it] }
-        for (batch in loose.chunked(64)) jobs += LOOSE_JOB to batch
+        val jobs = ConcurrentLinkedQueue<Job>()
+        for (a in byArchive.keys.sorted()) {
+            val positions = byArchive.getValue(a).sortedBy { targets.offset[it] }
+            var i = 0
+            while (i < positions.size) {
+                var j = i
+                val start = targets.offset[positions[i]]
+                var end = start + targets.size[positions[i]]
+                while (j + 1 < positions.size) {
+                    val next = positions[j + 1]
+                    val nextStart = targets.offset[next]
+                    if (nextStart - end > SPAN_GAP || nextStart + targets.size[next] - start > SPAN_MAX) break
+                    end = maxOf(end, nextStart + targets.size[next])
+                    j++
+                }
+                jobs += Job(archives[a], positions.subList(i, j + 1))
+                i = j + 1
+            }
+        }
+        for (batch in loose.chunked(16)) jobs += Job(null, batch)
+
         val failure = AtomicReference<Throwable?>()
-        var lastReport = 0L
+        val lastReport = AtomicLong()
         fun progress(bytes: Long) {
             val now = done.addAndGet(bytes)
             val t = System.currentTimeMillis()
-            if (t - lastReport > 300 || now == total) { lastReport = t; step("Downloading the client", now, total) }
+            val last = lastReport.get()
+            if ((t - last > 300 && lastReport.compareAndSet(last, t)) || now == total) step("Downloading the client", now, total)
         }
-        val threads = (0 until workers).map {
+        val threads = (0 until workers).map { worker ->
             Thread {
                 var segment: CascStorageWriter.Segment? = null
                 fun segmentFor(length: Long): CascStorageWriter.Segment {
@@ -273,69 +315,55 @@ class ForeverClientInstaller(
                 }
                 try {
                     while (failure.get() == null && !cancelled) {
-                        val (archive, positions) = jobs.poll() ?: break
-                        if (archive == LOOSE_JOB) {
-                            for (p in positions) {
+                        val job = jobs.poll() ?: break
+                        if (job.archive == null) {
+                            for (p in job.positions) {
                                 if (cancelled) break
                                 val key = Key16(targets.hi[p], targets.lo[p])
                                 val length = targets.size[p].toLong()
                                 retrying { attempt ->
-                                    cdn.open(key.hex(), 0, length, attempt).use { input ->
+                                    cdn.open(key.hex(), 0, length, attempt + worker).use { input ->
                                         placed.putSynced(targets.id[p], segmentFor(length).write(targets.id[p], key, input, length))
                                     }
                                 }
                                 progress(length)
                             }
-                        } else downloadArchive(archive, positions, targets, placed, ::segmentFor, ::progress)
+                        } else downloadSpan(job.archive, job.positions, worker, targets, placed, ::segmentFor, ::progress)
+                        segment?.commit()
                     }
                 } catch (e: Throwable) {
                     failure.compareAndSet(null, e)
-                } finally { segment?.close() }
+                } finally { runCatching { segment?.close() } }
             }.apply { start() }
         }
         threads.forEach { it.join() }
         failure.get()?.let { throw it }
     }
 
-    /** One archive's files, read in spans (neighbouring files in one request); a broken span is retried from where it stopped. */
-    private fun downloadArchive(
-        archive: String, positions: List<Int>, targets: Targets, placed: MutableMap<Int, CascStorageWriter.Placed>,
+    /** One span of an archive in one request; if it breaks off, the rest is asked for again (from the next server). */
+    private fun downloadSpan(
+        archive: String, span: List<Int>, worker: Int, targets: Targets, placed: MutableMap<Int, CascStorageWriter.Placed>,
         segmentFor: (Long) -> CascStorageWriter.Segment, progress: (Long) -> Unit,
     ) {
-        var i = 0
-        while (i < positions.size && !cancelled) {
-            // A span: following files while the gap between them is small and the span not too long.
-            var j = i
-            val start = targets.offset[positions[i]]
-            var end = start + targets.size[positions[i]]
-            while (j + 1 < positions.size) {
-                val next = positions[j + 1]
-                val nextStart = targets.offset[next]
-                if (nextStart - end > SPAN_GAP || nextStart + targets.size[next] - start > SPAN_MAX) break
-                end = maxOf(end, nextStart + targets.size[next])
-                j++
-            }
-            val span = positions.subList(i, j + 1)
-            retrying { attempt ->
-                val todo = span.filter { !placed.containsSynced(targets.id[it]) }
-                if (todo.isEmpty()) return@retrying
-                val from = targets.offset[todo.first()]
-                val to = todo.maxOf { targets.offset[it] + targets.size[it] }
-                cdn.open(archive, from, to - from, attempt).use { raw ->
-                    var cursor = from
-                    for (p in todo) {
-                        if (cancelled) return@retrying
-                        val at = targets.offset[p]
-                        if (at < cursor) continue // overlapping duplicate: already read past it
-                        raw.skipFully(at - cursor)
-                        val length = targets.size[p].toLong()
-                        placed.putSynced(targets.id[p], segmentFor(length).write(targets.id[p], Key16(targets.hi[p], targets.lo[p]), Limited(raw, length), length))
-                        cursor = at + length
-                        progress(length)
-                    }
+        retrying { attempt ->
+            val todo = span.filter { !placed.containsSynced(targets.id[it]) }
+            if (todo.isEmpty()) return@retrying
+            val from = targets.offset[todo.first()]
+            val to = todo.maxOf { targets.offset[it] + targets.size[it] }
+            cdn.open(archive, from, to - from, attempt + worker).use { raw ->
+                val input = java.io.BufferedInputStream(raw, 1 shl 18)
+                var cursor = from
+                for (p in todo) {
+                    if (cancelled) return@retrying
+                    val at = targets.offset[p]
+                    if (at < cursor) continue // overlapping duplicate: already read past it
+                    input.skipFully(at - cursor)
+                    val length = targets.size[p].toLong()
+                    placed.putSynced(targets.id[p], segmentFor(length).write(targets.id[p], Key16(targets.hi[p], targets.lo[p]), Limited(input, length), length))
+                    cursor = at + length
+                    progress(length)
                 }
             }
-            i = j + 1
         }
     }
 
@@ -452,8 +480,8 @@ class ForeverClientInstaller(
         private const val UNKNOWN = -2
         private const val LOOSE = -1
         private const val LOOSE_JOB = ""
-        private const val SPAN_GAP = 512L * 1024
-        private const val SPAN_MAX = 128L * 1024 * 1024
+        private const val SPAN_GAP = 1L shl 20
+        private const val SPAN_MAX = 32L shl 20
 
         /** Where a manifest path goes under [base]: `\` separated, directories matched without regard to case (as Windows sees them). */
         fun placeFor(base: File, name: String): File {

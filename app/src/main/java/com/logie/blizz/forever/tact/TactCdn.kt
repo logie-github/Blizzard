@@ -65,6 +65,45 @@ class TactCdn(val product: String = "wowf", val region: String = "us") {
         return connection.inputStream
     }
 
+    /**
+     * A data file of [size] bytes into [target], read over [connections] connections at once (a byte range each, each
+     * range retried on its own from the next server). The caller checks the result.
+     */
+    fun download(hash: String, size: Long, target: java.io.File, connections: Int) {
+        java.io.RandomAccessFile(target, "rw").use { it.setLength(size) }
+        val part = maxOf(4L shl 20, (size + connections - 1) / connections)
+        val ranges = (0 until ((size + part - 1) / part).toInt()).map { it * part until minOf(size, (it + 1) * part) }
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val threads = ranges.mapIndexed { i, range ->
+            Thread {
+                var attempt = 0
+                while (true) {
+                    try {
+                        java.io.RandomAccessFile(target, "rw").use { out ->
+                            out.seek(range.first)
+                            open(hash, range.first, range.last - range.first + 1, attempt + i).use { input ->
+                                val buffer = ByteArray(1 shl 16)
+                                var left = range.last - range.first + 1
+                                while (left > 0) {
+                                    val n = input.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+                                    if (n < 0) throw java.io.EOFException("$hash ended early")
+                                    out.write(buffer, 0, n)
+                                    left -= n
+                                }
+                            }
+                        }
+                        return@Thread
+                    } catch (e: IOException) {
+                        if (++attempt >= RETRIES) { failure.compareAndSet(null, e); return@Thread }
+                        Thread.sleep(backoff(attempt))
+                    }
+                }
+            }.apply { start() }
+        }
+        threads.forEach { it.join() }
+        failure.get()?.let { throw it }
+    }
+
     private fun <T> withServers(block: (String) -> T): T {
         val list = servers().servers
         var last: IOException? = null
