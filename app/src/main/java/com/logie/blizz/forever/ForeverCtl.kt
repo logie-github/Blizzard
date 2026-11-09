@@ -67,6 +67,17 @@ object ForeverCtl {
         return children(root).firstOrNull { isClient(it.second) }?.let { listOf(it.second) }
     }
 
+    /**
+     * The client's `WTF/Config.wtf` with its login portal set to this phone (`SET portal "127.0.0.1"`): the line
+     * replaced if there is one, added if not; the rest of the person's settings kept.
+     */
+    fun withLocalPortal(config: String?): String {
+        val line = "SET portal \"127.0.0.1\""
+        val lines = config.orEmpty().lines().filter { it.isNotBlank() }
+        val kept = lines.filterNot { it.trim().startsWith("SET portal ", ignoreCase = true) }
+        return (kept + line).joinToString("\n", postfix = "\n")
+    }
+
     /** The folders ctl.sh needs before its shell starts: its temporary folder (TMPDIR) and the logs. */
     fun prepare(layout: ForeverLayout) {
         File(layout.run, "tmp").mkdirs()

@@ -30,10 +30,15 @@ object Offline {
         "ftp.blizzard.com", "us.logon.battle.net", "eu.logon.battle.net", "kr.logon.battle.net",
     ).distinct()
 
+    /** Names of realms running on this phone: the Forever realm's login server (its certificate is for this name). */
+    val LOCAL: List<String> = listOf("trinity.actual.battle.net")
+
     /** The runtime's hosts file: this phone by its name, and with [blocked] Blizzard's names nowhere. */
     fun hosts(blocked: Boolean): String = buildString {
         append("127.0.0.1\tlocalhost\n")
         append("::1\tlocalhost\n")
+        // World of Warcraft: Forever's realm on this phone: its login server's name (ctl.sh HOSTNAME_LOGIN).
+        for (name in LOCAL) append("127.0.0.1\t").append(name).append('\n')
         if (blocked) {
             append("# Blizzard: its servers, out of reach.\n")
             for (name in BLOCKED) append("0.0.0.0\t").append(name).append('\n')

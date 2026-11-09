@@ -341,6 +341,17 @@ object ForeverPlay {
 
         _state.value = State.Preparing("Starting the game")
         val exe = layout.clientExe() ?: return NEEDS_CLIENT
+        // The client logs in at this phone's realm: its portal (WTF/Config.wtf) set to 127.0.0.1.
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
+                    ?: layout.client.listFiles()?.firstOrNull { it.isDirectory && it.name.equals("_forever_", ignoreCase = true) }
+                    ?: return@runCatching
+                val wtf = game.listFiles()?.firstOrNull { it.isDirectory && it.name.equals("WTF", ignoreCase = true) } ?: File(game, "WTF").apply { mkdirs() }
+                val config = wtf.listFiles()?.firstOrNull { it.name.equals("Config.wtf", ignoreCase = true) } ?: File(wtf, "Config.wtf")
+                config.writeText(ForeverCtl.withLocalPortal(config.takeIf { it.isFile }?.readText()))
+            }
+        }
         withContext(Dispatchers.Main) { WindowsRuntime.play(context, launchEntry(layout.client, exe), size) }
         return null
     }

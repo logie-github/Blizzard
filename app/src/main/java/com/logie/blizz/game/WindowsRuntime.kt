@@ -188,7 +188,10 @@ object WindowsRuntime {
         paths.saves.mkdirs()
         paths.staging.mkdirs()
         // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
-        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
+        // F: World of Warcraft: Forever's folder (its client, downloaded or copied there: files/forever/client), which
+        // Winlator otherwise can't turn into a Windows path.
+        val forever = com.logie.blizz.forever.ForeverLayout.of(context).root.apply { mkdirs() }
+        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path + "F:" + forever.path
     }
 
     /**

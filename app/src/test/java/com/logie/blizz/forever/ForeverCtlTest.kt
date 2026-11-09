@@ -79,6 +79,13 @@ class ForeverCtlTest {
         assertNull(ForeverCtl.clientBuild("Version!STRING:0\nnot-a-version"))
     }
 
+    @Test
+    fun `the client's portal points at this phone, its other settings kept`() {
+        assertEquals("SET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(null))
+        val config = "SET gxWindow \"1\"\nSET portal \"us\"\nSET locale \"enUS\"\n"
+        assertEquals("SET gxWindow \"1\"\nSET locale \"enUS\"\nSET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(config))
+    }
+
     /** A folder tree for findClient: name -> children (a leaf has none). */
     private class Node(val children: Map<String, Node> = emptyMap())
     private val listing: (Node) -> List<Pair<String, Node>> = { it.children.toList() }
