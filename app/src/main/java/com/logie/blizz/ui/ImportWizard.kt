@@ -220,6 +220,13 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                     // One step: the whole game, from Blizzard, nothing to pick or enter.
                     AUTO_INSTALL_LINE[game.id]?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
                 }
+                // Warcraft III: the person's own CD keys, written into the game's archives as it is installed.
+                if (!state.running && game.id.startsWith("warcraft3")) {
+                    com.logie.blizz.ui.Wc3Keys(
+                        installed = state.entry != null,
+                        onInstallAgain = { GameImportManager.reinstall(context, game.id) },
+                    )
+                }
             }
 
             // Play stands alone on top at full width; the housekeeping buttons sit below it.

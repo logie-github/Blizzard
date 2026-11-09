@@ -190,3 +190,58 @@ class Wc3SetupTest {
         assertNull(Wc3CdKeys.inGame(tmp.newFolder("none")).firstOrNull())
     }
 }
+
+/** Warcraft III's keys, pasted in whatever form: each put with its game by what it decodes to (keys of this test were found by trying the decoder; none was ever issued). */
+class Wc3KeyPasteTest {
+    private val roc = "H7JNf2vrehWyRNmr9XKwCHxxrV".uppercase()
+    private val tft = "KyRxmkd9vxXt8CNzyBPPG9wnTE".uppercase()
+
+    @org.junit.Test fun theCodecKnowsTheGame() {
+        org.junit.Assert.assertEquals(14, Wc3KeyCodec.product(roc))
+        org.junit.Assert.assertEquals(18, Wc3KeyCodec.product(tft))
+        org.junit.Assert.assertNull(Wc3KeyCodec.product("0".repeat(26)))
+        org.junit.Assert.assertNull(Wc3KeyCodec.product("H7JNf2"))
+    }
+
+    @org.junit.Test fun anyGroupingWithOrWithoutDashesAndSpaces() {
+        fun group(k: String, sizes: List<Int>, sep: List<String>): String {
+            var i = 0; val sb = StringBuilder()
+            sizes.forEachIndexed { n, sz -> sb.append(k.substring(i, i + sz)); i += sz; if (n < sizes.size - 1) sb.append(sep[n % sep.size]) }
+            return sb.toString()
+        }
+        val shapes = listOf(
+            roc,
+            group(roc, listOf(6, 4, 6, 4, 6), listOf(" ", "-", "-", "-")),
+            group(roc, listOf(6, 4, 6, 4, 6), listOf("-")),
+            group(roc, listOf(4, 4, 4, 4, 4, 4, 2), listOf(" ")),
+            "  " + roc.lowercase() + "  ",
+            "Reign of Chaos: " + group(roc, listOf(6, 4, 6, 4, 6), listOf("-")),
+            "ROC " + roc,
+        )
+        for (s in shapes) {
+            val k = Wc3CdKeys.wc3(s)
+            org.junit.Assert.assertEquals(s, roc, k.reignOfChaos)
+            org.junit.Assert.assertNull(s, k.frozenThrone)
+        }
+    }
+
+    @org.junit.Test fun bothKeysSortedByGameWhateverTheOrder() {
+        val a = "$roc\n${tft.substring(0, 6)}-${tft.substring(6, 10)}-${tft.substring(10, 16)}-${tft.substring(16, 20)}-${tft.substring(20)}"
+        val b = "The Frozen Throne: $tft\nReign of Chaos: $roc"
+        for (s in listOf(a, b, "$roc $tft")) {
+            val k = Wc3CdKeys.wc3(s)
+            org.junit.Assert.assertEquals(roc, k.reignOfChaos)
+            org.junit.Assert.assertEquals(tft, k.frozenThrone)
+        }
+        // A key broken over lines.
+        val broken = Wc3CdKeys.wc3(roc.substring(0, 13) + "\n" + roc.substring(13))
+        org.junit.Assert.assertEquals(roc, broken.reignOfChaos)
+    }
+
+    @org.junit.Test fun whatIsNotAWarcraftKeyIsCountedAndIgnored() {
+        val k = Wc3CdKeys.wc3("hello world\n" + "0".repeat(26) + "\n12345")
+        org.junit.Assert.assertFalse(k.any)
+        org.junit.Assert.assertEquals(1, k.unrecognised)
+        org.junit.Assert.assertFalse(Wc3CdKeys.wc3("").any)
+    }
+}
