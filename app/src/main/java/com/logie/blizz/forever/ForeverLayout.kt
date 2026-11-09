@@ -16,6 +16,8 @@ class ForeverLayout(val root: File) {
     val databases = File(root, "mysql")
     val logs = File(root, "logs")
     val run = File(root, "run")
+    /** This phone's own certificate authority (ctl.sh make_certificates), which the client must trust for the realm's HTTPS login. */
+    val caFile = File(File(root, "ca"), "ca.pem")
     /** The game's map data, made from the client (dbc and maps at least). */
     fun hasServerData() = listOf("dbc", "maps").all { File(data, it).list()?.isNotEmpty() == true }
 
@@ -37,7 +39,14 @@ class ForeverLayout(val root: File) {
         return names.map { File(client, it) }.firstOrNull { it.isFile }
     }
 
-    /** A [WowLayout] view of the same folder, for the shared process runner's leftover cleanup. */
+    /** The Forever Launcher the person placed (it sets the realm's game-server key in the client), or null. */
+    fun launcher(): File? = listOf("ForeverLauncher.exe", "Forever Launcher.exe", "forever-launcher.exe")
+        .map { File(client, it) }.firstOrNull { it.isFile }
+
+    /** Whether a launcher is in place (the client connects through it). */
+    fun hasLauncher() = launcher() != null
+
+        /** A [WowLayout] view of the same folder, for the shared process runner's leftover cleanup. */
     val wowLayout get() = WowLayout(root, root)
 
     fun log(name: String) = File(logs, "$name.log")

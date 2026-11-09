@@ -140,6 +140,14 @@ object WindowsRuntime {
             runCatching { CommonSetup.apply(container.rootDir) }
             if (entry.gameId == "diablo2") runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) }
         }
+        // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
+        // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
+        if (entry.gameId == "wow-client" && entry.clientVersion == "forever") {
+            withContext(Dispatchers.IO) {
+                val ca = com.logie.blizz.forever.ForeverLayout.of(context).caFile
+                if (ca.isFile) LegionClientSetup.installCertificateBundle(ca, File(container.rootDir, ".wine/drive_c"))
+            }
+        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
@@ -193,7 +201,10 @@ object WindowsRuntime {
         paths.saves.mkdirs()
         paths.staging.mkdirs()
         // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
-        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
+        // F: World of Warcraft: Forever's folder (its client, downloaded or copied there: files/forever/client), which
+        // Winlator otherwise can't turn into a Windows path.
+        val forever = com.logie.blizz.forever.ForeverLayout.of(context).root.apply { mkdirs() }
+        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path + "F:" + forever.path
     }
 
     /**
