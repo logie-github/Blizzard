@@ -39,6 +39,7 @@ class Wc3Watch(private val xServer: XServer) {
     /** The last look read the picture ([state] is what it shows, not what a failed look leaves). */
     @Volatile private var seen = false
     @Volatile private var busy = false
+    @Volatile private var busySince = 0L
     private var framebuffer = 0
     private var buffer: ByteBuffer? = null
     /** The parts' colours, kept from look to look (the same four sizes every time). */
@@ -56,10 +57,12 @@ class Wc3Watch(private val xServer: XServer) {
 
     /** Queues a look (one at a time); its result is in [state] a frame or two later. */
     fun look() {
-        if (busy) return
+        val now = SystemClock.uptimeMillis()
+        if (busy && now - busySince < STUCK_MS) return
         val renderer = xServer.renderer ?: return
-        val drawable = gameDrawable() ?: run { unseen(); return }
+        val drawable = gameDrawable() ?: run { unseen(); problem = "no window of the game's to look at"; return }
         busy = true
+        busySince = now
         runCatching {
             renderer.xServerView.queueEvent {
                 try {
@@ -75,23 +78,37 @@ class Wc3Watch(private val xServer: XServer) {
         }.onFailure { busy = false; problem = it.toString().take(200) }
     }
 
-    /** What the game draws into: the biggest window there is (the drawing surface inside the game's window, when it has one). */
+    /**
+     * What the game draws into. A game that draws with the GPU (Warcraft III: OpenGL) has a window whose picture is a texture
+     * and nothing in memory: the biggest such window, when it covers at least half of what the biggest window of all does (the
+     * drawing surface lies inside the game's window, which keeps an unused picture of its own in memory). Otherwise the
+     * biggest window. Of windows of one size, the one drawn last (the innermost, the topmost).
+     */
     private fun gameDrawable(): Drawable? = runCatching {
         xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER).use {
             val root = xServer.windowManager.rootWindow
-            var best: Window? = null
-            var bestArea = 0
+            var biggest: Drawable? = null
+            var biggestArea = 0
+            var drawn: Drawable? = null
+            var drawnArea = 0
             fun visit(window: Window) {
                 if (!window.isRenderable) return
+                val content = window.content
                 val area = window.width * window.height
-                if (window !== root && !window.isDesktopWindow && window.content != null && area >= bestArea && area > 1) {
-                    best = window
-                    bestArea = area
+                if (window !== root && !window.isDesktopWindow && content != null) {
+                    if (area >= biggestArea) {
+                        biggest = content
+                        biggestArea = area
+                    }
+                    if (content.data == null && content.texture?.isAllocated == true && area >= drawnArea) {
+                        drawn = content
+                        drawnArea = area
+                    }
                 }
                 for (child in window.children) visit(child)
             }
             visit(root)
-            best?.content
+            if (drawn != null && drawnArea * 2L >= biggestArea) drawn else biggest
         }
     }.getOrNull()
 
@@ -130,12 +147,6 @@ class Wc3Watch(private val xServer: XServer) {
         return Wc3Screen.Pixels { x, y -> view.getInt((y * width + x) * 4) }
     }
 
-    /** One rectangle of the texture, read. */
-    private class Part(val left: Int, val top: Int, val width: Int, val height: Int, val colors: IntArray) {
-        fun has(x: Int, y: Int) = x >= left && x < left + width && y >= top && y < top + height
-        fun at(x: Int, y: Int) = colors[(y - top) * width + (x - left)]
-    }
-
     /** The game's frame in its texture: the parts [Wc3Screen] reads, as they lie either way up. Anything else reads black. */
     private fun fromTexture(drawable: Drawable, width: Int, height: Int): Wc3Screen.Pixels? {
         val texture = drawable.texture ?: return null
@@ -162,41 +173,31 @@ class Wc3Watch(private val xServer: XServer) {
                 framebuffer = 0
                 return null
             }
-            val parts = ArrayList<Part>(4)
-            for (band in listOf(Wc3Screen.TOP_BAND, Wc3Screen.CARD_BAND)) {
-                val left = Math.floor((band.left * width).toDouble()).toInt().coerceIn(0, width - 1)
-                val right = Math.ceil((band.right * width).toDouble()).toInt().coerceIn(left + 1, width)
-                val top = Math.floor((band.top * height).toDouble()).toInt().coerceIn(0, height - 1)
-                val bottom = Math.ceil((band.bottom * height).toDouble()).toInt().coerceIn(top + 1, height)
-                // As it lies if the texture's first row is the picture's top, and if it is the picture's bottom.
-                parts += part(parts.size, left, top, right - left, bottom - top)
-                parts += part(parts.size, left, height - bottom, right - left, bottom - top)
-            }
+            var index = 0
+            val pixels = Wc3Screen.partial(width, height) { left, top, w, h -> part(index++, left, top, w, h) }
             GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, 0, 0)
-            return Wc3Screen.Pixels { x, y -> parts.firstOrNull { it.has(x, y) }?.at(x, y) ?: BLACK }
+            return pixels
         } finally {
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
         }
     }
 
-    private fun part(index: Int, left: Int, top: Int, width: Int, height: Int): Part {
+    /** One rectangle of the texture on the framebuffer, read into colours kept for it. */
+    private fun part(index: Int, left: Int, top: Int, width: Int, height: Int): IntArray {
         val bytes = width * height * 4
         val into = buffer?.takeIf { it.capacity() >= bytes } ?: ByteBuffer.allocateDirect(maxOf(bytes, 1 shl 18)).order(ByteOrder.LITTLE_ENDIAN).also { buffer = it }
         into.clear()
         GLES20.glPixelStorei(GLES20.GL_PACK_ALIGNMENT, 1)
         GLES20.glReadPixels(left, top, width, height, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, into)
-        val colors = kept[index]?.takeIf { it.size == width * height } ?: IntArray(width * height).also { kept[index] = it }
-        // Red, green, blue, alpha as bytes: read as one number they are alpha, blue, green, red; red and blue change places.
-        for (i in colors.indices) {
-            val c = into.getInt(i * 4)
-            colors[i] = (c and 0xff00ff00.toInt()) or ((c and 0xff) shl 16) or ((c shr 16) and 0xff)
-        }
-        return Part(left, top, width, height, colors)
+        val colors = kept.getOrNull(index)?.takeIf { it.size == width * height } ?: IntArray(width * height).also { if (index < kept.size) kept[index] = it }
+        for (i in colors.indices) colors[i] = Wc3Screen.fromRgba(into.getInt(i * 4))
+        return colors
     }
 
     companion object {
         /** A look older than this says nothing about now. */
         const val FRESH_MS = 2500L
-        private const val BLACK = 0xff000000.toInt()
+        /** A look the drawing thread has not answered in this long is given up (the thread was stopped): the next one may go. */
+        private const val STUCK_MS = 2000L
     }
 }

@@ -57,6 +57,35 @@ object Wc3Screen {
     val TOP_BAND = Box(0.10f, 0f, 0.62f, 0.04f)
     val CARD_BAND = Box(0.76f, 0.76f, 1f, 1f)
 
+    /** A rectangle of a picture as it was fetched: its colours row by row from [top]. */
+    private class Part(val left: Int, val top: Int, val width: Int, val height: Int, val colors: IntArray) {
+        fun has(x: Int, y: Int) = x >= left && x < left + width && y >= top && y < top + height
+        fun at(x: Int, y: Int) = colors[(y - top) * width + (x - left)]
+    }
+
+    /**
+     * A picture of [width] x [height] of which only what [state] reads is fetched: the top band and the command card, each as
+     * it lies if the first row kept is the picture's top and as it lies if that is its bottom (four rectangles, some 100,000
+     * pixels of the 700,000). [fetch] reads one rectangle (left, top, width, height, rows counted from the first kept) into
+     * colours that stay its own; everything else reads black.
+     */
+    fun partial(width: Int, height: Int, fetch: (left: Int, top: Int, width: Int, height: Int) -> IntArray): Pixels {
+        val parts = ArrayList<Part>(4)
+        for (band in listOf(TOP_BAND, CARD_BAND)) {
+            val left = Math.floor((band.left * width).toDouble()).toInt().coerceIn(0, width - 1)
+            val right = Math.ceil((band.right * width).toDouble()).toInt().coerceIn(left + 1, width)
+            val top = Math.floor((band.top * height).toDouble()).toInt().coerceIn(0, height - 1)
+            val bottom = Math.ceil((band.bottom * height).toDouble()).toInt().coerceIn(top + 1, height)
+            for (y in intArrayOf(top, height - bottom)) parts += Part(left, y, right - left, bottom - top, fetch(left, y, right - left, bottom - top))
+        }
+        return Pixels { x, y -> parts.firstOrNull { it.has(x, y) }?.at(x, y) ?: BLACK }
+    }
+
+    private const val BLACK = 0xff000000.toInt()
+
+    /** A pixel as OpenGL hands it over (red, green, blue, alpha as bytes, read as one little-endian number), as 0xAARRGGBB. */
+    fun fromRgba(c: Int): Int = (c and 0xff00ff00.toInt()) or ((c and 0xff) shl 16) or ((c shr 16) and 0xff)
+
     fun cell(column: Int, row: Int): Box {
         val cx = CELL_X + CELL_DX * column
         val cy = CELL_Y + CELL_DY * row
