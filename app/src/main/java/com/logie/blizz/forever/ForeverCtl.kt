@@ -67,15 +67,62 @@ object ForeverCtl {
         return children(root).firstOrNull { isClient(it.second) }?.let { listOf(it.second) }
     }
 
+    /** The last line with text in [log] (its end only is read), shortened for a status line; null when there is none. */
+    fun lastLine(log: File, limit: Int = 70): String? = runCatching {
+        if (!log.isFile) return null
+        java.io.RandomAccessFile(log, "r").use { file ->
+            val length = file.length()
+            val tail = ByteArray(minOf(length, 4096L).toInt())
+            file.seek(length - tail.size)
+            file.readFully(tail)
+            String(tail).lines().map { it.trim() }.lastOrNull { it.isNotEmpty() }?.replace(ANSI, "")?.take(limit)
+        }
+    }.getOrNull()
+
+    private val ANSI = Regex("\u001B\\[[0-9;]*[A-Za-z]")
+
+    /** What the client left behind about a start that went wrong: a title for the report, and the text. */
+    class ClientStop(val title: String, val text: String, val at: Long)
+
+    /**
+     * What the game itself wrote about stopping, since [since] (a file time): its newest crash file
+     * (a `.txt` in its `Errors` folder: the exception and where), else the failures in its storage log (`Logs/Tact.log`, where an
+     * installation it calls damaged is explained). Null when it left neither: a start that went well, or one that
+     * said nothing. [game] is the client's `_forever_` folder.
+     */
+    fun clientStop(game: File, since: Long): ClientStop? {
+        val crash = File(game, "Errors").listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".txt", ignoreCase = true) && it.lastModified() > since }
+            ?.maxByOrNull { it.lastModified() }
+        if (crash != null) {
+            val text = runCatching { crash.readText().removePrefix("\uFEFF") }.getOrDefault("")
+            val summary = text.lineSequence().map { it.trim() }
+                .firstOrNull { it.startsWith("Exception:") || it.startsWith("ERROR #") || it.startsWith("Fatal") }
+                ?: "The game wrote a crash file"
+            return ClientStop(summary.take(160), text.take(6000), crash.lastModified())
+        }
+        val tact = File(File(game, "Logs"), "Tact.log").takeIf { it.isFile && it.lastModified() > since } ?: return null
+        val failures = runCatching { tact.readLines() }.getOrDefault(emptyList())
+            .filter { line -> listOf("failed to", "needs repair", "needsrepair", "truncated", "corrupt").any { it in line.lowercase() } }
+            .distinctBy { it.substringAfter("  ") }
+        if (failures.isEmpty()) return null
+        return ClientStop("The game's storage log has failures", failures.takeLast(40).joinToString("\n").take(6000), tact.lastModified())
+    }
+
     /**
      * The client's `WTF/Config.wtf` with its login portal set to this phone (`SET portal "127.0.0.1"`): the line
-     * replaced if there is one, added if not; the rest of the person's settings kept.
+     * replaced if there is one, added if not; the rest of the person's settings kept. A language is set where
+     * there is none (the downloaded client is enUS): without it the game opens a Windows list box to ask, before
+     * anything else, at every start until one is chosen.
      */
     fun withLocalPortal(config: String?): String {
         val line = "SET portal \"127.0.0.1\""
         val lines = config.orEmpty().lines().filter { it.isNotBlank() }
         val kept = lines.filterNot { it.trim().startsWith("SET portal ", ignoreCase = true) }
-        return (kept + line).joinToString("\n", postfix = "\n")
+        val locale = listOf("textLocale", "audioLocale")
+            .filter { name -> kept.none { it.trim().startsWith("SET $name ", ignoreCase = true) } }
+            .map { "SET $it \"enUS\"" }
+        return (kept + locale + line).joinToString("\n", postfix = "\n")
     }
 
     /** The folders ctl.sh needs before its shell starts: its temporary folder (TMPDIR) and the logs. */

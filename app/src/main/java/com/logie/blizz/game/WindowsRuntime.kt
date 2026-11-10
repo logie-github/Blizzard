@@ -145,6 +145,10 @@ object WindowsRuntime {
         // Its log of this session goes into the reports; the last session's is no word on this one.
         withContext(Dispatchers.IO) { runCatching { Borderless.logFile(container.rootDir).delete() } }
         GameLog.keeperLog = if (keeper) Borderless.logFile(container.rootDir) else null
+        // Wine's GetAdaptersAddresses walks an empty adapter list as a full one here (this Wine lists no adapters), which
+        // ended World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one
+        // known iphlpapi.dll only, in every game's Wine alike so they all run the same one).
+        withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.WineAdapterFix.apply(RootFS.find(context).rootDir, container.rootDir) } }
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
         if (foreverClient) {

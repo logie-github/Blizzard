@@ -44,6 +44,14 @@ object ForeverPlay {
          * downloading ~47 GB, or lets the person pick a client folder already on the phone.
          */
         data object NeedsClient : State
+        /**
+         * The client is here but the Forever Launcher isn't. The game then starts and logs in to the realm, and is
+         * disconnected as it enters it: the client checks the world server's identity against a key of Blizzard's
+         * ("server identity check failed", seen on a desktop run of client 70862 against this realm on 10 November
+         * 2026: BLZ51901023 on screen). The launcher, which the person supplies, is what gets a client past that.
+         * The launcher asks: pick the file, or start the game as it is.
+         */
+        data object NeedsLauncher : State
         data class Failed(val message: String) : State
     }
 
@@ -113,20 +121,24 @@ object ForeverPlay {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun dismiss() {
-        if (_state.value is State.Failed || _state.value is State.NeedsClient) _state.value = State.Idle
+        if (_state.value is State.Failed || _state.value is State.NeedsClient || _state.value is State.NeedsLauncher) _state.value = State.Idle
     }
 
-    fun play(context: Context, allowMetered: Boolean = false) {
+    /** Play without the Forever Launcher (the person said so): the game starts and logs in, and can't enter the realm. */
+    fun playWithoutLauncher(context: Context) = play(context, withoutLauncher = true)
+
+    fun play(context: Context, allowMetered: Boolean = false, withoutLauncher: Boolean = false) {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
         _state.value = State.Preparing("Preparing")
         scope.launch {
             try {
-                val failure = run(app, width to height, allowMetered)
+                val failure = run(app, width to height, allowMetered, withoutLauncher)
                 _state.value = when (failure) {
                     null, PAUSED -> State.Idle
                     NEEDS_CLIENT -> State.NeedsClient
+                    NEEDS_LAUNCHER -> State.NeedsLauncher
                     else -> State.Failed(failure)
                 }
             } catch (e: CancellationException) {
@@ -159,7 +171,7 @@ object ForeverPlay {
      * Copies the Forever Launcher the person picked (a .exe they supply) into the client folder, so the app runs it
      * in place of Wow.exe at the next Play. The file keeps a launcher name the client start looks for.
      */
-    fun importLauncher(context: Context, uri: Uri) {
+    fun importLauncher(context: Context, uri: Uri, thenPlay: Boolean = false) {
         val app = context.applicationContext
         _state.value = State.Preparing("Adding the Forever Launcher")
         scope.launch {
@@ -176,6 +188,7 @@ object ForeverPlay {
                     null
                 }
                 _state.value = if (failure != null) State.Failed(failure) else State.Idle
+                if (failure == null && thenPlay) play(app)
             } catch (e: CancellationException) { _state.value = State.Idle; throw e }
             catch (e: Throwable) { _state.value = State.Failed("The launcher couldn't be added: ${e.message ?: e.javaClass.simpleName}") }
         }
@@ -202,7 +215,48 @@ object ForeverPlay {
         }
     }
 
+    /** Whether the launcher's WebView2 runtime installer has been fetched (ready to run in the container). */
+    fun webViewReady(context: Context) = WebView2.downloaded(context)
+
+    /**
+     * One-time setup for the Forever Launcher: downloads Microsoft's WebView2 runtime (the launcher is a Tauri app
+     * and won't start without it: "A Windows component is missing") and runs its installer in the shared Wine
+     * container, where it stays for the launcher. The installer shows its own window; close it when it's done, then
+     * Play. Whether a Chromium runtime runs under Box64 on the phone can't be known until Play: this is the attempt.
+     */
+    fun setupWebView2(context: Context) {
+        if (_state.value is State.Preparing) return
+        val app = context.applicationContext
+        val label = "Downloading the launcher's Windows component (WebView2, ~210 MB)"
+        _state.value = State.Preparing(label, 0f)
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    WebView2.download(app) { done, total ->
+                        _state.value = State.Preparing(label, if (total > 0) done.toFloat() / total else null)
+                    }
+                }
+                val size = WindowsRuntime.gameSize(app, GAME_ID, LaunchProfile.WOW)
+                // Run the installer in the shared container (not as a WoW client: no realm start, no WoW controls/login).
+                // gameId "installer" keeps the reporter from filing its window closing as a crash.
+                val entry = LibraryEntry(
+                    gameId = "installer", title = "WebView2 setup", products = emptyList(), clientVersion = "",
+                    installPath = WebView2.dir(app).path, executable = WebView2.installer(app).name,
+                    runtime = LibraryEntry.RUNTIME_WINLATOR, arguments = "", stage = Stage.IMPORTED_UNTESTED,
+                    saveLocation = null, controlProfile = PROFILE,
+                )
+                _state.value = State.Idle
+                withContext(Dispatchers.Main) { WindowsRuntime.play(app, entry, size) }
+            } catch (e: CancellationException) { _state.value = State.Idle; throw e }
+            catch (e: Throwable) {
+                _state.value = State.Failed("The launcher's Windows component couldn't be set up: ${e.message ?: e.javaClass.simpleName}")
+                report(app, e, "WebView2 setup")
+            }
+        }
+    }
+
     private const val NEEDS_CLIENT = "\u0000needs-client"
+    private const val NEEDS_LAUNCHER = "\u0000needs-launcher"
     private const val PAUSED = "\u0000paused"
 
     /** Where the client is downloaded to; renamed to [ForeverLayout.client] once complete. */
@@ -326,7 +380,7 @@ object ForeverPlay {
         }
     }
 
-    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean): String? {
+    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean, withoutLauncher: Boolean): String? {
         val layout = ForeverLayout.of(context)
         val running = ForeverRealm.status.value.phase.let { it == ForeverRealm.Phase.RUNNING || it == ForeverRealm.Phase.STARTING }
 
@@ -351,6 +405,13 @@ object ForeverPlay {
             fetchClient(context, layout)?.let { return it }
         }
 
+        // Without the Forever Launcher the game is disconnected as it enters the realm: said before the wait, not after it.
+        if (!withoutLauncher && !layout.hasLauncher()) return NEEDS_LAUNCHER
+
+        // The index files of a client downloaded by an earlier build lacked a part the game insists on ("Your World of
+        // Warcraft installation is damaged"): given it here, in place, the 47 GB untouched.
+        withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.tact.CascStorageWriter.repairIndexes(File(layout.client, "Data/data")) } }
+
         if (!layout.hasServerData()) {
             _state.value = State.Preparing("Preparing the game data (first time, several minutes)")
             withContext(Dispatchers.IO) {
@@ -361,7 +422,23 @@ object ForeverPlay {
         _state.value = State.Preparing("Starting the realm")
         val account = login(context)
         withContext(Dispatchers.IO) { ForeverRealm.start(context, layout.clientBuild(), account.name to account.password) }
-        val status = ForeverRealm.status.first { it.phase == ForeverRealm.Phase.RUNNING || it.phase == ForeverRealm.Phase.FAILED || it.phase == ForeverRealm.Phase.STOPPED }
+        // Each step of the start shows by its number, and under the long one (the world loading its database) the
+        // server's own latest line, so the wait is seen to move.
+        val following = scope.launch {
+            while (true) {
+                val now = ForeverRealm.status.value
+                if (now.phase == ForeverRealm.Phase.STARTING) {
+                    val step = now.step ?: ForeverRealm.Step.CONFIGURING
+                    val detail = if (step == ForeverRealm.Step.WORLD) withContext(Dispatchers.IO) { ForeverCtl.lastLine(layout.log("worldserver")) } else null
+                    val head = "Starting the realm (${step.ordinal + 1} of ${ForeverRealm.Step.entries.size}): ${now.message ?: step.name.lowercase()}"
+                    _state.value = State.Preparing(listOfNotNull(head, detail).joinToString("\n"))
+                }
+                kotlinx.coroutines.delay(700)
+            }
+        }
+        val status = try {
+            ForeverRealm.status.first { it.phase == ForeverRealm.Phase.RUNNING || it.phase == ForeverRealm.Phase.FAILED || it.phase == ForeverRealm.Phase.STOPPED }
+        } finally { following.cancel() }
         when (status.phase) {
             ForeverRealm.Phase.RUNNING -> {}
             ForeverRealm.Phase.FAILED -> return status.error ?: "The realm didn't start (see logs in files/forever/logs)."
@@ -381,9 +458,42 @@ object ForeverPlay {
                 config.writeText(ForeverCtl.withLocalPortal(config.takeIf { it.isFile }?.readText()))
             }
         }
+        started(context)
         withContext(Dispatchers.Main) { WindowsRuntime.play(context, launchEntry(layout.client, exe), size) }
         return null
     }
+
+    private fun prefs(context: Context) = context.getSharedPreferences("forever", Context.MODE_PRIVATE)
+
+    /** The game is about to start: what it writes about stopping from now on is this start's. */
+    private fun started(context: Context) = prefs(context).edit().putLong(STOP_SEEN, System.currentTimeMillis()).apply()
+
+    /**
+     * Sends what the game itself wrote about a start that went wrong (its crash file, or its storage log's
+     * failures: [ForeverCtl.clientStop]) to the app's reports, once. The launcher calls it as it comes back to the
+     * front: a game that fell back to it after a black screen has then said why, without the person doing anything.
+     */
+    fun reportClientStop(context: Context) {
+        val app = context.applicationContext
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val layout = ForeverLayout.of(app)
+                val game = File(layout.client, "_forever_").takeIf { it.isDirectory } ?: return@runCatching
+                val since = prefs(app).getLong(STOP_SEEN, 0L)
+                if (since == 0L) return@runCatching
+                val stop = ForeverCtl.clientStop(game, since) ?: return@runCatching
+                prefs(app).edit().putLong(STOP_SEEN, stop.at).apply()
+                com.logie.blizz.reports.BugReports.report(
+                    app, "WoW Forever", "The game stopped: ${stop.title}",
+                    listOf("Program" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
+                    log = stop.text,
+                )
+                Unit
+            }
+        }
+    }
+
+    private const val STOP_SEEN = "client.stop.seen"
 
     /** The client as its own game ("wow-client"), run under Winlator with the `wow` controls. */
     private fun launchEntry(client: File, exe: File) = LibraryEntry(

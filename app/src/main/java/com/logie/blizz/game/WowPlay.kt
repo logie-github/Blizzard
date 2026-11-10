@@ -227,6 +227,7 @@ object WowPlay {
     fun splashIdOf(entry: LibraryEntry): String = if (entry.gameId == GAME_ID) when (entry.clientVersion) {
         OctoClientSetup.VERSION -> OCTO_ID
         LegionClientSetup.VERSION -> LEGION_ID
+        "forever" -> com.logie.blizz.forever.ForeverPlay.VERSION // Forever's own loading picture and art, not Wrath's
         else -> "wow"
     } else when (entry.gameId) { OCTO_ID, LEGION_ID -> entry.gameId; else -> entry.gameId }
 

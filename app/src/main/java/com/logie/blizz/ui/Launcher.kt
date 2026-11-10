@@ -172,6 +172,8 @@ fun Launcher() {
     val musicGame = Variants.effective(shown, chosenVersions).id
     val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
+    // World of Warcraft: Forever: a game that fell back here says why by itself (its own crash file, sent as a report).
+    LaunchedEffect(resumed) { com.logie.blizz.forever.ForeverPlay.reportClientStop(context) }
     LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
@@ -395,6 +397,31 @@ private fun RuntimeOverlay() {
                         com.logie.blizz.forever.ForeverPlay.dismiss()
                         com.logie.blizz.forever.ForeverPlay.downloadClient(context)
                     }
+                }
+            }
+        }
+        is com.logie.blizz.forever.ForeverPlay.State.NeedsLauncher -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            // The Forever Launcher is the person's to supply: picked here once, kept in the client folder, run at every Play.
+            val pickLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) com.logie.blizz.forever.ForeverPlay.importLauncher(context, uri, thenPlay = true)
+            }
+            Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                FrameTitle("The Forever Launcher is missing")
+                Text(
+                    "The realm and the game are ready: the game starts and logs in to the realm on this phone.\n\n" +
+                        "It can't enter the realm yet. The game checks the world server's identity against Blizzard's own key, " +
+                        "and disconnects from any other server (\"You have been disconnected\", BLZ51901023). The Forever Launcher " +
+                        "(ForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
+                        "make or download it: pick the file once and it is run at every Play.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FrameButton("Cancel", primary = false) { com.logie.blizz.forever.ForeverPlay.dismiss() }
+                    FrameButton("Start anyway", primary = false) {
+                        com.logie.blizz.forever.ForeverPlay.dismiss()
+                        com.logie.blizz.forever.ForeverPlay.playWithoutLauncher(context)
+                    }
+                    FrameButton("Choose the launcher file") { pickLauncher.launch(arrayOf("*/*")) }
                 }
             }
         }
