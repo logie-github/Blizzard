@@ -377,7 +377,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     SettingCard("Forever Launcher") {
                         Text(
                             if (hasLauncher) "The Forever Launcher is in place; the client connects through it."
-                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play. It must be a native build — the current Chromium-based (Tauri/WebView2) launcher can't run under Wine on the phone.",
+                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play. For the Tauri/WebView2 launcher the app installs the WebView2 runtime it needs on the first run (~250 MB); a native launcher works too.",
                             style = MaterialTheme.typography.bodySmall, color = if (hasLauncher) Colors.Ice else Colors.Mist,
                         )
                         FrameButton(if (hasLauncher) "Replace launcher" else "Choose launcher (.exe)", primary = false) {
