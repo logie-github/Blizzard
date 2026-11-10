@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/WarcraftXL-Labs/sdk/2920b6e3143169a4244dde6e9d832cd7721f2489/schema/mod.json",
+  "id": "wrathpp.native",
+  "name": "Wrath++ native",
+  "version": "0.1.0",
+  "abi": "0.1.46",
+  "description": "Wrath++'s reads of the stock 32-bit client the interface can't make itself: the character creator's current choice and option count for each customization (WrathPP_GetCustomization).",
+  "binaries": {
+    "win-x86": "bin/x86/wrathpp-native.dll"
+  },
+  "requires": [
+    { "service": "wxl.script", "version": 1 }
+  ]
+}
