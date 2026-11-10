@@ -215,6 +215,46 @@ object ForeverPlay {
         }
     }
 
+    /** Whether the launcher's WebView2 runtime installer has been fetched (ready to run in the container). */
+    fun webViewReady(context: Context) = WebView2.downloaded(context)
+
+    /**
+     * One-time setup for the Forever Launcher: downloads Microsoft's WebView2 runtime (the launcher is a Tauri app
+     * and won't start without it: "A Windows component is missing") and runs its installer in the shared Wine
+     * container, where it stays for the launcher. The installer shows its own window; close it when it's done, then
+     * Play. Whether a Chromium runtime runs under Box64 on the phone can't be known until Play: this is the attempt.
+     */
+    fun setupWebView2(context: Context) {
+        if (_state.value is State.Preparing) return
+        val app = context.applicationContext
+        val label = "Downloading the launcher's Windows component (WebView2, ~210 MB)"
+        _state.value = State.Preparing(label, 0f)
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    WebView2.download(app) { done, total ->
+                        _state.value = State.Preparing(label, if (total > 0) done.toFloat() / total else null)
+                    }
+                }
+                val size = WindowsRuntime.gameSize(app, GAME_ID, LaunchProfile.WOW)
+                // Run the installer in the shared container (not as a WoW client: no realm start, no WoW controls/login).
+                // gameId "installer" keeps the reporter from filing its window closing as a crash.
+                val entry = LibraryEntry(
+                    gameId = "installer", title = "WebView2 setup", products = emptyList(), clientVersion = "",
+                    installPath = WebView2.dir(app).path, executable = WebView2.installer(app).name,
+                    runtime = LibraryEntry.RUNTIME_WINLATOR, arguments = "", stage = Stage.IMPORTED_UNTESTED,
+                    saveLocation = null, controlProfile = PROFILE,
+                )
+                _state.value = State.Idle
+                withContext(Dispatchers.Main) { WindowsRuntime.play(app, entry, size) }
+            } catch (e: CancellationException) { _state.value = State.Idle; throw e }
+            catch (e: Throwable) {
+                _state.value = State.Failed("The launcher's Windows component couldn't be set up: ${e.message ?: e.javaClass.simpleName}")
+                report(app, e, "WebView2 setup")
+            }
+        }
+    }
+
     private const val NEEDS_CLIENT = "\u0000needs-client"
     private const val NEEDS_LAUNCHER = "\u0000needs-launcher"
     private const val PAUSED = "\u0000paused"
