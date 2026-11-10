@@ -1,0 +1,64 @@
+From 82b1df7c16318f800f9d88e9dc87ab206564f0ab Mon Sep 17 00:00:00 2001
+From: wrathpp <wrathpp@users.noreply.github.com>
+Date: Tue, 10 Nov 2026 18:18:35 +0000
+Subject: [PATCH] D3D9 draw shaders: rename the 'line' varying, a reserved word
+ to the HLSL compiler
+
+The Windows SDK's compiler (GitHub's windows-2022 runner) refuses draw.hlsl at line 43,
+'syntax error: unexpected token line', for DrawVs, DrawPs, SurfacePs and ParticlePs, which
+stopped the client's build (Wrath++ client probe, 2026-11-10).
+---
+ src/gx/d3d9/shaders/draw.hlsl | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/gx/d3d9/shaders/draw.hlsl b/src/gx/d3d9/shaders/draw.hlsl
+index 7b1087e..4b3556f 100644
+--- a/src/gx/d3d9/shaders/draw.hlsl
++++ b/src/gx/d3d9/shaders/draw.hlsl
+@@ -40,7 +40,7 @@ struct VsOut
+ {
+     float4 position : POSITION;
+     float4 color    : COLOR0;
+-    float3 line     : TEXCOORD0; ///< a line's: pixels across from its middle, half its drawn width, its softness
++    float3 lineInfo     : TEXCOORD0; ///< a line's: pixels across from its middle, half its drawn width, its softness
+     float3 plane    : TEXCOORD1; ///< a surface's: its plane's x and y, a polygon's distance to its border
+ };
+ 
+@@ -69,7 +69,7 @@ VsOut DrawVs(VsIn input)
+     float4      a    = Clip(Lifted(input.position, on));
+     float4      b    = Clip(Lifted(input.other, on));
+     const float side = fmod(input.data.x, 4.0) - 1.0;
+-    float3      line = float3(0.0, 1.0, 0.0);
++    float3      lineInfo = float3(0.0, 1.0, 0.0);
+     if (side != 0.0)
+     {
+         const float4 a0 = a;
+@@ -89,21 +89,21 @@ VsOut DrawVs(VsIn input)
+         const float  halfWidth = input.data.z * screen.z + 2.0 * soft * screen.z;
+         const float2 offset    = (n * side - d * cap) * halfWidth;
+         a.xy += offset / halfScreen * wa;
+-        line = float3(side * halfWidth, halfWidth, soft * 4.0 * screen.z);
++        lineInfo = float3(side * halfWidth, halfWidth, soft * 4.0 * screen.z);
+     }
+     // A shadow's move on the screen, in half pixels at 1080 lines (y down).
+     a.xy += float2(right, -down) * 8.0 * screen.z / (0.5 * screen.xy) * a.w;
+     VsOut o;
+     o.position = a;
+     o.color    = float4(input.color.rgb, input.color.a * lift.z);
+-    o.line     = line;
++    o.lineInfo     = lineInfo;
+     o.plane    = input.other;
+     return o;
+ }
+ 
+-float4 DrawPs(float4 color : COLOR0, float3 line : TEXCOORD0) : COLOR0
++float4 DrawPs(float4 color : COLOR0, float3 lineInfo : TEXCOORD0) : COLOR0
+ {
+-    const float cover = line.z > 0.0 ? saturate((line.y - abs(line.x)) / line.z) : 1.0;
++    const float cover = lineInfo.z > 0.0 ? saturate((lineInfo.y - abs(lineInfo.x)) / lineInfo.z) : 1.0;
+     return float4(color.rgb, color.a * cover);
+ }
+ 
+-- 
+2.43.0
+
