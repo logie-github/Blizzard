@@ -1,0 +1,100 @@
+name: Wrath++ client build probe
+
+# Gate A of docs/wrathpp/MILESTONES.md, its build half: the source-built x64 3.3.5a client
+# (WarcraftXL-Labs/client) with the runtime and SDK of its ABI, at the pins in
+# realm/warcraft/wrathpp/wrathpp.env, built on Windows with Visual Studio 2022 (MSVC x64, Ninja,
+# as the client's own BuildWaystone.bat does), with any Wrath++ patches in
+# realm/warcraft/wrathpp/patches/{client,core}/ applied.
+#
+# What it keeps: the build log, the toolchain's versions and the SHA-256 of what was built. Never
+# the binaries: the client is a decompilation of Blizzard's Wow.exe with no license (its NOTICE.md),
+# so nothing of it is published from here. Booting it needs the game's data, which CI hasn't: that
+# half of Gate A is for a machine with the user's own 3.3.5a copy.
+#
+# Runs when asked (workflow_dispatch) and when this file, the pins or the Wrath++ client patches
+# change; it releases nothing and writes nothing outside its own run.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/wrathpp-client.yml
+      - realm/warcraft/wrathpp/wrathpp.env
+      - realm/warcraft/wrathpp/patches/client/**
+      - realm/warcraft/wrathpp/patches/core/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wrathpp-client-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Client x64 (MSVC 2022)
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          path: blizzard
+
+      - name: The client, its runtime and SDK at the pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          source blizzard/realm/warcraft/wrathpp/wrathpp.env
+          mkdir -p wxl
+          for part in client core sdk; do
+            repo_var="${part^^}_REPO" commit_var="${part^^}_COMMIT"
+            git init -q "wxl/$part"
+            git -C "wxl/$part" remote add origin "${!repo_var}"
+            git -C "wxl/$part" fetch -q --depth 1 origin "${!commit_var}"
+            git -C "wxl/$part" checkout -q FETCH_HEAD
+            echo "$part ${!commit_var}" | tee -a build-report.txt
+          done
+          for part in client core; do
+            for patch in blizzard/realm/warcraft/wrathpp/patches/$part/*.patch; do
+              [ -f "$patch" ] || continue
+              git -C "wxl/$part" -c user.name=wrathpp -c user.email=wrathpp@users.noreply.github.com am -q "$GITHUB_WORKSPACE/$patch"
+              echo "applied $part $(basename "$patch")" | tee -a build-report.txt
+            done
+          done
+
+      - name: Build (Visual Studio 2022, x64, Ninja)
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -version [17.0^,18.0^) -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSDIR=%%i"
+          call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" > nul || exit /b 1
+          cl 2>&1 | findstr /i "version" >> build-report.txt
+          cmake --version >> build-report.txt
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -S wxl\client -B wxl\build -DWXL_CORE_DIR=%GITHUB_WORKSPACE%\wxl\core -DWXL_SDK_DIR=%GITHUB_WORKSPACE%\wxl\sdk > configure.log 2>&1
+          if errorlevel 1 (type configure.log & exit /b 1)
+          cmake --build wxl\build --target WowClient --parallel > build.log 2>&1
+          set BUILD_EXIT=%ERRORLEVEL%
+          powershell -NoProfile -Command "Get-Content build.log -Tail 80"
+          exit /b %BUILD_EXIT%
+
+      - name: What was built
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "== outputs (SHA-256; the files themselves are not kept)"
+            find wxl/client/bin -maxdepth 3 -type f \( -name '*.exe' -o -name '*.dll' \) -exec sha256sum {} + 2> /dev/null || echo "none"
+            echo "== warnings: $(grep -c 'warning' build.log 2> /dev/null || echo 0), errors: $(grep -c ' error ' build.log 2> /dev/null || echo 0)"
+          } | tee -a build-report.txt
+          grep -E ' error |fatal error' build.log | head -60 > build-errors.txt 2> /dev/null || true
+
+      - name: Keep the report and logs (no binaries)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrathpp-client-build-report
+          retention-days: 14
+          path: |
+            build-report.txt
+            build-errors.txt
+            configure.log
+            build.log

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/WarcraftXL-Labs/sdk/2920b6e3143169a4244dde6e9d832cd7721f2489/schema/mod.json",
+  "id": "wrathpp.appearance",
+  "name": "Wrath++ appearance",
+  "version": "0.1.0",
+  "abi": "0.1.46",
+  "description": "Wrath++'s extended appearance: the protocol with the Wrath++ world server (opcodes 0x521-0x527), its registry of categories, and the glue functions the character screens call. Rendering waits for the client's Component.GeosRenderPrep seam (docs/wrathpp/CLIENT_PROBE.md).",
+  "lua": "init.lua",
+  "net": { "opcodes": [ "0x521-0x527" ] },
+  "requires": [
+    { "service": "wxl.net", "version": 2 }
+  ]
+}

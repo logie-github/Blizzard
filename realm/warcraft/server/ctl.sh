@@ -15,12 +15,21 @@
 #                                   in it; the modules' DBC files for the world server, their patch in the game
 #   ctl.sh auth | world [REALM]     run the auth server / the realm's world server
 #   ctl.sh maps|vmaps|mmaps CLIENT  extract the server's data from a 3.3.5a client folder
+#   ctl.sh wrathpp-check            Wrath++'s paths and databases, and the checks that keep it apart
+#                                   from the other realms (changes nothing)
+#   ctl.sh wrathpp-register [ADDR]  add Wrath++ to the auth database's realm list (its own row only,
+#                                   the list backed up first); wrathpp-unregister takes that row out
 #
 # Two realms share the auth server, its accounts and the server's data; each has its own world
 # server, configs and world, characters and playerbots databases. One world server runs at a time.
 #   main   ChromieCraft (realm 1, port 8085): $FILES/etc, acore_world, acore_characters
 #   remix  Wrath Remix (realm 2, port 8086): $FILES/etc-remix, acore_world_remix, ...; the
 #          mod-wrath-remix module is on, and its SQL goes into these databases only
+# A third, experimental and off unless its own server is installed (docs/wrathpp/):
+#   wrathpp  Wrath++ (realm 5, port 8087): its own server build $FILES/server-wrathpp (the extended
+#          appearance protocol), $FILES/etc-wrathpp, acore_*_wrathpp, its own run, log and data
+#          folders and its own game folder $FILES/client-wrathpp. Nothing of it is made, written or
+#          started by the commands for main and remix, and its own never write theirs.
 #
 # FILES is the app's files folder; the programs are built to run from $FILES/server.
 set -eu
@@ -75,9 +84,20 @@ dbinfo() {
 	echo "\"127.0.0.1;$DB_PORT;$DB_USER;$DB_PASS;$1\""
 }
 
-# The realm a command is for (main or remix): its configs, logs, databases, id and port.
+# Wrath++'s own folders (realm wrathpp): its server build, game folder and run folder. Its
+# commands run its programs as "$SERVER/bin/<name>" like the others' (the Blizzard app starts
+# programs by that text: WowCtl.transform), realm() pointing SERVER at its build.
+MAIN_SERVER="$SERVER"
+WRATHPP_SERVER="$FILES/server-wrathpp"
+WRATHPP_CLIENT="$FILES/client-wrathpp"
+
+# The realm a command is for (main, remix or wrathpp): its configs, logs, databases, id and port;
+# the server build it runs (R_SERVER), its run folder, the game folder its modules write their
+# patches into, and the world server's data with its modules' DBC files.
 realm() {
 	REALM=${1:-main}
+	SERVER="$MAIN_SERVER"
+	R_RUN="$RUN" R_CLIENT="$FILES/client" R_DATA_MODULES="$DATA_MODULES" R_MODULE_FILES="$MODULE_FILES"
 	case "$REALM" in
 	main)
 		R_ETC="$ETC" R_LOGS="$LOGS" R_ID=1 R_PORT=8085 R_NAME=ChromieCraft
@@ -89,11 +109,61 @@ realm() {
 		R_WORLD=acore_world_remix R_CHARACTERS=acore_characters_remix R_BOTS=acore_playerbots_remix
 		R_WORLD_MODULES="$WORLD_MODULES-remix"
 		;;
+	wrathpp)
+		R_ETC="$FILES/etc-wrathpp" R_LOGS="$LOGS/wrathpp" R_ID=5 R_PORT=8087 R_NAME="Wrath++"
+		R_WORLD=acore_world_wrathpp R_CHARACTERS=acore_characters_wrathpp R_BOTS=acore_playerbots_wrathpp
+		R_WORLD_MODULES="$WORLD_MODULES-wrathpp"
+		SERVER="$WRATHPP_SERVER" R_RUN="$RUN/wrathpp" R_CLIENT="$WRATHPP_CLIENT"
+		R_DATA_MODULES="$FILES/data-modules-wrathpp" R_MODULE_FILES="$WRATHPP_SERVER/share"
+		;;
 	*)
-		echo "No realm \"$REALM\" (main or remix)" >&2
+		echo "No realm \"$REALM\" (main, remix or wrathpp)" >&2
 		exit 2
 		;;
 	esac
+	R_SERVER="$SERVER"
+	COMPAT="$SERVER/lib/libandroidcompat.so"
+}
+
+# Refuses (exits) unless a database is one of the realm's own three; for Wrath++, also unless its
+# name ends in _wrathpp. Every command that drops or rewrites a realm database asks first.
+realm_database() {
+	case "$1" in
+	"$R_WORLD" | "$R_CHARACTERS" | "$R_BOTS") ;;
+	*)
+		echo "Refused: $1 isn't one of realm $REALM's databases" >&2
+		exit 3
+		;;
+	esac
+	if [ "$REALM" = wrathpp ]; then
+		case "$1" in
+		*_wrathpp) ;;
+		*)
+			echo "Refused: $1 isn't a Wrath++ database" >&2
+			exit 3
+			;;
+		esac
+	fi
+}
+
+# Wrath++ only: refuses (exits) if its own server build isn't installed, or if its game folder is
+# the shared one or reaches it (a link), so that nothing it writes lands in the other realms' game.
+wrathpp_guard() {
+	[ "$REALM" = wrathpp ] || return 0
+	if [ ! -x "$WRATHPP_SERVER/bin/worldserver" ]; then
+		echo "Wrath++'s server isn't installed ($WRATHPP_SERVER)" >&2
+		exit 4
+	fi
+	if [ -e "$WRATHPP_CLIENT" ]; then
+		if [ -L "$WRATHPP_CLIENT" ] || [ -L "$WRATHPP_CLIENT/Data" ]; then
+			echo "Refused: $WRATHPP_CLIENT (or its Data) is a link" >&2
+			exit 4
+		fi
+		if [ -d "$FILES/client/Data" ] && [ "$(cd "$WRATHPP_CLIENT/Data" 2> /dev/null && pwd -P)" = "$(cd "$FILES/client/Data" && pwd -P)" ]; then
+			echo "Refused: $WRATHPP_CLIENT/Data is the shared game's Data" >&2
+			exit 4
+		fi
+	fi
 }
 
 # Sets every `Prefix<anything> = ...` line of a config file to the value.
@@ -106,13 +176,17 @@ configure() {
 	mkdir -p "$DATA" "$RUN/tmp"
 	configure_realm main
 	configure_realm remix
+	# Wrath++ only once its own server is installed (nothing of it is made before).
+	[ ! -x "$WRATHPP_SERVER/bin/worldserver" ] || configure_realm wrathpp
+	realm main
 	setkey "$ETC/authserver.conf" PidFile "\"$RUN/authserver.pid\""
 	cp "$SERVER/etc/mmaps-config.yaml" "$ETC/mmaps-config.yaml"
 }
 
 configure_realm() {
 	realm "$1"
-	mkdir -p "$R_ETC/modules" "$R_LOGS"
+	wrathpp_guard
+	mkdir -p "$R_ETC/modules" "$R_LOGS" "$R_RUN/tmp"
 	# The auth server is the main realm's (one for both).
 	names="worldserver dbimport"
 	[ "$REALM" != main ] || names="$names authserver"
@@ -121,7 +195,7 @@ configure_realm() {
 		new=
 		config_from_dist "$SERVER/etc/$name.conf.dist" "$conf" && new=1
 		setkey "$conf" LogsDir "\"$R_LOGS\""
-		setkey "$conf" TempDir "\"$RUN/tmp\""
+		setkey "$conf" TempDir "\"$R_RUN/tmp\""
 		setkey "$conf" SourceDirectory "\"$SERVER/src\""
 		setkey "$conf" MySQLExecutable "\"$SERVER/bin/mariadb\""
 		setkey "$conf" LoginDatabaseInfo "$(dbinfo acore_auth)"
@@ -137,7 +211,7 @@ configure_realm() {
 	done
 	setkey "$R_ETC/dbimport.conf" Updates.EnableDatabases 7
 	setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA\""
-	setkey "$R_ETC/worldserver.conf" PidFile "\"$RUN/worldserver.pid\""
+	setkey "$R_ETC/worldserver.conf" PidFile "\"$R_RUN/worldserver.pid\""
 	setkey "$R_ETC/worldserver.conf" RealmID "$R_ID"
 	setkey "$R_ETC/worldserver.conf" WorldServerPort "$R_PORT"
 	# Spells learned at creation from playercreateinfo_spell_custom (the Skyborne's racials; the core's
@@ -172,7 +246,7 @@ configure_realm() {
 	# the module takes its patch out of the game (and realm_sql keeps its SQL out of the databases).
 	allied_conf="$R_ETC/modules/mod_allied_races.conf"
 	if [ -f "$allied_conf" ]; then
-		if [ "$REALM" = remix ]; then
+		if [ "$REALM" != main ]; then
 			setkey "$allied_conf" AlliedRaces.Enable 0
 		else
 			setkey "$allied_conf" AlliedRaces.Enable 1
@@ -182,7 +256,7 @@ configure_realm() {
 	# message at every login ("This server is running the Worgoblin module") is off.
 	worgen_conf="$R_ETC/modules/mod_worgen_goblin.conf"
 	if [ -f "$worgen_conf" ]; then
-		if [ "$REALM" = remix ]; then
+		if [ "$REALM" != main ]; then
 			setkey "$worgen_conf" WorgenGoblin.Enable 0
 		else
 			setkey "$worgen_conf" WorgenGoblin.Enable 1
@@ -200,7 +274,7 @@ configure_realm() {
 	# ChromieCraft's: Wrath Remix has its own Northrend at your level.
 	level_scaling_conf="$R_ETC/modules/mod_level_scaling.conf"
 	if [ -f "$level_scaling_conf" ]; then
-		if [ "$REALM" = remix ]; then
+		if [ "$REALM" != main ]; then
 			setkey "$level_scaling_conf" LevelScaling.Enable 0
 		else
 			setkey "$level_scaling_conf" LevelScaling.Enable 1
@@ -210,7 +284,7 @@ configure_realm() {
 	# where the module sets its patch aside out of the game (and realm_sql keeps its SQL out).
 	murloc_naga_conf="$R_ETC/modules/mod_murloc_naga.conf"
 	if [ -f "$murloc_naga_conf" ]; then
-		if [ "$REALM" = remix ]; then
+		if [ "$REALM" != main ]; then
 			setkey "$murloc_naga_conf" MurlocNaga.Enable 0
 		else
 			setkey "$murloc_naga_conf" MurlocNaga.Enable 1
@@ -219,7 +293,7 @@ configure_realm() {
 	# A home in Brill (mod-brill-home: the house, its quests and furniture) is ChromieCraft's alone.
 	brill_home_conf="$R_ETC/modules/mod_brill_home.conf"
 	if [ -f "$brill_home_conf" ]; then
-		if [ "$REALM" = remix ]; then
+		if [ "$REALM" != main ]; then
 			setkey "$brill_home_conf" BrillHome.Enable 0
 		else
 			setkey "$brill_home_conf" BrillHome.Enable 1
@@ -231,6 +305,16 @@ configure_realm() {
 	if [ -f "$quest_drops_conf" ] && [ ! -f "$R_ETC/modules/.quest_drops_on" ]; then
 		setkey "$quest_drops_conf" QuestDrops.Enable 1
 		: > "$R_ETC/modules/.quest_drops_on"
+	fi
+	# Wrath++'s module on in its realm alone, told its realm (it also refuses databases not its own).
+	wrathpp_conf="$R_ETC/modules/mod_wrathpp_customization.conf"
+	if [ -f "$wrathpp_conf" ]; then
+		if [ "$REALM" = wrathpp ]; then
+			setkey "$wrathpp_conf" Wrathpp.Enable 1
+			setkey "$wrathpp_conf" Wrathpp.RealmID "$R_ID"
+		else
+			setkey "$wrathpp_conf" Wrathpp.Enable 0
+		fi
 	fi
 	if [ "$REALM" = remix ]; then
 		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||
@@ -293,6 +377,7 @@ db_client() {
 # The realm's world database as dbimport makes it, without anything added since (custom races,
 # modules taken out). realm() first.
 rebuild_world() {
+	realm_database "$R_WORLD"
 	echo "Making the world database again"
 	printf 'DROP DATABASE IF EXISTS `%s`;\nCREATE DATABASE `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' \
 		"$R_WORLD" "$R_WORLD" | db_client
@@ -301,7 +386,7 @@ rebuild_world() {
 
 # dbimport for the realm (realm() first): the auth database and the realm's own two.
 run_dbimport() {
-	(cd "$RUN" && musl_programs && WOW_MODULES_CONF_DIR="$R_ETC/modules" "$SERVER/bin/dbimport" -c "$R_ETC/dbimport.conf")
+	(cd "$R_RUN" && musl_programs && WOW_MODULES_CONF_DIR="$R_ETC/modules" "$SERVER/bin/dbimport" -c "$R_ETC/dbimport.conf")
 	realm_sql
 }
 
@@ -321,7 +406,10 @@ run_dbimport() {
 # - The Murlocs and the Naga (mod-murloc-naga, ChromieCraft's alone): data/sql/chromiecraft, last (its
 #   rows OR its races' bits into the rows the other race modules' SQL puts in).
 realm_sql() {
-	if [ "$REALM" = remix ]; then
+	if [ "$REALM" = wrathpp ]; then
+		# Wrath++ takes nothing of the other realms' own SQL (its module's is in its db-* folders).
+		set --
+	elif [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
 	else
@@ -333,6 +421,7 @@ realm_sql() {
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }
 		[ -d "$SERVER/src/modules/$folder" ] || continue
+		realm_database "$db"
 		dir="\$/modules/$folder"
 		printf "DELETE FROM updates_include WHERE path = '%s';\nINSERT INTO updates_include (path, state) VALUES ('%s', 'CUSTOM');\n" \
 			"$dir" "$dir" | db_client "$db"
@@ -373,7 +462,7 @@ races() {
 # The modules in the realm package with SQL for the world database, a name a line: in the folders
 # the servers read, and in the realm's own (realm_sql: data/sql/chromiecraft or data/sql/remix).
 world_modules_now() {
-	if [ "${REALM:-main}" = remix ]; then own=remix; else own=chromiecraft; fi
+	case "${REALM:-main}" in remix) own=remix ;; wrathpp) own=wrathpp ;; *) own=chromiecraft ;; esac
 	for dir in "$SERVER"/src/modules/*/data/sql/db-world* "$SERVER"/src/modules/*/data/sql/$own/world; do
 		[ -d "$dir" ] || continue
 		dir=${dir#"$SERVER/src/modules/"}
@@ -412,30 +501,30 @@ modules() {
 # the game's data, with the module's files in place of the game's of the same name (whatever its
 # case). A realm without such modules reads $DATA. realm() first.
 module_data() {
-	if [ ! -d "$MODULE_FILES/dbc" ] || [ ! -d "$DATA/dbc" ]; then
-		rm -rf "$DATA_MODULES"
+	if [ ! -d "$R_MODULE_FILES/dbc" ] || [ ! -d "$DATA/dbc" ]; then
+		rm -rf "$R_DATA_MODULES"
 		setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA\""
 		return
 	fi
-	rm -rf "$DATA_MODULES.new"
-	mkdir -p "$DATA_MODULES.new/dbc"
+	rm -rf "$R_DATA_MODULES.new"
+	mkdir -p "$R_DATA_MODULES.new/dbc"
 	for entry in "$DATA"/*; do
-		[ "${entry##*/}" = dbc ] || ln -s "$entry" "$DATA_MODULES.new/${entry##*/}"
+		[ "${entry##*/}" = dbc ] || ln -s "$entry" "$R_DATA_MODULES.new/${entry##*/}"
 	done
 	for file in "$DATA"/dbc/*; do
-		ln -s "$file" "$DATA_MODULES.new/dbc/${file##*/}"
+		ln -s "$file" "$R_DATA_MODULES.new/dbc/${file##*/}"
 	done
 	count=0
-	for file in "$MODULE_FILES"/dbc/*; do
+	for file in "$R_MODULE_FILES"/dbc/*; do
 		name=${file##*/}
 		game=$(ls "$DATA/dbc" | grep -ixF -m1 "$name" || true)
-		rm -f "$DATA_MODULES.new/dbc/${game:-$name}"
-		ln -s "$file" "$DATA_MODULES.new/dbc/${game:-$name}"
+		rm -f "$R_DATA_MODULES.new/dbc/${game:-$name}"
+		ln -s "$file" "$R_DATA_MODULES.new/dbc/${game:-$name}"
 		count=$((count + 1))
 	done
-	rm -rf "$DATA_MODULES"
-	mv "$DATA_MODULES.new" "$DATA_MODULES"
-	setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA_MODULES\""
+	rm -rf "$R_DATA_MODULES"
+	mv "$R_DATA_MODULES.new" "$R_DATA_MODULES"
+	setkey "$R_ETC/worldserver.conf" DataDir "\"$R_DATA_MODULES\""
 	echo "The world server reads $count DBC files of the realm's modules over the game's"
 }
 
@@ -479,25 +568,98 @@ zones_data() {
 # (hard links where the phone's storage allows, so it isn't stored twice). A patch-M.MPQ of the
 # user's own is left alone.
 module_client() {
-	data="$FILES/client/Data"
+	wrathpp_guard
+	data="$R_CLIENT/Data"
 	patch="$data/patch-M.MPQ"
 	mark="$patch/realm-modules.stamp"
 	[ -d "$data" ] || return 0
-	if [ -f "$MODULE_FILES/client.stamp" ]; then
-		! cmp -s "$MODULE_FILES/client.stamp" "$mark" 2> /dev/null || return 0
+	if [ -f "$R_MODULE_FILES/client.stamp" ]; then
+		! cmp -s "$R_MODULE_FILES/client.stamp" "$mark" 2> /dev/null || return 0
 		if [ -e "$patch" ] && [ ! -f "$mark" ]; then
 			echo "The game has a Data/patch-M.MPQ of its own: the modules' files for the game aren't put in"
 			return 0
 		fi
 		echo "Putting the realm's modules' files in the game (Data/patch-M.MPQ)"
 		rm -rf "$patch" "$patch.new"
-		cp -rl "$MODULE_FILES/client" "$patch.new" 2> /dev/null || { rm -rf "$patch.new"; cp -r "$MODULE_FILES/client" "$patch.new"; }
-		cp "$MODULE_FILES/client.stamp" "$patch.new/realm-modules.stamp"
+		cp -rl "$R_MODULE_FILES/client" "$patch.new" 2> /dev/null || { rm -rf "$patch.new"; cp -r "$R_MODULE_FILES/client" "$patch.new"; }
+		cp "$R_MODULE_FILES/client.stamp" "$patch.new/realm-modules.stamp"
 		mv "$patch.new" "$patch"
 	elif [ -f "$mark" ]; then
 		echo "Taking the modules' files out of the game (Data/patch-M.MPQ)"
 		rm -rf "$patch"
 	fi
+}
+
+# Wrath++: what it would use and write, and whether it stays apart from the other realms. Changes
+# nothing; exits non-zero if a check fails.
+wrathpp_check() {
+	realm wrathpp
+	failed=0
+	echo "Wrath++ (realm $R_ID, port $R_PORT)"
+	echo "  server   $R_SERVER $( [ -x "$R_SERVER/bin/worldserver" ] && echo installed || echo "not installed" )"
+	echo "  configs  $R_ETC"
+	echo "  logs     $R_LOGS"
+	echo "  run      $R_RUN"
+	echo "  game     $R_CLIENT $( [ -d "$R_CLIENT/Data" ] && echo present || echo absent )"
+	echo "  data     $R_DATA_MODULES"
+	echo "  dbs      $R_WORLD $R_CHARACTERS $R_BOTS"
+	for db in "$R_WORLD" "$R_CHARACTERS" "$R_BOTS"; do
+		(realm_database "$db") || failed=1
+	done
+	for path in "$R_ETC" "$R_LOGS" "$R_RUN" "$R_CLIENT" "$R_DATA_MODULES" "$R_SERVER"; do
+		case "$path" in
+		*wrathpp*) ;;
+		*) echo "  FAIL $path isn't a Wrath++ path"; failed=1 ;;
+		esac
+	done
+	for shared in "$ETC" "$FILES/etc-remix" "$FILES/client" "$DATA_MODULES" "$MAIN_SERVER"; do
+		for path in "$R_ETC" "$R_CLIENT" "$R_DATA_MODULES" "$R_SERVER"; do
+			[ "$path" != "$shared" ] || { echo "  FAIL $path is shared ($shared)"; failed=1; }
+		done
+	done
+	if [ -e "$R_CLIENT" ]; then
+		if [ -L "$R_CLIENT" ] || [ -L "$R_CLIENT/Data" ]; then
+			echo "  FAIL $R_CLIENT or its Data is a link"; failed=1
+		fi
+		# A file of the Wrath++ game hard linked to the shared game's: a write would reach both.
+		if [ -d "$FILES/client/Data" ] && [ -d "$R_CLIENT/Data" ]; then
+			shared_inodes=$(find "$FILES/client/Data" -maxdepth 2 -type f -exec stat -c '%d:%i' {} + 2> /dev/null | sort -u)
+			for file in $(find "$R_CLIENT/Data" -maxdepth 2 -type f -links +1 2> /dev/null); do
+				if echo "$shared_inodes" | grep -qxF "$(stat -c '%d:%i' "$file")"; then
+					echo "  FAIL $file is the shared game's file (a hard link)"; failed=1
+				fi
+			done
+		fi
+	fi
+	if [ "$failed" = 0 ]; then echo "Wrath++ checks passed"; else echo "Wrath++ checks FAILED" >&2; fi
+	return "$failed"
+}
+
+# Wrath++ in the auth database's realm list: only its own row (id 5, named Wrath++). Refuses if id 5
+# or port 8087 is another realm's. The list is saved first ($FILES/backups/wrathpp).
+wrathpp_register() {
+	realm wrathpp
+	wrathpp_guard
+	address=${1:-127.0.0.1}
+	backup="$FILES/backups/wrathpp/realmlist-$(date +%Y%m%d%H%M%S).tsv"
+	mkdir -p "${backup%/*}"
+	echo "SELECT * FROM realmlist" | db_client --batch acore_auth > "$backup"
+	other=$(printf "SELECT id FROM realmlist WHERE (id = %s AND name <> '%s') OR (port = %s AND id <> %s);\n" \
+		"$R_ID" "$R_NAME" "$R_PORT" "$R_ID" | db_client --batch --skip-column-names acore_auth)
+	if [ -n "$other" ]; then
+		echo "Refused: realm id $R_ID or port $R_PORT is another realm's (ids: $other); realm list saved in $backup" >&2
+		exit 5
+	fi
+	printf "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, icon, flag, timezone, allowedSecurityLevel, gamebuild)
+VALUES (%s, '%s', '%s', '127.0.0.1', '255.255.255.0', %s, 0, 2, 1, 0, 12340)
+ON DUPLICATE KEY UPDATE address = VALUES(address), flag = flag & ~1;\n" "$R_ID" "$R_NAME" "$address" "$R_PORT" | db_client acore_auth
+	echo "Wrath++ is in the realm list at $address (the list before: $backup)"
+}
+
+wrathpp_unregister() {
+	realm wrathpp
+	printf "DELETE FROM realmlist WHERE id = %s AND name = '%s';\n" "$R_ID" "$R_NAME" | db_client acore_auth
+	echo "Wrath++ is out of the realm list"
 }
 
 cmd=${1:-}
@@ -544,13 +706,16 @@ races)
 	;;
 modules)
 	realm "${1:-main}"
+	wrathpp_guard
 	modules
 	;;
 dbimport)
 	realm "${1:-main}"
 	# The Remix databases are made here the first time (the seed has the main realm's).
-	if [ "$REALM" = remix ]; then
+	wrathpp_guard
+	if [ "$REALM" != main ]; then
 		for db in "$R_WORLD" "$R_CHARACTERS" "$R_BOTS"; do
+			realm_database "$db"
 			printf 'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' "$db"
 		done | db_client
 	fi
@@ -559,6 +724,15 @@ dbimport)
 realmlist)
 	realmlist "${1:-}"
 	;;
+wrathpp-check)
+	wrathpp_check
+	;;
+wrathpp-register)
+	wrathpp_register "${1:-}"
+	;;
+wrathpp-unregister)
+	wrathpp_unregister
+	;;
 auth)
 	cd "$RUN"
 	musl_programs
@@ -566,32 +740,34 @@ auth)
 	;;
 world)
 	realm "${1:-main}"
+	wrathpp_guard
 	realm_sql
-	[ "$REALM" = remix ] || zones_data
-	mkdir -p "$R_LOGS"
-	cd "$RUN"
+	[ "$REALM" != main ] || zones_data
+	mkdir -p "$R_LOGS" "$R_RUN"
+	cd "$R_RUN"
 	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.
 	musl_programs "$SERVER/lib/libjemalloc.so.2"
 	# Whether the phone's player just selected an enemy, for the app's touch controls
 	# (patches/azerothcore/0007).
-	export WOW_SELECTION_FILE="$RUN/selection"
+	export WOW_SELECTION_FILE="$R_RUN/selection"
 	# Whether a cutscene plays for the phone's player: a hold skips it (patches/azerothcore/0008).
-	export WOW_CUTSCENE_FILE="$RUN/cutscene"
+	export WOW_CUTSCENE_FILE="$R_RUN/cutscene"
 	# Where the app's add-on says the spellbook is: a drag there drags its icons (patches/azerothcore/0009).
-	export WOW_INTERFACE_FILE="$RUN/interface"
+	export WOW_INTERFACE_FILE="$R_RUN/interface"
 	# Where Wrath Remix writes the reports its Report Time Anomaly asks for, for the app to send to
 	# GitHub (mod-wrath-remix, RemixReport.cpp).
-	export WOW_REPORTS_DIR="$RUN/reports"
+	export WOW_REPORTS_DIR="$R_RUN/reports"
 	# Where a Wrath Remix Timerunner going home is written for ChromieCraft's world server to take
 	# in (mod-wrath-remix, RemixEnding.cpp; the app restarts the server there: Homecomings.kt).
-	export WOW_TRANSFERS_DIR="$RUN/transfers"
+	export WOW_TRANSFERS_DIR="$R_RUN/transfers"
 	# The realm's own module configs (patches/azerothcore/0010).
 	export WOW_MODULES_CONF_DIR="$R_ETC/modules"
 	# The game's folder: Wrath Remix writes its patch there as it starts (Bronze and its prices,
 	# Data/patch-Y.MPQ) and ChromieCraft's world server takes it out (mod-wrath-remix).
-	export WOW_CLIENT_DIR="$FILES/client"
+	# (Wrath++'s own game folder for Wrath++: its modules' patches never reach the shared one.)
+	export WOW_CLIENT_DIR="$R_CLIENT"
 	# The Worgen's and Goblins' starting areas (mod-worgen-goblin), ChromieCraft's alone.
-	if [ "$REALM" != remix ] && [ -f "$ZONES/client/files.txt" ]; then
+	if [ "$REALM" = main ] && [ -f "$ZONES/client/files.txt" ]; then
 		export WOW_ZONES_DIR="$ZONES"
 	fi
 	exec "$SERVER/bin/worldserver" -c "$R_ETC/worldserver.conf"
@@ -615,7 +791,7 @@ mmaps)
 	exec "$SERVER/bin/mmaps_generator" --config "$ETC/mmaps-config.yaml" ${1:+--threads "$1"}
 	;;
 *)
-	sed -n '2,26p' "$0" >&2
+	sed -n '/^set -eu/q;2,$p' "$0" >&2
 	exit 2
 	;;
 esac

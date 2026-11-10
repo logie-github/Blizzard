@@ -1,0 +1,24 @@
+[worldserver]
+
+########################################
+# Wrath++ extended appearance (mod-wrathpp-customization)
+########################################
+#
+#    Wrathpp.Enable
+#        Description: Serve the Wrath++ appearance protocol. The Wrath++ realm's ctl.sh sets it to 1;
+#                     anywhere else it stays 0. Even on, the module refuses to run unless RealmID is
+#                     Wrathpp.RealmID and both the world and characters databases end in _wrathpp.
+#        Default:     0
+#
+#    Wrathpp.RealmID
+#        Description: The Wrath++ realm's id (ctl.sh sets it).
+#        Default:     0 (never matches)
+#
+#    Wrathpp.Registry
+#        Description: The registry binary (tools/registry.py build). Empty: the module's
+#                     data/registry.bin in SourceDirectory.
+#        Default:     ""
+
+Wrathpp.Enable = 0
+Wrathpp.RealmID = 0
+Wrathpp.Registry = ""

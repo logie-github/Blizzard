@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "version": 1,
+  "comment": "Wrath++ customization registry. Engineering seed for the first vertical slice (docs/wrathpp/MILESTONES.md, phase 3): two geoset categories of Legion 7.3.5's demon hunter looks. Every geoset group and option count here is UNVERIFIED until tools/legion_inventory.py has read the user's own 7.3.5 tables and tools/probe_geosets.py the Wrath++ client's models (docs/wrathpp/LEGION_OPTIONS_735.md). Stable ids: never reuse a category or option id for another look.",
+  "classes": {"warrior": 1, "paladin": 2, "hunter": 3, "rogue": 4, "priest": 5, "death_knight": 6, "shaman": 7, "mage": 8, "warlock": 9, "druid": 11},
+  "categories": [
+    {
+      "id": 1002,
+      "key": "DH_HORNS",
+      "name": "Horns",
+      "kind": "geoset",
+      "geoset_group": 24,
+      "default": 1,
+      "legion": {"classes": ["demon_hunter"], "races": ["blood_elf", "night_elf"], "verified": false},
+      "wrathpp_class_rule": "every class: Wrath++ has no demon hunter class (a separate project); the look alone is offered",
+      "eligibility": [
+        {"race": 10, "sexes": ["male", "female"], "classes": []},
+        {"race": 4, "sexes": ["male", "female"], "classes": []}
+      ],
+      "options": [
+        {"id": 1, "value": 1, "name": "None"},
+        {"id": 2, "value": 2, "name": "Horns 1"},
+        {"id": 3, "value": 3, "name": "Horns 2"}
+      ]
+    },
+    {
+      "id": 1003,
+      "key": "DH_BLINDFOLD",
+      "name": "Blindfold",
+      "kind": "geoset",
+      "geoset_group": 25,
+      "default": 1,
+      "legion": {"classes": ["demon_hunter"], "races": ["blood_elf", "night_elf"], "verified": false},
+      "wrathpp_class_rule": "every class: Wrath++ has no demon hunter class (a separate project); the look alone is offered",
+      "eligibility": [
+        {"race": 10, "sexes": ["male", "female"], "classes": []},
+        {"race": 4, "sexes": ["male", "female"], "classes": []}
+      ],
+      "options": [
+        {"id": 1, "value": 1, "name": "None"},
+        {"id": 2, "value": 2, "name": "Blindfold 1"}
+      ]
+    }
+  ]
+}
