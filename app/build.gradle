@@ -123,6 +123,9 @@ android {
 		maxHeapSize = '3g'
 		// Robolectric's tests are independent: CI runs them in more than one JVM (-PtestForks=N); one by default.
 		maxParallelForks = (project.findProperty('testForks') ?: '1').toInteger()
+		// The X server rig (tools/xrig): Winlator's X server's native half built for this machine, when the rig is asked for.
+		def xrigLib = System.getenv('BLIZZ_XRIG_LIB')
+		if (xrigLib) systemProperty 'java.library.path', xrigLib
 	}
 }
 

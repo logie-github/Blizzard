@@ -242,12 +242,6 @@ class GestureView(
         if (gameId != null && (gameId.startsWith("warcraft3") || gameId == "starcraft")) {
             activity.runOnUiThread { android.widget.Toast.makeText(activity, "Hold to select or press a button · tap to move or attack", android.widget.Toast.LENGTH_LONG).show() }
         }
-        // The games played in a window: borderless.exe takes the title bar and frame off their window, which is then the
-        // whole screen ([Borderless]); it runs inside the games' Windows, through winhandler, and ends with it.
-        if (Borderless.wanted(gameId)) {
-            xServer.winHandler?.exec(Borderless.PATH)
-            GameLog.note("borderless.exe started for the game's window")
-        }
         removeCallbacks(noWindowReport)
         postDelayed(minuteReport, 60_000)
         // Recorded apart from the import's file checks: the program started under Winlator.

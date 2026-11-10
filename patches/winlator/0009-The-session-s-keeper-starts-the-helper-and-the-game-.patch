@@ -1,0 +1,102 @@
+From f000b961ee483e0e2993c52d8479001797910027 Mon Sep 17 00:00:00 2001
+From: Blizzard <blizz@users.noreply.github.com>
+Date: Tue, 10 Nov 2026 00:18:46 +0000
+Subject: [PATCH] The session's keeper starts the helper and the game; a
+ grabbed pointer's events follow the stretch to the screen; a bare name has no
+ folder
+
+The launcher names a program (exec_wrapper: borderless.exe) that is started in the games' desktop before
+winhandler.exe: it makes that desktop the one hardware input goes to (a game that locks the cursor from its
+start got no clicks: Wine reports a locked cursor's mouse without a window, and its server gave that to the
+first desktop made), takes the title bars off the games' windows and ends the session when the game is gone.
+
+A pointer grab on a window that is not drawn (Wine's cursor clip) had its motion and releases reported in the
+screen's coordinates even while the window under the pointer is drawn stretched to the screen: the stretch of
+the window under the pointer is applied to them.
+
+FileUtils.getDirname returns an empty folder for a bare name (substring(0, -1) ended the game screen's start).
+---
+ .../com/winlator/XServerDisplayActivity.java  |  5 ++++-
+ .../java/com/winlator/core/FileUtils.java     |  3 ++-
+ .../winlator/xserver/InputDeviceManager.java  | 21 +++++++++++++++++--
+ 3 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 40722f5..0ad500f 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -992,7 +992,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             cmdArgs += " "+overrideEnvVars.get("EXTRA_EXEC_ARGS");
+             overrideEnvVars.remove("EXTRA_EXEC_ARGS");
+         }
+-        return "C:\\windows\\winhandler.exe "+cmdArgs;
++        // Blizzard app: the session's keeper (borderless.exe: the games' desktop takes the mouse, no title bars, the session
++        // ends with the game) starts winhandler.exe and the game, when the launcher names it.
++        String wrapper = getIntent().getStringExtra("exec_wrapper");
++        return (wrapper != null && !wrapper.isEmpty() ? wrapper+" " : "")+"C:\\windows\\winhandler.exe "+cmdArgs;
+     }
+ 
+     public XServer getXServer() {
+diff --git a/app/src/main/java/com/winlator/core/FileUtils.java b/app/src/main/java/com/winlator/core/FileUtils.java
+index b503fc0..a7bac65 100644
+--- a/app/src/main/java/com/winlator/core/FileUtils.java
++++ b/app/src/main/java/com/winlator/core/FileUtils.java
+@@ -255,7 +255,8 @@ public abstract class FileUtils {
+         if (path == null) return "";
+         path = StringUtils.removeEndSlash(path);
+         int index = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+-        return path.substring(0, index);
++        // Blizzard app: a bare name has no folder (substring(0, -1) crashed the game screen's start, issue #76).
++        return index < 0 ? "" : path.substring(0, index);
+     }
+ 
+     public static void chmod(File file, int mode) {
+diff --git a/app/src/main/java/com/winlator/xserver/InputDeviceManager.java b/app/src/main/java/com/winlator/xserver/InputDeviceManager.java
+index e785264..d1fd506 100644
+--- a/app/src/main/java/com/winlator/xserver/InputDeviceManager.java
++++ b/app/src/main/java/com/winlator/xserver/InputDeviceManager.java
+@@ -142,6 +142,23 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+         sendEvent(windowB, Event.ENTER_WINDOW, new EnterNotify(detailB, xServer.windowManager.rootWindow, windowB, null, xB, yB, localPointB[0], localPointB[1], keyButMask, mode, sameScreenAndFocus));
+     }
+ 
++    /**
++     * Blizzard app: the stretch to the screen that applies to an event reported to eventWindow. A window drawn stretched
++     * (a game's window smaller than the screen) has its own; a pointer grab on a window that is not drawn has none, and
++     * its events were reported in the screen's coordinates as if nothing were stretched: Wine locks the cursor for a game
++     * (ClipCursor) by grabbing the pointer on an input-only window of its own, so a touch on the stretched picture of such
++     * a game landed beside what was touched. For a grab window without a stretch, the stretch of the window under the
++     * pointer (or the nearest ancestor that has one) is the one the person sees and touches.
++     */
++    private FullscreenTransformation getFullscreenTransformationFor(Window eventWindow) {
++        FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
++        if (fullscreenTransformation != null || eventWindow != xServer.grabManager.getWindow()) return fullscreenTransformation;
++        for (Window window = pointWindow; window != null; window = window.getParent()) {
++            if (window.getFullscreenTransformation() != null) return window.getFullscreenTransformation();
++        }
++        return null;
++    }
++
+     @Override
+     public void onPointerButtonPress(Pointer.Button button) {
+         if (xServer.isRelativeMouseMovement()) {
+@@ -194,7 +211,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+                 short x = xServer.pointer.getX();
+                 short y = xServer.pointer.getY();
+ 
+-                FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
++                FullscreenTransformation fullscreenTransformation = getFullscreenTransformationFor(eventWindow);
+                 if (fullscreenTransformation != null) {
+                     short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
+                     x = transformedPoint[0];
+@@ -223,7 +240,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+         if (grabWindow != null || window != null) {
+             Window eventWindow = window != null ? window : grabWindow;
+ 
+-            FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
++            FullscreenTransformation fullscreenTransformation = getFullscreenTransformationFor(eventWindow);
+             if (fullscreenTransformation != null) {
+                 short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
+                 x = transformedPoint[0];
+-- 
+2.43.0
+

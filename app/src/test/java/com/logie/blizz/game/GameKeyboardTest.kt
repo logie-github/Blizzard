@@ -40,11 +40,16 @@ class KeyboardLayoutTest {
     }
 }
 
-/** borderless.exe runs beside the games played in a window, never the World of Warcraft clients or an installer. */
+/** The session's keeper starts every Windows game; it takes the frames off the games played in a window, never the World of Warcraft clients' or an installer's. */
 class BorderlessTest {
-    @Test fun windowedGamesOnly() {
-        for (id in listOf("warcraft3_roc", "warcraft3_tft", "diablo2", "starcraft", "diablo", "starcraft2")) assertTrue(id, Borderless.wanted(id))
-        for (id in listOf("wow-client", "wow", "wow_forever", "installer", null)) assertFalse(id ?: "null", Borderless.wanted(id))
-        assertEquals("C:\\windows\\borderless.exe", Borderless.PATH)
+    @Test fun framesOffForWindowedGamesOnly() {
+        for (id in listOf("warcraft3_roc", "warcraft3_tft", "diablo2", "starcraft", "diablo", "starcraft2")) {
+            assertTrue(id, Borderless.frames(id))
+            assertEquals("C:\\windows\\borderless.exe", Borderless.command(id))
+        }
+        for (id in listOf("wow-client", "wow", "wow_forever", "installer", null)) {
+            assertFalse(id ?: "null", Borderless.frames(id))
+            assertEquals("C:\\windows\\borderless.exe /noframes", Borderless.command(id))
+        }
     }
 }

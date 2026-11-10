@@ -139,9 +139,9 @@ object WindowsRuntime {
         }
         // Diablo II: Windows 98 for Game.exe before 1.14, 800x600 in game ([Diablo2Setup]).
         if (entry.gameId == "diablo2") withContext(Dispatchers.IO) { runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) } }
-        // borderless.exe (tools/borderless): the program the game screen runs beside a windowed game to take its title bar
-        // away ([GestureView.onGameWindowShown]), put into the games' Windows at every start (the app's copy may be newer).
-        withContext(Dispatchers.IO) { runCatching { Borderless.install(context, container.rootDir) } }
+        // borderless.exe (tools/borderless): the session's keeper, put into the games' Windows at every start (the app's copy
+        // may be newer) and started before winhandler.exe and the game ([Borderless]); without it in place the game starts as before.
+        val keeper = withContext(Dispatchers.IO) { runCatching { Borderless.install(context, container.rootDir) }.getOrDefault(false) }
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
         if (foreverClient) {
@@ -171,6 +171,8 @@ object WindowsRuntime {
             // Legion and the Forever client share the Wow_loader.dll start-up protection, which needs the Box64 with
             // the signal-flags fix (Winlator patch 0007); without it the loader deadlocks on Wine's loader lock.
             .apply { if (legion || foreverClient) putExtra("box64_version", LegionClientSetup.BOX64) }
+            // The session's keeper before winhandler.exe and the game (Winlator patch 0009).
+            .apply { if (keeper) putExtra("exec_wrapper", Borderless.command(entry.gameId)) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
