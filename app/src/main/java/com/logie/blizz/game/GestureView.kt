@@ -210,10 +210,10 @@ class GestureView(
     /** A minute into a game: its log, once a day (the same title isn't sent twice in a day), for black screens that nothing reports. */
     private val minuteReport = Runnable { sendReport("log after 60 s") }
 
-    private fun sendReport(what: String) {
+    private fun sendReport(what: String, message: String = "Sent by the app") {
         com.logie.blizz.reports.BugReports.report(
             activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} $what",
-            "Sent by the app",
+            message,
             listOf("Game" to gameId, "Version" to (activity.intent?.getStringExtra(EXTRA_SPLASH) ?: gameId), "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}", "Window shown" to windowShown.toString()),
             log = GameLog.snapshot().ifEmpty { null },
         )
@@ -239,7 +239,7 @@ class GestureView(
         xServer.renderer.isCursorVisible = false
         windowShown = true
         // The strategy games' touch (the Warcraft app's): a tap is the right click, so a menu button or a unit takes a hold. Said once, as the game comes up.
-        if (gameId != null && (gameId.startsWith("warcraft3") || gameId == "starcraft")) {
+        if (strategyTouch) {
             activity.runOnUiThread { android.widget.Toast.makeText(activity, "Hold to select or press a button · tap to move or attack", android.widget.Toast.LENGTH_LONG).show() }
         }
         removeCallbacks(noWindowReport)
@@ -258,10 +258,19 @@ class GestureView(
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
     }
 
+    /** The strategy games' touch (a tap is the right click): said again while the person taps where a hold is wanted ([TapHint]). */
+    private val strategyTouch = gameId != null && (gameId.startsWith("warcraft3") || gameId == "starcraft")
+    private val tapHint = TapHint()
+
     override fun click(button: Button) {
-        GameLog.note(describe("$button click"))
-        xServer.injectPointerButtonPress(button.x)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
+        // A strategy game's tap while a dialog box is up (an error message, a prompt) is the left click: the right presses nothing on one.
+        val sent = if (strategyTouch) StrategyTap.button(button, Borderless.dialogUp()) else button
+        GameLog.note(describe("$sent click"))
+        if (strategyTouch && tapHint.onClick(sent == Button.RIGHT, SystemClock.uptimeMillis())) {
+            android.widget.Toast.makeText(activity, TapHint.TEXT, android.widget.Toast.LENGTH_SHORT).show()
+        }
+        xServer.injectPointerButtonPress(sent.x)
+        postDelayed({ xServer.injectPointerButtonRelease(sent.x) }, CLICK_MS)
     }
 
     /**
@@ -410,7 +419,35 @@ class GestureView(
     override fun onDetachedFromWindow() {
         // A game that closed by itself in its first minute (a crash back to the launcher): its log is sent, as a black screen leaves nothing else.
         val seconds = (android.os.SystemClock.uptimeMillis() - attachedAt) / 1000
-        if (!left && seconds < 60 && gameId != null && gameId != "installer" && gameId != "wow-client") sendReport("closed itself after $seconds s")
+        val fault = GameLog.fault
+        if (!left && gameId != null && gameId != "installer" && gameId != "wow-client") {
+            // Warcraft III in a movie when its programs went (a movie cannot be left from inside the game: it died there, with
+            // Wine's word of a fault or after its own error box): the movies are set aside, and the game skips them from the
+            // next start ([Wc3Movies]).
+            val id: String = gameId
+            val moviesOff = id.startsWith("warcraft3") && runCatching {
+                Wc3Movies.upAtEnd(GameLog.keeperLines(max = 400)) &&
+                    com.logie.blizz.importer.GameImportManager.library(activity.applicationContext).get(id)?.installPath?.let { dir ->
+                        val folder = java.io.File(dir)
+                        Wc3Movies.on(folder) && !Wc3Movies.set(folder, false)
+                    } == true
+            }.getOrDefault(false)
+            if (moviesOff) GameLog.note("a movie's window was up when the game's programs went: the movies are set aside (Launch options: Movies)")
+            if (moviesOff || fault != null) {
+                android.widget.Toast.makeText(
+                    activity.applicationContext,
+                    if (moviesOff) "A movie could not be played on this phone and stopped the game. The movies are off now (Launch options: Movies): start the game again."
+                    else "The game stopped by itself (a fault in the game). A report was sent.",
+                    android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
+            when {
+                seconds < 60 -> sendReport("closed itself after $seconds s", fault ?: "Sent by the app")
+                // Later than that, a game that Wine says died of a fault, or that died in a movie: reported too, and said.
+                fault != null -> sendReport("stopped with a fault", fault)
+                moviesOff -> sendReport("stopped in a movie", "A movie's window was up when the game's programs went; the movies are set aside.")
+            }
+        }
         removeCallbacks(noWindowReport)
         removeCallbacks(minuteReport)
         removeCallbacks(typeNext)

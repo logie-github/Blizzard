@@ -33,6 +33,32 @@ class GameLogTest {
         for (line in longjmp) assertTrue(line, GameLog.noise(line))
     }
 
+    @Test fun winesWordOfAFaultIsKept() {
+        GameLog.clear()
+        try {
+            GameLog.take("0184:trace:seh:dispatch_exception code=c0000005 (EXCEPTION_ACCESS_VIOLATION) flags=0 addr=797AD097")
+            assertEquals(null, GameLog.fault)
+            // As Wine printed it on the desktop rig when Warcraft III faulted starting a movie.
+            GameLog.take("wine: Unhandled page fault on read access to 00000004 at address 797AD097 (thread 0184), starting debugger...")
+            GameLog.take("wine: Unhandled exception 0xc0000094 in thread 24 at address 00401000 (thread 0024), starting debugger...")
+            assertEquals("wine: Unhandled page fault on read access to 00000004 at address 797AD097 (thread 0184), starting debugger...", GameLog.fault)
+            assertTrue(GameLog.snapshot().contains("Unhandled page fault"))
+            GameLog.clear()
+            assertEquals(null, GameLog.fault)
+        } finally {
+            GameLog.clear()
+        }
+    }
+
+    @Test fun winesCrashBoxIsOffForTheGamesAndLeftForWorldOfWarcraft() {
+        for (id in listOf("warcraft3_roc", "warcraft3_tft", "diablo2", "starcraft", "diablo", "installer", null)) {
+            assertEquals(id ?: "null", listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, "Software\\Wine\\WineDbg", "ShowCrashDialog", 0)), WineCrashDialog.writes(id))
+        }
+        for (id in listOf("wow-client", "wow", "wow_forever")) {
+            assertEquals(id, listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, "Software\\Wine\\WineDbg", "ShowCrashDialog", 1)), WineCrashDialog.writes(id))
+        }
+    }
+
     @Test fun theKeepersLogIsReadForTheReport() {
         assertEquals("", GameLog.keeperLines(null))
         assertEquals("", GameLog.keeperLines(tmp.root.resolve("none.log")))

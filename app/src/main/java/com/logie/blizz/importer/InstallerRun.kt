@@ -63,7 +63,7 @@ object InstallerRun {
             val files = holder.children().filter { !it.isDirectory }
             return Installers.setupIn(files)!! to files
         }
-        val siblings = source.localFile()?.parentFile?.listFiles()?.filter { it.isFile }?.map { FileNode(it) } ?: listOf(source)
+        val siblings = source.siblings()?.filter { !it.isDirectory } ?: listOf(source)
         return source to siblings
     }
 

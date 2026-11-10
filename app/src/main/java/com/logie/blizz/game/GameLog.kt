@@ -14,7 +14,19 @@ object GameLog {
     private val lines = ArrayDeque<String>()
     /** The libraries loaded (the loaddll channel), apart: hundreds of them would push the errors and the exception trace out of the report. */
     private val loaded = ArrayDeque<String>()
-    private val callback = Callback<String> { line: String ->
+    /**
+     * Wine's own word that a program of the session died of a fault ("wine: Unhandled page fault on read access to 00000000 at
+     * address 6F0E87CC (thread 0024)..."), the first one: a game that stops that way later than its first minute went back to the
+     * launcher without a word, and without a report.
+     */
+    @Volatile var fault: String? = null
+        private set
+
+    private val callback = Callback<String> { line: String -> take(line) }
+
+    /** One line of the programs' output, into its place. */
+    internal fun take(line: String) {
+        if (fault == null && line.contains("Unhandled ") && line.contains("wine")) fault = line.trim().take(200)
         if (line.contains(":loaddll:")) {
             synchronized(loaded) {
                 if (loaded.size >= MAX_LOADED) loaded.removeFirst()
@@ -46,10 +58,16 @@ object GameLog {
 
     /** Starts listening to the programs' output (once; after Winlator has set up its own listeners). */
     fun start() {
+        clear()
+        ProcessHelper.addDebugCallback(callback)
+    }
+
+    /** A new session: nothing of the last one's. */
+    internal fun clear() {
         synchronized(lines) { lines.clear(); unwinding.clear() }
         synchronized(loaded) { loaded.clear() }
         synchronized(notes) { notes.clear() }
-        ProcessHelper.addDebugCallback(callback)
+        fault = null
     }
 
     /** The app's own notes (what the launcher and the touch layer decided), kept apart so a flood of Wine's lines doesn't push them out. */

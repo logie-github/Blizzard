@@ -90,6 +90,19 @@ class RemasteredTest {
         assertEquals("diablo", Variants.effective(diablo, mapOf("diablo" to "starcraft_remastered")).id)
     }
 
+    @Test fun anEmptyFolderIsSaidToBeEmpty() {
+        // The phone's StarCraft II folder, picked with nothing left in it (reports of 8 and 10 November 2026).
+        val empty = tmp.newFolder("Starcraft II")
+        val said = Packages.noGameMessage(FileNode(empty), "StarCraft II", "Select your installation.")
+        assertTrue(said, said.startsWith("The folder you picked (Starcraft II) is empty"))
+        assertTrue(said, said.endsWith("Select your installation."))
+        // A folder with other things in it keeps the old words.
+        File(empty, "readme.txt").writeText("x")
+        assertEquals("There's no StarCraft II in that folder (and no installer). Select your installation.", Packages.noGameMessage(FileNode(empty), "StarCraft II", "Select your installation."))
+        // A file is never "an empty folder".
+        assertTrue(Packages.noGameMessage(FileNode(File(empty, "readme.txt")), "StarCraft II", "x").startsWith("There's no StarCraft II"))
+    }
+
     @Test fun the123FolderWithItsProgramInX86IsAGameRoot() {
         val names = Packages.names(listOf("Data/", "locales/", "Maps/", "x86/", "x86_64/", "StarCraft Launcher.exe", "Launcher.db").map {
             object : SourceNode {

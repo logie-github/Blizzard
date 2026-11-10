@@ -27,6 +27,14 @@ interface SourceNode {
     /** Deletes it (a folder with what is in it); whether it did. For the export a verified import no longer needs. */
     fun delete(): Boolean = false
 
+    /**
+     * What is in the same folder, this one included, when that can be seen: a file on this phone, or one found inside a folder
+     * the app may read. Null for a file picked by itself with the document picker, which has no neighbours. An installer's data
+     * files are looked for here (the phone's Warcraft II installer was found in a searched folder with its .bin beside it, and
+     * the import said it had none: 4 and 8 November 2026).
+     */
+    fun siblings(): List<SourceNode>? = null
+
     fun child(name: String): SourceNode? = children().firstOrNull { it.name.equals(name, ignoreCase = true) }
 
     /** Every file under this node, to [depth] folders down. */
@@ -52,6 +60,7 @@ class FileNode(val file: File) : SourceNode {
     override fun channel(): java.nio.channels.SeekableByteChannel? =
         if (file.isFile) runCatching { java.nio.channels.FileChannel.open(file.toPath(), java.nio.file.StandardOpenOption.READ) }.getOrNull() else null
     override fun localFile(): File = file
+    override fun siblings(): List<SourceNode>? = file.parentFile?.listFiles()?.sortedBy { it.name }?.map { FileNode(it) }
     override fun delete(): Boolean = file.deleteTree()
 }
 
@@ -63,8 +72,12 @@ class DocumentNode(
     override val isDirectory: Boolean,
     override val size: Long,
     private val treeUri: Uri?,
+    /** The folder this was listed in (null for what was picked itself). */
+    private val parent: DocumentNode? = null,
 ) : SourceNode {
     override val display: String get() = name
+
+    override fun siblings(): List<SourceNode>? = parent?.let { p -> runCatching { p.children() }.getOrNull() }
 
     override fun children(): List<SourceNode> {
         val tree = treeUri ?: return emptyList()
@@ -82,7 +95,7 @@ class DocumentNode(
             while (c.moveToNext()) {
                 val id = c.getString(0)
                 val dir = c.getString(2) == DocumentsContract.Document.MIME_TYPE_DIR
-                out += DocumentNode(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, id), c.getString(1) ?: id, dir, if (c.isNull(3)) 0 else c.getLong(3), tree)
+                out += DocumentNode(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, id), c.getString(1) ?: id, dir, if (c.isNull(3)) 0 else c.getLong(3), tree, this)
             }
         }
         return out.sortedBy { it.name }

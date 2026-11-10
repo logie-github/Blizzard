@@ -335,6 +335,117 @@ object Diablo2Setup {
 }
 
 /**
+ * Warcraft III's player profile, made before the first start. Without one the first Single Player click stops at "Single
+ * Player Profiles: New Profile", a name to type, which on the phone means finding the keyboard first. 1.0 to 1.27 keep
+ * profiles in the game's own folder (`Save\Profile1\Campaigns.w3p`, a small text file with the name, the campaigns open and
+ * a check number). [CONTENT] is the file the game itself wrote for the name "Player" (The Frozen Throne 1.27.0.52240 on the
+ * desktop rig, 10 November 2026), byte for byte; put back into an empty game it was taken by both games under another
+ * machine name (Single Player went straight to its menu as "Player"; Reign of Chaos added its own section). Written only
+ * when the game has no profile; the game's profile screen (the button beside the name) makes others. Plain Kotlin, unit-tested.
+ */
+object Wc3Profile {
+    const val NAME = "Player"
+    const val CONTENT = "[Campaign1]\r\nNightElf=-4035225266123964415\r\nHuman=576460752303423488\r\nUndead=576460752303423488\r\n" +
+        "Orc=-4035225266123964415\r\nPlayerName=Player\r\nShowScreen=0\r\nTutorialCleared=0\r\nDifficulty=1\r\n\r\n" +
+        "[NOTE TO HACKERS -- Changing this file may be hazardous to your progress]\r\nMagic1=-704524704\r\n\r\n"
+
+    private fun saves(gameDir: File): File = gameDir.listFiles()?.firstOrNull { it.isDirectory && it.name.equals("Save", ignoreCase = true) } ?: File(gameDir, "Save")
+
+    /** Whether the game in [gameDir] has a profile (any `Save\Profile*` folder). */
+    fun has(gameDir: File): Boolean = saves(gameDir).listFiles()?.any { it.isDirectory && it.name.startsWith("Profile", ignoreCase = true) } == true
+
+    /** Makes the profile when the game has none; whether it made one. */
+    fun seed(gameDir: File): Boolean {
+        if (!gameDir.isDirectory || has(gameDir)) return false
+        val file = File(saves(gameDir), "Profile1/Campaigns.w3p")
+        file.parentFile?.mkdirs()
+        file.writeBytes(CONTENT.toByteArray(Charsets.ISO_8859_1))
+        return true
+    }
+}
+
+/**
+ * Warcraft III's movies (the campaigns' cinematics: `Movies\*.mpq`, played through DirectShow and GStreamer) set aside, or put
+ * back. Where a movie cannot be played the game dies of a fault as it starts (seen on the desktop rig without GStreamer's
+ * plugins, 10 November 2026); with no `Movies` folder it skips them and plays on (seen there too: the intro passed over, the
+ * campaign's "Cinematic" entry doing nothing). So a session that ends in a fault with a movie's window still up ([upAtEnd],
+ * from the session keeper's log) has its movies set aside by the app, and the Launch options have the switch. The folder is
+ * renamed, never deleted. Plain Kotlin, unit-tested.
+ */
+object Wc3Movies {
+    const val FOLDER = "Movies"
+    const val ASIDE = "Movies (off)"
+
+    /** The windows a movie plays in, by their class in the keeper's log. */
+    private val MOVIE_WINDOWS = setOf("BlizPlay", "BlockingWindow")
+    private val WINDOW = Regex("""window of class '([^']+)' (.*)""")
+
+    private fun folder(gameDir: File): File? = gameDir.listFiles()?.firstOrNull { it.isDirectory && it.name.equals(FOLDER, ignoreCase = true) }
+
+    /** Whether the game in [gameDir] has movies at all (to switch). */
+    fun has(gameDir: File): Boolean = folder(gameDir) != null || File(gameDir, ASIDE).isDirectory
+
+    /** Whether the movies are on: their folder is in its place. */
+    fun on(gameDir: File): Boolean = folder(gameDir) != null
+
+    /** Sets the movies aside ([on] false) or puts them back; whether they are on afterwards. */
+    fun set(gameDir: File, on: Boolean): Boolean {
+        val there = folder(gameDir)
+        val aside = File(gameDir, ASIDE)
+        if (on) {
+            if (there == null && aside.isDirectory) aside.renameTo(File(gameDir, FOLDER))
+        } else if (there != null) {
+            // An older set-aside copy (the game was repaired since): the same files again.
+            if (aside.exists()) aside.deleteRecursively()
+            there.renameTo(aside)
+        }
+        return on(gameDir)
+    }
+
+    /** The keeper's words for "the game's last program has gone" (tools/borderless/borderless.c). */
+    private const val GAME_GONE = "no program of the game's is left"
+
+    /**
+     * Whether [keeperLog] (the session keeper's log) shows the game's programs gone with a movie's window still up: it says each
+     * of the game's windows as it appears and, while the game runs, as it goes. A movie that ended has its windows gone; a game
+     * that died in a movie has not. A session that was only put away (the phone folded, the app left) has no such end.
+     */
+    fun upAtEnd(keeperLog: String): Boolean {
+        val up = HashSet<String>()
+        var gone = false
+        for (line in keeperLog.lineSequence()) {
+            if (line.contains(GAME_GONE)) gone = true
+            val match = WINDOW.find(line) ?: continue
+            val cls = match.groupValues[1]
+            if (cls !in MOVIE_WINDOWS) continue
+            if (match.groupValues[2].trim() == "gone") up -= cls else up += cls
+        }
+        return gone && up.isNotEmpty()
+    }
+}
+
+/**
+ * Wine's "Program Error" box, which its debugger shows when a program dies of a fault: on the phone a small dialog on a black
+ * screen, for a game that is gone anyway. Without it the program ends at once, the session's keeper ends the session and the
+ * app, back at the launcher, reports the fault ([GameLog.fault]). Seen on the desktop rig with Warcraft III made to fault as a
+ * movie started (10 November 2026): the box said only that the debugger could not attach (the game shuts its process to
+ * others), and stayed until its OK was pressed. Written at every start, the games sharing one Windows: off for the games,
+ * Wine's own default (on) for the World of Warcraft clients, which have their own crash reports. Plain Kotlin, unit-tested.
+ */
+object WineCrashDialog {
+    const val KEY = "Software\\Wine\\WineDbg"
+    const val VALUE = "ShowCrashDialog"
+
+    /** Whether [gameId] keeps Wine's box (the World of Warcraft clients). */
+    fun shown(gameId: String?): Boolean = gameId == "wow-client" || gameId == "wow" || gameId?.startsWith("wow_") == true
+
+    fun writes(gameId: String?): List<Wc3Setup.Write> = listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, KEY, VALUE, if (shown(gameId)) 1 else 0))
+
+    fun apply(containerRoot: File, gameId: String?, open: (File) -> Wc3Setup.Registry = Wc3Setup::wineRegistry) =
+        Wc3Setup.applyWrites(containerRoot, writes(gameId), open)
+}
+
+/**
  * Diablo II's start-up switches: a window (`-w`), which Winlator stretches to the screen. Fullscreen asks the X server for an
  * 800x600 display mode, which it has not (Error 22, "initializing DirectDraw", seen in Winlator's Wine on a desktop); in a window
  * 1.13 draws through GDI (D2Gdi.dll) and ran to its menu and into a game there. Plain Kotlin, unit-tested.

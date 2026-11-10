@@ -46,6 +46,7 @@ Without `BLIZZ_XRIG=1` the tests are skipped: CI and an ordinary test run pass o
 | `aLockedCursorInAStretchedWindowGetsItsClickWhereTouched` | A fixed 400x300 window stretched over 800x600 with the cursor locked and Wine's pointer grab held, through the keeper: one click, where the picture was touched (the input desktop switched; the grab window takes the stretched window's transformation, Winlator patch 0009). |
 | `aGameThatDoesNotLockTheCursorGetsItsClicks` | Diablo II's kind of window through the keeper. |
 | `aFramedWindowStretchedToTheScreenGetsItsClickWhereTouched` | A program by itself, frame on, stretched. |
+| `theKeeperSaysWhenADialogBoxIsUp` | A Windows dialog box (Wine's About box, started as a game is): the keeper's file `borderless.dialog` is there while it is up and its words are in the keeper's log; the app makes a strategy game's tap the left click meanwhile. Winlator's server cannot tell such a window from a game's (no dialog type on it). |
 | `theSessionEndsWhenTheGameDoes` | The game's window closed: Wine exits within seconds (the app returns to the launcher). |
 | `theAppsKeyboardTypesWhatItsCapsShow` | The app's keyboard: letters, Shift, digits, Enter, Escape, F10 as the program reads them. |
 

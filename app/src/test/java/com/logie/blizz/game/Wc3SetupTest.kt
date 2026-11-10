@@ -137,6 +137,82 @@ class Wc3SetupTest {
         assertEquals(2520, user.values["${Wc3Setup.VIDEO}|reswidth"])
     }
 
+    @Test fun aGameThatDiedInAMovieIsToldFromOneWhoseMovieEnded() {
+        // The session keeper's log on the desktop rig, 10 November 2026: the intro played and was skipped with a click...
+        val played = """
+            0 window of class 'Warcraft III' "Warcraft III": 600x450 at 0,0, style 16cf0000
+            0 window of class 'BlockingWindow' "Warcraft III": 800x600 at 0,0, style 95000000
+            1 window of class 'Warcraft III' gone
+            1 window of class 'BlizPlay' "Blizzard Player": 800x600 at 0,0, style 96000000
+            30 window of class 'Warcraft III' "Warcraft III": 600x450 at 0,0, style 16cf0000
+            30 frame off a window of class 'Warcraft III' (resizable): client 592x423, now 800x600 at the top left (screen 800x600)
+            30 window of class 'BlockingWindow' gone
+            30 window of class 'BlizPlay' gone
+            210 no program of the game's is left
+        """.trimIndent()
+        assertFalse(Wc3Movies.upAtEnd(played))
+        // ...and the game dying as the intro started, with no plugins to play it.
+        val died = """
+            0 1 program(s) of the game's running (War3.exe)
+            0 window of class 'BlockingWindow' "Warcraft III": 800x600 at 0,0, style 95000000
+            1 no program of the game's is left
+            4 the game is over: ending the session
+        """.trimIndent()
+        assertTrue(Wc3Movies.upAtEnd(died))
+        // A second movie later in the session that the game died in, after a first that ended.
+        assertTrue(Wc3Movies.upAtEnd(played.substringBefore("210") + "300 window of class 'BlizPlay' \"Blizzard Player\": 800x600 at 0,0, style 96000000\n301 no program of the game's is left"))
+        assertFalse(Wc3Movies.upAtEnd(""))
+        // A session put away while a movie plays (the phone folded) is no death: the keeper never said the game was gone.
+        assertFalse(Wc3Movies.upAtEnd(died.lines().take(2).joinToString("\n")))
+    }
+
+    @Test fun theMoviesAreSetAsideAndPutBack() {
+        val game = tmp.newFolder("warcraft3")
+        assertFalse(Wc3Movies.has(game))
+        File(game, "Movies").mkdirs()
+        File(game, "Movies/HumanOp.mpq").writeText("movie")
+        assertTrue(Wc3Movies.has(game))
+        assertTrue(Wc3Movies.on(game))
+        assertFalse(Wc3Movies.set(game, false))
+        assertFalse(File(game, "Movies").exists())
+        assertEquals("movie", File(game, "Movies (off)/HumanOp.mpq").readText())
+        assertTrue(Wc3Movies.has(game))
+        // Off twice is off; a repair that brought them back is set aside again over the older copy.
+        assertFalse(Wc3Movies.set(game, false))
+        File(game, "Movies").mkdirs()
+        File(game, "Movies/HumanOp.mpq").writeText("again")
+        assertFalse(Wc3Movies.set(game, false))
+        assertEquals("again", File(game, "Movies (off)/HumanOp.mpq").readText())
+        assertTrue(Wc3Movies.set(game, true))
+        assertEquals("again", File(game, "Movies/HumanOp.mpq").readText())
+        assertFalse(File(game, "Movies (off)").exists())
+    }
+
+    @Test fun aPlayerProfileIsMadeWhenTheGameHasNone() {
+        val game = tmp.newFolder("wc3")
+        assertFalse(Wc3Profile.has(game))
+        assertTrue(Wc3Profile.seed(game))
+        val file = File(game, "Save/Profile1/Campaigns.w3p")
+        // The game's own file for "Player", byte for byte: Windows line ends, the name, the check number.
+        val bytes = file.readBytes()
+        assertEquals(287, bytes.size)
+        val text = String(bytes, Charsets.ISO_8859_1)
+        assertTrue(text.startsWith("[Campaign1]\r\nNightElf=-4035225266123964415\r\n"))
+        assertTrue(text.contains("\r\nPlayerName=Player\r\n"))
+        assertTrue(text.endsWith("Magic1=-704524704\r\n\r\n"))
+        assertTrue(Wc3Profile.has(game))
+        // Never over a profile that is there, the player's own included, whatever the folder's case.
+        file.writeText("mine")
+        assertFalse(Wc3Profile.seed(game))
+        assertEquals("mine", file.readText())
+        val other = tmp.newFolder("wc3b")
+        File(other, "save/profile2").mkdirs()
+        assertFalse(Wc3Profile.seed(other))
+        assertEquals(listOf("save"), other.list()!!.toList())
+        // No game folder, nothing made.
+        assertFalse(Wc3Profile.seed(File(tmp.root, "none")))
+    }
+
     @Test fun aWindowsNotMadeYetIsLeftAlone() {
         val root = tmp.newFolder("empty")
         Wc3Setup.apply(root, 800, 600, null)

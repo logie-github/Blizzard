@@ -53,3 +53,37 @@ class BorderlessTest {
         }
     }
 }
+
+/** The strategy games' touch is said again while the person taps where a hold is wanted, and no more once they have held. */
+class TapHintTest {
+    @Test fun tapsBeforeTheFirstHoldSayItAFewTimes() {
+        val hint = TapHint(max = 3, gapMs = 4000)
+        assertTrue(hint.onClick(right = true, now = 1_000))
+        // Again at once: not twice in a row.
+        assertFalse(hint.onClick(right = true, now = 2_000))
+        assertTrue(hint.onClick(right = true, now = 6_000))
+        assertTrue(hint.onClick(right = true, now = 11_000))
+        // Three times is enough.
+        assertFalse(hint.onClick(right = true, now = 60_000))
+    }
+
+    @Test fun aTapOnADialogBoxIsTheLeftClick() {
+        val left = com.logie.blizz.controls.Button.LEFT
+        val right = com.logie.blizz.controls.Button.RIGHT
+        assertEquals(left, StrategyTap.button(right, onDialog = true))
+        assertEquals(right, StrategyTap.button(right, onDialog = false))
+        assertEquals(left, StrategyTap.button(left, onDialog = false))
+        assertEquals(left, StrategyTap.button(left, onDialog = true))
+    }
+
+    @Test fun afterAHoldItIsNotSaidAgain() {
+        val hint = TapHint()
+        assertTrue(hint.onClick(right = true, now = 0))
+        assertFalse(hint.onClick(right = false, now = 10_000))
+        assertFalse(hint.onClick(right = true, now = 20_000))
+        // A session that begins with a hold never says it.
+        val other = TapHint()
+        assertFalse(other.onClick(right = false, now = 0))
+        assertFalse(other.onClick(right = true, now = 9_000))
+    }
+}
