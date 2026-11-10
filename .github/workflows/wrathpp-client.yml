@@ -68,6 +68,10 @@ jobs:
           for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -version [17.0^,18.0^) -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSDIR=%%i"
           call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" > nul || exit /b 1
           cl 2>&1 | findstr /i "version" >> build-report.txt
+          rem MSVC 19.44 stops on the SDK's reflect.hpp at the default constexpr step limit (1048576):
+          rem the probe's first run, 2026-11-10. CXXFLAGS also reaches the sub-builds CMake configures.
+          set "CXXFLAGS=/constexpr:steps16777216"
+          echo CXXFLAGS=%CXXFLAGS% >> build-report.txt
           cmake --version >> build-report.txt
           cmake -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -S wxl\client -B wxl\build -DWXL_CORE_DIR=%GITHUB_WORKSPACE%\wxl\core -DWXL_SDK_DIR=%GITHUB_WORKSPACE%\wxl\sdk > configure.log 2>&1
           if errorlevel 1 (type configure.log & exit /b 1)
