@@ -145,9 +145,11 @@ jobs:
         shell: cmd
         run: |
           set "CXXFLAGS=/constexpr:steps16777216"
-          cmake -S wxl\core -B wxl\build-core -G "Visual Studio 17 2022" -DWXL_CORE_TARGETS=win-x86 -DWXL_SDK_DIR=%GITHUB_WORKSPACE%\wxl\sdk -DWXL_PROFILE=OFF > core-configure.log 2>&1
+          rem The 32-bit tree alone (the core README's "Build one"), and only what the add-on ships: the runtime, glue-unlock
+          rem and wxl.lua. WarcraftXL's own test programs don't build on this runner's MSBuild (first run, 2026-11-10).
+          cmake -S wxl\core -B wxl\build-core -G "Visual Studio 17 2022" -A Win32 -DWXL_CORE_ARCH=win-x86 -DWXL_SDK_DIR=%GITHUB_WORKSPACE%\wxl\sdk -DWXL_PROFILE=OFF > core-configure.log 2>&1
           if errorlevel 1 (type core-configure.log & exit /b 1)
-          cmake --build wxl\build-core --config Release --parallel > core-build.log 2>&1
+          cmake --build wxl\build-core --config Release --parallel --target wxl-core glue-unlock wxl-lua > core-build.log 2>&1
           set CORE_EXIT=%ERRORLEVEL%
           powershell -NoProfile -Command "Get-Content core-build.log -Tail 60"
           if not "%CORE_EXIT%"=="0" exit /b %CORE_EXIT%
@@ -162,10 +164,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find wxl/build-core -path '*dist*' -maxdepth 3 -type d | head
-          dist=$(find wxl/build-core -type f -path '*/bin/x86/WarcraftXL.dll' | head -1)
-          [ -n "$dist" ] || { echo "no x86 WarcraftXL.dll"; find wxl/build-core -name 'WarcraftXL.dll'; exit 1; }
-          root=${dist%/bin/x86/WarcraftXL.dll}
+          dist=wxl/build-core/Release/WarcraftXL.dll
+          [ -f "$dist" ] || { echo "no x86 WarcraftXL.dll"; find wxl/build-core -name 'WarcraftXL.dll'; exit 1; }
+          root=wxl/build-core/Release
           native=$(find wxl/build-native -type f -name 'wrathpp-native.dll' | head -1)
           [ -n "$native" ] || { echo "no wrathpp-native.dll"; exit 1; }
           out=addon/wrathpp-client-addon
@@ -175,6 +176,10 @@ jobs:
             cp -r "$root/Mods/$mod" "$out/Mods/"
             find "$out/Mods/$mod" -path '*/bin/x64*' -prune -exec rm -rf {} +
           done
+          # (their manifests from the sources where the build didn't copy them)
+          [ -f "$out/Mods/wxl.glue-unlock/mod.json" ] || cp wxl/core/mods/wxl.glue-unlock/mod.json "$out/Mods/wxl.glue-unlock/"
+          [ -f "$out/Mods/wxl.lua/mod.json" ] || cp wxl/sdk/lua/mod.json "$out/Mods/wxl.lua/"
+          ls -R "$out/Mods" | head -40
           mkdir -p "$out/Mods/wrathpp.native/bin/x86"
           cp blizzard/realm/warcraft/wrathpp/client-mod/wrathpp-native/mod.json "$out/Mods/wrathpp.native/"
           cp "$native" "$out/Mods/wrathpp.native/bin/x86/"
