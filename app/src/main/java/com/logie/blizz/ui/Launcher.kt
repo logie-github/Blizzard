@@ -412,7 +412,8 @@ private fun RuntimeOverlay() {
                         "It can't enter the realm yet. The game checks the world server's identity against Blizzard's own key, " +
                         "and disconnects from any other server (\"You have been disconnected\", BLZ51901023). The Forever Launcher " +
                         "(ForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
-                        "make or download it: pick the file once and it is run at every Play.",
+                        "make or download it: pick the file once and it is run at every Play. It must be a native build — the " +
+                        "current Chromium-based (Tauri/WebView2) launcher can't run under Wine on the phone; an older native one can.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
