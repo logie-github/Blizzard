@@ -8,7 +8,11 @@ name: Build the Wrath++ realm
 on:
   push:
     paths:
-      - realm/warcraft/wrathpp/**
+      # (the server's own parts: the client add-on, docs and app don't rebuild it)
+      - realm/warcraft/wrathpp/protocol/**
+      - realm/warcraft/wrathpp/registry/**
+      - realm/warcraft/wrathpp/modules/**
+      - realm/warcraft/wrathpp/patches/azerothcore/**
       - realm/scripts/fetch-wrathpp.sh
       - .github/workflows/build-wrathpp-server.yml
   workflow_dispatch:

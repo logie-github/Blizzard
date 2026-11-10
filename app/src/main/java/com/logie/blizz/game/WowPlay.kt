@@ -225,7 +225,10 @@ object WowPlay {
         withContext(Dispatchers.IO) { WowClientSetup.apply(own, own, env.size.first, env.size.second, "wrathpp", account) }
         waitForRealm(env, "Wrath++")?.let { return it }
         env.report(State.Preparing("Starting the game"))
-        val exe = withContext(Dispatchers.IO) { WowClientSetup.executable(own, mods) }
+        // Its own program when the add-on is in (WarcraftXL's runtime loaded: the creator's boxes), else the game's.
+        val exe = withContext(Dispatchers.IO) {
+            if (File(own, com.logie.blizz.wrathpp.WrathppAddon.EXE).isFile) com.logie.blizz.wrathpp.WrathppAddon.EXE else WowClientSetup.executable(own, mods)
+        }
         env.launch(launchEntry(own, exe, env.title))
         return null
     }

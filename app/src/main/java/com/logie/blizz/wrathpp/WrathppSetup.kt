@@ -17,6 +17,10 @@ object WrathppSetup {
             report.say("Making Wrath++'s copy of the game (step 4 of 4)", 0f)
             WrathppClient.make(layout.client, layout.wrathppClient, report::say)
         }
+        // The add-on (WarcraftXL's runtime and the creator's boxes): Wrath++ still plays without it, as stock 3.3.5.
+        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }.onFailure { e ->
+            runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "addon.log").apply { parentFile?.mkdirs() }.appendText("${e.message}\n") }
+        }
     }
 
     /**
