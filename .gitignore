@@ -11,3 +11,4 @@ app/stratagus/
 
 app/warsmash/
 .kotlin/
+__pycache__/
