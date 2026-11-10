@@ -44,6 +44,14 @@ object ForeverPlay {
          * downloading ~47 GB, or lets the person pick a client folder already on the phone.
          */
         data object NeedsClient : State
+        /**
+         * The client is here but the Forever Launcher isn't. The game then starts and logs in to the realm, and is
+         * disconnected as it enters it: the client checks the world server's identity against a key of Blizzard's
+         * ("server identity check failed", seen on a desktop run of client 70862 against this realm on 10 November
+         * 2026: BLZ51901023 on screen). The launcher, which the person supplies, is what gets a client past that.
+         * The launcher asks: pick the file, or start the game as it is.
+         */
+        data object NeedsLauncher : State
         data class Failed(val message: String) : State
     }
 
@@ -113,20 +121,24 @@ object ForeverPlay {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun dismiss() {
-        if (_state.value is State.Failed || _state.value is State.NeedsClient) _state.value = State.Idle
+        if (_state.value is State.Failed || _state.value is State.NeedsClient || _state.value is State.NeedsLauncher) _state.value = State.Idle
     }
 
-    fun play(context: Context, allowMetered: Boolean = false) {
+    /** Play without the Forever Launcher (the person said so): the game starts and logs in, and can't enter the realm. */
+    fun playWithoutLauncher(context: Context) = play(context, withoutLauncher = true)
+
+    fun play(context: Context, allowMetered: Boolean = false, withoutLauncher: Boolean = false) {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
         _state.value = State.Preparing("Preparing")
         scope.launch {
             try {
-                val failure = run(app, width to height, allowMetered)
+                val failure = run(app, width to height, allowMetered, withoutLauncher)
                 _state.value = when (failure) {
                     null, PAUSED -> State.Idle
                     NEEDS_CLIENT -> State.NeedsClient
+                    NEEDS_LAUNCHER -> State.NeedsLauncher
                     else -> State.Failed(failure)
                 }
             } catch (e: CancellationException) {
@@ -159,7 +171,7 @@ object ForeverPlay {
      * Copies the Forever Launcher the person picked (a .exe they supply) into the client folder, so the app runs it
      * in place of Wow.exe at the next Play. The file keeps a launcher name the client start looks for.
      */
-    fun importLauncher(context: Context, uri: Uri) {
+    fun importLauncher(context: Context, uri: Uri, thenPlay: Boolean = false) {
         val app = context.applicationContext
         _state.value = State.Preparing("Adding the Forever Launcher")
         scope.launch {
@@ -176,6 +188,7 @@ object ForeverPlay {
                     null
                 }
                 _state.value = if (failure != null) State.Failed(failure) else State.Idle
+                if (failure == null && thenPlay) play(app)
             } catch (e: CancellationException) { _state.value = State.Idle; throw e }
             catch (e: Throwable) { _state.value = State.Failed("The launcher couldn't be added: ${e.message ?: e.javaClass.simpleName}") }
         }
@@ -203,6 +216,7 @@ object ForeverPlay {
     }
 
     private const val NEEDS_CLIENT = "\u0000needs-client"
+    private const val NEEDS_LAUNCHER = "\u0000needs-launcher"
     private const val PAUSED = "\u0000paused"
 
     /** Where the client is downloaded to; renamed to [ForeverLayout.client] once complete. */
@@ -326,7 +340,7 @@ object ForeverPlay {
         }
     }
 
-    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean): String? {
+    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean, withoutLauncher: Boolean): String? {
         val layout = ForeverLayout.of(context)
         val running = ForeverRealm.status.value.phase.let { it == ForeverRealm.Phase.RUNNING || it == ForeverRealm.Phase.STARTING }
 
@@ -350,6 +364,9 @@ object ForeverPlay {
             if (!allowMetered && metered(context)) return NEEDS_CLIENT
             fetchClient(context, layout)?.let { return it }
         }
+
+        // Without the Forever Launcher the game is disconnected as it enters the realm: said before the wait, not after it.
+        if (!withoutLauncher && !layout.hasLauncher()) return NEEDS_LAUNCHER
 
         // The index files of a client downloaded by an earlier build lacked a part the game insists on ("Your World of
         // Warcraft installation is damaged"): given it here, in place, the 47 GB untouched.
