@@ -9,7 +9,8 @@ import java.io.File
 /**
  * What Warcraft III's picture says a tap should be ([Wc3Screen]): on pictures drawn here with the marks' measured colours,
  * and, when `BLIZZ_WC3_FRAMES` names a folder of the game's own frames from the desktop rig (README, "Testing the Windows
- * games here"; the game's pictures are never committed), on those.
+ * games here"; the game's pictures are never committed), on those; and on those frames as a real OpenGL ES hands them to the
+ * reader (`tools/xrig/glread.sh <that folder>` first: the phone's own sequence of OpenGL calls, on this machine's Mesa).
  */
 class Wc3ScreenTest {
     /** A 960x720 picture, black, to draw the marks on. */
@@ -85,6 +86,18 @@ class Wc3ScreenTest {
         assertEquals(Wc3Screen.State.COMMAND, Wc3Screen.state(960, 720, worker.swapped()))
         val target = mission(true, 3 to 2)
         assertEquals(Wc3Screen.State.TARGET, Wc3Screen.state(960, 720, target.flipped()))
+        // Read in parts (the top band and the command card only), from a picture kept either way up.
+        fun parts(picture: Picture, upsideDown: Boolean) = Wc3Screen.partial(picture.width, picture.height) { l, t, w, h ->
+            IntArray(w * h) { i -> (t + i / w).let { row -> picture.argb(l + i % w, if (upsideDown) picture.height - 1 - row else row) } }
+        }
+        assertEquals(Wc3Screen.State.COMMAND, Wc3Screen.state(960, 720, parts(worker, false)))
+        assertEquals(Wc3Screen.State.COMMAND, Wc3Screen.state(960, 720, parts(worker, true)))
+        assertEquals(Wc3Screen.State.TARGET, Wc3Screen.state(960, 720, parts(target, true)))
+        assertEquals(Wc3Screen.State.IDLE, Wc3Screen.state(960, 720, parts(mission(true), false)))
+        // No more than a sixth of the picture is fetched.
+        var fetched = 0
+        Wc3Screen.partial(960, 720) { _, _, w, h -> fetched += w * h; IntArray(w * h) }
+        assertTrue("$fetched pixels fetched", fetched < 960 * 720 / 6)
         // At the rig's other size.
         val small = Picture(800, 600).apply {
             fill(Wc3Screen.GOLD_COIN, gold)
@@ -106,22 +119,35 @@ class Wc3ScreenTest {
         val expected = File(dir, "expected.txt").readLines().filter { '=' in it }.associate { it.substringBefore('=').trim() to Wc3Screen.State.valueOf(it.substringAfter('=').trim()) }
         assertTrue("no frames named in expected.txt", expected.isNotEmpty())
         val wrong = ArrayList<String>()
+        var asOpenGl = 0
         for ((name, want) in expected) {
             val image = javax.imageio.ImageIO.read(File(dir, name)) ?: error("$name can't be read")
             val w = image.width
             val h = image.height
             val rgb = image.getRGB(0, 0, w, h, null, 0, w)
             val upright = Wc3Screen.Pixels { x, y -> rgb[y * w + x] }
-            val views = mapOf(
+            val views = linkedMapOf(
                 "upright" to upright,
                 "upside down" to Wc3Screen.Pixels { x, y -> rgb[(h - 1 - y) * w + x] },
                 "red and blue swapped" to Wc3Screen.Pixels { x, y -> rgb[y * w + x].let { (it and 0xff00ff00.toInt()) or ((it and 0xff) shl 16) or ((it shr 16) and 0xff) } },
+                // As the phone reads it: four rectangles of the frame, kept the right way up or upside down.
+                "in parts" to Wc3Screen.partial(w, h) { l, t, pw, ph -> IntArray(pw * ph) { i -> rgb[(t + i / pw) * w + l + i % pw] } },
+                "in parts, kept upside down" to Wc3Screen.partial(w, h) { l, t, pw, ph -> IntArray(pw * ph) { i -> rgb[(h - 1 - (t + i / pw)) * w + l + i % pw] } },
             )
+            // The frame as the app's drawing thread reads it out of Winlator's texture on a real OpenGL ES (tools/xrig/glread.sh
+            // leaves it beside the frame): red, green, blue, alpha, the texture's first row first, fetched in parts.
+            val kept = File(dir, name.substringBeforeLast('.') + ".rgba")
+            if (kept.isFile && kept.length() == w.toLong() * h * 4) {
+                val bytes = java.nio.ByteBuffer.wrap(kept.readBytes()).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                views["as OpenGL ES kept it"] = Wc3Screen.partial(w, h) { l, t, pw, ph -> IntArray(pw * ph) { i -> Wc3Screen.fromRgba(bytes.getInt(((t + i / pw) * w + l + i % pw) * 4)) } }
+                asOpenGl++
+            }
             for ((how, view) in views) {
                 val got = Wc3Screen.state(w, h, view)
                 if (got != want) wrong += "$name ($how): $got, expected $want"
             }
         }
+        println("Wc3ScreenTest: ${expected.size} frames of the game's, $asOpenGl of them also as OpenGL ES kept them")
         assertTrue("${wrong.size} of ${expected.size} frames read wrong:\n" + wrong.joinToString("\n"), wrong.isEmpty())
     }
 }

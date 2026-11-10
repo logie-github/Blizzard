@@ -18,6 +18,11 @@ This is how "Warcraft III won't let me click" (the phone, 9 November 2026) was f
   and `HostShm`: real System V segments mapped for the server, which MIT-SHM (Wine's drawing) needs.
 - `inputprobe.c`: a Windows program that opens a 400x300 window (sizable, or of a fixed size with `fixed`), locks the cursor
   to it as games do (`clip`), and writes every button, key, character and size it is given to `C:\windows\inputprobe.log`.
+- `glread.c`, `glread.sh <frames dir>`: the phone's look at a game's frame on a real OpenGL ES (this machine's Mesa), call for
+  call. On the phone Warcraft III's frame is in a texture only the drawing thread can read (`Wc3Watch`); the server here has
+  no GPU, so the calls are made by this program instead: two contexts sharing their objects, the frame copied into a texture
+  in one as Winlator's `Texture.copyFromReadBuffer` does, read through a framebuffer in the other. It leaves `<name>.rgba`
+  beside each `<name>.png`, which `Wc3ScreenTest` then reads the game's state from (`BLIZZ_WC3_FRAMES=<frames dir>`).
 - `app/src/test/java/com/logie/blizz/rig/XRig.kt`: the rig (the server, its renderer's stretch, the win handler, Wine's
   processes, clicks and keys as the app's touch layer makes them, a screenshot of the server's windows).
 - `app/src/test/java/com/logie/blizz/rig/XServerRigTest.kt`: the tests, and `hold`, which keeps the server up to be driven by hand.
