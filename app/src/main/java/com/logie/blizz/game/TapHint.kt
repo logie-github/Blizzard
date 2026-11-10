@@ -1,11 +1,11 @@
 package com.logie.blizz.game
 
 /**
- * When the strategy games' touch is said again. A tap there is the right click (move, attack), which does nothing on a menu
- * button, and the one line shown as the game's window came up is gone before the game has drawn its menu: a person who taps
- * "Single Player" sees nothing happen (the phone, 9 November 2026: "it won't let me click", where the clicks were dead as
- * well). Until the session's first left click (a touch and hold: the person then knows), a tap that made a right click says
- * the line again, at most [max] times and no more often than every [gapMs]. Plain Kotlin, unit-tested.
+ * When StarCraft's touch is said again (Warcraft III has its own layout since 10 November 2026, where a tap presses what it
+ * should: [Wc3Screen]). A tap there is the right click (move, attack), which does nothing on a menu button, and the one line
+ * shown as the game's window came up is gone before the game has drawn its menu: a person who taps "Single Player" sees
+ * nothing happen. Until the session's first left click (a touch and hold: the person then knows), a tap that made a right
+ * click says the line again, at most [max] times and no more often than every [gapMs]. Plain Kotlin, unit-tested.
  */
 class TapHint(private val max: Int = 4, private val gapMs: Long = 4000) {
     private var shown = 0

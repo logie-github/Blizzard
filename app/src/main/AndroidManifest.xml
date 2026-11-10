@@ -6,6 +6,10 @@
     <!-- Downloads (Blizzard's legacy servers, DevilutionX's releases); nothing reaches Battle.net. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- "Search the phone" in a game's import: the importers look for the game's files on the phone's own storage (asked for
+         when the person taps it; the second is Android 11's switch for the same, where the first is not enough). -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Updates from this repository's releases, handed to Android's installer. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Imports of gigabytes keep running with the app in the background. -->

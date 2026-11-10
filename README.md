@@ -34,7 +34,21 @@ Every button gives a small press (a shrink and a tick of haptic feedback); the w
 again for **Repair**.
 
 Where it looks: the app's import folder (`Android/data/com.logie.blizz/files/import`, which a
-computer can copy into over USB) and every folder chosen with **Search a folder** (kept).
+computer can copy into over USB), every folder chosen with **Search a folder** (kept), and, after
+**Search the phone**, the whole of the phone's own storage.
+
+**Search the phone** (in a game's import, beside Search a folder, until it is allowed): one tap and Android's
+question, and the importers find the game's files themselves wherever they were put, six folders deep; the
+photo, music and other apps' folders (`DCIM`, `Pictures`, `Movies`, `Music`, `Android` and the like) and hidden
+folders are passed over. A file that was picked on the phone's storage is then read where it is, with what is
+beside it: an installer has its data files (the phone's Warcraft II from GOG, an 859 KB program with its
+`.bin` next to it, was refused three times as "needs its data files": 4 and 8 November 2026). The same now
+holds for an installer the search finds inside a folder chosen with Search a folder. Where Android's storage
+question is not enough (the app targets Android 9 for the games' programs, which still reads all of the storage
+with it on the Androids tried on paper; not seen on a phone), the app opens Android's *All files access* page
+for itself, and the search runs when you come back with it switched on. A picked folder that has since been
+emptied gives way to what the search finds. Nothing on the phone's storage is written; a picked *file* is
+deleted after an import that checked out, as before, where Android lets the app.
 
 | Game | Where it comes from | Asks for |
 | --- | --- | --- |
@@ -124,13 +138,30 @@ The one gesture system (`controls/Gestures.kt`), two profiles (`game/LaunchProfi
 
 | | StarCraft, StarCraft II | Diablo, Diablo II |
 | --- | --- | --- |
-| Tap | Right click: move, attack, gather. On the game's panels and bars (Warcraft III's bottom panel and top bar, StarCraft's console), where a right click does nothing, a left click | Left click: walk, attack, pick up |
+| Tap | Right click: move, attack, gather. On the game's panels and bars (StarCraft's console), where a right click does nothing, a left click | Left click: walk, attack, pick up |
 | Touch and hold | Left click when you lift: select a unit or building, press a menu button (hold twice on a spot: double click) | Right click: cast |
-
-As a strategy game's window comes up, one line says so: *Hold to select or press a button · tap to move or attack*. That line is gone before the game has drawn its menu, where a tap (the right click) presses nothing, so until the first hold of the session a tap says it again (*Touch and hold to press a button or select · a tap is the right click*), up to four times. The game's own menus are drawn inside its window and cannot be told from the battlefield; a dialog box of Windows' own can (an error message, a prompt: the session's keeper says when one is up), and there a tap is the left click.
 | Swipe | Pan the map | Drag: walk after the finger. Quick flick: the arrow key its way (menus) |
 | Resting finger, then tap / hold | Shift + right click (queue an order) / Shift + left click (add to the selection) | Shift |
 | Two / three / four fingers | Game menu / keyboard / app menu | Same |
+
+StarCraft keeps this layout. As its window comes up, one line says so: *Hold to select or press a button · tap to move or attack*. That line is gone before the game has drawn its menu, where a tap (the right click) presses nothing, so until the first hold of the session a tap says it again (*Touch and hold to press a button or select · a tap is the right click*), up to four times. The game's own menus are drawn inside its window and cannot be told from the battlefield; a dialog box of Windows' own can (an error message, a prompt: the session's keeper says when one is up), and there a tap is the left click.
+
+**Warcraft III has its own layout** (yours, 10 November 2026: "Tap to select then tap to move. Double tap for left click. Hold tap for right click."):
+
+| Gesture | Warcraft III |
+| --- | --- |
+| Tap | The smart tap. With nothing of yours selected it is the left click: it selects the unit or building you tap, presses any menu's button, and gives a target or a place to build when the game asks for one. With your units or a building selected it is the right click: move there, attack that, gather, set the rally point |
+| Double tap | Always the left click: select another unit while some are selected |
+| Tap, then tap and hold | The game's double click: every unit of that kind on the screen |
+| Touch and hold | Always the right click (when you lift, after the buzz) |
+| Hold, then drag | The selection box |
+| Drag | Scroll the map. On the minimap it is the game's own drag: the view follows the finger |
+| Rest one finger, tap / hold with another | Shift + right click (queue an order) / Shift + left click (add to the selection) |
+| Pinch | Zoom (the mouse wheel) |
+| Two fingers | The game's menu (F10) in play. Escape wherever there is something to leave: skip a scene, back out of a menu page, close the game's menu or its log, call off a command that waits for its target |
+| Three / four fingers | The keyboard / the app's menu |
+
+On the game's own buttons (the bottom panel, the top bar, the hero icons, the idle worker's icon) a tap is always the left click, and two taps press twice. **How the tap knows:** the game shuts its process to other programs, so the app reads the game's own picture, a few times a second and as each finger lands: the gold coin of the resource bar says a mission's interface is up, the Menu button's words are lit only while the game takes orders (they go grey under the game's menu, the quest log, a defeat box), and the command card bottom right has buttons only for your own units and buildings, and only Cancel while the game waits for a target or a place. The marks are the same for all four races and in both games (`Wc3Screen`; `Wc3Watch` reads the picture on the drawing thread, some 100,000 pixels a look). Where the picture cannot be read, or shows anything else (a menu, a movie, a loading screen, a box over the game), a tap is the left click: every button can always be pressed, and the hold still orders. The two-finger tap goes by the same look (Escape where the picture shows no mission taking orders, or a command waiting for its target; while a box of Windows' own is up; the game's menu otherwise, and whenever the picture cannot be read). With units selected a tap waits a quarter of a second for a second one (the double tap), so an order follows the finger by that much; everything else acts at once. **Tested on the desktop:** the reader's rules against 78 of the game's own frames at the phone's 960x720 and at 800x600 (four races with nothing, a unit, several, a building selected; a neutral building; the game's menu, log and defeat box over them; a target wanted, a place to build wanted; the game's own cursor resting on an empty button, on the Menu button and on the coin; menus, movies, loading and score screens), each also upside down and with red and blue swapped, as the phone's graphics may hand them over; and the whole layout against the running game on the rig, deciding each tap from a screenshot as the phone does: a worker selected, moved by a tap, Attack then a tap for its target, Build then a farm placed by a tap (the gold went from 500 to 420), the game's menu opened and left by taps, then opened by the two-finger tap's F10 and left by its Escape, and an Attack called off by its Escape with the selection kept. Escape on the score screen went on to the next page, and a drag over the minimap moved the view with the finger. The gestures themselves are unit-tested. **Not seen on a phone:** reading the picture there (Winlator's OpenGL keeps the frame in a texture; if it cannot be read the reports say why, and taps stay left clicks). Controls saved from the old layout give way to this one; your own keys are kept.
 
 **Back** opens the app's menu (not the game's Escape any more: as Escape it took the person out of Diablo II's screens when they were after the keyboard): back to the game, the keyboard, the text prompt, the Esc key, a report, leave. **The keyboard** (three fingers, or the menu) is the app's own, drawn over the bottom of the screen with the game still playable above it: a PC layout in six rows, Esc, F1 to F12, the digits and symbols, the letters, Shift, Ctrl and Alt (held for the next key), Enter, Backspace, Tab, Space, Insert, Delete, Home, End, PgUp, PgDn and the arrows, each pressed into the game as tapped; its Hide key or Back puts it away. It needs nothing of the phone's keyboard, which never came up over the game on 9 November 2026. **Type text** in the menu is the phone's keyboard in a prompt, for longer text, typed into the game when sent; **Chat** is the same after Enter.
 

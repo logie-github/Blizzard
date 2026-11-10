@@ -8,7 +8,15 @@ class ControlsStore(private val dir: File) {
     private fun file(gameId: String) = File(dir, "$gameId.json")
 
     fun load(gameId: String): GameControls = runCatching { GameControls.fromJson(JSONObject(file(gameId).readText())) }
-        .getOrNull() ?: defaults(gameId)
+        .getOrNull()?.let { current(gameId, it) } ?: defaults(gameId)
+
+    /**
+     * [saved] as this build plays it. Warcraft III's layout was made anew on 10 November 2026 (the smart tap); rules saved
+     * from the layout before it (they have no smart tap) would keep the tap a right click, so they give way to the new
+     * defaults, the person's own keys kept.
+     */
+    private fun current(gameId: String, saved: GameControls): GameControls =
+        if (gameId.startsWith("warcraft3") && saved.rules.none { it.function == "smart" }) saved.copy(rules = Catalog.of(gameId).rules) else saved
 
     /** Changes whenever the saved controls do (or are reset): to notice a change made while the game was running. */
     fun stamp(gameId: String): Long = file(gameId).let { if (it.isFile) it.lastModified() * 31 + it.length() else 0L }

@@ -22,6 +22,18 @@ interface GestureOutput {
     fun showMenu()
     /** A short vibration: a hold was recognised. */
     fun feedback()
+    /**
+     * The button a smart click ([Kind.SMART_CLICK]) at this point of the screen (the view's pixels) is now: the left to select
+     * or press, the right to order what is selected. The left unless the game screen knows better.
+     */
+    fun smartButton(x: Float, y: Float): Button = Button.LEFT
+    /** A finger has landed: what [smartButton] goes by may be looked at afresh. */
+    fun touched() {}
+    /**
+     * The game shows something to leave now (a scene, a menu page, a box over the game, a command waiting for its target): a
+     * [Kind.KEY_OR_ESCAPE] function is Escape then. Not unless the game screen knows.
+     */
+    fun leaving(): Boolean = false
 }
 
 /**
@@ -51,6 +63,7 @@ class Gestures(
         const val SEQUENCE_MS = 600L
         /** A swipe lifted this soon is a flick (when the rules have flicks there); longer, a drag. */
         const val FLICK_MS = 250L
+        private val ESCAPE = KeyCombo("Esc")
     }
 
     private val slop = 10f * density
@@ -86,6 +99,10 @@ class Gestures(
     private var pendingTap: Pending? = null
     /** The last tap, acted on or not: a touch right after it, on the same spot, is a double tap hold. */
     private var lastTap: Pending? = null
+    /** The last tap was a smart click that came out as the left click at once: a second tap on it is that same click, not another. */
+    private var tapStandsForDouble = false
+    /** What the swipe in progress is: a drag, or a drag after a hold. */
+    private var swipeTrigger = Trigger.DRAG
     private var pendingTwo: Pending? = null
 
     /** The hold or drag in progress: what it holds down, to let go. */
@@ -108,9 +125,10 @@ class Gestures(
     fun down(id: Int, x: Float, y: Float, now: Long) {
         val finger = Finger(x, y, now)
         if (fingers.isEmpty()) {
+            out.touched()
             val tap = pendingTap ?: lastTap
             finger.second = tap != null && now - tap.at <= DOUBLE_MS && hypot(x - tap.x, y - tap.y) <= sameSpot
-            if (!finger.second) flushTap()
+            if (!finger.second) { flushTap(); tapStandsForDouble = false }
             fingers[id] = finger
             mode = Mode.PENDING
             firstDownAt = now
@@ -159,10 +177,13 @@ class Gestures(
                 val finger = fingers.values.firstOrNull() ?: return
                 if (finger.moved) {
                     if (finger.second) flushTap()
-                    if (mode == Mode.HELD) release()
+                    val held = mode == Mode.HELD
+                    if (held) release()
                     mode = Mode.SWIPE
                     dragging = false
-                    swipeFlickable = listOf(Trigger.FLICK_UP, Trigger.FLICK_DOWN, Trigger.FLICK_LEFT, Trigger.FLICK_RIGHT)
+                    // A drag after the hold's buzz is its own gesture where the rules have one (a selection box where a plain drag scrolls).
+                    swipeTrigger = if (held && resolve(Trigger.HOLD_DRAG, finger.startX, finger.startY) != null) Trigger.HOLD_DRAG else Trigger.DRAG
+                    swipeFlickable = swipeTrigger == Trigger.DRAG && listOf(Trigger.FLICK_UP, Trigger.FLICK_DOWN, Trigger.FLICK_LEFT, Trigger.FLICK_RIGHT)
                         .any { resolve(it, finger.startX, finger.startY) != null }
                     swipe(finger, now)
                 }
@@ -185,7 +206,7 @@ class Gestures(
                 if (holding != null) release() else fire(trigger, finger.startX, finger.startY)
             }
             Mode.SWIPE -> if (fingers.isEmpty()) {
-                if (!dragging) flick(finger) else if (recording()) onRecord!!(Trigger.DRAG, finger.startX, finger.startY)
+                if (!dragging) flick(finger) else if (recording()) onRecord!!(swipeTrigger, finger.startX, finger.startY)
                 endSwipe()
             }
             Mode.REST -> if (id == actor) {
@@ -260,6 +281,7 @@ class Gestures(
         actor = null
         pendingTap = null
         pendingTwo = null
+        tapStandsForDouble = false
     }
 
     // Taps -----------------------------------------------------------------------------------
@@ -282,10 +304,29 @@ class Gestures(
             fire(Trigger.DOUBLE_TAP, finger.startX, finger.startY)
             return
         }
+        // The second tap of a double tap whose first already made the click the double tap stands for.
+        if (finger.second && tapStandsForDouble) {
+            tapStandsForDouble = false
+            lastTap = null
+            if (recording()) onRecord!!(Trigger.DOUBLE_TAP, finger.startX, finger.startY)
+            return
+        }
         flushTap()
         lastTap = here
+        tapStandsForDouble = false
         // A tap waits only where a double tap could follow it; everywhere else it acts at once.
-        if (double) pendingTap = here else fire(Trigger.TAP, finger.startX, finger.startY)
+        if (!double) {
+            fire(Trigger.TAP, finger.startX, finger.startY)
+            return
+        }
+        // A smart click that is the left click now is what a double tap there would be: it acts at once, and a second tap adds nothing.
+        val smartLeft = !recording() && resolve(Trigger.TAP, finger.startX, finger.startY)?.kind == Kind.SMART_CLICK &&
+            resolve(Trigger.DOUBLE_TAP, finger.startX, finger.startY)?.kind == Kind.CLICK_LEFT &&
+            out.smartButton(finger.startX, finger.startY) == Button.LEFT
+        if (smartLeft) {
+            tapStandsForDouble = true
+            fire(Trigger.TAP, finger.startX, finger.startY)
+        } else pendingTap = here
     }
 
     private fun flushTap() {
@@ -302,7 +343,7 @@ class Gestures(
             if (swipeFlickable && now - finger.downAt < FLICK_MS) return
             dragging = true
             if (recording()) return
-            val function = resolve(Trigger.DRAG, finger.startX, finger.startY) ?: return
+            val function = resolve(swipeTrigger, finger.startX, finger.startY) ?: return
             holding = function
             when (function.kind) {
                 Kind.DRAG_LEFT -> {
@@ -392,6 +433,7 @@ class Gestures(
         when (function.kind) {
             Kind.CLICK_LEFT, Kind.DRAG_LEFT -> { out.pointerTo(x, y); out.click(Button.LEFT) }
             Kind.CLICK_RIGHT -> { out.pointerTo(x, y); out.click(Button.RIGHT) }
+            Kind.SMART_CLICK -> { out.pointerTo(x, y); out.click(out.smartButton(x, y)) }
             Kind.DOUBLE_LEFT -> { out.pointerTo(x, y); out.doubleClick(Button.LEFT) }
             Kind.SHIFT_LEFT -> withKey("Shift") { out.pointerTo(x, y); out.click(Button.LEFT) }
             Kind.SHIFT_RIGHT -> withKey("Shift") { out.pointerTo(x, y); out.click(Button.RIGHT) }
@@ -399,6 +441,7 @@ class Gestures(
             Kind.WHEEL_UP -> { out.pointerTo(x, y); out.wheel(true) }
             Kind.WHEEL_DOWN -> { out.pointerTo(x, y); out.wheel(false) }
             Kind.KEY, Kind.KEY_HOLD -> bindings?.keyOf(function)?.let { tapKeys(it) }
+            Kind.KEY_OR_ESCAPE -> if (out.leaving()) tapKeys(ESCAPE) else bindings?.keyOf(function)?.let { tapKeys(it) }
             Kind.PHONE_KEYBOARD -> out.openKeyboard()
             Kind.APP_MENU -> out.showMenu()
             Kind.PAN, Kind.NONE -> {}

@@ -137,6 +137,25 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
             GameImportManager.start(context, game.id)
         }
     }
+    // "Search the phone": the phone's own storage read by path, so the importers find the game's files themselves ([PhoneStorage]).
+    var phoneReadable by remember { mutableStateOf(com.logie.blizz.importer.PhoneStorage.readable(context)) }
+    var askedAllFiles by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        val now = com.logie.blizz.importer.PhoneStorage.readable(context)
+        // Back from Android's "all files" page with it switched on: the search runs.
+        if (now && !phoneReadable && askedAllFiles) GameImportManager.start(context, game.id)
+        phoneReadable = now
+    }
+    val askStorage = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+        phoneReadable = com.logie.blizz.importer.PhoneStorage.readable(context)
+        if (phoneReadable) GameImportManager.start(context, game.id)
+        else com.logie.blizz.importer.PhoneStorage.allFilesSettings(context)?.let { page ->
+            askedAllFiles = true
+            android.widget.Toast.makeText(context, "Switch on \"Allow access to all files\" for Blizzard, then come back.", android.widget.Toast.LENGTH_LONG).show()
+            runCatching { context.startActivity(page) }
+        }
+    }
+    val searchPhone: () -> Unit = { askStorage.launch(com.logie.blizz.importer.PhoneStorage.PERMISSION) }
 
     Dialog(onDismissRequest = { if (!state.running) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -251,7 +270,10 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                 }
                 if (!confirmReset) when {
                     state.running -> FrameButton("Cancel", primary = false) { GameImportManager.cancel(game.id) }
-                    state.missing.isNotEmpty() -> FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
+                    state.missing.isNotEmpty() -> {
+                        if (!phoneReadable) FrameButton("Search the phone", primary = false, onClick = searchPhone)
+                        FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
+                    }
                     record.stage == Stage.READY || record.stage == Stage.IMPORTED_UNTESTED -> {
                         FrameButton("Repair", primary = false) { GameImportManager.start(context, game.id, repair = true) }
                         if (exportToDelete != null) {
@@ -276,12 +298,14 @@ fun ImportWizard(game: Game, onDismiss: () -> Unit, onPlay: () -> Unit) {
                         val ended = state.installer is InstallerRun.Status.Finished
                         val partial = state.installer is InstallerRun.Status.PartialCopy
                         val again = state.installer is InstallerRun.Status.Waiting
+                        if (!phoneReadable) FrameButton("Search the phone", primary = false, onClick = searchPhone)
                         FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
                         FrameButton(if (ended) "Run again" else "Retry", primary = false) { if (ended) GameImportManager.runInstaller(context, game.id) else GameImportManager.start(context, game.id) }
                         if (ended) FrameButton("Import what it installed") { GameImportManager.start(context, game.id) }
                         else FrameButton(if (partial) "Go on copying" else if (again) "Run again" else "Run the installer") { GameImportManager.runInstaller(context, game.id) }
                     }
                     else -> {
+                        if (!phoneReadable) FrameButton("Search the phone", primary = false, onClick = searchPhone)
                         FrameButton("Search a folder", primary = false) { addFolder.launch(null) }
                         FrameButton("Retry") { GameImportManager.start(context, game.id) }
                     }

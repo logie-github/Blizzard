@@ -446,10 +446,14 @@ object GameImportManager {
 
     private fun supplied(context: Context, record: ImportRecord): Map<String, Supplied> {
         val out = HashMap<String, Supplied>()
+        // With the phone's storage readable, what was picked there is read by path: a file then has its neighbours ([PhoneStorage]).
+        val byPath = PhoneStorage.readable(context)
         for ((id, value) in record.supplied) {
             val uri = Uri.parse(value.substringAfter(':'))
+            val tree = value.startsWith("tree:")
             val node = runCatching {
-                if (value.startsWith("tree:")) DocumentNode.tree(context.contentResolver, uri) else DocumentNode.file(context.contentResolver, uri)
+                (if (byPath) PhoneStorage.fileOf(uri, tree)?.let { FileNode(it) } else null)
+                    ?: if (tree) DocumentNode.tree(context.contentResolver, uri) else DocumentNode.file(context.contentResolver, uri)
             }.getOrNull() ?: continue
             out[id] = Supplied.Picked(id, node)
         }
@@ -460,6 +464,8 @@ object GameImportManager {
     private fun searchRoots(context: Context): List<SourceNode> {
         val roots = ArrayList<SourceNode>()
         importFolder(context)?.let { roots += FileNode(it) }
+        // The whole of the phone's storage, once the person has allowed it ("Search the phone").
+        if (PhoneStorage.readable(context)) roots += PhoneStorage.searchRoot()
         for (permission in context.contentResolver.persistedUriPermissions) {
             if (!permission.isReadPermission) continue
             val uri = permission.uri

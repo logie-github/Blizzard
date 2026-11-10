@@ -206,7 +206,7 @@ private fun Chip(text: String, color: Color = Colors.Text, onClick: (() -> Unit)
 
 /** A mouse function's sign, in place of a key. */
 private fun mouseSign(kind: Kind): String = when (kind) {
-    Kind.CLICK_LEFT -> "L"; Kind.CLICK_RIGHT -> "R"; Kind.DOUBLE_LEFT -> "L×2"; Kind.SHIFT_LEFT -> "Shift+L"
+    Kind.CLICK_LEFT -> "L"; Kind.CLICK_RIGHT -> "R"; Kind.SMART_CLICK -> "L · R"; Kind.DOUBLE_LEFT -> "L×2"; Kind.SHIFT_LEFT -> "Shift+L"
     Kind.SHIFT_RIGHT -> "Shift+R"; Kind.CTRL_LEFT -> "Ctrl+L"; Kind.DRAG_LEFT -> "L drag"; Kind.PAN -> "Arrows"
     Kind.WHEEL_UP -> "Wheel ▲"; Kind.WHEEL_DOWN -> "Wheel ▼"; Kind.PHONE_KEYBOARD -> "⌨"; Kind.APP_MENU -> "☰"; else -> "—"
 }

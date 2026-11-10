@@ -164,16 +164,54 @@ object Catalog {
 
     // Warcraft -----------------------------------------------------------------------------------
 
+    /**
+     * Warcraft III's own layout (the user, 10 November 2026: "Tap to select then tap to move. Double tap for left click. Hold
+     * tap for right click. Anything else is up to you."):
+     *
+     * - a **tap** is the smart click: the left button while there is nothing to command (it selects a unit, presses a menu's
+     *   button, confirms a target or a place to build), the right button once units or a building of the player's are selected
+     *   (move, attack, gather, set the rally point). The game screen reads which from the game's own picture
+     *   ([com.logie.blizz.game.Wc3Screen]); where it cannot tell, a tap is the left click;
+     * - a **double tap** is always the left click (select another unit while some are selected), a **hold** always the right;
+     * - on the game's own buttons (the console, the top bar, the hero and idle-worker icons) a tap is the left click and a
+     *   double tap two of them;
+     * - **tap, then tap and hold** is the game's double click (every unit of that kind on the screen);
+     * - **hold, then drag** draws the selection box; a plain drag scrolls the map, and on the minimap it is the game's own drag
+     *   (the view follows the finger); a resting finger is Shift (queue an order with a tap, add to the selection with a hold);
+     *   pinch is the wheel (zoom);
+     * - **two fingers** are the game's menu in play, and Escape wherever there is something to leave (a scene to skip, a menu
+     *   page, the game's menu or log, a command waiting for its target): [Kind.KEY_OR_ESCAPE].
+     */
+    private val WARCRAFT3_RULES = listOf(
+        rule(Trigger.TAP, "smart"),
+        rule(Trigger.DOUBLE_TAP, "click"),
+        rule(Trigger.HOLD, "rclick"),
+        rule(Trigger.DOUBLE_TAP_HOLD, "dclick"),
+        rule(Trigger.HOLD_DRAG, "drag"),
+        rule(Trigger.DRAG, "pan"),
+        rule(Trigger.DRAG, "drag", "minimap"),
+        rule(Trigger.REST_TAP, "shiftrclick"),
+        rule(Trigger.REST_HOLD, "shiftclick"),
+        rule(Trigger.PINCH_OUT, "wheelup"), rule(Trigger.PINCH_IN, "wheeldown"),
+        rule(Trigger.TWO_FINGER_TAP, "menuback"),
+    ) + listOf("console", "menubar", "heroes", "idle").flatMap { listOf(rule(Trigger.TAP, "click", it), rule(Trigger.DOUBLE_TAP, "none", it)) } + SHARED_RULES
+
     val WARCRAFT3 = Game(
-        functions = common(RTS_LABELS) + RTS_COMMANDS.filter { it.id != "build" && it.id != "advanced" } + listOf(
+        functions = common(RTS_LABELS) + listOf(
+            f("smart", "Select, then order (the smart tap)", Kind.SMART_CLICK),
+            f("menuback", "Game menu · Escape in a scene, a menu or a box", Kind.KEY_OR_ESCAPE, "F10"),
+        ) +
+            RTS_COMMANDS.filter { it.id != "build" && it.id != "advanced" } + listOf(
             key("hero1", "Hero 1", "F1"), key("hero2", "Hero 2", "F2"), key("hero3", "Hero 3", "F3"), key("subgroup", "Next subgroup", "Tab"),
             f("healthbars", "Health bars", Kind.KEY_HOLD, "Alt"),
         ) + groups(),
         areas = Area.STANDARD + listOf(
             Area("console", "Console", 0f, 0.76f, 1f, 1f), Area("minimap", "Minimap", 0f, 0.76f, 0.2f, 1f),
             Area("commands", "Command card", 0.75f, 0.76f, 1f, 1f), Area("menubar", "Menu bar", 0f, 0f, 1f, 0.05f),
+            // The heroes' icons down the left edge (three of them) and the idle worker's icon above the minimap.
+            Area("heroes", "Hero icons", 0f, 0.05f, 0.06f, 0.33f), Area("idle", "Idle worker icon", 0f, 0.65f, 0.06f, 0.73f),
         ),
-        rules = rtsRules("gamemenu", listOf("console", "menubar")),
+        rules = WARCRAFT3_RULES,
     )
 
     val WARCRAFT2 = Game(

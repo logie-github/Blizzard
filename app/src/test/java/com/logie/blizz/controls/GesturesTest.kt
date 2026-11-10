@@ -25,6 +25,14 @@ class GesturesTest {
         override fun openKeyboard() { events += "keyboard" }
         override fun showMenu() { events += "app menu" }
         override fun feedback() { events += "buzz" }
+        /** What the game's screen says a smart click is now. */
+        var smart = Button.LEFT
+        var looks = 0
+        override fun smartButton(x: Float, y: Float) = smart
+        override fun touched() { looks++ }
+        /** Whether the game's screen says there is something to leave. */
+        var leave = false
+        override fun leaving() = leave
     }
 
     private val screen = 1000f
@@ -73,6 +81,132 @@ class GesturesTest {
         out.events.clear()
         g.down(0, 500f, 400f, 3000); g.tick(3000 + Gestures.HOLD_MS); g.up(0, 500f, 400f, 3000 + Gestures.HOLD_MS + 100)
         assertTrue(out.events.toString(), out.events.any { it.contains("LEFT") })
+    }
+
+    // Warcraft III's layout (the user, 10 November 2026) --------------------------------------------
+
+    @Test fun warcraft3TapSelectsWhileThereIsNothingToCommandAtOnce() {
+        val out = Recorder()
+        val g = engine("warcraft3_roc", out)
+        // Nothing selected, or a menu: the tap is the left click, with no wait for a second tap.
+        g.tap(500f, 400f, 0)
+        assertEquals(listOf("to 500,400", "click LEFT"), out.events)
+        assertEquals(1, out.looks)
+        // A second tap on it (a double tap, "the left click") is that same click: nothing is clicked twice.
+        g.tap(505f, 402f, 150)
+        g.tick(1000)
+        assertEquals(listOf("to 500,400", "click LEFT"), out.events)
+        // A tap elsewhere later is its own click.
+        g.tap(200f, 300f, 2000)
+        assertEquals(listOf("to 500,400", "click LEFT", "to 200,300", "click LEFT"), out.events)
+    }
+
+    @Test fun warcraft3TapOrdersOnceUnitsAreSelectedAndADoubleTapStillSelects() {
+        val out = Recorder().apply { smart = Button.RIGHT }
+        val g = engine("warcraft3_tft", out)
+        // Units selected: the tap is the order (the right click), once no second tap has followed it.
+        g.tap(500f, 400f, 0)
+        assertEquals(emptyList<String>(), out.events)
+        g.tick(50 + Gestures.DOUBLE_MS + 1)
+        assertEquals(listOf("to 500,400", "click RIGHT"), out.events)
+        out.events.clear()
+        // A double tap is the left click (select another unit), and no order goes out first.
+        g.tap(300f, 300f, 2000)
+        g.tap(302f, 301f, 2150)
+        g.tick(3000)
+        assertEquals(listOf("to 302,301", "click LEFT"), out.events)
+    }
+
+    @Test fun warcraft3HoldIsTheRightClickAndHoldThenDragTheSelectionBox() {
+        val out = Recorder()
+        val g = engine("warcraft3_roc", out)
+        g.down(0, 400f, 300f, 0); g.tick(Gestures.HOLD_MS); g.up(0, 400f, 300f, Gestures.HOLD_MS + 80)
+        assertEquals(listOf("buzz", "to 400,300", "click RIGHT"), out.events)
+        out.events.clear()
+        // After the buzz, a drag is the left button held: the selection box.
+        g.down(0, 200f, 200f, 5000); g.tick(5000 + Gestures.HOLD_MS); g.move(0, 300f, 280f, 5600); g.move(0, 420f, 380f, 5700); g.up(0, 420f, 380f, 5800)
+        assertEquals(listOf("buzz", "to 200,200", "down LEFT", "to 300,280", "to 420,380", "up LEFT"), out.events)
+        out.events.clear()
+        // Without the wait, a drag scrolls the map.
+        g.down(0, 100f, 100f, 9000); g.move(0, 200f, 100f, 9600); g.up(0, 200f, 100f, 9700)
+        assertEquals(listOf("+Right", "-Right"), out.events)
+    }
+
+    @Test fun warcraft3OwnButtonsTakeATapAsTheLeftClickWhateverIsSelected() {
+        val out = Recorder().apply { smart = Button.RIGHT }
+        val g = engine("warcraft3_roc", out)
+        // The command card (bottom right), the top bar, a hero's icon, the idle worker's icon: at once, the left click.
+        for ((x, y) in listOf(850f to 900f, 150f to 20f, 30f to 100f, 30f to 700f)) {
+            out.events.clear()
+            g.tap(x, y, 0)
+            assertEquals("$x,$y", listOf("to ${x.toInt()},${y.toInt()}", "click LEFT"), out.events)
+        }
+        // Two taps on a button are two presses (train two).
+        out.events.clear()
+        g.tap(850f, 900f, 10_000); g.tap(850f, 900f, 10_150)
+        assertEquals(listOf("to 850,900", "click LEFT", "to 850,900", "click LEFT"), out.events)
+    }
+
+    @Test fun warcraft3TapThenTapAndHoldIsTheGamesDoubleClick() {
+        val out = Recorder()
+        val g = engine("warcraft3_roc", out)
+        // Nothing selected: the first tap selects at once, the hold after it double-clicks (every unit of that kind).
+        g.tap(500f, 400f, 0)
+        g.down(0, 502f, 401f, 150); g.tick(150 + Gestures.HOLD_MS); g.up(0, 502f, 401f, 700)
+        assertEquals(listOf("to 500,400", "click LEFT", "buzz", "to 502,401", "double LEFT"), out.events)
+        // Units selected: the first tap would be an order, and none goes out.
+        out.events.clear()
+        out.smart = Button.RIGHT
+        g.tap(300f, 300f, 5000)
+        g.down(0, 300f, 300f, 5150); g.tick(5150 + Gestures.HOLD_MS); g.up(0, 300f, 300f, 5700)
+        g.tick(7000)
+        assertEquals(listOf("buzz", "to 300,300", "double LEFT"), out.events)
+    }
+
+    @Test fun warcraft3ADragOnTheMinimapIsTheGamesOwnDrag() {
+        val out = Recorder()
+        val g = engine("warcraft3_roc", out)
+        // The left button held from where the finger landed: the view follows it. Elsewhere a drag is the arrow keys.
+        g.down(0, 60f, 850f, 0); g.move(0, 100f, 880f, 100); g.move(0, 140f, 900f, 200); g.up(0, 140f, 900f, 300)
+        assertEquals(listOf("to 60,850", "down LEFT", "to 100,880", "to 140,900", "up LEFT"), out.events)
+    }
+
+    @Test fun warcraft3TwoFingersAreTheGamesMenuAndEscapeWhereThereIsSomethingToLeave() {
+        val out = Recorder()
+        val g = engine("warcraft3_tft", out)
+        g.down(0, 400f, 400f, 0); g.down(1, 460f, 400f, 20); g.up(0, 400f, 400f, 100); g.up(1, 460f, 400f, 110)
+        assertEquals(listOf("+F10", "-F10"), out.events)
+        // A scene, a menu page, the game's menu, a command waiting for its target: Escape.
+        out.events.clear()
+        out.leave = true
+        g.down(0, 400f, 400f, 2000); g.down(1, 460f, 400f, 2020); g.up(0, 400f, 400f, 2100); g.up(1, 460f, 400f, 2110)
+        assertEquals(listOf("+Esc", "-Esc"), out.events)
+        // The person's own key for the menu is used in play; Escape stays Escape.
+        out.events.clear()
+        out.leave = false
+        val mine = Gestures(out, 1f, Bindings.of("warcraft3_tft", ControlsStore.defaults("warcraft3_tft").copy(keys = mapOf("menuback" to KeyCombo("F11")))),
+            locate = { x, y -> x / screen to y / screen })
+        mine.down(0, 400f, 400f, 4000); mine.down(1, 460f, 400f, 4020); mine.up(0, 400f, 400f, 4100); mine.up(1, 460f, 400f, 4110)
+        assertEquals(listOf("+F11", "-F11"), out.events)
+    }
+
+    @Test fun warcraft3RulesSavedFromTheOldLayoutGiveWayToTheNewOne() {
+        val dir = java.nio.file.Files.createTempDirectory("controls").toFile()
+        val store = ControlsStore(dir)
+        // As the layout before it was saved (a tap the right click everywhere), with a key of the person's own.
+        val old = listOf(rule(Trigger.TAP, "rclick"), rule(Trigger.HOLD, "click"), rule(Trigger.DRAG, "pan"), rule(Trigger.TAP, "click", "console"))
+        store.save(GameControls("warcraft3_roc", mapOf("attack" to KeyCombo("Q")), old))
+        val loaded = store.load("warcraft3_roc")
+        assertEquals(Catalog.WARCRAFT3.rules, loaded.rules)
+        assertEquals(KeyCombo("Q"), loaded.keys["attack"])
+        // Rules saved from the new layout, changed by the person, are theirs.
+        val mine = Catalog.WARCRAFT3.rules + rule(Trigger.TWO_FINGER_TAP, "attack")
+        store.save(GameControls("warcraft3_roc", emptyMap(), mine))
+        assertEquals(mine, store.load("warcraft3_roc").rules)
+        // Another game's saved rules are never touched.
+        store.save(GameControls("starcraft", emptyMap(), old))
+        assertEquals(old, store.load("starcraft").rules)
+        dir.deleteRecursively()
     }
 
     @Test fun starcraftSwipePansWithTheArrowKeys() {

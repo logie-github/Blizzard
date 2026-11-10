@@ -238,8 +238,12 @@ class GestureView(
         if (wow) wowView?.onGameWindowShown()
         xServer.renderer.isCursorVisible = false
         windowShown = true
-        // The strategy games' touch (the Warcraft app's): a tap is the right click, so a menu button or a unit takes a hold. Said once, as the game comes up.
-        if (strategyTouch) {
+        // The touch, said once as the game comes up: Warcraft III's own layout, and StarCraft's (the Warcraft app's: a tap is the right click).
+        if (warcraft3) {
+            activity.runOnUiThread { android.widget.Toast.makeText(activity, WC3_TOUCH, android.widget.Toast.LENGTH_LONG).show() }
+            removeCallbacks(watching)
+            post(watching)
+        } else if (strategyTouch) {
             activity.runOnUiThread { android.widget.Toast.makeText(activity, "Hold to select or press a button · tap to move or attack", android.widget.Toast.LENGTH_LONG).show() }
         }
         removeCallbacks(noWindowReport)
@@ -258,19 +262,56 @@ class GestureView(
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
     }
 
-    /** The strategy games' touch (a tap is the right click): said again while the person taps where a hold is wanted ([TapHint]). */
-    private val strategyTouch = gameId != null && (gameId.startsWith("warcraft3") || gameId == "starcraft")
+    /**
+     * Warcraft III has its own layout (the user, 10 November 2026): a tap selects while there is nothing to command and orders
+     * once there is, which is read off the game's own picture ([Wc3Screen], [Wc3Watch]); a double tap is the left click, a hold
+     * the right.
+     */
+    private val warcraft3 = gameId != null && gameId.startsWith("warcraft3")
+    private val watch = if (warcraft3) Wc3Watch(xServer) else null
+    /** A look at the game's picture every [WATCH_MS] while the game is up, so a tap finds a fresh one. */
+    private val watching = object : Runnable {
+        override fun run() {
+            if (!isAttachedToWindow) return
+            watch?.look()
+            postDelayed(this, WATCH_MS)
+        }
+    }
+    private var saidWatchProblem: String? = null
+
+    /** StarCraft keeps the Warcraft app's touch (a tap is the right click): said again while the person taps where a hold is wanted ([TapHint]). */
+    private val strategyTouch = gameId == "starcraft"
     private val tapHint = TapHint()
 
+    override fun touched() {
+        watch?.look()
+    }
+
+    override fun smartButton(x: Float, y: Float): Button =
+        if (watch?.commanding() == true && !Borderless.dialogUp()) Button.RIGHT else Button.LEFT
+
+    /** Two fingers are Escape while there is something to leave: a box of Windows' own, or what the game's picture shows ([Wc3Watch.leaving]). */
+    override fun leaving(): Boolean = Borderless.dialogUp() || watch?.leaving() == true
+
     override fun click(button: Button) {
-        // A strategy game's tap while a dialog box is up (an error message, a prompt) is the left click: the right presses nothing on one.
-        val sent = if (strategyTouch) StrategyTap.button(button, Borderless.dialogUp()) else button
-        GameLog.note(describe("$sent click"))
+        // While a dialog box of Windows' own is up (an error message, a prompt) every click is the left one: the right presses nothing on one.
+        val sent = if (strategyTouch || warcraft3) StrategyTap.button(button, Borderless.dialogUp()) else button
+        GameLog.note(describe("$sent click") + screenNote())
         if (strategyTouch && tapHint.onClick(sent == Button.RIGHT, SystemClock.uptimeMillis())) {
             android.widget.Toast.makeText(activity, TapHint.TEXT, android.widget.Toast.LENGTH_SHORT).show()
         }
         xServer.injectPointerButtonPress(sent.x)
         postDelayed({ xServer.injectPointerButtonRelease(sent.x) }, CLICK_MS)
+        // What the click changed (a unit selected, a command chosen) is on the screen a moment later.
+        watch?.let { w -> postDelayed({ w.look() }, AFTER_CLICK_MS) }
+    }
+
+    /** For the reports: what the game's picture was read as when a click was made (Warcraft III), and why it could not be read, once. */
+    private fun screenNote(): String {
+        val w = watch ?: return ""
+        val age = if (w.readAt == 0L) "never read" else "read ${SystemClock.uptimeMillis() - w.readAt} ms ago, ${w.source}"
+        val problem = w.problem?.takeIf { it != saidWatchProblem }?.also { saidWatchProblem = it }?.let { "; $it" } ?: ""
+        return " [screen ${w.state}, $age$problem]"
     }
 
     /**
@@ -452,6 +493,7 @@ class GestureView(
         removeCallbacks(minuteReport)
         removeCallbacks(typeNext)
         removeCallbacks(ticker)
+        removeCallbacks(watching)
         // (their flags too: left set, a view attached again would never type or tick)
         typingRuns = false
         ticking = false
@@ -469,6 +511,11 @@ class GestureView(
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"
         private const val CLICK_MS = 40L
+        /** Warcraft III: how often its picture is looked at, and how soon after a click (the game has drawn what the click changed). */
+        private const val WATCH_MS = 400L
+        private const val AFTER_CLICK_MS = 140L
+        /** Warcraft III's touch, said as the game comes up. */
+        const val WC3_TOUCH = "Tap: select, then tap where to go · double tap: left click · hold: right click · hold, then drag: box"
         private const val TICK_MS = 30L
         private const val KEY_MS = 50L
         private const val TYPE_STEP_MS = 15L

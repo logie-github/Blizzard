@@ -50,7 +50,7 @@ interface SourceNode {
     }
 }
 
-class FileNode(val file: File) : SourceNode {
+open class FileNode(val file: File) : SourceNode {
     override val name: String get() = file.name
     override val isDirectory: Boolean get() = file.isDirectory
     override val size: Long get() = if (file.isFile) file.length() else 0

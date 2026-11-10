@@ -88,9 +88,17 @@ object InstallerRun {
         PickKind.FOLDER,
     )
 
-    /** The folder or file to install from: the folder asked for after a lone installer, else the first pick. */
-    fun sourceOf(supplied: Map<String, Supplied>, found: SourceNode?): SourceNode? =
-        (supplied[FOLDER_INPUT] as? Supplied.Picked)?.source ?: (supplied["install"] as? Supplied.Picked)?.source ?: found
+    /**
+     * The folder or file to install from: the folder asked for after a lone installer, else the first pick, else what the search
+     * [found]. A picked folder with nothing in it gives way to what was found (the phone's StarCraft II folder stayed picked
+     * after it had been emptied); with nothing found it is still returned, to be said to be empty.
+     */
+    fun sourceOf(supplied: Map<String, Supplied>, found: SourceNode?): SourceNode? {
+        val folder = (supplied[FOLDER_INPUT] as? Supplied.Picked)?.source
+        val install = (supplied["install"] as? Supplied.Picked)?.source
+        fun full(node: SourceNode?): SourceNode? = node?.takeIf { !it.isDirectory || runCatching { it.children().isNotEmpty() }.getOrDefault(true) }
+        return full(folder) ?: full(install) ?: found ?: folder ?: install
+    }
 
     // ---- The copy (resumable) ----
 

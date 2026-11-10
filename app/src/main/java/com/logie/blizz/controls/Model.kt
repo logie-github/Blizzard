@@ -10,6 +10,8 @@ enum class Trigger(val label: String) {
     HOLD("Hold"),
     DOUBLE_TAP_HOLD("Double tap hold"),
     DRAG("Drag"),
+    /** A drag that starts after the finger has rested (the hold's buzz): a selection box where a plain drag scrolls. */
+    HOLD_DRAG("Hold, then drag"),
     FLICK_UP("Flick up"),
     FLICK_DOWN("Flick down"),
     FLICK_LEFT("Flick left"),
@@ -63,6 +65,11 @@ data class Area(val id: String, val label: String, val left: Float, val top: Flo
 enum class Kind {
     /** A mouse button clicked where the fingers are. */
     CLICK_LEFT, CLICK_RIGHT, DOUBLE_LEFT, SHIFT_LEFT, SHIFT_RIGHT, CTRL_LEFT,
+    /**
+     * A click whose button the game screen picks from what the game shows ([GestureOutput.smartButton]): the left button
+     * to select or press, the right to order what is selected.
+     */
+    SMART_CLICK,
     /** The left button held while the finger moves (walk, box-select). */
     DRAG_LEFT,
     /** The arrow keys toward where the finger goes, held while it's away. */
@@ -72,9 +79,14 @@ enum class Kind {
     KEY,
     /** Its key held for as long as the finger stays (a hold or a drag). */
     KEY_HOLD,
+    /**
+     * Its key (the game's menu), or Escape while the game shows something to leave ([GestureOutput.leaving]): a scene to skip,
+     * a menu page or a box to close, a command waiting for its target to call off.
+     */
+    KEY_OR_ESCAPE,
     PHONE_KEYBOARD, APP_MENU, NONE;
 
-    val usesKey: Boolean get() = this == KEY || this == KEY_HOLD
+    val usesKey: Boolean get() = this == KEY || this == KEY_HOLD || this == KEY_OR_ESCAPE
 }
 
 /** Something a game does: its name, how it acts, and its key (for [Kind.KEY] and [Kind.KEY_HOLD]). */
