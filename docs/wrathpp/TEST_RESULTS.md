@@ -46,9 +46,26 @@ binary: built into main's server, it would create its table in `acore_characters
 Note: MariaDB 10.11 lacks `utf8mb4_0900_ai_ci`, which the core's SQL names; the harness reads a copy
 of the SQL with `utf8mb4_unicode_ci` on such a server (the phone's MariaDB 11.4 has the collation).
 
+### Client build probe (`.github/workflows/wrathpp-client.yml`, windows-2022, MSVC 19.44.35229, CMake 3.31.6)
+
+Pins: client `fdb9ad18`, core `f7d6cdaf`, sdk `2920b6e3`.
+
+| Run | Result | What stopped it | Fix |
+|---|---|---|---|
+| [42872711989](https://github.com/logie-github/Blizzard/actions/runs/42872711989) | fail | `sdk/include/wxl/reflect.hpp(213): error C2131`, constexpr step limit 1048576 | `CXXFLAGS=/constexpr:steps16777216` in the workflow |
+| [42873162423](https://github.com/logie-github/Blizzard/actions/runs/42873162423) | fail | core `src/gx/d3d9/shaders/draw.hlsl(43)`: `error X3000: unexpected token 'line'` (a reserved word), 4 shaders | core patch `patches/core/0001` (renamed to `lineInfo`) |
+| [42873904737](https://github.com/logie-github/Blizzard/actions/runs/42873904737) | fail | core `src/tuning/Animate.cpp`: GCC-style `__asm__ volatile` (17 errors) | core patch `patches/core/0002` (`_mm_getcsr`/`_mm_setcsr`/`_mm_pause`; GCC form kept under clang/GCC) |
+| [42874636845](https://github.com/logie-github/Blizzard/actions/runs/42874636845) | **pass**, 0 errors, 2557 warnings | — | — |
+
+Built (SHA-256; binaries not kept): `WowClient64.exe` `420d846a87049c929f4de087668bd46d64a621c2c5bffdd1e9afb161ab26ccfc`,
+`WarcraftXL.dll` `adcb189ad22bdae0c339c76a6c2fe67802808c1b8f65d1a833ded9dd072dc5da`,
+`XvidDecoder.dll` `eeea0ff544874c2e8df8e1e39c55b55a6e2ed446e222b04a9001370b1d742146`.
+The two core fixes suggest the upstream core is normally compiled with clang-cl or a newer MSVC;
+that was not checked.
+
 ### Not tested
 
-- The client: not built here (no MSVC); the CI probe's result is recorded below once it runs.
+- Booting the client: the build passed (below), but nothing ran it (no game data in CI).
 - Anything drawn: no extended category is rendered anywhere yet.
 - The Lua mod inside the real WarcraftXL runtime.
 - The server's arm64/musl build (the phone's) with the patch and module: only this machine's x86_64

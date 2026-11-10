@@ -9,7 +9,7 @@ is implemented for it, and exactly what is missing before an extended category c
 |---|---|
 | Client source located, pinned, licensing read | done (SOURCE_AUDIT.md; `realm/warcraft/wrathpp/wrathpp.env`) |
 | Matching runtime/SDK identified | done: WarcraftXL-Labs core/sdk `gitea-sync` (ABI 0.1.46) |
-| Windows x64 build | **CI probe added** (`.github/workflows/wrathpp-client.yml`); result in TEST_RESULTS.md |
+| Windows x64 build | **passes** in CI (`.github/workflows/wrathpp-client.yml`, MSVC 19.44) with `patches/core/0001-0002` and a raised constexpr step limit (TEST_RESULTS.md) |
 | Boot to glue screens with 3.3.5a data | **untested**: needs the user's own 12340 client data and a Windows (or Wine) machine |
 | Alternative HD data on this client | **untested** |
 | Protocol + registry + glue API (Lua mod `wrathpp.appearance`) | implemented, tested on a mock of the runtime (`client-mod/tests/run.sh`), its output decoded as the live server decodes it; **not run in the real client** |

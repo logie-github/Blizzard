@@ -4,7 +4,7 @@
 
 | Gate | Question | State (2026-11-10) |
 |---|---|---|
-| A | Does the pinned source client build, boot and show the glue screens? | build: CI probe added, see TEST_RESULTS.md; boot: **untested** (needs the user's 3.3.5a data on Windows/Wine) |
+| A | Does the pinned source client build, boot and show the glue screens? | build: **passed** on MSVC 2022 x64 with two core patches (TEST_RESULTS.md); boot: **untested** (needs the user's 3.3.5a data on Windows/Wine) |
 | B | Does it run the Alternative HD data and connect to a disposable Wrath++ server without harming either? | **untested** (server side ready: isolated realm, live-tested server) |
 | C | Does an independent sixth property visibly change a model in preview and in the world? | **blocked**: needs the `Component.GeosRenderPrep` seam (CLIENT_PROBE.md); protocol/state side done |
 | D | Does the server persist and broadcast it across a restart? | **passed, server side**: live test with a protocol client (TEST_RESULTS.md); not yet with the real client |
@@ -15,7 +15,7 @@
 | Phase | Content | State |
 |---|---|---|
 | 0 Inventory | repo audit, pins, hazards, licensing | done (SOURCE_AUDIT.md); Legion 7.3.5 data inventory **not done** (LEGION_OPTIONS_735.md) |
-| 1 Client engine proof | build, boot, HD data, connect | build probe only |
+| 1 Client engine proof | build, boot, HD data, connect | build passes in CI; boot/HD/connect not done |
 | 2 Isolated infrastructure | realm 5 / 8087 / `*_wrathpp`, own paths, guards, rollback | `ctl.sh` done and tested; Wrath++ server/client **packages** and the **Android app entry** not started |
 | 3 Vertical slice | registry → client state → preview → payload → DB → world → observer → relog/restart | registry, payload, DB, world, observer, restart: done on the server and in the Lua mod; **preview and in-world drawing: not done** (Gate C) |
 | 4 Generalized compositor | texture layers, attachments, constraints | protocol carries the kinds; nothing drawn |
@@ -25,8 +25,7 @@
 
 ## Next highest-value slice
 
-1. Run the client probe; fix whatever stops the pinned client from building with MSVC 2022 on the
-   runner (or move the runner to the toolchain the client was last built with).
+1. (Done: the probe builds the client.)
 2. Write the `Component.GeosRenderPrep` seam as patches to core, SDK and client
    (`realm/warcraft/wrathpp/patches/{core,client}`), built by the probe; extend the Lua mod to apply
    `GeosetsFor` through it.
