@@ -1,0 +1,91 @@
+name: Build the Wrath++ realm
+
+# Wrath++'s own server (docs/wrathpp): the realms' AzerothCore at the same pins, patches and modules, plus Wrath++'s core
+# patch and module (realm/scripts/fetch-wrathpp.sh), compiled for the phone (Linux arm64, musl) by the realms' own
+# scripts with WRATHPP=1 (folders of its own: build/azerothcore-wrathpp*), packed, and attached to the release
+# "wrathpp-server" as wrathpp-server.tar.xz with wrathpp-server.json (size, SHA-256, unpacked size, format, protocol),
+# which the app's Wrath++ page downloads. Never the realms' package or the realm-modules release.
+on:
+  push:
+    paths:
+      - realm/warcraft/wrathpp/**
+      - realm/scripts/fetch-wrathpp.sh
+      - .github/workflows/build-wrathpp-server.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wrathpp-server-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    defaults:
+      run:
+        working-directory: realm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wrath++'s own tests (protocol, registry, client mod, ctl.sh isolation)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq luajit > /dev/null
+          warcraft/wrathpp/protocol/tests/run.sh
+          warcraft/wrathpp/client-mod/tests/run.sh
+          warcraft/wrathpp/tests/test-isolation.sh
+
+      - name: Look for the compile cache
+        uses: actions/cache/restore@v4
+        with:
+          path: realm/build/ccache
+          key: wrathpp-ccache-arm64-${{ github.run_id }}
+          restore-keys: |
+            wrathpp-ccache-arm64-
+            realm-modules-ccache-arm64-
+
+      - name: Compile (AzerothCore + Wrath++, arm64 musl)
+        run: WRATHPP=1 scripts/compile-azerothcore.sh
+
+      - name: Save the compile cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: realm/build/ccache
+          key: wrathpp-ccache-arm64-${{ github.run_id }}
+
+      - name: Package
+        run: |
+          WRATHPP=1 scripts/package-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build warcraft/android
+          tar -xJOf warcraft/android/server-wrathpp/server.tar.xz server/VERSION
+          tar -tJf warcraft/android/server-wrathpp/server.tar.xz | grep -q 'server/src/modules/mod-wrathpp-customization/data/registry.bin'
+          mkdir -p build/wrathpp-publish
+          cp warcraft/android/server-wrathpp/server.tar.xz build/wrathpp-publish/wrathpp-server.tar.xz
+          cd build/wrathpp-publish
+          size=$(stat -c %s wrathpp-server.tar.xz)
+          sha=$(sha256sum wrathpp-server.tar.xz | cut -d' ' -f1)
+          unpacked=$(xz -dc wrathpp-server.tar.xz | wc -c)
+          protocol=$(sed -n 's/^WRATHPP_PROTOCOL=//p' ../../warcraft/wrathpp/wrathpp.env)
+          jq -n --argjson size "$size" --arg sha "$sha" --argjson unpacked "$unpacked" --argjson protocol "$protocol" \
+            --arg commit "${{ github.sha }}" \
+            '{size: $size, sha256: $sha, unpacked: $unpacked, format: 1, protocol: $protocol, commit: $commit}' > wrathpp-server.json
+          cat wrathpp-server.json
+
+      # Only main publishes: the app downloads whatever is published, so other branches' builds must not replace it.
+      - name: Publish (release wrathpp-server)
+        if: github.ref == 'refs/heads/main'
+        working-directory: realm/build/wrathpp-publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo="${{ github.repository }}"
+          if ! gh release view wrathpp-server -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/wrathpp-server" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create wrathpp-server -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Wrath++ realm (server package, experimental)" \
+              --notes "Wrath++'s own world server for the phone (AzerothCore + the Wrath++ appearance protocol, arm64). Downloaded by the app's Wrath++ page; not an app release."
+          fi
+          gh release upload wrathpp-server wrathpp-server.tar.xz wrathpp-server.json -R "$repo" --clobber

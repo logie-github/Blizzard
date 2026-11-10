@@ -181,6 +181,13 @@ fun Launcher() {
         // World of Warcraft: Forever runs its own offline realm on the phone (its own server package and client),
         // not the WoW-app import; its Play/Install is handled apart ([com.logie.blizz.forever.ForeverPlay]).
         if (game.id == "wow_forever") { com.logie.blizz.forever.ForeverPlay.play(context); return }
+        // Wrath++ (experimental): made from the Wrath+ import, so it plays from that entry ([com.logie.blizz.game.WowPlay] with wrathpp).
+        if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) {
+            val wrath = GameImportManager.library(context).get("wow")
+            if (wrath != null && java.io.File(wrath.installPath, wrath.executable).isFile) com.logie.blizz.game.WowPlay.play(context, wrath, wrathpp = true)
+            else android.widget.Toast.makeText(context, "Wrath++ is made from Wrath+: import World of Warcraft (Wrath+) first.", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         // Diablo, Diablo II, StarCraft and StarCraft II: imported into the app and played on its Winlator.
         if (GameImportManager.importable(game.id)) {
             // An install this update left behind (its recipe changed): made again first, in the wizard, where its progress shows.

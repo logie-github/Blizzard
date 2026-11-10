@@ -16,8 +16,8 @@ under the app's files folder (`$FILES`, `ctl.sh`'s variable).
 
 | Path | What |
 |---|---|
-| `server-wrathpp/` | its server build (installed by a future Wrath++ package; nothing installs it today) |
-| `client-wrathpp/` | its private copy of the game (Alternative HD baseline + its own patches); must not be a link and must not share files (hard links) with `client/` |
+| `server-wrathpp/` | its server build, installed by the app from the `wrathpp-server` release (`WrathppServerPackage`) |
+| `client-wrathpp/` | its private copy of the game, made by the app from Wrath+'s (`WrathppClient`); must not be a link. Only the game's own archives (`Data/` and `Data/<locale>/` `*.MPQ`, not the realm modules' patch-4/F/M/U/V/W/Y/Z) may be hard links to Wrath+'s, read only; everything else is its own copy (`ctl.sh wrathpp-check` holds it to that) |
 | `etc-wrathpp/` | its configs (`configure` makes them only when `server-wrathpp/bin/worldserver` exists) |
 | `logs/wrathpp/`, `run/wrathpp/` | logs, pid file, the app-signal files (`selection`, `cutscene`, ...) |
 | `data-modules-wrathpp/` | the world server's data with its modules' DBC over the game's (links into the shared, read-only `data/`) |
@@ -45,10 +45,16 @@ row, the Legion and OctoWoW databases (other servers on 3311/3312 that no Wrath+
 | main/remix behaviour byte-identical to the previous `ctl.sh` | `realm/warcraft/wrathpp/tests/test-isolation.sh` (configs, world server environment, SQL) |
 | The Blizzard app's program rewrite still sees every program line | same test (`"$SERVER/bin/<name>"` set unchanged) |
 
-## Not yet isolated (because not yet built)
+## The app
 
-- The Android app has no Wrath++ entry: nothing on the phone selects, installs or starts it.
-- No Wrath++ server or client package exists; `server-wrathpp/` and `client-wrathpp/` are only
-  ever made by hand or by the tests.
+- The page **Wrath++ (experimental)** (`Games.kt` `wow_wrathpp`) plays through `WowPlay` with
+  `wrathpp = true`: `WrathppSetup` installs `server-wrathpp` from the `wrathpp-server` release and makes
+  `client-wrathpp`; `RealmController` runs Wrath++'s own steps (`configure-realm`, `dbimport`,
+  `modules`, `wrathpp-register`, `world`, realm `wrathpp`) with Wrath++'s own script
+  (`server-wrathpp/ctl.blizz.sh`) and only the shared ones (MariaDB, the realms' `configure` and
+  `realmlist`, the login server) with the realms'. The game copy keeps its own realm record
+  (`client-wrathpp/client-realm`), not Wrath+'s `files/client-realm`.
 - The shared MariaDB (port 3310) and auth server are shared by design (one account set); Wrath++
   adds only its realm list row and its own three databases.
+- Hard-linked archives: a later in-place rewrite of one of Wrath+'s base archives (nothing in the app
+  or the realms does one today) would show in Wrath++'s copy too; Wrath++ itself never writes them.

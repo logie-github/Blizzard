@@ -74,3 +74,15 @@ that was not checked.
 - `ctl.sh` under Android's `/system/bin/sh` or busybox: run under dash (`sh`) here.
 - The Android app's unit tests (`./gradlew :app:testDebugUnitTest`): this machine has no Android
   SDK; no app source changed. CI's `build-apk` runs them on the push to `main`.
+
+## 2026-11-10, the app's Wrath++ page
+
+| Test | Command | Result |
+|---|---|---|
+| App unit tests, all | `./gradlew :app:testDebugUnitTest` (Android SDK 35 installed here; Maven Central through its Google mirror, `--init-script`; Winlator prepared; native parts as placeholders) | **pass**: 616 tests, 0 failures, 20 skipped |
+| New: `RealmControllerTest.wrathpp*` | | Wrath++'s own steps (`configure-realm`, `dbimport`, `modules`, `wrathpp-register`, `world`, realm `wrathpp`) run by `server-wrathpp/ctl.blizz.sh`, the shared ones (MariaDB, `configure`, `realmlist`, the login server) by the realms' script; its world log in `logs/wrathpp`; without its server it fails before running anything |
+| New: `WowPlayTest.wrathpp*` | | Play makes its copy, starts realm `wrathpp`, points `client-wrathpp` at "Wrath++" and launches it; Wrath+'s game and `files/client-realm` untouched; set-up failures and a missing Wrath+ import are said and start nothing |
+| New: `WrathppClientTest` | | the copy hard-links only game archives (never patch-4/F/M/U/V/W/Y/Z or their markers), copies the rest, leaves the game byte for byte as it was, refuses a copy inside the game; package manifest, when to install, tar paths |
+| `ctl.sh` isolation | `realm/warcraft/wrathpp/tests/test-isolation.sh` | **pass, 61/61** (adds: `configure-realm wrathpp` touches nothing of main's/Remix's; archives may be shared read only, module patches may not). Fixed: the "no program started by another path" check had been passing because its grep pattern began with `-x` (read as an option); a mutation now makes it fail |
+
+Not tested: the `wrathpp-server` package build (CI, `build-wrathpp-server.yml`), anything on a phone.

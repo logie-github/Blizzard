@@ -30,7 +30,7 @@ object MusicCatalog {
 
     /** The track that plays for [gameId] (the installation the page shows: StarCraft's Remastered and Diablo II's Resurrected share the original's), the launcher's when there's no game or no track. */
     fun keyFor(gameId: String?): String {
-        val key = when (gameId) { "warcraft3_warsmash" -> "warcraft3_tft"; "starcraft_remastered" -> "starcraft"; "diablo2_resurrected" -> "diablo2"; "wow_legion", "wow_octowow", "wow_forever" -> "wow"; else -> gameId }
+        val key = when (gameId) { "warcraft3_warsmash" -> "warcraft3_tft"; "starcraft_remastered" -> "starcraft"; "diablo2_resurrected" -> "diablo2"; "wow_legion", "wow_octowow", "wow_forever", "wow_wrathpp" -> "wow"; else -> gameId }
         return if (key != null && tracks.any { it.key == key }) key else LAUNCHER
     }
 

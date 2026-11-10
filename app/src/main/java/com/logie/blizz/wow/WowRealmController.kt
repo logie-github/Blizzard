@@ -89,6 +89,11 @@ internal class RealmController(
         val moved = WowPathRewrite.rewrite(layout, WowPathRewrite.oldPrefixes(WowExportInfo.sourceFilesDir(layout)), prefix)
         if (moved.changed) logLine("Paths moved to $prefix: ${moved.filesRewritten.size} files, ${moved.linksRewritten.size} links")
         loader = WowCtl.prepare(layout)
+        val wrathpp = realm == Realm.WRATHPP
+        if (wrathpp) {
+            if (!layout.hasWrathppServer()) throw StepFailed("Wrath++'s server isn't installed (server-wrathpp). Press Play on the Wrath++ page again to download it.")
+            WowCtl.prepareWrathpp(layout, loader)
+        }
         runner.endLeftovers(layout)
         // Left by a program that ended without cleaning up (the export leaves run/ out, so these are Blizzard's own).
         for (name in listOf("mysqld.pid", "mysqld.sock", "mysqld.sock.lock", "authserver.pid", "worldserver.pid")) File(layout.run, name).delete()
@@ -98,6 +103,8 @@ internal class RealmController(
 
         step(WowRealm.Step.CONFIGURING, "Writing the realm's settings")
         runToEnd(listOf("configure"), "configure.log")
+        // Wrath++'s configs alone, by its own script (the realms' configs stay their own script's).
+        if (wrathpp) runToEnd(listOf("configure-realm", realm.key), "wrathpp/configure.log", wrathpp = true)
         // Configs from an older package lack settings a newer program needs (dbimport's Updates.ExceptionShutdownDelay).
         runCatching { WowConfMerge.mergeAll(layout) }
         WowSettings.apply(layout)
@@ -116,7 +123,9 @@ internal class RealmController(
                 continue
             }
             step(WowRealm.Step.IMPORT, "Setting up the ${imported.displayName} databases")
-            runToEnd(listOf("dbimport", imported.key), "dbimport.log", timeoutMinutes = 60, onLine = { step(WowRealm.Step.IMPORT, it) })
+            val own = imported == Realm.WRATHPP
+            runToEnd(listOf("dbimport", imported.key), if (own) "wrathpp/dbimport.log" else "dbimport.log", timeoutMinutes = 60,
+                onLine = { step(WowRealm.Step.IMPORT, it) }, wrathpp = own)
             marker.writeText("${clock()}\n")
         }
 
@@ -128,8 +137,12 @@ internal class RealmController(
         }
 
         step(WowRealm.Step.MODULES, "Matching the world to the realm's modules")
-        runToEnd(listOf("modules", realm.key), "modules.log", timeoutMinutes = 60, onLine = { step(WowRealm.Step.MODULES, it) })
-        runToEnd(listOf("realmlist", lanAddress() ?: "127.0.0.1"), "realmlist.log")
+        runToEnd(listOf("modules", realm.key), if (wrathpp) "wrathpp/modules.log" else "modules.log", timeoutMinutes = 60,
+            onLine = { step(WowRealm.Step.MODULES, it) }, wrathpp = wrathpp)
+        val address = lanAddress() ?: "127.0.0.1"
+        runToEnd(listOf("realmlist", address), "realmlist.log")
+        // Wrath++'s own row in the realm list (id 5; its script backs the list up first and refuses a taken id or port).
+        if (wrathpp) runToEnd(listOf("wrathpp-register", address), "wrathpp/realmlist.log", wrathpp = true)
 
         step(WowRealm.Step.AUTH, "Starting the login server")
         val authLog = File(layout.logs, "auth.out")
@@ -141,8 +154,8 @@ internal class RealmController(
 
     private suspend fun startWorld(realm: Realm) {
         step(WowRealm.Step.WORLD, "Loading ${realm.displayName}")
-        val log = File(layout.logs, "world.out")
-        val process = launch(log, listOf("world", realm.key), keepInput = true)
+        val log = File(layout.realmLogs(realm).takeIf { realm == Realm.WRATHPP } ?: layout.logs, "world.out")
+        val process = launch(log, listOf("world", realm.key), keepInput = true, wrathpp = realm == Realm.WRATHPP)
         world = process
         // Loading takes minutes on a phone. Every line of the log is looked at for the ready one.
         val deadline = clock() + 30 * 60_000L
@@ -254,17 +267,22 @@ internal class RealmController(
         return process.exitValue() == 0
     }
 
-    private fun launch(log: File, args: List<String>, keepInput: Boolean = false): RealmProcess {
+    private fun launch(log: File, args: List<String>, keepInput: Boolean = false, wrathpp: Boolean = false): RealmProcess {
         log.parentFile?.mkdirs()
-        return runner.start(WowCtl.command(layout, loader, timeZone(), *args.toTypedArray()), log, keepInput)
+        return runner.start(ctl(wrathpp, args), log, keepInput)
     }
 
+    /** `ctl.sh <args>`: the realms' script, or for Wrath++'s own steps Wrath++'s ([WowCtl.wrathppCommand]). */
+    private fun ctl(wrathpp: Boolean, args: List<String>): WowCtl.Command =
+        if (wrathpp) WowCtl.wrathppCommand(layout, loader, timeZone(), *args.toTypedArray())
+        else WowCtl.command(layout, loader, timeZone(), *args.toTypedArray())
+
     /** Runs `ctl.sh <args>` to its end; its output lines go to [onLine]. */
-    private suspend fun runToEnd(args: List<String>, logName: String, timeoutMinutes: Long = 5, onLine: ((String) -> Unit)? = null) {
+    private suspend fun runToEnd(args: List<String>, logName: String, timeoutMinutes: Long = 5, onLine: ((String) -> Unit)? = null, wrathpp: Boolean = false) {
         val log = File(layout.logs, logName)
         log.parentFile?.mkdirs()
         log.delete()
-        val process = launch(log, args)
+        val process = launch(log, args, wrathpp = wrathpp)
         stepProcess = process
         val deadline = clock() + timeoutMinutes * 60_000
         var read = 0L
@@ -286,7 +304,7 @@ internal class RealmController(
         lines()
         stepProcess = null
         val code = process.exitValue()
-        if (code != 0) throw StepFailed(failureText(args, code, log), log)
+        if (code != 0) throw StepFailed(failureText(args, code, log, wrathpp), log)
     }
 
     /**
@@ -294,13 +312,13 @@ internal class RealmController(
      * command failed, the end of a run of the same step under `sh -x` (every command it ran, the last being
      * the one that failed). The steps that fail are the idempotent set-up ones, so running one again is safe.
      */
-    private fun failureText(args: List<String>, code: Int, log: File): String {
+    private fun failureText(args: List<String>, code: Int, log: File, wrathpp: Boolean = false): String {
         val out = WowLogs.tail(log, 12)
         val head = runCatching { log.useLines { it.filter { l -> l.isNotBlank() }.take(8).joinToString("\n") } }.getOrDefault("")
         val trace = if (args.first() in TRACEABLE) runCatching {
             val traceLog = File(layout.logs, "${log.name}.trace")
             traceLog.delete()
-            val base = WowCtl.command(layout, loader, timeZone(), *args.toTypedArray())
+            val base = ctl(wrathpp, args)
             val process = runner.start(base.copy(argv = listOf(base.argv[0], "-x") + base.argv.drop(1)), traceLog, false)
             if (!process.waitFor(60_000)) process.destroyForcibly()
             WowLogs.tail(traceLog, 14)
@@ -368,6 +386,7 @@ internal class RealmController(
 
     /** The realm's databases are set up (the WoW app's markers, in the databases folder). */
     private fun importedMarker(realm: Realm) = File(layout.databases, if (realm == Realm.CHROMIE) ".imported" else ".imported-${realm.key}")
+
 
     private fun logLine(text: String) {
         runCatching { File(layout.logs, "blizzard.log").apply { parentFile?.mkdirs() }.appendText("$text\n") }

@@ -22,16 +22,19 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -z "${IN_ALPINE:-}" ]; then
 	mkdir -p "$ROOT/build"
 	# shellcheck disable=SC2086
-	exec docker run --rm -e IN_ALPINE=1 -e JOBS="${JOBS:-}" -e NINJA_ARGS="${NINJA_ARGS:-}" -e FETCH="${FETCH:-1}" \
+	exec docker run --rm -e IN_ALPINE=1 -e WRATHPP="${WRATHPP:-0}" -e JOBS="${JOBS:-}" -e NINJA_ARGS="${NINJA_ARGS:-}" -e FETCH="${FETCH:-1}" \
 		-e WOW_EXTRA_MODULES="${WOW_EXTRA_MODULES:-}" \
 		${DOCKER_RUN_ARGS:-} -v "$ROOT:/repo" -w /repo "alpine:$ALPINE_VERSION" /repo/scripts/compile-azerothcore.sh
 fi
 
 APP_FILES=/data/data/com.logie.warcraft/files
 PREFIX="$APP_FILES/server"
-SRC=/repo/build/azerothcore
-BUILD=/repo/build/azerothcore-build
-DIST=/repo/build/azerothcore-dist
+# WRATHPP=1: Wrath++'s own server (docs/wrathpp), its source from scripts/fetch-wrathpp.sh, in folders of its own.
+SUFFIX=
+[ "${WRATHPP:-0}" != 1 ] || SUFFIX=-wrathpp
+SRC=/repo/build/azerothcore$SUFFIX
+BUILD=/repo/build/azerothcore$SUFFIX-build
+DIST=/repo/build/azerothcore$SUFFIX-dist
 JOBS="${JOBS:-$(nproc)}"
 
 apk add -q --no-progress build-base cmake samurai git ccache boost-dev openssl-dev \
@@ -43,7 +46,9 @@ export CCACHE_DIR=/repo/build/ccache CCACHE_MAXSIZE=2G
 export CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime
 git config --global --add safe.directory '*'
 
-[ "${FETCH:-1}" = 0 ] || sh /repo/scripts/fetch-azerothcore.sh "$SRC"
+if [ "${FETCH:-1}" != 0 ]; then
+	if [ -n "$SUFFIX" ]; then sh /repo/scripts/fetch-wrathpp.sh "$SRC"; else sh /repo/scripts/fetch-azerothcore.sh "$SRC"; fi
+fi
 
 # musl gives new threads a 128 KiB stack unless the program asks for more; glibc gives 8 MiB.
 # AzerothCore's own jemalloc is configured for glibc (NOJEM): the world server gets Alpine's

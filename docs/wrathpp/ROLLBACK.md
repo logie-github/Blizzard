@@ -30,6 +30,12 @@ list row; to hide it from the realm list:
 sh server/ctl.sh wrathpp-unregister        # DELETE ... WHERE id = 5 AND name = 'Wrath++'
 ```
 
+## In the app
+
+Wrath++ has no Reset button yet. Its page's Play only ever writes `server-wrathpp`, `client-wrathpp`,
+`etc-wrathpp`, `logs/wrathpp`, `run/wrathpp`, `data-modules-wrathpp`, its databases and its realm list
+row; Wrath+'s page plays as before whether or not Wrath++ was ever started.
+
 ## Remove Wrath++ entirely
 
 ```sh

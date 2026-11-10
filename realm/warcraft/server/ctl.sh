@@ -5,6 +5,7 @@
 # process the app holds is the server itself.
 #
 #   ctl.sh configure                write both realms' configs (from the shipped .dist files) and folders
+#   ctl.sh configure-realm REALM    write one realm's configs only (the app configures Wrath++ so)
 #   ctl.sh db                       run MariaDB (makes its data folder from the seed first)
 #   ctl.sh db-ping | db-stop        ask MariaDB if it's up / to shut down
 #   ctl.sh sql [database]           run the SQL on stdin (prints tab-separated rows)
@@ -590,6 +591,17 @@ module_client() {
 	fi
 }
 
+# Whether a Wrath++ game file may be the shared game's own (a hard link): an archive (.MPQ) that
+# is not a patch the realms' modules write (patch-4, F, M, U, V, W, Y, Z) nor a marker beside one.
+wrathpp_shareable() {
+	name=$(basename "$1" | tr 'A-Z' 'a-z')
+	case "$name" in
+	patch-[4fmuvwyz].mpq | patch-[4fmuvwyz].mpq.*) return 1 ;;
+	*.mpq) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
 # Wrath++: what it would use and write, and whether it stays apart from the other realms. Changes
 # nothing; exits non-zero if a check fails.
 wrathpp_check() {
@@ -621,11 +633,16 @@ wrathpp_check() {
 		if [ -L "$R_CLIENT" ] || [ -L "$R_CLIENT/Data" ]; then
 			echo "  FAIL $R_CLIENT or its Data is a link"; failed=1
 		fi
-		# A file of the Wrath++ game hard linked to the shared game's: a write would reach both.
+		# A file of the Wrath++ game hard linked to the shared game's: a write would reach both. Only
+		# the game's own archives may be shared that way (the app links them rather than copy gigabytes:
+		# the game and the realm only ever read them); never a patch a realm module writes.
 		if [ -d "$FILES/client/Data" ] && [ -d "$R_CLIENT/Data" ]; then
 			shared_inodes=$(find "$FILES/client/Data" -maxdepth 2 -type f -exec stat -c '%d:%i' {} + 2> /dev/null | sort -u)
 			for file in $(find "$R_CLIENT/Data" -maxdepth 2 -type f -links +1 2> /dev/null); do
-				if echo "$shared_inodes" | grep -qxF "$(stat -c '%d:%i' "$file")"; then
+				echo "$shared_inodes" | grep -qxF "$(stat -c '%d:%i' "$file")" || continue
+				if wrathpp_shareable "$file"; then
+					echo "  shared, read only: ${file#"$R_CLIENT/"}"
+				else
 					echo "  FAIL $file is the shared game's file (a hard link)"; failed=1
 				fi
 			done
@@ -667,6 +684,9 @@ cmd=${1:-}
 case "$cmd" in
 configure)
 	configure
+	;;
+configure-realm)
+	configure_realm "${1:-main}"
 	;;
 db)
 	mkdir -p "$RUN/tmp" "$LOGS"

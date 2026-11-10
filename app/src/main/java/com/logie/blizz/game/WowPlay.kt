@@ -48,6 +48,8 @@ object WowPlay {
     const val OCTO_ID = "wow_octowow"
     /** The imported Legion's library id. */
     const val LEGION_ID = "wow_legion"
+    /** Wrath++'s page (experimental, docs/wrathpp): no import of its own; it is made from Wrath+'s ([play] with wrathpp). */
+    const val WRATHPP_ID = "wow_wrathpp"
 
     /** Set as Legion starts: the touch layer (which the game window makes later) waits for its login screen the Legion way. */
     @Volatile var legion = false
@@ -67,8 +69,11 @@ object WowPlay {
         if (_state.value is State.Failed) _state.value = State.Idle
     }
 
-    /** [entry] is the imported World of Warcraft ([com.logie.blizz.importer.WowImporter]); its `installPath` is `games/wow`. */
-    fun play(context: Context, entry: LibraryEntry) {
+    /**
+     * [entry] is the imported World of Warcraft ([com.logie.blizz.importer.WowImporter]); its `installPath` is `games/wow`.
+     * [wrathpp]: Wrath++ instead of Wrath+, from the same import (its server downloaded, its own copy of the game).
+     */
+    fun play(context: Context, entry: LibraryEntry, wrathpp: Boolean = false) {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val control = realm
@@ -78,19 +83,22 @@ object WowPlay {
         }
         // The same size as the X screen WindowsRuntime makes for the client (its gxResolution and the screen must agree).
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
-        _state.value = State.Preparing("Starting the realm", gameId = splashIdOf(entry))
+        val splash = if (wrathpp) WRATHPP_ID else splashIdOf(entry)
+        _state.value = State.Preparing("Starting the realm", gameId = splash)
         scope.launch {
             try {
                 val environment = Environment(
                     root = File(entry.installPath), realm = control, size = width to height, title = entry.title,
                     start = { control.start(app, it) },
-                    chosenRealm = { when (entry.gameId) { OCTO_ID -> "octo"; LEGION_ID -> "legion"; else -> control.chosenRealm(app) } },
+                    chosenRealm = { if (wrathpp) "wrathpp" else when (entry.gameId) { OCTO_ID -> "octo"; LEGION_ID -> "legion"; else -> control.chosenRealm(app) } },
                     dumpClientFiles = { c -> Thread { com.logie.blizz.wowclient.ClientFilesDump.sendOnce(app, c) }.start() },
                     ownAccount = { com.logie.blizz.wow.WowLogin.own(app, when (entry.gameId) { OCTO_ID -> com.logie.blizz.wow.WowLogin.OCTO; LEGION_ID -> com.logie.blizz.wow.WowLogin.LEGION; else -> com.logie.blizz.wow.WowLogin.WRATH })?.name },
                     octo = entry.gameId == OCTO_ID,
                     legion = entry.gameId == LEGION_ID,
+                    wrathpp = wrathpp,
+                    setUpWrathpp = { say -> com.logie.blizz.wrathpp.WrathppSetup.run(app, say) },
                     launch = { WindowsRuntime.play(app, it, width to height) },
-                    report = { _state.value = (it as? State.Preparing)?.copy(gameId = splashIdOf(entry)) ?: it },
+                    report = { _state.value = (it as? State.Preparing)?.copy(gameId = splash) ?: it },
                 )
                 val failure = prepare(environment)
                 _state.value = if (failure == null) State.Idle else State.Failed(failure)
@@ -123,6 +131,10 @@ object WowPlay {
         val dumpClientFiles: (File) -> Unit = {},
         /** The account the person gave Blizzard for this version (its own login), which goes in the game's login box before the exported one. */
         val ownAccount: () -> String? = { null },
+        /** Wrath++ (experimental): its realm, its server package and its own copy of the game, made from this import. */
+        val wrathpp: Boolean = false,
+        /** Gets Wrath++'s server and its copy of the game ready (off the main thread); [say] reports a step. Throws to fail. */
+        val setUpWrathpp: ((say: (String, Float?) -> Unit) -> Unit) = {},
     )
 
     fun clientFolder(root: File) = File(root, "files/client")
@@ -135,6 +147,7 @@ object WowPlay {
         legion = env.legion
         if (env.octo) return prepareOcto(env)
         if (env.legion) return prepareLegion(env)
+        if (env.wrathpp) return prepareWrathpp(env)
         val client = clientFolder(env.root)
         if (!WowClientSetup.hasClient(client)) {
             return "The game's files aren't there (files/client with Wow.exe). Export again from the World of Warcraft app and import it."
@@ -181,6 +194,40 @@ object WowPlay {
             RealmControl.Phase.NO_DATA -> up.error ?: "The realm has no data (import the export first)."
             RealmControl.Phase.STARTING -> "The realm is still loading after ${env.timeoutMs / 60_000} minutes. Try again in a moment."
         }
+    }
+
+    /**
+     * Wrath++: its server package and its own copy of the game first (both made from / beside the Wrath+ import, once),
+     * then its realm, then the copy pointed at it and started. Nothing of Wrath+'s game is written: the copy keeps its own
+     * realm record, settings and cache.
+     */
+    private suspend fun prepareWrathpp(env: Environment): String? {
+        val client = clientFolder(env.root)
+        if (!WowClientSetup.hasClient(client)) {
+            return "Wrath++ is made from Wrath+'s game, which isn't imported yet (files/client with Wow.exe). Import World of Warcraft (Wrath+) first."
+        }
+        env.report(State.Preparing("Getting Wrath++ ready"))
+        val setUp = runCatching {
+            withContext(Dispatchers.IO) { env.setUpWrathpp { message, progress -> env.report(State.Preparing(message, progress)) } }
+        }
+        setUp.exceptionOrNull()?.let { e ->
+            if (e is CancellationException) throw e
+            return e.message ?: "Wrath++ couldn't be set up."
+        }
+        val own = File(env.root, "files/client-wrathpp")
+        if (!WowClientSetup.hasClient(own)) return "Wrath++'s copy of the game isn't complete (files/client-wrathpp)."
+        env.report(State.Preparing("Starting Wrath++"))
+        env.start("wrathpp")
+        val prefs = File(env.root, ".export/prefs")
+        val account = env.ownAccount() ?: WowClientSetup.savedAccount(runCatching { File(prefs, "login.json").readText() }.getOrNull())
+        val mods = runCatching { File(prefs, "mods.json").readText() }.getOrNull()
+        // (its realm record in its own folder: Wrath+'s `files/client-realm` stays Wrath+'s)
+        withContext(Dispatchers.IO) { WowClientSetup.apply(own, own, env.size.first, env.size.second, "wrathpp", account) }
+        waitForRealm(env, "Wrath++")?.let { return it }
+        env.report(State.Preparing("Starting the game"))
+        val exe = withContext(Dispatchers.IO) { WowClientSetup.executable(own, mods) }
+        env.launch(launchEntry(own, exe, env.title))
+        return null
     }
 
     /** Legion: LegionCore's realm (the client is patched for it as it starts), its 7.3.5 client, the saved e-mail typed at its login. */

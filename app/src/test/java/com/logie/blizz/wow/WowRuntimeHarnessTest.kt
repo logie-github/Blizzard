@@ -515,10 +515,10 @@ record "${'$'}prog" "${'$'}@"
         // a type that isn't a string is not a realm
         File(l.prefsDir, "realms.json").writeText("{\n  \"realm\": {\"type\": \"int\", \"value\": 2}\n}\n")
         assertEquals(Realm.CHROMIE, WowExportInfo.chosenRealm(l))
-        // the realm keys and ports are the WoW app's Realms.kt
-        assertEquals(listOf("main" to 8085, "remix" to 8086, "octo" to 8090, "legion" to 8095), Realm.entries.map { it.key to it.port })
-        assertEquals(listOf(1, 2, 3, 4), Realm.entries.map { it.id })
-        assertEquals(listOf("acore_characters", "acore_characters_remix", "tw_char", "characters"), Realm.entries.map { it.charactersDatabase })
+        // the realm keys and ports are the WoW app's Realms.kt; Wrath++ (docs/wrathpp) is Blizzard's own, ctl.sh's realm wrathpp
+        assertEquals(listOf("main" to 8085, "remix" to 8086, "octo" to 8090, "legion" to 8095, "wrathpp" to 8087), Realm.entries.map { it.key to it.port })
+        assertEquals(listOf(1, 2, 3, 4, 5), Realm.entries.map { it.id })
+        assertEquals(listOf("acore_characters", "acore_characters_remix", "tw_char", "characters", "acore_characters_wrathpp"), Realm.entries.map { it.charactersDatabase })
         assertNotNull(Realm.byKey("remix"))
     }
 

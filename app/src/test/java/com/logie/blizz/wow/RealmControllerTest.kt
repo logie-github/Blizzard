@@ -125,6 +125,63 @@ class RealmControllerTest {
         c.shutDown()
     }
 
+    /** Wrath++'s server package as WrathppServerPackage leaves it: its own ctl.sh and programs in server-wrathpp. */
+    private fun installWrathpp(l: WowLayout) {
+        l.wrathppCtl.apply { parentFile!!.mkdirs(); writeText("SERVER=\"\$FILES/server\"\nexec \"\$SERVER/bin/worldserver\"\n") }
+        for (f in listOf("bin/worldserver", "lib/libandroidcompat.so")) File(l.wrathppServer, f).apply { parentFile!!.mkdirs(); writeText("x") }
+    }
+
+    @Test fun wrathppRunsItsOwnStepsByItsOwnScriptAndTheSharedOnesByTheRealms() = runBlocking {
+        val l = layout()
+        installWrathpp(l)
+        val r = FakeRunner()
+        val c = controller(l, r)
+
+        c.run(Realm.WRATHPP)
+
+        assertEquals(WowRealm.Phase.RUNNING, c.status.value.phase)
+        val wrathppScript = listOf("/system/bin/sh", l.wrathppBlizzCtl.path)
+        val realmsScript = listOf("/system/bin/sh", l.blizzCtl.path)
+        // Its configs, databases, modules, realm list row and world server: Wrath++'s script, realm wrathpp.
+        assertEquals(listOf("configure-realm", "wrathpp"), r.find("configure-realm").args)
+        assertEquals(listOf("dbimport", "wrathpp"), r.find("dbimport").args)
+        assertEquals(listOf("modules", "wrathpp"), r.find("modules").args)
+        assertEquals(listOf("wrathpp-register", "192.168.1.5"), r.find("wrathpp-register").args)
+        assertEquals(listOf("world", "wrathpp"), r.find("world").args)
+        for (name in listOf("configure-realm", "dbimport", "modules", "wrathpp-register", "world")) {
+            assertEquals(name, wrathppScript, r.find(name).command.argv.take(2))
+        }
+        // The shared ones (MariaDB, the realms' configure and realm list, the login server): the realms' script.
+        for (name in listOf("configure", "db", "realmlist", "auth")) assertEquals(name, realmsScript, r.find(name).command.argv.take(2))
+        // ChromieCraft's databases are there (marker): only Wrath++'s are made.
+        assertEquals(1, r.started.count { it.args.first() == "dbimport" })
+        assertTrue(File(l.databases, ".imported-wrathpp").isFile)
+        // Its script, written from its package's ctl.sh with the loader rewrite.
+        assertTrue(l.wrathppBlizzCtl.readText().contains("\"\$BLIZZ_LDSO\" --library-path \"\$SERVER/lib\" \"\$SERVER/bin/worldserver\""))
+        assertTrue(File(l.wrathppServer, "blizz/mariadb").isFile)
+        // Its world server's log is its own.
+        assertTrue(File(l.logs, "wrathpp/world.out").isFile)
+        val order = r.order().filter { it != "db-ping" }
+        assertTrue(order.indexOf("realmlist") < order.indexOf("wrathpp-register"))
+        assertTrue(order.indexOf("wrathpp-register") < order.indexOf("auth"))
+        assertTrue(order.indexOf("configure") < order.indexOf("configure-realm"))
+        c.shutDown()
+    }
+
+    @Test fun wrathppWithoutItsServerFailsBeforeRunningAnything() = runBlocking {
+        val l = layout()
+        val r = FakeRunner()
+        val failures = mutableListOf<Pair<String, String?>>()
+        val c = controller(l, r, failures)
+
+        c.run(Realm.WRATHPP)
+
+        assertEquals(WowRealm.Phase.FAILED, c.status.value.phase)
+        assertTrue(c.status.value.error!!.contains("Wrath++'s server isn't installed"))
+        assertTrue(r.started.isEmpty())
+        assertEquals(1, failures.size)
+    }
+
     @Test fun existingDatabasesAreNeverRebuilt() = runBlocking {
         val l = layout(withMarkers = false, databases = listOf("acore_auth", "acore_characters", "acore_characters_remix"))
         val r = FakeRunner()

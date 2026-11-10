@@ -48,6 +48,8 @@ object Games {
                 Game("wow_legion", "World of Warcraft", "Legion", 2016, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Legion"),
                 Game("wow_octowow", "World of Warcraft", "OctoWoW", 2025, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "OctoWoW"),
                 Game("wow_forever", "World of Warcraft", "Forever", 2026, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Forever"),
+                // Experimental (docs/wrathpp): a third Wrath realm made from the Wrath+ import, with its own server and game copy.
+                Game("wow_wrathpp", "World of Warcraft", "Wrath++", 2008, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Wrath++ (experimental)"),
             )),
     ).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Game::title).thenBy(String.CASE_INSENSITIVE_ORDER) { it.subtitle.orEmpty() })
 

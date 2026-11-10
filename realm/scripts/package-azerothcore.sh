@@ -22,22 +22,25 @@ ${WOW_EXTRA_MODULES:-}"
 
 if [ -z "${IN_ALPINE:-}" ]; then
 	# shellcheck disable=SC2086
-	exec docker run --rm -e IN_ALPINE=1 -e WOW_EXTRA_MODULES="${WOW_EXTRA_MODULES:-}" ${DOCKER_RUN_ARGS:-} \
+	exec docker run --rm -e IN_ALPINE=1 -e WRATHPP="${WRATHPP:-0}" -e WOW_EXTRA_MODULES="${WOW_EXTRA_MODULES:-}" ${DOCKER_RUN_ARGS:-} \
 		-v "$ROOT:/repo" -w /repo "alpine:$ALPINE_VERSION" /repo/scripts/package-azerothcore.sh
 fi
 
 APP_FILES=/data/data/com.logie.warcraft/files
 PREFIX="$APP_FILES/server"
-DIST=/repo/build/azerothcore-dist
-STAGE=/repo/build/warcraft-server
-OUT=/repo/warcraft/android/server
+# WRATHPP=1: Wrath++'s own server (docs/wrathpp), from compile-azerothcore.sh's Wrath++ folders, packed apart.
+SUFFIX=
+[ "${WRATHPP:-0}" != 1 ] || SUFFIX=-wrathpp
+DIST=/repo/build/azerothcore$SUFFIX-dist
+STAGE=/repo/build/warcraft-server$SUFFIX
+OUT=/repo/warcraft/android/server$SUFFIX
 # Left when the allied races' files weren't all made (a fetch that failed): CI doesn't keep a
 # package without them, so the next build fetches them again.
 INCOMPLETE=/repo/build/package-incomplete
 rm -f "$INCOMPLETE"
 
 if [ ! -x "$DIST/bin/worldserver" ]; then
-	echo "No compiled server in build/azerothcore-dist: run scripts/compile-azerothcore.sh first." >&2
+	echo "No compiled server in $DIST: run scripts/compile-azerothcore.sh first." >&2
 	exit 1
 fi
 
@@ -48,7 +51,7 @@ apk add -q --no-progress build-base patchelf xz tar python3 boost-dev openssl-de
 # repository has it now, over what the compile copied: the compile's cache key covers only what's
 # compiled (the modules' sources and configs), so a change to a module's data, tools or docs packages
 # the server again without compiling it (.github/workflows/build-warcraft.yml).
-for dir in /repo/warcraft/modules/*/; do
+for dir in /repo/warcraft/modules/*/ ${SUFFIX:+/repo/warcraft/wrathpp/modules/*/}; do
 	dir=${dir%/}
 	name=$(basename "$dir")
 	for sub in data/sql data/client data/server data/zones data/patch sql; do
@@ -213,7 +216,7 @@ fi
 mkdir -p "$pkg/lua_scripts"
 [ ! -d "$DIST/lua_scripts" ] || cp -r "$DIST/lua_scripts/." "$pkg/lua_scripts/"
 echo "${WOW_EXTRA_MODULES:-}" | awk 'NF { print $1 }' | while read -r name; do
-	dir="/repo/build/azerothcore/modules/$name"
+	dir="/repo/build/azerothcore$SUFFIX/modules/$name"
 	[ -d "$dir" ] || continue
 	find "$dir" -name '*.lua' ! -path '*/.git/*' | while read -r file; do
 		rel=${file#"$dir/"}
@@ -229,7 +232,7 @@ done
 # The game files the modules the app's user picked bring: the DBC files they change, for the
 # server's data and the game, and their patch for the game (scripts/module-files.py; ctl.sh puts
 # them in place). Read from the sources the compile used: a module left out isn't there.
-extra=$(echo "${WOW_EXTRA_MODULES:-}" | awk 'NF { print "/repo/build/azerothcore/modules/" $1 }')
+extra=$(echo "${WOW_EXTRA_MODULES:-}" | awk -v dir="/repo/build/azerothcore$SUFFIX/modules/" 'NF { print dir $1 }')
 if [ -n "$extra" ]; then
 	# shellcheck disable=SC2086
 	python3 /repo/scripts/module-files.py "$pkg/share" $extra
@@ -298,6 +301,13 @@ mariadb $(mariadbd --version | awk '{ print $3 }')
 alpine $(cat /etc/alpine-release) $(uname -m)
 EOF
 cp /repo/warcraft/server/ctl.sh "$pkg/ctl.sh"
+# Wrath++'s: its module's registry where the module looks (SourceDirectory), and what it is in VERSION.
+if [ -n "$SUFFIX" ]; then
+	mkdir -p "$pkg/src/modules/mod-wrathpp-customization/data"
+	python3 /repo/warcraft/wrathpp/tools/registry.py build /repo/warcraft/wrathpp/registry/registry.json \
+		"$pkg/src/modules/mod-wrathpp-customization/data/registry.bin" >> "$pkg/VERSION"
+	echo "wrathpp protocol $(sed -n 's/^WRATHPP_PROTOCOL=//p' /repo/warcraft/wrathpp/wrathpp.env)" >> "$pkg/VERSION"
+fi
 
 mkdir -p "$OUT"
 tar -C "$STAGE" -cf - server | xz -T0 -6 > "$OUT/server.tar.xz"

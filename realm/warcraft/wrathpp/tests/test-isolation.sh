@@ -154,7 +154,7 @@ check "  every program line count kept or grown" [ "$(grep -cE '"\$SERVER/bin/' 
 check "  the MySQLExecutable line the app rewrites is there" grep -qF 'MySQLExecutable "\"$SERVER/bin/mariadb\""' "$CTL"
 # (a program run as "$R_SERVER/bin/x" or "$WRATHPP_SERVER/bin/x" would escape the app's rewrite;
 # "[ -x ... ]" tests of whether one is installed are fine)
-direct_runs() { grep -nE '"\$(R_SERVER|WRATHPP_SERVER)/bin/[A-Za-z0-9_.-]+"' "$CTL" | grep -vE '-x "\$(R_SERVER|WRATHPP_SERVER)/bin/' || true; }
+direct_runs() { grep -nE '"\$(R_SERVER|WRATHPP_SERVER)/bin/[A-Za-z0-9_.-]+"' "$CTL" | grep -vE -e '-x "\$(R_SERVER|WRATHPP_SERVER)/bin/' || true; }
 check "  no program started by another path to the server" [ -z "$(direct_runs)" ]
 
 echo "# 2. Wrath++ not installed: nothing of it, and its commands refuse"
@@ -231,8 +231,21 @@ H="$WORK/h"
 make_files "$H"; install_wrathpp "$H"
 rm "$H/client-wrathpp/Data/common.MPQ"
 ln "$H/client/Data/common.MPQ" "$H/client-wrathpp/Data/common.MPQ"
+echo "allied races" > "$H/client/Data/patch-V.MPQ"
+ln "$H/client/Data/patch-V.MPQ" "$H/client-wrathpp/Data/patch-V.MPQ"
 run "$CTL" "$H" wrathpp-check > "$WORK/h-check.out" || true
-check "wrathpp-check finds a game file hard linked to the shared game's" grep -q "FAIL .*common.MPQ is the shared game's file" "$WORK/h-check.out"
+check "wrathpp-check lets the game's own archive be shared read only (a hard link)" grep -q "shared, read only: Data/common.MPQ" "$WORK/h-check.out"
+check "  but not a patch a realm module writes" grep -q "FAIL .*patch-V.MPQ is the shared game's file" "$WORK/h-check.out"
+
+echo "# 4b. configure-realm wrathpp configures Wrath++ alone"
+C="$WORK/c"
+make_files "$C"
+run "$CTL" "$C" configure > /dev/null
+install_wrathpp "$C"
+before_c=$(shared_manifest "$C")
+run "$CTL" "$C" configure-realm wrathpp > /dev/null
+check "configure-realm wrathpp makes etc-wrathpp" grep -qx 'RealmID = 5' "$C/etc-wrathpp/worldserver.conf"
+check "  and changes no file of main's or Remix's" [ "$before_c" = "$(shared_manifest "$C")" ]
 
 echo "# 5. the realm list"
 rm -f "$F/stub/sql.log"

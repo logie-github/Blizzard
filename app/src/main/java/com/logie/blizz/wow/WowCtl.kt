@@ -58,10 +58,13 @@ object WowCtl {
     }
 
     /** `server/blizz/mariadb`: the mariadb client through the loader, with the compatibility shim preloaded. */
-    fun mariadbWrapper(layout: WowLayout, loader: File): String = buildString {
+    fun mariadbWrapper(layout: WowLayout, loader: File): String = mariadbWrapper(layout.server, loader)
+
+    /** The same for the server folder [server] (the realms' `server`, or Wrath++'s `server-wrathpp`). */
+    fun mariadbWrapper(server: File, loader: File): String = buildString {
         append("#!/system/bin/sh\n")
-        append("export LD_PRELOAD=\"${layout.server.path}/lib/libandroidcompat.so\"\n")
-        append("exec \"${loader.path}\" --library-path \"${layout.server.path}/lib\" \"${layout.server.path}/bin/mariadb\" \"\$@\"\n")
+        append("export LD_PRELOAD=\"${server.path}/lib/libandroidcompat.so\"\n")
+        append("exec \"${loader.path}\" --library-path \"${server.path}/lib\" \"${server.path}/bin/mariadb\" \"\$@\"\n")
     }
 
     /**
@@ -74,8 +77,18 @@ object WowCtl {
     /** What to run for `ctl.sh <args>`: the shell, the script, and the environment it needs. */
     data class Command(val argv: List<String>, val env: Map<String, String>, val directory: File)
 
-    fun command(layout: WowLayout, loader: File, timeZone: String, vararg args: String): Command = Command(
-        argv = listOf("/system/bin/sh", layout.blizzCtl.path) + args,
+    fun command(layout: WowLayout, loader: File, timeZone: String, vararg args: String): Command =
+        command(layout, layout.blizzCtl, loader, timeZone, *args)
+
+    /**
+     * `ctl.sh <args>` run from Wrath++'s own script (its package's `ctl.sh`, which knows the realm `wrathpp`): its
+     * steps only. MariaDB, the login server and the realms' own steps stay on the realms' script ([command]).
+     */
+    fun wrathppCommand(layout: WowLayout, loader: File, timeZone: String, vararg args: String): Command =
+        command(layout, layout.wrathppBlizzCtl, loader, timeZone, *args)
+
+    private fun command(layout: WowLayout, script: File, loader: File, timeZone: String, vararg args: String): Command = Command(
+        argv = listOf("/system/bin/sh", script.path) + args,
         env = mapOf(
             // ctl.sh's own variable: every path it builds starts here.
             "FILES" to layout.root.path,
@@ -109,6 +122,32 @@ object WowCtl {
         write(File(layout.blizzBin, "mariadb"), mariadbWrapper(layout, loader), executable = true)
         for (dir in listOf(layout.run, File(layout.run, "tmp"), layout.logs, layout.realmLogs(Realm.REMIX), layout.data)) dir.mkdirs()
         return loader
+    }
+
+    /**
+     * Wrath++'s server, ready to run: its programs executable, its `ctl.blizz.sh` (the same rewrite as the realms'), and
+     * its `blizz/mariadb`. Its script runs Wrath++'s programs from `server-wrathpp` (its realm() points SERVER there) and
+     * the shared MariaDB and login server from `server`, as the realms' own do. Throws if the package isn't installed.
+     */
+    fun prepareWrathpp(layout: WowLayout, loader: File) {
+        if (!layout.hasWrathppServer()) throw java.io.IOException("Wrath++'s server isn't installed (server-wrathpp)")
+        markExecutable(layout.wrathppServer, layout.wrathppCtl)
+        write(layout.wrathppBlizzCtl, transform(layout.wrathppCtl.readText()), executable = true)
+        val bin = File(layout.wrathppServer, "blizz")
+        bin.mkdirs()
+        write(File(bin, "mariadb"), mariadbWrapper(layout.wrathppServer, loader), executable = true)
+        for (dir in listOf(File(layout.run, "wrathpp/tmp"), layout.realmLogs(Realm.WRATHPP))) dir.mkdirs()
+    }
+
+    private fun markExecutable(server: File, ctl: File): Int {
+        var changed = 0
+        for (dir in listOf("bin", "lib")) {
+            File(server, dir).walkTopDown()
+                .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) && !it.canExecute() }
+                .forEach { if (it.setExecutable(true, false)) changed++ }
+        }
+        if (ctl.isFile && !ctl.canExecute() && ctl.setExecutable(true, false)) changed++
+        return changed
     }
 
     /**
