@@ -1,0 +1,79 @@
+From d64752ec172127bb70dc5a63b3c88c5d44771e53 Mon Sep 17 00:00:00 2001
+From: wrathpp <wrathpp@users.noreply.github.com>
+Date: Tue, 10 Nov 2026 18:22:51 +0000
+Subject: [PATCH] Animate: MSVC intrinsics for MXCSR and pause; GCC-style asm
+ only where the compiler has it
+
+MSVC x64 (19.44) rejects __asm__ volatile (Wrath++ client probe, 2026-11-10: 17 errors in
+Animate.cpp). _mm_getcsr/_mm_setcsr/_mm_pause do the same on every compiler; the x87 control
+word (x86 only) keeps the GCC form under clang and GCC and uses MSVC's inline asm otherwise.
+---
+ src/tuning/Animate.cpp | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/tuning/Animate.cpp b/src/tuning/Animate.cpp
+index 4123889..fe4fb9f 100644
+--- a/src/tuning/Animate.cpp
++++ b/src/tuning/Animate.cpp
+@@ -12,6 +12,7 @@
+ 
+ #include <windows.h>
+ #include <intrin.h>
++#include <xmmintrin.h>
+ 
+ #include <vector>
+ 
+@@ -29,11 +30,14 @@ namespace wxl::core::tuning
+         FloatState state;
+ #if defined(_M_IX86)
+         uint16_t control = 0;
++#if defined(__clang__) || defined(__GNUC__)
+         __asm__ volatile("fnstcw %0" : "=m"(control));
++#else
++        __asm fnstcw control
++#endif
+         state.control = control;
+ #endif
+-        uint32_t mxcsr = 0;
+-        __asm__ volatile("stmxcsr %0" : "=m"(mxcsr));
++        const uint32_t mxcsr = _mm_getcsr();
+         state.mxcsr = mxcsr;
+         return state;
+     }
+@@ -42,10 +46,13 @@ namespace wxl::core::tuning
+     {
+ #if defined(_M_IX86)
+         const uint16_t control = static_cast<uint16_t>(state.control);
++#if defined(__clang__) || defined(__GNUC__)
+         __asm__ volatile("fldcw %0" : : "m"(control));
++#else
++        __asm fldcw control
++#endif
+ #endif
+-        const uint32_t mxcsr = state.mxcsr;
+-        __asm__ volatile("ldmxcsr %0" : : "m"(mxcsr));
++        _mm_setcsr(state.mxcsr);
+     }
+ 
+     // --- The pool ---------------------------------------------------------------------------------
+@@ -82,7 +89,7 @@ namespace wxl::core::tuning
+             uint32_t generation = pool.generation_;
+             for (uint32_t spin = 0; generation == seen && spin < kSpins; ++spin)
+             {
+-                __asm__ volatile("pause");
++                _mm_pause();
+                 generation = pool.generation_;
+             }
+             while (generation == seen)
+@@ -140,7 +147,7 @@ namespace wxl::core::tuning
+         Work(generation);
+         for (uint32_t spin = 0; static_cast<uint32_t>(done_) < count; ++spin)
+         {
+-            if (spin < kSpins) __asm__ volatile("pause");
++            if (spin < kSpins) _mm_pause();
+             else SwitchToThread();
+         }
+         // No job is left to claim: a late worker finds the cursor at the end, or a later batch's.
+-- 
+2.43.0
+
