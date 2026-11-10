@@ -19,6 +19,14 @@ object WebView2 {
     /** Microsoft Edge WebView2 Evergreen **Standalone** installer (x64): carries the runtime, installs offline. */
     const val INSTALLER_URL = "https://go.microsoft.com/fwlink/?linkid=2124701"
 
+    /**
+     * The extra Chromium arguments the launcher's WebView2 is started with (WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS,
+     * written into the client's Wine HKCU\Environment). A Chromium engine won't run under Wine with its sandbox on,
+     * and its GPU process crashes (no GPU under Box64): the sandbox is off and rendering is software only. The code-
+     * integrity check also fails under Wine. These are the known arguments for running Chromium/WebView2 under Wine.
+     */
+    const val BROWSER_ARGS = "--no-sandbox --disable-gpu --disable-gpu-compositing --disable-features=RendererCodeIntegrity"
+
     private const val INSTALLER_NAME = "MicrosoftEdgeWebView2Setup.exe"
     private const val MIN_SIZE = 1_000_000L
 

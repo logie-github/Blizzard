@@ -155,6 +155,15 @@ object WindowsRuntime {
             withContext(Dispatchers.IO) {
                 val ca = com.logie.blizz.forever.ForeverLayout.of(context).caFile
                 if (ca.isFile) LegionClientSetup.installCertificateBundle(ca, File(container.rootDir, ".wine/drive_c"))
+                // The Forever Launcher is a Tauri/WebView2 app; its Chromium engine won't start under Wine with the
+                // sandbox and a GPU process. WebView2 takes extra browser arguments from WEBVIEW2_ADDITIONAL_BROWSER_
+                // ARGUMENTS, which must carry spaces — the container's env string splits on spaces, so it goes through
+                // Wine's own HKCU\Environment (verified on the rig: Wine applies it to new processes, spaces kept).
+                runCatching {
+                    com.winlator.core.WineRegistryEditor(File(container.rootDir, ".wine/user.reg")).use { reg ->
+                        reg.setStringValue("Environment", "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", com.logie.blizz.forever.WebView2.BROWSER_ARGS)
+                    }
+                }
             }
         }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
