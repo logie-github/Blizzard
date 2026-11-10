@@ -156,9 +156,24 @@ object WindowsRuntime {
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
         if (foreverClient) {
+            val driveC = File(container.rootDir, ".wine/drive_c")
             withContext(Dispatchers.IO) {
-                val ca = com.logie.blizz.forever.ForeverLayout.of(context).caFile
-                if (ca.isFile) LegionClientSetup.installCertificateBundle(ca, File(container.rootDir, ".wine/drive_c"))
+                val layout = com.logie.blizz.forever.ForeverLayout.of(context)
+                if (layout.caFile.isFile) LegionClientSetup.installCertificateBundle(layout.caFile, driveC)
+                // The Forever Launcher is a Tauri/WebView2 app. Put Microsoft's fixed-version WebView2 runtime in place
+                // (the loose files, no installer — Microsoft's installer fails under Wine) and point the launcher at it
+                // through the client's Wine HKCU\Environment. Only when a launcher is set: the bare client needs none.
+                if (layout.hasLauncher()) runCatching {
+                    if (!com.logie.blizz.forever.WebView2.installed(driveC)) {
+                        _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
+                        com.logie.blizz.forever.WebView2.provision(driveC) { done, total ->
+                            _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
+                        }
+                    }
+                    com.winlator.core.WineRegistryEditor(File(container.rootDir, ".wine/user.reg")).use { reg ->
+                        for ((name, value) in com.logie.blizz.forever.WebView2.ENV) reg.setStringValue("Environment", name, value)
+                    }
+                }
             }
         }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).

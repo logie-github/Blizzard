@@ -412,7 +412,9 @@ private fun RuntimeOverlay() {
                         "It can't enter the realm yet. The game checks the world server's identity against Blizzard's own key, " +
                         "and disconnects from any other server (\"You have been disconnected\", BLZ51901023). The Forever Launcher " +
                         "(ForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
-                        "make or download it: pick the file once and it is run at every Play.",
+                        "make or download it: pick the file once and it is run at every Play. For the current Tauri/WebView2 " +
+                        "launcher the app installs the WebView2 runtime it needs on the first run (a ~250 MB download); a native " +
+                        "launcher works too.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

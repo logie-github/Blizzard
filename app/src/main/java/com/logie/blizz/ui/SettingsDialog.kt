@@ -377,28 +377,11 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     SettingCard("Forever Launcher") {
                         Text(
                             if (hasLauncher) "The Forever Launcher is in place; the client connects through it."
-                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play.",
+                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play. For the Tauri/WebView2 launcher the app installs the WebView2 runtime it needs on the first run (~250 MB); a native launcher works too.",
                             style = MaterialTheme.typography.bodySmall, color = if (hasLauncher) Colors.Ice else Colors.Mist,
                         )
                         FrameButton(if (hasLauncher) "Replace launcher" else "Choose launcher (.exe)", primary = false) {
                             pickLauncher.launch(arrayOf("application/x-msdownload", "application/octet-stream", "application/vnd.microsoft.portable-executable", "*/*"))
-                        }
-                    }
-                    // The current Forever Launcher is a Tauri app and needs Microsoft's WebView2 runtime, which isn't in
-                    // the games' Windows ("A Windows component is missing"). This fetches it and runs its installer once in
-                    // the shared container. Experimental: a Chromium runtime may not run under Box64.
-                    if (hasLauncher) {
-                        val webViewReady = remember(forever) { com.logie.blizz.forever.ForeverPlay.webViewReady(context) }
-                        SettingCard("Launcher component (WebView2)") {
-                            Text(
-                                "The Forever Launcher needs Microsoft's WebView2 runtime to open its window (\"A Windows component is " +
-                                    "missing\"). This downloads it (~210 MB) and runs Microsoft's installer once in the game's Windows — " +
-                                    "tap through it, close it when it finishes, then Play. Experimental: the launcher's engine may not run here.",
-                                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-                            )
-                            FrameButton(if (webViewReady) "Install WebView2 again (one time)" else "Set up WebView2 (one time)", primary = false) {
-                                com.logie.blizz.forever.ForeverPlay.setupWebView2(context)
-                            }
                         }
                     }
                     // Start over: the realm alone, or the realm and the downloaded client. Each asks first.
