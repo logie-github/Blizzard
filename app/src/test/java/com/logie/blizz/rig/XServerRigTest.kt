@@ -65,14 +65,19 @@ class XServerRigTest {
         Thread.sleep(1500)
     }
 
-    /** The probe started as the app starts a game: the session's keeper, winhandler.exe, the program. Its frame is gone when this returns. */
+    /**
+     * The probe started as the app starts a game: the session's keeper, winhandler.exe, the program. Its frame is gone when this
+     * returns: with "fixed" among [args] (a window of a fixed size, Diablo II's) it is 400x300 at the top left, which the server
+     * shows stretched over the screen; without (a window that can be sized, Warcraft III's) the keeper has given it the whole screen.
+     */
     private fun game(rig: XRig, vararg args: String): Process {
         rig.install(File(XRig.programs, "inputprobe.exe"))
         log.delete()
         val process = rig.game("C:\\windows", "inputprobe.exe", *args)
-        rig.waitFor("the probe's window without its frame (400x300 at the top left)") {
+        val (width, height) = if ("fixed" in args) 400 to 300 else rig.xServer.screenInfo.width.toInt() to rig.xServer.screenInfo.height.toInt()
+        rig.waitFor("the probe's window without its frame (${width}x$height at the top left)") {
             log.isFile && log.readText().contains("START") &&
-                rig.window("inputprobe")?.let { it.width.toInt() == 400 && it.height.toInt() == 300 && it.x.toInt() == 0 && it.y.toInt() == 0 } == true
+                rig.window("inputprobe")?.let { it.width.toInt() == width && it.height.toInt() == height && it.x.toInt() == 0 && it.y.toInt() == 0 } == true
         }
         Thread.sleep(1500)
         return process
@@ -97,14 +102,37 @@ class XServerRigTest {
      * window (ClipCursor) makes Wine report the mouse without a window, and Wine's server hands such input to the window
      * station's input desktop: "Default", the first one made, not the games' ("shell"), until an input with a window switches
      * it. A game that locks the cursor from its first moment never got a move or a click. The keeper (borderless.exe) switches
-     * the input desktop as the session starts. Here: the probe locks the cursor at once, its frameless 400x300 window is shown
-     * stretched over the 800x600 screen, and a touch on the picture's middle must arrive as one click at 200,150 (the stretch
-     * applied to the grabbed pointer too: Winlator patch 0009), not as none, not doubled.
+     * the input desktop as the session starts ([aLockedCursorInAStretchedWindowGetsItsClickWhereTouched] is that path), and it
+     * gives a window that can be sized, as Warcraft III's is, the whole screen: the game draws at the screen's own size, and a
+     * lock to the whole screen is no lock to Wine, which then holds no pointer grab at all. Here: the probe locks the cursor at
+     * once in such a window, is told its new size, and a touch arrives as one click where it was made, not as none, not doubled.
      */
-    @Test fun aGameThatLocksTheCursorFromItsStartGetsItsClicks() {
+    @Test fun aSizableWindowGetsTheWholeScreenAndItsClicks() {
         assumeTrue(XRig.enabled)
         XRig().use { rig ->
             game(rig, "clip")
+            assertTrue("the program was not told its new size:\n${log.readText()}", log.readText().contains("SIZE 800 600"))
+            rig.click(520, 410)
+            rig.waitFor("the click's release in the probe's log", 10_000) { log.readText().contains("LUP") }
+            Thread.sleep(400)
+            val text = log.readText()
+            assertTrue("no press reached the program:\n$text\n${rig.state()}", has(text, "LDOWN", 520, 410))
+            assertTrue("no release reached the program:\n$text", has(text, "LUP", 520, 410))
+            assertTrue("one press became a double click:\n$text", !text.contains("LDBL"))
+            assertEquals("presses:\n$text", 1, Regex("LDOWN").findAll(text).count())
+        }
+    }
+
+    /**
+     * The locked cursor itself, in a window of a fixed size (400x300, which the server shows stretched over the 800x600 screen):
+     * Wine holds its pointer grab, the keeper has made the games' desktop the one that takes input, and a touch on the picture's
+     * middle must arrive as one click at 200,150, the stretch applied to the locked pointer too (Winlator patch 0009: the
+     * pointer's grab window has no stretch of its own).
+     */
+    @Test fun aLockedCursorInAStretchedWindowGetsItsClickWhereTouched() {
+        assumeTrue(XRig.enabled)
+        XRig().use { rig ->
+            game(rig, "clip", "fixed")
             assertNotNull("Wine holds no pointer grab: the cursor lock this test is about did not happen.\n${rig.state()}", rig.xServer.grabManager.window)
             clickProbe(rig, 200, 150, framed = false)
             rig.waitFor("the click's release in the probe's log", 10_000) { log.readText().contains("LUP") }
@@ -117,7 +145,7 @@ class XServerRigTest {
         }
     }
 
-    /** The same without the keeper, as builds before 179 started games: the locked cursor's click never arrives. Kept as the record of the fault. */
+    /** The same without the keeper, as every build up to 180 started games: the locked cursor's click never arrives. Kept as the record of the fault. */
     @Test fun withoutTheKeeperALockedCursorGetsNoClick() {
         assumeTrue(XRig.enabled)
         XRig().use { rig ->
@@ -137,7 +165,7 @@ class XServerRigTest {
     @Test fun aGameThatDoesNotLockTheCursorGetsItsClicks() {
         assumeTrue(XRig.enabled)
         XRig().use { rig ->
-            game(rig, "noclip")
+            game(rig, "noclip", "fixed")
             clickProbe(rig, 200, 150, framed = false)
             rig.waitFor("the click in the probe's log", 10_000) { log.readText().contains("LUP") }
             Thread.sleep(400)
@@ -170,7 +198,7 @@ class XServerRigTest {
     @Test fun theSessionEndsWhenTheGameDoes() {
         assumeTrue(XRig.enabled)
         XRig().use { rig ->
-            val wine = game(rig, "noclip")
+            val wine = game(rig, "noclip", "fixed")
             clickProbe(rig, 200, 150, framed = false)
             Thread.sleep(300)
             rig.key(XKeycode.KEY_F4, XKeycode.KEY_ALT_L)
@@ -182,7 +210,7 @@ class XServerRigTest {
     @Test fun theAppsKeyboardTypesWhatItsCapsShow() {
         assumeTrue(XRig.enabled)
         XRig().use { rig ->
-            game(rig, "noclip")
+            game(rig, "noclip", "fixed")
             clickProbe(rig, 200, 150, framed = false)
             rig.key(XKeycode.KEY_A)
             rig.key(XKeycode.KEY_A, XKeycode.KEY_SHIFT_L)

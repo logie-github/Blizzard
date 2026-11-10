@@ -112,6 +112,31 @@ class Wc3SetupTest {
         assertEquals("frFR", user["${Wc3Setup.LAUNCHER}|Locale"])
     }
 
+    @Test fun theGamesVideoOptionsArePutAtTheirBestOnce() {
+        val best = Wc3Setup.writes(2520, 1890, locale = "enUS", installDos = null, best = true)
+        for ((name, value) in listOf("modeldetail" to 2, "animquality" to 2, "texquality" to 2, "particles" to 2, "lights" to 2, "spellfilter" to 2, "unitshadows" to 1, "occlusion" to 1, "colordepth" to 32, "texcolordepth" to 32)) {
+            assertTrue(name, Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.VIDEO, name, value) in best)
+        }
+        assertTrue(Wc3Setup.Write(Wc3Setup.Hive.USER, Wc3Setup.APP, Wc3Setup.BEST_VIDEO, "1") in best)
+        assertTrue(Wc3Setup.writes(2520, 1890, locale = "enUS", installDos = null).none { it.name == "modeldetail" || it.key == Wc3Setup.APP })
+
+        // In the games' Windows: written at the first start, and not again once the person has changed one in the game's Options.
+        val root = tmp.newFolder("best")
+        val user = Fake()
+        val hives = mapOf("user.reg" to user, "system.reg" to Fake())
+        for (name in hives.keys) File(root, ".wine/$name").also { it.parentFile.mkdirs() }.writeText("x")
+        val open = { f: File -> hives.getValue(f.name) }
+        user.values["${Wc3Setup.VIDEO}|modeldetail"] = 0
+        Wc3Setup.apply(root, 2520, 1890, null, open)
+        assertEquals(2, user.values["${Wc3Setup.VIDEO}|modeldetail"])
+        assertEquals(32, user.values["${Wc3Setup.VIDEO}|colordepth"])
+        assertEquals("1", user.values["${Wc3Setup.APP}|${Wc3Setup.BEST_VIDEO}"])
+        user.values["${Wc3Setup.VIDEO}|particles"] = 0
+        Wc3Setup.apply(root, 2520, 1890, null, open)
+        assertEquals(0, user.values["${Wc3Setup.VIDEO}|particles"])
+        assertEquals(2520, user.values["${Wc3Setup.VIDEO}|reswidth"])
+    }
+
     @Test fun aWindowsNotMadeYetIsLeftAlone() {
         val root = tmp.newFolder("empty")
         Wc3Setup.apply(root, 800, 600, null)

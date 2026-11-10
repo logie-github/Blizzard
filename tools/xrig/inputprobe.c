@@ -2,10 +2,11 @@
  * inputprobe.exe: what a Windows program gets of the mouse and keyboard, written down.
  *
  * For the X server rig (tools/xrig/README.md): run inside Wine against Winlator's own X server on a desktop,
- * it opens a 400x300 window at 100,100, optionally locks the cursor to its client area the way games do
+ * it opens a 400x300 window at 100,100 (one the person could drag larger, as Warcraft III's is; with the argument
+ * "fixed" one of a fixed size, as Diablo II's), optionally locks the cursor to its client area the way games do
  * (ClipCursor, again on a timer: argument "clip"), and writes every button, key and character message it is
- * sent to C:\windows\inputprobe.log, one a line, flushed as written. The test injects input into the X server
- * and reads the log: what arrives here is what a game would have got on the phone.
+ * sent, and each size its client area takes, to C:\windows\inputprobe.log, one a line, flushed as written. The
+ * test injects input into the X server and reads the log: what arrives here is what a game would have got on the phone.
  *
  * Built with Zig for x86_64 Windows, the Windows subsystem (no console).
  */
@@ -47,7 +48,8 @@ static LRESULT CALLBACK proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     case WM_CREATE: SetTimer(hwnd, 1, 250, NULL); return 0;
     case WM_TIMER: lock_cursor(hwnd); return 0;
     case WM_ACTIVATE: line("ACTIVATE %d", (int)LOWORD(wp)); lock_cursor(hwnd); return 0;
-    case WM_SIZE: case WM_MOVE: lock_cursor(hwnd); break;
+    case WM_SIZE: line("SIZE %d %d", (int)LOWORD(lp), (int)HIWORD(lp)); lock_cursor(hwnd); break;
+    case WM_MOVE: lock_cursor(hwnd); break;
     case WM_LBUTTONDOWN: line("LDOWN %d %d", x, y); return 0;
     case WM_LBUTTONUP: line("LUP %d %d", x, y); return 0;
     case WM_RBUTTONDOWN: line("RDOWN %d %d", x, y); return 0;
@@ -68,8 +70,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     HWND hwnd;
     MSG msg;
     RECT r;
+    DWORD style;
     (void)previous; (void)show;
     clip = command && strstr(command, "clip") != NULL && strstr(command, "noclip") == NULL;
+    style = command && strstr(command, "fixed") != NULL ? WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX : WS_OVERLAPPEDWINDOW;
     out = fopen("C:\\windows\\inputprobe.log", "w");
     memset(&wc, 0, sizeof(wc));
     wc.style = CS_DBLCLKS;
@@ -81,8 +85,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     RegisterClassA(&wc);
     /* A client area of 400x300 with its top left at 100,100 on the screen, whatever the frame's size. */
     r.left = 100; r.top = 100; r.right = 500; r.bottom = 400;
-    AdjustWindowRect(&r, WS_OVERLAPPEDWINDOW, FALSE);
-    hwnd = CreateWindowA("InputProbe", "inputprobe", WS_OVERLAPPEDWINDOW | WS_VISIBLE, r.left, r.top, r.right - r.left, r.bottom - r.top, NULL, NULL, instance, NULL);
+    AdjustWindowRect(&r, style, FALSE);
+    hwnd = CreateWindowA("InputProbe", "inputprobe", style | WS_VISIBLE, r.left, r.top, r.right - r.left, r.bottom - r.top, NULL, NULL, instance, NULL);
     {
         /* Where the client area starts inside the window (the frame's left and the title bar's height), for the test's arithmetic. */
         RECT w;

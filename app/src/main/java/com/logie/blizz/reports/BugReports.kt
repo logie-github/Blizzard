@@ -113,7 +113,7 @@ object BugReports {
         for ((name, value) in details) if (!value.isNullOrBlank()) append("| $name | ${value.replace("|", "\\|").replace("\n", " ")} |\n")
         if (!log.isNullOrBlank()) {
             append("\n<details><summary>Log</summary>\n\n```\n")
-            append(redact(log).takeLast(12_000))
+            append(redact(log).takeLast(20_000))
             append("\n```\n</details>\n")
         }
         if (!files.isNullOrBlank()) {

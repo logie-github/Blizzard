@@ -38,6 +38,15 @@
   Windows games here". Reproduce the failure there, read the dialogs, the `+seh`/`+relay` traces and the game's code, fix,
   and see the game run before pushing. A change to how a Windows game starts that was not run there is a guess; say so.
 - **Anything run beside a game must run on its desktop.** The games run in Wine's virtual desktop (`explorer /desktop=shell,WxH`);
-  a helper started with plain `wine` lands on another desktop and sees none of the game's windows. On the phone, run it through
-  winhandler's `exec` (as `borderless.exe` is); on the test rig, `wine explorer /desktop=shell,WxH C:\windows\helper.exe`.
+  a helper started with plain `wine` lands on another desktop and sees none of the game's windows. On the phone every Windows
+  game is started by the session's keeper (`borderless.exe`, `tools/borderless`: Winlator patch 0009's `exec_wrapper`), which is
+  where such work belongs; on the test rig, `wine explorer /desktop=shell,WxH C:\windows\helper.exe`.
+- **Winlator is changed only through `patches/winlator`.** `app/winlator` is git-ignored: `scripts/prepare-winlator.sh` checks
+  out Winlator's commit into `build/winlator-app`, applies `patches/winlator/NNNN-*.patch` and copies the result. An edit made
+  only in `app/winlator` builds here and never ships (builds 178 to 180 said Warcraft III's clicks were fixed, and held nothing
+  of it). Commit the change in `build/winlator-app`, `git format-patch -1` it into `patches/winlator`, and check the whole
+  series applies to a clean checkout.
+- **A fault in a game's clicks or keys is reproduced on Winlator's own X server** (`tools/xrig/README.md`: the server in a unit
+  test, the phone's Wine connected to it), where the phone's input differs from Xvfb: pointer grabs, the stretch, which window
+  gets the event. A change to the input path, the keeper or Winlator's server is run there before it is pushed.
 - Never commit build outputs, downloaded tools, or any game files.

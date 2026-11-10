@@ -23,6 +23,10 @@ object Borderless {
     /** Where it lives in the games' Windows. */
     const val PATH = "C:\\windows\\borderless.exe"
     private const val NO_FRAMES = "/noframes"
+    /** Its log of the session, beside it (started anew at each start): read for the reports ([GameLog.keeperLog]). */
+    const val LOG = "borderless.log"
+
+    fun logFile(containerRoot: File) = File(containerRoot, ".wine/drive_c/windows/$LOG")
 
     /** Whether the game [gameId]'s windows lose their frames (the World of Warcraft clients run fullscreen; an installer wants its own frames). */
     fun frames(gameId: String?): Boolean = gameId != null && gameId != "installer" && gameId != "wow-client" && gameId != "wow" && !gameId.startsWith("wow_")

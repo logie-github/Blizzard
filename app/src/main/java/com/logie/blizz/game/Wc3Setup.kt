@@ -68,16 +68,38 @@ object Wc3Setup {
     /** Windowed 0, windowed fullscreen 1, fullscreen 2 (one guide's mapping, not confirmed for 1.30). */
     const val WINDOW_MODE_FULLSCREEN = 2
 
+    /** The app's own key in the games' registry: what it has set up once. */
+    const val APP = "Software\\Logie\\Blizz"
+    /** [APP]'s value for "the game's video options were put at their best": [BEST_VIDEO_VERSION] once done. */
+    const val BEST_VIDEO = "wc3video"
+    const val BEST_VIDEO_VERSION = "1"
+
+    /**
+     * The game's own Video options at their best, by the names and numbers 1.27 writes them with (read from the registry after the
+     * game ran on the desktop rig, 10 November 2026): model detail, animation quality, texture quality, particles, lights and
+     * spell detail High (2), unit shadows and occlusion on, 32-bit colour and textures. Left to itself the game picked Low
+     * models, Medium everything else and 16-bit colour there; with these written it showed High throughout and kept them.
+     */
+    val BEST: List<Pair<String, Int>> = listOf(
+        "modeldetail" to 2, "animquality" to 2, "texquality" to 2, "particles" to 2, "lights" to 2, "spellfilter" to 2,
+        "unitshadows" to 1, "occlusion" to 1, "colordepth" to 32, "texcolordepth" to 32,
+    )
+
     /**
      * The values to write: the game's resolution at the phone's size and fullscreen, the repack's launcher language (kept if
      * [locale] already has one; enUS otherwise), and, when [installDos] is given (`D:\warcraft3_roc\`), the folder where the
      * game's installer would have recorded it. (A 1.2x window's title bar is taken off by borderless.exe, not here: Wine 10.10
-     * draws it itself in its desktop and has no setting against it.)
+     * draws it itself in its desktop and has no setting against it.) With [best], the game's video options at their best
+     * ([BEST]) and the mark that this was done: once, so what the person changes in the game's own Options afterwards stays.
      */
-    fun writes(width: Int, height: Int, locale: String?, installDos: String?): List<Write> = buildList {
+    fun writes(width: Int, height: Int, locale: String?, installDos: String?, best: Boolean = false): List<Write> = buildList {
         add(Write(Hive.USER, VIDEO, "reswidth", width))
         add(Write(Hive.USER, VIDEO, "resheight", height))
         add(Write(Hive.USER, VIDEO, "windowmode", WINDOW_MODE_FULLSCREEN))
+        if (best) {
+            for ((name, value) in BEST) add(Write(Hive.USER, VIDEO, name, value))
+            add(Write(Hive.USER, APP, BEST_VIDEO, BEST_VIDEO_VERSION))
+        }
         if (locale.isNullOrEmpty()) add(Write(Hive.USER, LAUNCHER, "Locale", "enUS"))
         if (installDos != null) {
             val dos = if (installDos.endsWith("\\")) installDos else "$installDos\\"
@@ -95,8 +117,8 @@ object Wc3Setup {
      */
     fun apply(containerRoot: File, width: Int, height: Int, installDos: String?, open: (File) -> Registry = ::wine) {
         val userReg = File(containerRoot, ".wine/user.reg")
-        val locale = if (userReg.isFile) open(userReg).use { it.getString(LAUNCHER, "Locale") } else ""
-        applyWrites(containerRoot, writes(width, height, locale, installDos), open)
+        val (locale, bestDone) = if (userReg.isFile) open(userReg).use { it.getString(LAUNCHER, "Locale") to (it.getString(APP, BEST_VIDEO) == BEST_VIDEO_VERSION) } else "" to false
+        applyWrites(containerRoot, writes(width, height, locale, installDos, best = !bestDone), open)
     }
 
     /**

@@ -24,9 +24,9 @@
  *
  * 3. The session ends with the game. winhandler.exe stays for as long as the desktop does, and the desktop for as long
  *    as winhandler.exe: a game that was quit from its own menu (or crashed) left a black screen until the person found
- *    the app's menu. When no program of the game's is left for three seconds (or none ever started in a minute and a
- *    half), winhandler.exe is ended and this program exits: the desktop closes, Wine exits, and the app returns to the
- *    launcher.
+ *    the app's menu. When no program of the game's is left for three seconds (fifteen with /noframes: an installer
+ *    may start its next part late; or none ever started in a minute and a half), winhandler.exe is ended and this
+ *    program exits: the desktop closes, Wine exits, and the app returns to the launcher.
  *
  * Built with Zig for x86_64 Windows (scripts/build-tools.sh), the Windows subsystem: no console.
  */
@@ -37,23 +37,27 @@
 #include <string.h>
 
 /*
- * What it did, for the app's reports (C:\windows\borderless.log, a few lines a session, started anew each time): the
- * desktop switch, what it started, each window it took the frame off, the game's programs as they come and go, why it ended.
+ * What it did and saw, for the app's reports (C:\windows\borderless.log, a few lines a session, started anew each time): the
+ * desktop switch, what it started, the game's windows as they appear (a dialog box with its words: the game's own error
+ * message), each window it took the frame off, the game's programs as they come and go, why it ended.
  */
 static HANDLE log_file = INVALID_HANDLE_VALUE;
+static DWORD log_started;
 
+/* One line: the seconds since this program started, then the text (wvsprintfA writes at most 1024 characters). */
 static void note(const char *format, ...)
 {
-    char text[600];
+    char text[1100];
     DWORD written;
     va_list args;
-    int length;
+    int length, i;
 
     if (log_file == INVALID_HANDLE_VALUE) return;
-    length = wsprintfA(text, "%lu ", GetTickCount() / 1000);
+    length = wsprintfA(text, "%lu ", (GetTickCount() - log_started) / 1000);
     va_start(args, format);
     length += wvsprintfA(text + length, format, args);
     va_end(args);
+    for (i = 0; i < length; i++) if (text[i] == '\r' || text[i] == '\n') text[i] = ' ';
     text[length++] = '\n';
     WriteFile(log_file, text, (DWORD)length, &written, NULL);
 }
@@ -97,6 +101,47 @@ static int kept_program(HWND hwnd)
     if (!QueryFullProcessImageNameW(process, 0, path, &size)) { CloseHandle(process); return 0; }
     CloseHandle(process);
     return kept_name(path);
+}
+
+/*
+ * The game's windows as they appear, once each: class, title, place, style. A dialog box's words too (its texts and
+ * buttons): a game that stops at a message of its own says in the report what the message was. Windows already looked at
+ * are remembered (Wine's own as well, so their program is asked about once).
+ */
+static HWND noted[64];
+static int noted_count;
+
+static BOOL CALLBACK say(HWND child, LPARAM lparam)
+{
+    char cls[32] = "", text[400] = "";
+    DWORD_PTR result = 0;
+
+    (void)lparam;
+    GetClassNameA(child, cls, sizeof(cls));
+    if (lstrcmpiA(cls, "Static") && lstrcmpiA(cls, "Button") && lstrcmpiA(cls, "Edit")) return TRUE;
+    if (!SendMessageTimeoutA(child, WM_GETTEXT, sizeof(text), (LPARAM)text, SMTO_ABORTIFHUNG, 200, &result) || !text[0]) return TRUE;
+    note("    %s: %.380s", cls, text);
+    return TRUE;
+}
+
+static BOOL CALLBACK watch(HWND hwnd, LPARAM lparam)
+{
+    char cls[64] = "", title[128] = "";
+    RECT rect;
+    int i;
+
+    (void)lparam;
+    if (!IsWindowVisible(hwnd) || GetAncestor(hwnd, GA_PARENT) != GetDesktopWindow()) return TRUE;
+    for (i = 0; i < noted_count; i++) if (noted[i] == hwnd) return TRUE;
+    if (noted_count >= (int)(sizeof(noted) / sizeof(noted[0]))) return TRUE;
+    noted[noted_count++] = hwnd;
+    if (kept_program(hwnd) || !GetWindowRect(hwnd, &rect)) return TRUE;
+    GetClassNameA(hwnd, cls, sizeof(cls));
+    GetWindowTextA(hwnd, title, sizeof(title));
+    note("window of class '%s' \"%.120s\": %ldx%ld at %ld,%ld, style %08lx", cls, title, rect.right - rect.left, rect.bottom - rect.top,
+         rect.left, rect.top, (DWORD)GetWindowLongW(hwnd, GWL_STYLE));
+    if (!lstrcmpA(cls, "#32770")) EnumChildWindows(hwnd, say, 0);
+    return TRUE;
 }
 
 static BOOL CALLBACK strip(HWND hwnd, LPARAM lparam)
@@ -145,7 +190,9 @@ static BOOL CALLBACK strip(HWND hwnd, LPARAM lparam)
      * A window the person could have dragged larger (a sizing frame) is one the game draws at whatever size it is given:
      * it gets the whole screen. Warcraft III 1.2x opens its window at 592x423 whatever its resolution setting says, and
      * the launcher stretched that small picture over the phone's screen, soft; given the screen's size the game draws at
-     * the screen's own resolution. A window of a fixed size (Diablo II's) keeps it: its game would draw in a corner.
+     * the screen's own resolution. (A lock of the cursor to a window that is the whole screen is no lock to Wine either:
+     * it then holds no pointer grab, seen on the rig.) A window of a fixed size (Diablo II's) keeps it: its game would
+     * draw in a corner.
      */
     if (style & WS_THICKFRAME) { width = screen_width; height = screen_height; }
 
@@ -199,7 +246,7 @@ static WCHAR *rest_of_command_line(int *frames)
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int show)
 {
     int frames = 1, seen = 0, last_games = -2, helper_gone = 0;
-    DWORD started = GetTickCount(), last_seen = started, exit_code = 0;
+    DWORD started = GetTickCount(), last_seen = started, exit_code = 0, grace;
     WCHAR *rest = rest_of_command_line(&frames);
     PROCESS_INFORMATION child;
     HDESK desktop = GetThreadDesktop(GetCurrentThreadId());
@@ -209,8 +256,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
 
     (void)instance; (void)previous; (void)command; (void)show;
     memset(&child, 0, sizeof(child));
+    log_started = started;
     log_file = CreateFileA("C:\\windows\\borderless.log", GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     GetUserObjectInformationA(desktop, UOI_NAME, desktop_name, sizeof(desktop_name), &needed);
+    grace = frames ? 3000 : 15000;
     switched = SwitchDesktop(desktop);
     note("session keeper: desktop '%s' takes the input: %s; frames %s; screen %dx%d", desktop_name, switched ? "yes" : "NO",
          frames ? "off the games' windows" : "left", GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
@@ -235,6 +284,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
         DWORD now;
 
         SwitchDesktop(desktop);
+        EnumWindows(watch, 0);
         if (frames) EnumWindows(strip, (LPARAM)&changed);
         if (!child.hProcess) {
             /* Run by itself (no command line): one pass, as a tool. */
@@ -257,7 +307,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
             last_games = games;
         }
         if (games > 0) { seen = 1; last_seen = now; }
-        else if (games == 0 && ((seen && now - last_seen >= 3000) || (!seen && now - started >= 90000) || (helper_gone && now - last_seen >= 3000))) {
+        else if (games == 0 && ((seen && now - last_seen >= grace) || (!seen && now - started >= 90000) || (helper_gone && now - last_seen >= grace))) {
             /* The game is over (or never came): the helper goes, and with it the desktop and the session. */
             note(seen ? "the game is over: ending the session" : "no program of the game's started: ending the session");
             if (!helper_gone) {

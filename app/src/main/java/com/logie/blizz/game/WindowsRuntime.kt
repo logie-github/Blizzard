@@ -142,6 +142,9 @@ object WindowsRuntime {
         // borderless.exe (tools/borderless): the session's keeper, put into the games' Windows at every start (the app's copy
         // may be newer) and started before winhandler.exe and the game ([Borderless]); without it in place the game starts as before.
         val keeper = withContext(Dispatchers.IO) { runCatching { Borderless.install(context, container.rootDir) }.getOrDefault(false) }
+        // Its log of this session goes into the reports; the last session's is no word on this one.
+        withContext(Dispatchers.IO) { runCatching { Borderless.logFile(container.rootDir).delete() } }
+        GameLog.keeperLog = if (keeper) Borderless.logFile(container.rootDir) else null
         // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
         // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
         if (foreverClient) {
