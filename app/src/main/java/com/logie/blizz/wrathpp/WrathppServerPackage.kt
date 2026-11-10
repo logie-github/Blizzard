@@ -57,9 +57,9 @@ object WrathppServerPackage {
 
     /**
      * Makes sure the newest package is installed. Offline with a package installed: that one is used. Call off the main
-     * thread; [onStage] names the step, [onProgress] gets (bytes, total) while downloading.
+     * thread; [say] gets each step's words and its share done (0..1), often (the caller thins it out).
      */
-    fun ensure(layout: WowLayout, onStage: (String) -> Unit, onProgress: (Long, Long) -> Unit) {
+    fun ensure(layout: WowLayout, say: (String, Float?) -> Unit) {
         val published = runCatching { manifest() }.getOrElse { e ->
             if (layout.hasWrathppServer() && installedSha(layout) != null) return
             throw IOException("Wrath++'s server couldn't be fetched (${e.message ?: e.javaClass.simpleName}). It is published by this app's " +
@@ -67,16 +67,21 @@ object WrathppServerPackage {
         }
         if (!needsInstall(layout, published)) return
         if (published.format < MIN_FORMAT) throw IOException("Wrath++'s server is being updated. Try again in a few minutes.")
-        install(layout, published, onStage, onProgress)
+        install(layout, published, say)
     }
 
-    private fun install(layout: WowLayout, manifest: Manifest, onStage: (String) -> Unit, onProgress: (Long, Long) -> Unit) {
+    private fun mb(bytes: Long) = bytes shr 20
+
+    private fun install(layout: WowLayout, manifest: Manifest, say: (String, Float?) -> Unit) {
         val root = layout.root
         val archive = File(root, "wrathpp-server.tar.xz.part")
-        onStage("Downloading Wrath++'s server")
-        download(PACKAGE_URL, archive, manifest.size, onProgress)
-        onStage("Checking the download")
-        if (!sha256(archive).equals(manifest.sha256, ignoreCase = true)) {
+        say("Downloading Wrath++'s server (step 1 of 4)", 0f)
+        download(PACKAGE_URL, archive, manifest.size) { done, total ->
+            say("Downloading Wrath++'s server (step 1 of 4): ${mb(done)} / ${mb(total)} MB", if (total > 0) done.toFloat() / total else null)
+        }
+        val size = archive.length().coerceAtLeast(1)
+        val sha = sha256(archive) { read -> say("Checking the download (step 2 of 4): ${mb(read)} / ${mb(size)} MB", read.toFloat() / size) }
+        if (!sha.equals(manifest.sha256, ignoreCase = true)) {
             archive.delete()
             throw IOException("Wrath++'s server download didn't match its checksum; try again.")
         }
@@ -90,10 +95,14 @@ object WrathppServerPackage {
         }
         val staging = File(root, "server-wrathpp.new")
         staging.deleteRecursively()
-        unpack(archive, staging) { written -> onStage("Unpacking Wrath++'s server… ${written shr 20} MB") }
+        val unpacked = manifest.unpacked.takeIf { it > 0 }
+        unpack(archive, staging) { written ->
+            say("Unpacking Wrath++'s server (step 3 of 4): ${mb(written)}${unpacked?.let { " / ${mb(it)}" }.orEmpty()} MB",
+                unpacked?.let { written.toFloat() / it })
+        }
         archive.delete()
-        val unpacked = File(staging, "server").takeIf { it.isDirectory } ?: staging
-        if (!File(unpacked, "ctl.sh").isFile || !File(unpacked, "bin/worldserver").isFile) {
+        val folder = File(staging, "server").takeIf { it.isDirectory } ?: staging
+        if (!File(folder, "ctl.sh").isFile || !File(folder, "bin/worldserver").isFile) {
             staging.deleteRecursively()
             throw IOException("Wrath++'s server package has no ctl.sh or world server")
         }
@@ -101,8 +110,8 @@ object WrathppServerPackage {
         val old = File(root, "server-wrathpp.old")
         old.deleteRecursively()
         if (target.exists() && !target.renameTo(old)) target.deleteRecursively()
-        if (!unpacked.renameTo(target)) {
-            unpacked.copyRecursively(target, overwrite = true)
+        if (!folder.renameTo(target)) {
+            folder.copyRecursively(target, overwrite = true)
         }
         old.deleteRecursively()
         staging.deleteRecursively()
@@ -145,7 +154,7 @@ object WrathppServerPackage {
                         if (n < 0) break
                         out.write(buffer, 0, n)
                         written += n
-                        if (written - reported >= (16L shl 20)) { reported = written; onBytes(written) }
+                        if (written - reported >= (4L shl 20)) { reported = written; onBytes(written) }
                     }
                 }
                 if (entry.mode and 0b001_000_000 != 0) target.setExecutable(true, false)
@@ -194,11 +203,12 @@ object WrathppServerPackage {
         throw IOException("Too many redirects")
     }
 
-    private fun sha256(file: File): String {
+    private fun sha256(file: File, onRead: (Long) -> Unit = {}): String {
         val digest = MessageDigest.getInstance("SHA-256")
+        var read = 0L
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(1 shl 16)
-            while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+            while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n); read += n; onRead(read) }
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }

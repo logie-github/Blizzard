@@ -161,8 +161,14 @@ internal fun rememberGameAspect(): Float {
  * the whole screen, the little beyond it cut, so no bar shows beside or beneath the picture; on a screen of another shape (the
  * cover screen) the frame sits between black bars, as the game will.
  */
+/**
+ * [steps]: a long start's own account of itself (Wrath++'s download, unpacking, copy, realm set-up), shown under the line as
+ * the step's words and a bar: filled to [StepProgress.fraction] when it is known, moving otherwise, so it never looks stopped.
+ */
+data class StepProgress(val message: String, val fraction: Float?)
+
 @Composable
-internal fun Loading(gameId: String?, text: String, layoutOverride: Splashes.Layout? = null, grid: Boolean = false) {
+internal fun Loading(gameId: String?, text: String, layoutOverride: Splashes.Layout? = null, grid: Boolean = false, steps: StepProgress? = null) {
     val aspect = rememberGameAspect()
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).clipToBounds(), contentAlignment = Alignment.Center) {
         val screen = maxWidth / maxHeight
@@ -170,15 +176,34 @@ internal fun Loading(gameId: String?, text: String, layoutOverride: Splashes.Lay
         if (close) {
             // The frame at the size that covers the screen: width-limited when the screen is the wider.
             val (w, h) = if (screen >= aspect) maxWidth to maxWidth / aspect else maxHeight * aspect to maxHeight
-            Box(Modifier.requiredSize(w, h).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid) }
+            Box(Modifier.requiredSize(w, h).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid, steps) }
         } else {
-            Box(Modifier.aspectRatio(aspect).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid) }
+            Box(Modifier.aspectRatio(aspect).clipToBounds()) { LoadingScreen(gameId, text, layoutOverride, grid, steps) }
+        }
+    }
+}
+
+/** The step's words over a bar: its share done (and the percent), or a moving bar while it can't be measured. */
+@Composable
+private fun StepBar(steps: StepProgress) {
+    val accent = Color(0xFFFF8A3D)
+    Column(Modifier.widthIn(max = 520.dp).fillMaxWidth().padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val percent = steps.fraction?.let { "  ${(it.coerceIn(0f, 1f) * 100).toInt()}%" }.orEmpty()
+        Text(steps.message + percent, style = MaterialTheme.typography.bodyMedium, color = Color(0xFFE8C9A8), maxLines = 2)
+        val track = Color.White.copy(alpha = 0.18f)
+        val fraction = steps.fraction
+        if (fraction != null) {
+            androidx.compose.material3.LinearProgressIndicator(
+                progress = { fraction.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth(), color = accent, trackColor = track,
+            )
+        } else {
+            androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = accent, trackColor = track)
         }
     }
 }
 
 @Composable
-private fun LoadingScreen(gameId: String?, text: String, layoutOverride: Splashes.Layout?, grid: Boolean) {
+private fun LoadingScreen(gameId: String?, text: String, layoutOverride: Splashes.Layout?, grid: Boolean, steps: StepProgress? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val game = Games.find(gameId)
     val version by Splashes.version.collectAsState()
@@ -215,9 +240,12 @@ private fun LoadingScreen(gameId: String?, text: String, layoutOverride: Splashe
                         Image(it, contentDescription = game?.fullTitle, contentScale = ContentScale.Fit,
                             modifier = Modifier.align(BiasAlignment(col - 1f, row - 1f)).padding(horizontal = 24.dp, vertical = if (row == 2) 72.dp else 24.dp).width(logoWidth.coerceAtMost(maxWidth * 0.9f)))
                     }
-                    Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Spinner(26.dp, accent = Color(0xFFFF8A3D))
-                        Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
+                    Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Spinner(26.dp, accent = Color(0xFFFF8A3D))
+                            Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
+                        }
+                        steps?.let { StepBar(it) }
                     }
                 } else Column(
                     Modifier.fillMaxSize().padding(bottom = 28.dp, end = if (wide) 36.dp else 0.dp),
@@ -229,6 +257,7 @@ private fun LoadingScreen(gameId: String?, text: String, layoutOverride: Splashe
                         Spinner(26.dp, accent = Color(0xFFFF8A3D))
                         Text(text, style = MaterialTheme.typography.titleMedium, color = Color(0xFFE8C9A8))
                     }
+                    steps?.let { StepBar(it) }
                 }
             }
             if (grid) Canvas(Modifier.fillMaxSize()) {

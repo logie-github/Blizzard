@@ -340,7 +340,11 @@ private fun RuntimeOverlay() {
                         }
                     }
                 } else {
-                    com.logie.blizz.game.Loading(held, rememberLoadingLine(held) + percent)
+                    // Wrath++'s start says what it is doing (its server's download, its copy of the game, its realm's set-up),
+                    // with a bar: the first start takes long enough that a line alone looks frozen.
+                    val ww = wow as? com.logie.blizz.game.WowPlay.State.Preparing
+                    val steps = if (ww != null && ww.gameId == com.logie.blizz.game.WowPlay.WRATHPP_ID) com.logie.blizz.game.StepProgress(ww.message, ww.progress) else null
+                    com.logie.blizz.game.Loading(held, rememberLoadingLine(held) + percent, steps = steps)
                 }
             }
         }

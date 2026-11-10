@@ -93,4 +93,18 @@ class WrathppClientTest {
         assertNull(WrathppServerPackage.entryTarget(base, "/etc/passwd"))
         assertNull(WrathppServerPackage.entryTarget(base, "server/../../x"))
     }
+    @Test fun progressReportsAreThinnedButEveryStepAndTheEndArrive() {
+        val out = mutableListOf<Pair<String, Float?>>()
+        var now = 0L
+        val r = WrathppSetup.Reports({ m, f -> out += m to f }, clock = { now })
+        r.say("Downloading (step 1 of 4)", 0f)
+        for (i in 1..1000) r.say("Downloading (step 1 of 4): $i MB", i / 1000f)          // a report a MB
+        r.say("Checking (step 2 of 4): 0 MB", 0f)                                        // a new step: always shown
+        now += 300; r.say("Checking (step 2 of 4): 1 MB", 0.001f)                        // a quarter second later: shown
+        r.say("Checking (step 2 of 4): 1 MB", 0.0011f)                                   // neither: dropped
+        assertTrue(out.size in 150..260)                                                  // ~ every half percent
+        assertEquals(1f, out.first { it.first.startsWith("Downloading") && it.second == 1f }.second)
+        assertEquals("Checking (step 2 of 4): 1 MB", out.last().first)
+        assertEquals(2, out.count { it.first.startsWith("Checking") })
+    }
 }

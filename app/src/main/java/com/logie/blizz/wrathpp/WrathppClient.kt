@@ -53,7 +53,7 @@ object WrathppClient {
      * Makes [target] from [source] if it isn't complete yet. [onProgress] gets a line now and then. Throws [IOException]
      * when [target] would be inside [source] or the other way round, or when there is no room.
      */
-    fun make(source: File, target: File, onProgress: (String) -> Unit = {}): Boolean {
+    fun make(source: File, target: File, onProgress: (String, Float?) -> Unit = { _, _ -> }): Boolean {
         if (isMade(target)) return false
         val src = source.canonicalFile
         val dst = target.canonicalFile
@@ -84,7 +84,8 @@ object WrathppClient {
                     if (link) linked++ else {
                         f.copyTo(out, overwrite = true)
                         done += f.length()
-                        onProgress("Copying the game for Wrath++… ${done shr 20} / ${need shr 20} MB")
+                        onProgress("Making Wrath++'s copy of the game (step 4 of 4): ${done shr 20} / ${need shr 20} MB",
+                            if (need > 0) done.toFloat() / need else null)
                     }
                 }
             }
