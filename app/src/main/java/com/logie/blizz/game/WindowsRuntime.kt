@@ -145,6 +145,10 @@ object WindowsRuntime {
         // Its log of this session goes into the reports; the last session's is no word on this one.
         withContext(Dispatchers.IO) { runCatching { Borderless.logFile(container.rootDir).delete() } }
         GameLog.keeperLog = if (keeper) Borderless.logFile(container.rootDir) else null
+        withContext(Dispatchers.IO) { runCatching { Borderless.dialogFile(container.rootDir).delete() } }
+        Borderless.dialogFlag = if (keeper) Borderless.dialogFile(container.rootDir) else null
+        // A game that dies of a fault ends without Wine's "Program Error" box: the launcher is back and the app reports it ([WineCrashDialog]).
+        withContext(Dispatchers.IO) { runCatching { WineCrashDialog.apply(container.rootDir, entry.gameId) } }
         // Wine's GetAdaptersAddresses walks an empty adapter list as a full one here (this Wine lists no adapters), which
         // ended World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one
         // known iphlpapi.dll only, in every game's Wine alike so they all run the same one).
@@ -161,6 +165,8 @@ object WindowsRuntime {
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
                 runCatching { Wc3Setup.apply(container.rootDir, size.first, size.second, "D:\\" + File(entry.installPath).name + "\\") }
+                // A player profile ready (1.0 to 1.27 keep it in the game's folder): Single Player doesn't stop at a name to type ([Wc3Profile]).
+                if (Wc3Arguments.isBefore128(entry.clientVersion)) runCatching { Wc3Profile.seed(File(entry.installPath)) }
             }
         }
         // Wine's errors, its exception trace (seh: what faulted, where, which handler ran) and the libraries it loads, kept for the reports ([GameLog]).

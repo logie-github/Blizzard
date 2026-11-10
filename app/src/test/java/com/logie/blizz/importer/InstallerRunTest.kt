@@ -63,6 +63,34 @@ class InstallerRunTest {
 
     // ---- Switches ----
 
+
+    /** A file as a walk of a folder the app may read gives it: no path, but it knows what was listed with it. */
+    private class Found(private val self: Mem, private val beside: () -> List<SourceNode>) : SourceNode by self {
+        override fun siblings(): List<SourceNode>? = beside()
+    }
+
+    @Test fun anInstallerFoundInASearchedFolderSeesTheDataFilesBesideIt() {
+        // The phone's Warcraft II from GOG (4 and 8 November 2026): an 859 KB program with its data in the .bin beside it.
+        val setup = Mem("setup_warcraft_ii_2.02_v5_(78104).exe", ByteArray(4096) { if (it < 2) "MZ"[it].code.toByte() else 0 })
+        val bin = Mem("setup_warcraft_ii_2.02_v5_(78104)-1.bin", ByteArray(1 shl 20) { 7 })
+        val note = Mem("readme.txt", ByteArray(10))
+        lateinit var all: List<SourceNode>
+        val found = Found(setup) { all }
+        all = listOf(found, bin, note)
+        val (program, files) = InstallerRun.find(found)!!
+        assertEquals(setup.name, program.name)
+        assertEquals(listOf(bin.name), Installers.parts(program, files).map { it.name })
+        assertFalse(InstallerRun.needsFolder(found))
+        // Picked by itself with the document picker it has no neighbours: the folder is asked for, as before.
+        assertEquals(null, setup.siblings())
+        assertTrue(InstallerRun.needsFolder(setup))
+        // On the phone's own storage the folder is read.
+        val dir = tmp.newFolder("gog")
+        File(dir, setup.name).writeBytes(setup.data)
+        File(dir, bin.name).writeBytes(bin.data)
+        val local = FileNode(File(dir, setup.name))
+        assertEquals(listOf(bin.name), InstallerRun.find(local)!!.let { (p, f) -> Installers.parts(p, f) }.map { it.name })
+    }
     @Test fun eachRunUsesTheNextSetOfSwitchesAndTheTargetFolder() {
         val all = (0 until InstallerRun.VARIANT_COUNT).map { InstallerRun.arguments(game, it) }
         assertEquals(all.size, all.toSet().size)

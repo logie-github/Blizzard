@@ -28,6 +28,17 @@ object Borderless {
 
     fun logFile(containerRoot: File) = File(containerRoot, ".wine/drive_c/windows/$LOG")
 
+    /**
+     * The file the keeper keeps there for as long as a dialog box of the game's is up (an error message, a prompt: Windows'
+     * own kind, which Winlator's X server cannot tell from a game's window). Set at each start of a game.
+     */
+    @Volatile var dialogFlag: File? = null
+
+    fun dialogFile(containerRoot: File) = File(containerRoot, ".wine/drive_c/windows/borderless.dialog")
+
+    /** Whether a dialog box of the game's is up now, by the keeper's word. */
+    fun dialogUp(): Boolean = runCatching { dialogFlag?.exists() == true }.getOrDefault(false)
+
     /** Whether the game [gameId]'s windows lose their frames (the World of Warcraft clients run fullscreen; an installer wants its own frames). */
     fun frames(gameId: String?): Boolean = gameId != null && gameId != "installer" && gameId != "wow-client" && gameId != "wow" && !gameId.startsWith("wow_")
 

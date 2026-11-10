@@ -206,7 +206,7 @@ abstract class WargusImporter(conversion: ConversionTools?) : GameImporter {
         if (!install.isDirectory || Packages.findRoot(install, 6, ::isRoot) != null) return
         val holders = listOf(install) + install.children().filter { it.isDirectory }
         val hasSetup = holders.any { h -> h.children().any { !it.isDirectory && it.name.startsWith("setup", true) && it.name.endsWith(".exe", true) } }
-        if (!hasSetup) throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no $what in that folder (and no installer). $prompt")
+        if (!hasSetup) throw ImportException(Problem.MISSING_SOURCE_DATA, Packages.noGameMessage(install, what, prompt))
     }
 
     private fun refuse(missing: List<String>) {

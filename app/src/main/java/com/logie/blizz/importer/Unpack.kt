@@ -142,7 +142,7 @@ class Unpacker(private val innoextract: Innoextract?) {
             throw ImportException(
                 Problem.UNSUPPORTED_INSTALLER,
                 "${setup.name} needs its data files: select the folder that holds it and them (such as Data01.dxn), not the installer alone.",
-                "${setup.name} is ${setup.size shr 10} KB and no data files were visible beside it (a file from the document picker has no neighbours; a folder does).",
+                "${setup.name} is ${setup.size shr 10} KB and no data files were visible beside it (${siblings.size} other entries seen in its folder; a file picked by itself with the document picker has no neighbours, a folder does).",
             )
         }
         val base = setup.name.substringBeforeLast('.')
@@ -199,6 +199,22 @@ object Installers {
  * the shared first half of the importers that take a package (StarCraft II, StarCraft Remastered).
  */
 object Packages {
+    /**
+     * What to say of a picked [source] with neither [what] nor an installer in it. A folder the phone lists nothing in is said
+     * to be empty, by its name: the phone's StarCraft II folder was picked twice with nothing left in it (8 and 10 November
+     * 2026: the installer had been there, and the app's own copy of it had been removed), and "there's no StarCraft II in that
+     * folder" did not say why.
+     */
+    fun noGameMessage(source: SourceNode, what: String, prompt: String): String {
+        val empty = source.isDirectory && runCatching { source.children().isEmpty() }.getOrDefault(false)
+        return if (empty) {
+            "The folder you picked (${source.name}) is empty: the phone shows no files in it. If $what's files were there, they have been " +
+                "moved or deleted since; put them back, or pick the folder they are in now. $prompt"
+        } else {
+            "There's no $what in that folder (and no installer). $prompt"
+        }
+    }
+
     /** A folder's own entry names, lower-case, folders ending in "/": what [isRoot] looks at. */
     fun names(children: List<SourceNode>): Set<String> = children.map { it.name.lowercase() + if (it.isDirectory) "/" else "" }.toSet()
 
@@ -245,7 +261,7 @@ object Packages {
         } else {
             found = null
             setup = source
-            siblings = source.localFile()?.parentFile?.listFiles()?.map { FileNode(it) } ?: emptyList()
+            siblings = source.siblings() ?: emptyList()
         }
         if (found != null) {
             checkFound(found)
@@ -254,7 +270,7 @@ object Packages {
             copyTree(found, out, env, total, what)
             return out
         }
-        val package_ = setup ?: throw ImportException(Problem.MISSING_SOURCE_DATA, "There's no $what in that folder (and no installer). $prompt")
+        val package_ = setup ?: throw ImportException(Problem.MISSING_SOURCE_DATA, noGameMessage(source, what, prompt))
         FileValidator.requireSpace(scratch, (package_.size + siblings.sumOf { it.size }).coerceAtLeast(1L shl 30) + (2L shl 30))
         Unpacker(env.innoextract).unpack(package_, siblings, out, scratch, env.cancel, env.progress)
         // The strict shape first; then a wildcard search for the game's own markers wherever they landed

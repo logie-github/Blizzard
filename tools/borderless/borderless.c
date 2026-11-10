@@ -28,6 +28,9 @@
  *    may start its next part late; or none ever started in a minute and a half), winhandler.exe is ended and this
  *    program exits: the desktop closes, Wine exits, and the app returns to the launcher.
  *
+ * It also tells the app what only a program inside the games' Windows can see: its log (C:\windows\borderless.log: the
+ * game's windows, a dialog box's words) and whether a dialog box is up (C:\windows\borderless.dialog).
+ *
  * Built with Zig for x86_64 Windows (scripts/build-tools.sh), the Windows subsystem: no console.
  */
 #include <windows.h>
@@ -106,10 +109,16 @@ static int kept_program(HWND hwnd)
 /*
  * The game's windows as they appear, once each: class, title, place, style. A dialog box's words too (its texts and
  * buttons): a game that stops at a message of its own says in the report what the message was. Windows already looked at
- * are remembered (Wine's own as well, so their program is asked about once).
+ * are remembered (Wine's own as well, so their program is asked about once), and one of the game's that goes while the
+ * game still runs is said to be gone: the app reads from that whether a movie's window (Warcraft III's) was still up
+ * when the game's programs went, which is a movie that could not be played.
  */
-static HWND noted[64];
+#define NOTED 64
+static HWND noted[NOTED];
+static char noted_class[NOTED][32]; /* "" for a window that is not the game's */
 static int noted_count;
+static char gone_class[8][32]; /* gone at the last tick: said at this one if the game still runs */
+static int gone_count;
 
 static BOOL CALLBACK say(HWND child, LPARAM lparam)
 {
@@ -133,15 +142,70 @@ static BOOL CALLBACK watch(HWND hwnd, LPARAM lparam)
     (void)lparam;
     if (!IsWindowVisible(hwnd) || GetAncestor(hwnd, GA_PARENT) != GetDesktopWindow()) return TRUE;
     for (i = 0; i < noted_count; i++) if (noted[i] == hwnd) return TRUE;
-    if (noted_count >= (int)(sizeof(noted) / sizeof(noted[0]))) return TRUE;
-    noted[noted_count++] = hwnd;
+    if (noted_count >= NOTED) return TRUE;
+    noted[noted_count] = hwnd;
+    noted_class[noted_count][0] = 0;
+    noted_count++;
     if (kept_program(hwnd) || !GetWindowRect(hwnd, &rect)) return TRUE;
     GetClassNameA(hwnd, cls, sizeof(cls));
     GetWindowTextA(hwnd, title, sizeof(title));
+    lstrcpynA(noted_class[noted_count - 1], cls, sizeof(noted_class[0]));
     note("window of class '%s' \"%.120s\": %ldx%ld at %ld,%ld, style %08lx", cls, title, rect.right - rect.left, rect.bottom - rect.top,
          rect.left, rect.top, (DWORD)GetWindowLongW(hwnd, GWL_STYLE));
     if (!lstrcmpA(cls, "#32770")) EnumChildWindows(hwnd, say, 0);
     return TRUE;
+}
+
+/*
+ * The windows that have gone since the last tick: their places are freed (a new window can get the same handle), and
+ * the game's are said to be gone one tick later, if the game still runs then. A game whose programs end takes its
+ * windows with it in the same moment; those are not "gone", they were up at the end.
+ */
+static void windows_gone(int game_runs)
+{
+    int i;
+
+    if (game_runs) for (i = 0; i < gone_count; i++) note("window of class '%s' gone", gone_class[i]);
+    gone_count = 0;
+    for (i = 0; i < noted_count; ) {
+        if (IsWindow(noted[i])) { i++; continue; }
+        if (noted_class[i][0] && gone_count < (int)(sizeof(gone_class) / sizeof(gone_class[0]))) lstrcpynA(gone_class[gone_count++], noted_class[i], sizeof(gone_class[0]));
+        noted_count--;
+        noted[i] = noted[noted_count];
+        lstrcpynA(noted_class[i], noted_class[noted_count], sizeof(noted_class[0]));
+    }
+}
+
+/*
+ * Whether a dialog box of the game's is up (Windows' own kind: an error message, "already running", a prompt). The app's
+ * touch for the strategy games makes a tap the right click, which presses nothing on such a box, and Winlator's X server
+ * cannot tell a dialog from a game's window here (Wine sets no window type on them in its desktop: read on the rig). So
+ * the keeper says it: the file C:\windows\borderless.dialog is there for as long as one is up, and a tap is then the left
+ * click.
+ */
+static BOOL CALLBACK count_dialogs(HWND hwnd, LPARAM lparam)
+{
+    char cls[16] = "";
+
+    if (!IsWindowVisible(hwnd) || GetAncestor(hwnd, GA_PARENT) != GetDesktopWindow()) return TRUE;
+    GetClassNameA(hwnd, cls, sizeof(cls));
+    if (lstrcmpA(cls, "#32770") || kept_program(hwnd)) return TRUE;
+    (*(int *)lparam)++;
+    return TRUE;
+}
+
+static const char DIALOG_FLAG[] = "C:\\windows\\borderless.dialog";
+
+static void say_dialog(int up)
+{
+    static int said = -1;
+    HANDLE file;
+
+    if (up == said) return;
+    said = up;
+    if (!up) { DeleteFileA(DIALOG_FLAG); return; }
+    file = CreateFileA(DIALOG_FLAG, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_DELETE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file != INVALID_HANDLE_VALUE) CloseHandle(file);
 }
 
 static BOOL CALLBACK strip(HWND hwnd, LPARAM lparam)
@@ -176,6 +240,15 @@ static BOOL CALLBACK strip(HWND hwnd, LPARAM lparam)
     for (i = 0; kept_classes[i]; i++) if (!lstrcmpA(cls, kept_classes[i])) return TRUE;
     if (!GetClientRect(hwnd, &client) || client.right < 320 || client.bottom < 200) return TRUE;
     if (kept_program(hwnd)) return TRUE;
+    /*
+     * A change of style is a message to the window's own thread, and waits for it: Warcraft III's is busy for the whole
+     * of a movie (the keeper stood still for the 90 seconds of its intro on the rig), and at its start. A window that does
+     * not answer now is left for the next tick.
+     */
+    {
+        DWORD_PTR answer = 0;
+        if (!SendMessageTimeoutW(hwnd, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, 150, &answer)) return TRUE;
+    }
 
     /*
      * The client area where it was, the whole window now: at the top left of the screen, the client area's size. A game
@@ -260,6 +333,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     log_file = CreateFileA("C:\\windows\\borderless.log", GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     GetUserObjectInformationA(desktop, UOI_NAME, desktop_name, sizeof(desktop_name), &needed);
     grace = frames ? 3000 : 15000;
+    DeleteFileA(DIALOG_FLAG);
     switched = SwitchDesktop(desktop);
     note("session keeper: desktop '%s' takes the input: %s; frames %s; screen %dx%d", desktop_name, switched ? "yes" : "NO",
          frames ? "off the games' windows" : "left", GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
@@ -280,11 +354,13 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     }
 
     for (;;) {
-        int changed = 0, games;
+        int changed = 0, dialogs = 0, games;
         DWORD now;
 
         SwitchDesktop(desktop);
         EnumWindows(watch, 0);
+        EnumWindows(count_dialogs, (LPARAM)&dialogs);
+        say_dialog(dialogs > 0);
         if (frames) EnumWindows(strip, (LPARAM)&changed);
         if (!child.hProcess) {
             /* Run by itself (no command line): one pass, as a tool. */
@@ -300,9 +376,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
             helper_gone = 1;
         }
         games = game_processes(game);
+        windows_gone(games > 0);
         now = GetTickCount();
         if (games != last_games) {
             if (games > 0) note("%d program(s) of the game's running (%s)", games, game);
+            /* (the app reads these words, and "window of class '...' gone": Wc3Movies.upAtEnd) */
             else if (games == 0 && seen) note("no program of the game's is left");
             last_games = games;
         }
@@ -317,6 +395,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
             break;
         }
     }
+    say_dialog(0);
     if (child.hProcess) CloseHandle(child.hProcess);
     return (int)exit_code;
 }

@@ -206,6 +206,29 @@ class XServerRigTest {
         }
     }
 
+    /**
+     * A dialog box of Windows' own (an error message, a prompt, "already running") takes the left click, and the strategy
+     * games' tap is the right: the keeper says when one is up (the file borderless.dialog; Winlator's X server cannot tell,
+     * Wine sets no dialog type on such a window in its desktop: seen here on 10 November 2026), and a tap is then the left
+     * click (GestureView.click). Here: Wine's About box, started as a game is. The file is there while the box is, the box's
+     * words are in the keeper's log, and once its OK is pressed the file is gone and the session ends.
+     */
+    @Test fun theKeeperSaysWhenADialogBoxIsUp() {
+        assumeTrue(XRig.enabled)
+        XRig().use { rig ->
+            val flag = File(XRig.windowsDir, "borderless.dialog")
+            flag.delete()
+            val wine = rig.game("C:\\windows\\system32", "winver.exe")
+            rig.waitFor("the About box") { rig.windows().any { it.attributes.isMapped && it.name.startsWith("About Wine") } }
+            rig.waitFor("the keeper's word that a dialog box is up", 10_000) { flag.exists() }
+            val said = File(XRig.windowsDir, "borderless.log").readText()
+            assertTrue("the box's words are not in the keeper's log:\n$said", said.contains("class '#32770'") && said.contains("Button: OK"))
+            rig.key(XKeycode.KEY_ENTER)
+            assertTrue("Wine was still running 30 s after the box's OK.\n${rig.describe()}", wine.waitFor(30, java.util.concurrent.TimeUnit.SECONDS))
+            assertTrue("the keeper still says a dialog box is up", !flag.exists())
+        }
+    }
+
     /** The app's keyboard (GameKeyboard): letters, Shift with a letter and with a digit, Enter, Escape and a function key, as the game reads them. */
     @Test fun theAppsKeyboardTypesWhatItsCapsShow() {
         assumeTrue(XRig.enabled)

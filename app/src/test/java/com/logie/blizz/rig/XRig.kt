@@ -135,7 +135,7 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
         var p = w.parent
         while (p != null) { depth++; p = p.parent }
         "  ".repeat(depth) + "0x${Integer.toHexString(w.id)} '${w.name}' ${w.className} ${w.width}x${w.height}@${w.x},${w.y}" +
-            (if (w.attributes.isMapped) "" else " unmapped") + (if (w.isInputOutput) "" else " input-only")
+            (if (w.attributes.isMapped) "" else " unmapped") + (if (w.isInputOutput) "" else " input-only") + (if (w.type == Window.Type.DIALOG) " dialog" else "")
     }
 
     fun waitFor(what: String, timeoutMs: Long = 60_000, condition: () -> Boolean) {

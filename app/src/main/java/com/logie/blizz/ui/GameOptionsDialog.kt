@@ -107,6 +107,17 @@ fun GameOptionsDialog(game: Game, onDismiss: () -> Unit) {
                         ChoiceList(LaunchOptions.Box64.Preset.entries.map { it.label to it }, o.box64) { change(o.copy(box64 = it)) }
                     }
                 }
+                // Warcraft III: the campaigns' movies, which the app sets aside by itself when one stops the game ([Wc3Movies]).
+                if (game.id.startsWith("warcraft3")) {
+                    val folder = remember { runCatching { com.logie.blizz.importer.GameImportManager.library(context).get(game.id)?.installPath?.let { java.io.File(it) } }.getOrNull() }
+                    if (folder != null && com.logie.blizz.game.Wc3Movies.has(folder)) {
+                        var movies by remember { mutableStateOf(com.logie.blizz.game.Wc3Movies.on(folder)) }
+                        SettingCard("Movies") {
+                            Note("The campaigns' movies. Off sets them aside and the game skips them: for a phone where a movie stops the game (the app turns them off by itself when that happens). Both Warcraft III games share them.")
+                            Segmented(listOf("On" to true, "Off" to false), movies) { movies = com.logie.blizz.game.Wc3Movies.set(folder, it) }
+                        }
+                    }
+                }
                 SettingCard("Command line") {
                     Note("Switches of your own, added after the app's at the game's start (Diablo II: -w -ns -3dfx -ddraw -d3d; Warcraft III: -opengl -window). For trying a fix without a new build.")
                     androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().background(Colors.Abyss).padding(10.dp)) {
