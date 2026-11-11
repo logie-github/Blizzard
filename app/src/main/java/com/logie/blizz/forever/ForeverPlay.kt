@@ -131,6 +131,36 @@ object ForeverPlay {
         }
     }
 
+    /**
+     * Deletes **everything** for World of Warcraft: Forever and starts from zero: every file on disk (the realm server,
+     * the database with the characters, the map data, the certificate, the game client — downloaded or copied — and any
+     * part-download, logs and run files), and everything the app set up in the shared Winlator container (the .NET
+     * runtime, the launcher's config, an old browser runtime a previous version left). The next Play is a clean install.
+     * A running realm is stopped and a running download cancelled first. This is the "Reset everything" / nuke.
+     */
+    fun nuke(context: Context) {
+        val app = context.applicationContext
+        pauseDownload()
+        _state.value = State.Preparing("Deleting everything for World of Warcraft: Forever")
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    repeat(100) { if (installer == null) return@repeat; Thread.sleep(100) }
+                    if (ForeverRealm.status.value.phase != ForeverRealm.Phase.STOPPED) runCatching { ForeverRealm.stop(app) }
+                    // Every Forever file on disk (files/forever: server, client, data, mysql, ca, downloads, logs, run).
+                    ForeverLayout.of(app).root.deleteRecursively()
+                    // Everything the app set up in the shared container (the .NET runtime, the seeded config, an old browser runtime).
+                    runCatching { WindowsRuntime.clearForeverRuntime(app) }
+                    // The saved crash-watch marker (the account is remade on the next Play).
+                    runCatching { prefs(app).edit().clear().apply() }
+                }
+                _state.value = State.Idle
+            } catch (e: Throwable) {
+                _state.value = State.Failed("Couldn't delete everything: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
+    }
+
     /** The client's touch controls id (the same `wow` gestures as the other WoW clients). */
     private const val GAME_ID = "wow-client"
     private const val PROFILE = "wow"

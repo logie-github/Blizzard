@@ -393,13 +393,13 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                                 "the app set up around them on the next Play (the .NET runtime, the launcher's settings, an old browser runtime, and the " +
                                 "launcher file itself — you pick it again). Use it if a Play seems to use old files.\n\n" +
                                 "Reset realm deletes the realm server, its database (your characters) and its map data; the next Play downloads " +
-                                "the server again (263 MB). Reset everything also deletes the game client (${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB, downloaded again on Play).",
+                                "the server again (263 MB). Delete everything wipes it all — server, characters, the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB client and the app's container setup — and starts from zero.",
                             style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
                         )
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FrameButton("Repair installation", primary = false) { confirmRepair = true }
                             FrameButton("Reset realm", primary = false) { confirmReset = false }
-                            FrameButton("Reset everything", primary = false) { confirmReset = true }
+                            FrameButton("Delete everything (start over)", primary = false) { confirmReset = true }
                         }
                     }
                     if (confirmRepair) {
@@ -424,16 +424,17 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     confirmReset?.let { everything ->
                         Dialog(onDismissRequest = { confirmReset = null }) {
                             Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text(if (everything) "Reset everything?" else "Reset the realm?", style = MaterialTheme.typography.titleMedium)
+                                Text(if (everything) "Delete everything?" else "Reset the realm?", style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    if (everything) "Deletes the realm, your characters and the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client. This can't be undone."
+                                    if (everything) "Deletes EVERYTHING and starts from zero: the realm, your characters, the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client, and everything the app set up in its Windows container (the .NET runtime, the launcher's settings, an old browser runtime). This can't be undone."
                                     else "Deletes the realm server, its database with your characters, and its map data. The game client stays. This can't be undone.",
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     FrameButton("Cancel", primary = false) { confirmReset = null }
-                                    FrameButton("Reset") {
-                                        com.logie.blizz.forever.ForeverPlay.reset(context, client = everything)
+                                    FrameButton(if (everything) "Delete everything" else "Reset") {
+                                        if (everything) com.logie.blizz.forever.ForeverPlay.nuke(context)
+                                        else com.logie.blizz.forever.ForeverPlay.reset(context, client = false)
                                         confirmReset = null
                                     }
                                 }
