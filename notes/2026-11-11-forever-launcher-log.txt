@@ -1,0 +1,1 @@
+World of Warcraft: Forever: when the launcher stops early it now sends its log, so the cause can be found and fixed.
