@@ -7,11 +7,6 @@ import android.opengl.GLES30
 import android.opengl.GLES32
 import android.os.Bundle
 import android.system.Os
-import android.view.Gravity
-import android.view.ViewGroup
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.FrameLayout
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.audio.Sound
@@ -29,7 +24,7 @@ import com.etheller.warsmash.viewer5.gl.AudioExtension
 import com.etheller.warsmash.viewer5.gl.DynamicShadowExtension
 import com.etheller.warsmash.viewer5.gl.Extensions
 import com.etheller.warsmash.viewer5.gl.WireframeExtension
-import com.logie.blizz.importer.WarsmashImporter
+import com.logie.blizz.importer.Warcraft3WarsmashImporter
 import java.io.File
 
 /** Embedded engine screen in its own process; no standalone launcher or broad storage permission. */
@@ -41,8 +36,11 @@ class WarsmashActivity : AndroidApplication() {
         super.onCreate(state)
         val path = intent.getStringExtra(WarsmashRuntime.EXTRA_DATA)
         val gameDir = path?.let(::File)
-        if (gameDir == null || !WarsmashImporter.validateDir(gameDir).filesOk) {
-            error("Warcraft III's classic files are missing. Return to Warsmash and import them again.")
+        // Reign of Chaos or The Frozen Throne: the engine's own GameVersion (0 or 1), as its main menu's edition button sets it.
+        val edition = runCatching { WarsmashRuntime.Edition.valueOf(intent.getStringExtra(WarsmashRuntime.EXTRA_EDITION).orEmpty()) }
+            .getOrDefault(WarsmashRuntime.Edition.TFT)
+        if (gameDir == null || !Warcraft3WarsmashImporter.validateDir(gameDir, edition).filesOk) {
+            error("Warcraft III's classic files are missing. Go back, hold its box and use Install & repair.")
             return
         }
         val gl = (getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).deviceConfigurationInfo.reqGlEsVersion
@@ -55,7 +53,7 @@ class WarsmashActivity : AndroidApplication() {
             copyAssets("resources", support)
             File(gameDir, "Maps/Download").mkdirs()
             Os.setenv("game_files", gameDir.absolutePath, true)
-            Os.setenv("GAME_VERSION", "1", true)
+            Os.setenv("GAME_VERSION", edition.gameVersion.toString(), true)
             val minor = com.logie.blizz.importer.Warcraft3Importer(com.logie.blizz.importer.Warcraft3Importer.Product.TFT)
                 .versionOf(gameDir)?.split('.')?.getOrNull(1)?.toIntOrNull()
             Os.setenv("PLAYERS_COUNT", if (minor != null && minor >= 29) "28" else "16", true)
@@ -73,7 +71,7 @@ class WarsmashActivity : AndroidApplication() {
             }
             initialize(game, AndroidApplicationConfiguration().apply { useGL30 = true })
             started = true
-            controls()
+            // No buttons over the game (the person asked them away): Back is Escape, and the game's own menu has Quit.
         } catch (e: Exception) {
             error("Warsmash could not start: ${e.message}")
         }
@@ -97,17 +95,6 @@ class WarsmashActivity : AndroidApplication() {
             to.mkdirs()
             children.forEach { copyAssets("$path/$it", File(to, it)) }
         }
-    }
-
-    private fun controls() {
-        val row = LinearLayout(this).apply { gravity = Gravity.CENTER; setBackgroundColor(0x99000000.toInt()) }
-        fun button(label: String, action: () -> Unit) {
-            row.addView(Button(this).apply { text = label; setOnClickListener { action() } }, LinearLayout.LayoutParams(-2, -2))
-        }
-        button("Order") { Gdx.app.postRunnable { keys.onTouchDown?.invoke(Input.Buttons.RIGHT); keys.onTouchUp?.invoke(Input.Buttons.RIGHT) } }
-        button("Esc") { escape() }
-        button("Exit") { finish() }
-        addContentView(row, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.END))
     }
 
     private fun escape() { Gdx.app.postRunnable { keys.onKeyDownListener?.invoke(Input.Keys.ESCAPE); keys.onKeyUpListener?.invoke(Input.Keys.ESCAPE) } }

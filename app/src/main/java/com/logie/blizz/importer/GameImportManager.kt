@@ -97,10 +97,9 @@ object GameImportManager {
         // Warcraft I and II: native Stratagus from the GOG files (the conversion tools are set in [env]).
         "warcraft" to { Warcraft1Importer() },
         "warcraft2" to { Warcraft2Importer() },
-        // Warcraft III, one install for both ("warcraft3_tft" uses RoC's when it's there), on the app's Winlator.
-        "warcraft3_roc" to { Warcraft3Importer(Warcraft3Importer.Product.ROC) },
-        "warcraft3_tft" to { Warcraft3Importer(Warcraft3Importer.Product.TFT) },
-        "warcraft3_warsmash" to { WarsmashImporter() },
+        // Warcraft III, one install for both ("warcraft3_tft" uses RoC's when it's there), played in the embedded Warsmash engine.
+        "warcraft3_roc" to { Warcraft3WarsmashImporter(Warcraft3Importer.Product.ROC) },
+        "warcraft3_tft" to { Warcraft3WarsmashImporter(Warcraft3Importer.Product.TFT) },
         // World of Warcraft: the WoW app's verified export, copied over (its realms still run in that app).
         "wow" to { WowImporter() },
         "wow_legion" to { WowImporter(WowImporter.WowMode.LEGION) },
@@ -319,6 +318,12 @@ object GameImportManager {
                 refreshInstaller(app, gameId)
             }
         }
+    }
+
+    /** Warcraft III's entries from when it played on Winlator start Warsmash now, from the same files ([Warcraft3WarsmashImporter.migrate]). */
+    fun migrateWarcraft3(context: Context) {
+        val app = context.applicationContext
+        runCatching { Warcraft3WarsmashImporter.migrate(paths(app), library(app), repo(app)) }
     }
 
     /** Whether [gameId]'s install was made by an older recipe than this build's importer uses: a change that needs it installed again. */

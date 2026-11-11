@@ -12,7 +12,10 @@ if [ ! -f "$ARCHIVE" ]; then
     mv "$ARCHIVE.tmp" "$ARCHIVE"
 fi
 printf '%s  %s\n' "$SHA" "$ARCHIVE" | sha256sum -c -
-if [ -f "$OUT/SOURCE_SHA256" ] && [ "$(cat "$OUT/SOURCE_SHA256")" = "$SHA" ]; then exit 0; fi
+# The prepared tree is the source and the patches over it (patches/warsmash, in order): it is made again when either changes.
+PATCHES="$ROOT/patches/warsmash"
+STAMP="$SHA $(cat "$PATCHES"/*.patch 2>/dev/null | sha256sum | cut -c1-64)"
+if [ -f "$OUT/SOURCE_SHA256" ] && [ "$(cat "$OUT/SOURCE_SHA256")" = "$STAMP" ]; then exit 0; fi
 mkdir -p "$WORK/unpacked"
 tar -xzf "$ARCHIVE" -C "$WORK/unpacked" --strip-components=1
 SRC="$WORK/unpacked"
@@ -32,5 +35,10 @@ end = s.index('\t\tfinal DataSource baseCompoundDataSource', start)
 s = s[:start] + s[end:]
 p.write_text(s)
 PY
-printf '%s\n' "$SHA" > "$OUT/SOURCE_SHA256"
+# The launcher's changes to the engine (patches/warsmash/NNNN-*.patch, paths from the source's root), in order.
+for patch in "$PATCHES"/*.patch; do
+    [ -f "$patch" ] || continue
+    patch -p1 --forward --batch -d "$OUT" < "$patch"
+done
+printf '%s\n' "$STAMP" > "$OUT/SOURCE_SHA256"
 echo "Warsmash 1.0.4 prepared in $OUT"

@@ -75,8 +75,10 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             val openWizard = LocalOpenWizard.current
             val importable = com.logie.blizz.importer.GameImportManager.importable(effective.id)
             val isWow = effective.id == "wow" || effective.id.startsWith("wow_")
-            if (effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Settings, "Launch options") { onDismiss(); openOptions(game) }
-            if (!isWow && effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Mouse, "Controls") { onDismiss(); openControls(game) }
+            // Warcraft III plays in Warsmash: Winlator's launch options and touch controls aren't its.
+            val warsmash = effective.id.startsWith("warcraft3")
+            if (effective.id != com.logie.blizz.d2r.D2r.GAME_ID && !warsmash) HoldItem(Icons.Default.Settings, "Launch options") { onDismiss(); openOptions(game) }
+            if (!isWow && effective.id != com.logie.blizz.d2r.D2r.GAME_ID && !warsmash) HoldItem(Icons.Default.Mouse, "Controls") { onDismiss(); openControls(game) }
             if (hasAddons(effective.id)) HoldItem(Icons.Default.Extension, "Add-ons") { onDismiss(); openAddons(game) }
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
             val openPorter = LocalOpenPorter.current
