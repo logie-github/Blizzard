@@ -8,6 +8,10 @@ name: Build the .NET runtime (wine-mono)
 # Manual only (workflow_dispatch): the runtime changes rarely, and the published asset is the one proven on the
 # desktop test rig. Run it to refresh the release (e.g. a new wine-mono version in realm/scripts/package-wine-mono.sh).
 on:
+  push:
+    paths:
+      - realm/scripts/package-wine-mono.sh
+      - .github/workflows/build-wine-mono.yml
   workflow_dispatch:
     inputs:
       version:
