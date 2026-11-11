@@ -92,8 +92,46 @@ import java.security.MessageDigest
  * the game's own tables and files, fetched from wago.tools ([Porter]); porting the character into one of the phone's realms
  * comes next (the button says so).
  */
+/** Where the porter's screens get what they show: the Armory, Blizzard's API and wago.tools ([LivePorterSource]); tests give their own. */
+internal interface PorterSource {
+    fun search(region: Region, query: String, page: Int): Pair<List<Found>, Boolean>
+    fun character(found: Found): ArmoryCharacter
+    /** How many mounts and factions with a standing; null when the Armory won't say. */
+    fun counts(c: ArmoryCharacter): Pair<Int, Int>?
+    fun appearance(context: Context, c: ArmoryCharacter): com.logie.blizz.porter.armory.Appearance?
+    /** How many quests and achievements Blizzard's API gives (with a key). */
+    fun progress(context: Context, c: ArmoryCharacter): Pair<Int, Int>?
+    fun prepare(context: Context, c: ArmoryCharacter, appearance: com.logie.blizz.porter.armory.Appearance?, progress: (Porter.Step) -> Unit): Porter.Ready
+}
+
+internal object LivePorterSource : PorterSource {
+    override fun search(region: Region, query: String, page: Int) = Porter.armory.search(region, query, page)
+    override fun character(found: Found) = Porter.armory.character(found.region, found.realmSlug, found.slug)
+    override fun counts(c: ArmoryCharacter) = runCatching {
+        Porter.armory.mounts(c.region, c.realmSlug, c.slug).size to Porter.armory.reputations(c.region, c.realmSlug, c.slug).size
+    }.getOrNull()
+    override fun appearance(context: Context, c: ArmoryCharacter) =
+        runCatching { BattleNetKey.client(context)?.appearance(c.region, c.realmSlug, c.slug) }.getOrNull()
+    override fun progress(context: Context, c: ArmoryCharacter) = runCatching {
+        val api = BattleNetKey.client(context) ?: return@runCatching null
+        api.completedQuests(c.region, c.realmSlug, c.slug).size to api.achievements(c.region, c.realmSlug, c.slug).size
+    }.getOrNull()
+    override fun prepare(context: Context, c: ArmoryCharacter, appearance: com.logie.blizz.porter.armory.Appearance?, progress: (Porter.Step) -> Unit) =
+        Porter.prepare(context, c, appearance, progress = progress)
+}
+
+private val LocalPorterSource = androidx.compose.runtime.staticCompositionLocalOf<PorterSource> { LivePorterSource }
+
 @Composable
-fun CharacterPorter(onDismiss: () -> Unit) {
+fun CharacterPorter(onDismiss: () -> Unit) = CharacterPorter(onDismiss, LivePorterSource)
+
+@Composable
+internal fun CharacterPorter(onDismiss: () -> Unit, source: PorterSource) = androidx.compose.runtime.CompositionLocalProvider(LocalPorterSource provides source) {
+    CharacterPorterScreen(onDismiss)
+}
+
+@Composable
+private fun CharacterPorterScreen(onDismiss: () -> Unit) {
     val context = LocalContext.current
     var picked by remember { mutableStateOf<Found?>(null) }
     var keyOpen by remember { mutableStateOf(false) }
@@ -185,6 +223,7 @@ private fun ColumnScope.SearchPane(onPick: (Found) -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val source = LocalPorterSource.current
     fun search(next: Boolean = false) {
         val q = query.trim()
         if (q.length < 2 || busy) return
@@ -192,7 +231,7 @@ private fun ColumnScope.SearchPane(onPick: (Found) -> Unit) {
         error = null
         val p = if (next) page + 1 else 1
         scope.launch {
-            val r = withContext(Dispatchers.IO) { runCatching { Porter.armory.search(region, q, p) } }
+            val r = withContext(Dispatchers.IO) { runCatching { source.search(region, q, p) } }
             busy = false
             r.onSuccess { (list, hasMore) ->
                 results = if (next) results.orEmpty() + list else list
@@ -265,9 +304,10 @@ private sealed interface Shown {
 @Composable
 private fun ColumnScope.CharacterPane(found: Found, hasKey: Boolean, onKey: () -> Unit) {
     val context = LocalContext.current
+    val source = LocalPorterSource.current
     val character by produceState<Shown>(Shown.Loading, found) {
         value = withContext(Dispatchers.IO) {
-            runCatching { Shown.Ready(Porter.armory.character(found.region, found.realmSlug, found.slug)) }
+            runCatching { Shown.Ready(source.character(found)) }
                 .getOrElse { Shown.Failed(it.message ?: it.javaClass.simpleName) }
         }
     }
@@ -300,6 +340,7 @@ private sealed interface Model {
 /** The character in 3D, made ready (downloaded) the first time with its progress. */
 @Composable
 private fun ModelPane(context: Context, c: ArmoryCharacter, hasKey: Boolean, modifier: Modifier) {
+    val source = LocalPorterSource.current
     var state by remember(c) { mutableStateOf<Model>(Model.Working("Reading the game's tables…", null)) }
     LaunchedEffect(c, hasKey) {
         state = withContext(Dispatchers.IO) {
@@ -307,9 +348,9 @@ private fun ModelPane(context: Context, c: ArmoryCharacter, hasKey: Boolean, mod
                 // With the person's key, the character's own face and hair (a refusal leaves the race's defaults).
                 val appearance = if (!hasKey) null else {
                     state = Model.Working("Asking Blizzard's API for their face and hair…", null)
-                    runCatching { BattleNetKey.client(context)?.appearance(c.region, c.realmSlug, c.slug) }.getOrNull()
+                    source.appearance(context, c)
                 }
-                Porter.prepare(context, c, appearance) { step ->
+                source.prepare(context, c, appearance) { step ->
                     state = when (step) {
                         Porter.Step.Tables -> Model.Working("Reading the game's tables…", null)
                         is Porter.Step.Files -> Model.Working(
@@ -377,6 +418,7 @@ private fun PreviewSurface(ready: Porter.Ready) {
 @Composable
 private fun Details(c: ArmoryCharacter, hasKey: Boolean, onKey: () -> Unit, modifier: Modifier, scroll: Boolean = true) {
     val context = LocalContext.current
+    val source = LocalPorterSource.current
     val inner = if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier
     Column(modifier.then(inner), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Column {
@@ -396,14 +438,7 @@ private fun Details(c: ArmoryCharacter, hasKey: Boolean, onKey: () -> Unit, modi
             }
         }
         if (hasKey) {
-            val more by produceState<Pair<Int, Int>?>(null, c) {
-                value = withContext(Dispatchers.IO) {
-                    runCatching {
-                        val api = BattleNetKey.client(context) ?: return@runCatching null
-                        api.completedQuests(c.region, c.realmSlug, c.slug).size to api.achievements(c.region, c.realmSlug, c.slug).size
-                    }.getOrNull()
-                }
-            }
+            val more by produceState<Pair<Int, Int>?>(null, c) { value = withContext(Dispatchers.IO) { source.progress(context, c) } }
             Text(
                 "Face, hair and skin as they chose them, from Blizzard's API" + (more?.let { (q, a) -> " · $q quests completed · $a achievements" } ?: ""),
                 style = MaterialTheme.typography.bodySmall, color = Colors.Ice,
@@ -427,13 +462,7 @@ private fun Details(c: ArmoryCharacter, hasKey: Boolean, onKey: () -> Unit, modi
                 )
             }
         }
-        val extra by produceState<Pair<Int, Int>?>(null, c) {
-            value = withContext(Dispatchers.IO) {
-                runCatching {
-                    Porter.armory.mounts(c.region, c.realmSlug, c.slug).size to Porter.armory.reputations(c.region, c.realmSlug, c.slug).size
-                }.getOrNull()
-            }
-        }
+        val extra by produceState<Pair<Int, Int>?>(null, c) { value = withContext(Dispatchers.IO) { source.counts(c) } }
         extra?.let { (mounts, reputations) ->
             SectionLabel("Collections")
             Text("$mounts mounts · $reputations factions with a standing", style = MaterialTheme.typography.bodyMedium, color = Colors.Text)
