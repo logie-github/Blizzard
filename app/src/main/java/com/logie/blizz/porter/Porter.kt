@@ -108,6 +108,47 @@ object Porter {
         return Ready(look, filesDir(context, build), build)
     }
 
+    /** The game's tables for the live build, as wago.tools gives them (kept under `files/porter/tables`). */
+    fun tables(context: Context): WagoTables = WagoTables(wagoNet, build(context), File(dir(context), "tables"))
+
+    /**
+     * What a port carries beyond the Armory's summary ([ArmoryPort.Extras]), and what the person should know of it: the
+     * Armory's mounts and standings, each mount's spell (the game's Mount table), and with the person's Battle.net key their
+     * quests, achievements, titles and looks (today's choices made into the old creator's: [ArmoryPort.appearance]). What
+     * can't be had is left out and said; nothing here stops a port. Network: call off the main thread.
+     */
+    fun extras(context: Context, c: ArmoryCharacter, step: (String) -> Unit = {}): Pair<ArmoryPort.Extras, List<String>> {
+        val notes = ArrayList<String>()
+        fun <T> tried(what: String, default: T, block: () -> T): T = try {
+            block()
+        } catch (e: Exception) {
+            notes.add("$what couldn't be read (${e.message ?: e.javaClass.simpleName}): left out.")
+            default
+        }
+        step("Reading ${c.name}'s mounts and standings from the Armory")
+        val mounts = tried("Their mounts", emptyList()) { armory.mounts(c.region, c.realmSlug, c.slug) }
+        val reputations = tried("Their standings", emptyList()) { armory.reputations(c.region, c.realmSlug, c.slug) }
+        val tables = tables(context)
+        if (mounts.isNotEmpty()) step("Finding each mount's spell (wago.tools)")
+        val spells = tried("The mounts' spells", emptyMap()) { ArmoryPort.mountSpells(tables, mounts.map { it.id }) }
+        val api = BattleNetKey.client(context)
+        if (api == null) {
+            notes.add("Without a Battle.net key (the key button above) the port has no quests, achievements or titles, and their face and hair are the realm's first.")
+            return ArmoryPort.Extras(mounts, spells, reputations) to notes
+        }
+        step("Asking Blizzard's API for their quests, achievements, titles and looks")
+        val quests = tried("Their quests", emptyList()) { api.completedQuests(c.region, c.realmSlug, c.slug) }
+        val achievements = tried("Their achievements", emptyList()) { api.achievements(c.region, c.realmSlug, c.slug) }
+        val titles = tried("Their titles", null) { api.titles(c.region, c.realmSlug, c.slug) }
+        val choices = tried("Their looks", null) { api.appearance(c.region, c.realmSlug, c.slug) }?.choices.orEmpty()
+        val looks = if (choices.isEmpty()) null else tried("Their looks", null) { ArmoryPort.appearance(tables, c.raceId, c.gender, choices) }
+        if (choices.isEmpty()) notes.add("Blizzard's API gave no looks for them: their face and hair are the realm's first.")
+        looks?.second?.takeIf { it.isNotEmpty() }?.let { newer ->
+            notes.add("Their ${newer.joinToString(" and ")} ${if (newer.size == 1) "is" else "are"} newer than the old character creator: the realm's first is used.")
+        }
+        return ArmoryPort.Extras(mounts, spells, reputations, quests, achievements, titles, looks?.first) to notes
+    }
+
     /** How much the porter keeps on the phone (the game's files and tables). */
     fun size(context: Context): Long = dir(context).walkTopDown().filter { it.isFile }.sumOf { it.length() }
 

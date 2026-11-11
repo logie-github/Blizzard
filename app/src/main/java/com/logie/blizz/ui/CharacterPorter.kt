@@ -89,8 +89,8 @@ import java.security.MessageDigest
 /**
  * The Character Porter (World of Warcraft's options): find a character on Blizzard's Armory, by name in one of its regions, and
  * see them in 3D as they are dressed now, with what they wear, their professions, mounts and reputations. The look is made from
- * the game's own tables and files, fetched from wago.tools ([Porter]); porting the character into one of the phone's realms
- * comes next (the button says so).
+ * the game's own tables and files, fetched from wago.tools ([Porter]); then port them into one of the phone's realms
+ * ([PortSection], PortScreens.kt).
  */
 /** Where the porter's screens get what they show: the Armory, Blizzard's API and wago.tools ([LivePorterSource]); tests give their own. */
 internal interface PorterSource {
@@ -102,6 +102,13 @@ internal interface PorterSource {
     /** How many quests and achievements Blizzard's API gives (with a key). */
     fun progress(context: Context, c: ArmoryCharacter): Pair<Int, Int>?
     fun prepare(context: Context, c: ArmoryCharacter, appearance: com.logie.blizz.porter.armory.Appearance?, progress: (Porter.Step) -> Unit): Porter.Ready
+    /** The realms a character can be ported to ([PortSection]). */
+    fun destinations(context: Context): List<Destination> = Destinations.of(context)
+    /** What the Armory and Blizzard's API add for a port (mounts, standings; with a key, quests, achievements, titles, looks). */
+    fun extras(context: Context, c: ArmoryCharacter, step: (String) -> Unit): PortExtras = PortExtras(com.logie.blizz.porter.ArmoryPort.Extras(), emptyList())
+    /** [realm] opened for porting: its database started alone, the realm stopped first. */
+    suspend fun openRealm(context: Context, realm: com.logie.blizz.wow.Realm, step: (String) -> Unit): PortSession =
+        throw java.io.IOException("No realm here.")
 }
 
 internal object LivePorterSource : PorterSource {
@@ -118,9 +125,11 @@ internal object LivePorterSource : PorterSource {
     }.getOrNull()
     override fun prepare(context: Context, c: ArmoryCharacter, appearance: com.logie.blizz.porter.armory.Appearance?, progress: (Porter.Step) -> Unit) =
         Porter.prepare(context, c, appearance, progress = progress)
+    override fun extras(context: Context, c: ArmoryCharacter, step: (String) -> Unit) = Porter.extras(context, c, step).let { (extras, notes) -> PortExtras(extras, notes) }
+    override suspend fun openRealm(context: Context, realm: com.logie.blizz.wow.Realm, step: (String) -> Unit): PortSession = LivePortSession.open(context, realm, step)
 }
 
-private val LocalPorterSource = androidx.compose.runtime.staticCompositionLocalOf<PorterSource> { LivePorterSource }
+internal val LocalPorterSource = androidx.compose.runtime.staticCompositionLocalOf<PorterSource> { LivePorterSource }
 
 @Composable
 fun CharacterPorter(onDismiss: () -> Unit) = CharacterPorter(onDismiss, LivePorterSource)
@@ -467,12 +476,7 @@ private fun Details(c: ArmoryCharacter, hasKey: Boolean, onKey: () -> Unit, modi
             SectionLabel("Collections")
             Text("$mounts mounts · $reputations factions with a standing", style = MaterialTheme.typography.bodyMedium, color = Colors.Text)
         }
-        SectionLabel("Port")
-        Text(
-            "Bringing this character into a realm on the phone (Wrath+'s ChromieCraft first: race, sex, class, level, gear chosen " +
-                "from the realm's own items, gold, spells, mounts, reputations) is being finished and tested; the next update adds it here.",
-            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-        )
+        PortSection(c)
     }
 }
 
