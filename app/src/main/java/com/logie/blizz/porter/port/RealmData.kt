@@ -30,6 +30,7 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
     val areas = tables.getValue("AreaTable")
     val worldMapAreas = tables.getValue("WorldMapArea")
     val charSections = tables.getValue("CharSections")
+    val taxiPaths = tables.getValue("TaxiPath")
     private val skillLines = tables.getValue("SkillLine")
     private val skillTiers = tables.getValue("SkillTiers")
 
@@ -87,7 +88,78 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
 
     fun isMount(spell: Int): Boolean = effects(spell).any { it.effect == EFFECT_APPLY_AURA && it.aura == AURA_MOUNTED }
 
-    fun isFlyingMount(spell: Int): Boolean = isMount(spell) && effects(spell).any { it.effect == EFFECT_APPLY_AURA && it.aura == AURA_FLIGHT_SPEED }
+    /**
+     * A mount that flies: one with a flying speed of its own, one marked as flying (its AttributesEx4's 0x04000000, the
+     * scaling ones' too), or a scaling mount ([isScalingMount]).
+     */
+    fun isFlyingMount(spell: Int): Boolean {
+        if (!isMount(spell)) return false
+        if (effects(spell).any { it.effect == EFFECT_APPLY_AURA && it.aura == AURA_FLIGHT_SPEED }) return true
+        if ((spells[spell]?.int(SPELL_ATTRIBUTES_EX4) ?: 0) and ATTR4_FLYING_MOUNT != 0) return true
+        return isScalingMount(spell)
+    }
+
+    /**
+     * A mount that can be ridden on the ground everywhere: one with a ground speed of its own that isn't kept to flying
+     * areas (3.3.5a's flying mounts are, by that AttributesEx4 mark: none can be used in Azeroth), or a scaling one.
+     */
+    fun isGroundMount(spell: Int): Boolean {
+        if (!isMount(spell)) return false
+        if (isScalingMount(spell)) return true
+        val flyingOnly = (spells[spell]?.int(SPELL_ATTRIBUTES_EX4) ?: 0) and ATTR4_FLYING_MOUNT != 0
+        return !flyingOnly && effects(spell).any { it.effect == EFFECT_APPLY_AURA && it.aura == AURA_MOUNTED_SPEED }
+    }
+
+    /** A mount whose speed a script picks by the rider's riding (Invincible, the Celestial Steed): no speed of its own, a script effect. */
+    fun isScalingMount(spell: Int): Boolean {
+        val effects = effects(spell)
+        return isMount(spell) && effects.any { it.effect == EFFECT_SCRIPT } &&
+            effects.none { it.effect == EFFECT_APPLY_AURA && (it.aura == AURA_MOUNTED_SPEED || it.aura == AURA_FLIGHT_SPEED) }
+    }
+
+    /**
+     * What an item's equip spell gives, as the item stats it stands for (ItemModType numbers): the old items' spell
+     * power, attack power, mana regeneration, block value and ratings are such spells, not stats, in 3.3.5a's data.
+     * Percentages (the oldest items' "+1% hit") are given as about the rating they were turned into.
+     */
+    fun equipStats(spell: Int): List<Pair<Int, Int>> {
+        val out = ArrayList<Pair<Int, Int>>()
+        for (e in effects(spell)) {
+            if (e.effect != EFFECT_APPLY_AURA) continue
+            val value = e.base + 1
+            when (e.aura) {
+                13 -> if (e.misc and 0x7E != 0) out.add(45 to value)
+                135 -> out.add(41 to value)
+                99 -> out.add(38 to value)
+                124 -> out.add(39 to value)
+                85 -> if (e.misc == 0) out.add(43 to value)
+                158 -> out.add(48 to value)
+                123 -> out.add(47 to value)
+                54 -> out.add(31 to value * 10)
+                55 -> out.add(18 to value * 8)
+                52 -> out.add(32 to value * 14)
+                57 -> out.add(21 to value * 14)
+                49 -> out.add(13 to value * 12)
+                47 -> out.add(14 to value * 15)
+                51 -> out.add(15 to value * 5)
+                30 -> if (e.misc == 95) out.add(12 to value * 2)
+                189 -> out.addAll(ratingStats(e.misc, value))
+            }
+        }
+        return out
+    }
+
+    /** SPELL_AURA_MOD_RATING's mask of combat ratings as item stats. */
+    private fun ratingStats(mask: Int, value: Int): List<Pair<Int, Int>> {
+        fun all(vararg bits: Int) = bits.all { mask and (1 shl it) != 0 }
+        val out = ArrayList<Pair<Int, Int>>()
+        if (all(5, 6, 7)) out.add(31 to value) else for ((bit, stat) in listOf(5 to 16, 6 to 17, 7 to 18)) if (all(bit)) out.add(stat to value)
+        if (all(8, 9, 10)) out.add(32 to value) else for ((bit, stat) in listOf(8 to 19, 9 to 20, 10 to 21)) if (all(bit)) out.add(stat to value)
+        if (all(17, 18, 19)) out.add(36 to value) else for ((bit, stat) in listOf(17 to 28, 18 to 29, 19 to 30)) if (all(bit)) out.add(stat to value)
+        for ((bit, stat) in listOf(1 to 12, 2 to 13, 3 to 14, 4 to 15, 23 to 37, 24 to 44)) if (all(bit)) out.add(stat to value)
+        if (all(14) || all(15) || all(16)) out.add(35 to value)
+        return out
+    }
 
     /** The skill a spell sets as it is learned, and the step (SpellMgr::LoadSpellLearnSkills: the SKILL effect). */
     fun skillStep(spell: Int): Pair<Int, Int>? =
@@ -128,6 +200,12 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
         val raceBit = raceBit(race)
         val classBit = classBit(classId)
         return skillInfos[skill]?.firstOrNull { (it.raceMask == 0 || it.raceMask and raceBit != 0) && (it.classMask == 0 || it.classMask and classBit != 0) }
+    }
+
+    /** The highest value of a rank-kept skill at [rank] (1-based: SkillTiers' Value[rank - 1]); 0 when there is no such rank. */
+    fun tierValue(tier: Int, rank: Int): Int {
+        if (rank < 1 || rank > 16) return 0
+        return skillTiers[tier]?.int(TIER_VALUE + rank - 1) ?: 0
     }
 
     fun skillRange(info: SkillInfo): SkillRange {
@@ -180,8 +258,12 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
         const val EFFECT_SKILL_STEP = 44
         const val EFFECT_TRADE_SKILL = 47
         const val EFFECT_SKILL = 118
+        const val EFFECT_SCRIPT = 77
+        private const val SPELL_ATTRIBUTES_EX4 = 8
+        private const val ATTR4_FLYING_MOUNT = 0x04000000
         const val AURA_MOUNTED = 78
         const val AURA_FLIGHT_SPEED = 207
+        const val AURA_MOUNTED_SPEED = 32
         const val ACQUIRE_ON_VALUE = 1
         const val ACQUIRE_ON_LEARN = 2
         const val CATEGORY_WEAPON = 6
@@ -235,6 +317,9 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
         const val MAP_AREA_Y2 = 5
         const val MAP_AREA_X1 = 6
         const val MAP_AREA_X2 = 7
+        const val MAP_AREA_VIRTUAL = 8
+        private const val TIER_VALUE = 17
+        const val EFFECT_SEND_TAXI = 123
         private const val SECTION_RACE = 1
         private const val SECTION_GENDER = 2
         private const val SECTION_KIND = 3
@@ -257,11 +342,11 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
         }
 
         private val SOURCES = listOf(
-            Source("Spell", listOf(0, SPELL_ATTRIBUTES) + (0..2).flatMap { listOf(SPELL_EFFECT + it, SPELL_BASE + it, SPELL_AURA + it, SPELL_ITEM + it, SPELL_MISC + it, SPELL_TRIGGER + it) } + listOf(SPELL_NAME, SPELL_RANK)),
+            Source("Spell", listOf(0, SPELL_ATTRIBUTES, SPELL_ATTRIBUTES_EX4) + (0..2).flatMap { listOf(SPELL_EFFECT + it, SPELL_BASE + it, SPELL_AURA + it, SPELL_ITEM + it, SPELL_MISC + it, SPELL_TRIGGER + it) } + listOf(SPELL_NAME, SPELL_RANK)),
             Source("SkillLineAbility", listOf(0, 1, 2, 3, 4, 7, 8, 9, 10)),
             Source("SkillRaceClassInfo", listOf(0, 1, 2, 3, 4, 5, 6)),
             Source("SkillLine", listOf(0, SKILL_CATEGORY, SKILL_NAME)),
-            Source("SkillTiers", listOf(0)),
+            Source("SkillTiers", listOf(0) + (TIER_VALUE until TIER_VALUE + 16)),
             Source("Faction", listOf(0, FACTION_LIST) + (2..18) + listOf(FACTION_NAME)),
             Source("Achievement", listOf(0, ACHIEVEMENT_FACTION, ACHIEVEMENT_NAME, ACHIEVEMENT_FLAGS)),
             Source("CharTitles", listOf(0, TITLE_NAME, TITLE_BIT)),
@@ -269,7 +354,8 @@ class RealmData private constructor(private val tables: Map<String, DbcTable>, p
             Source("ChrClasses", listOf(0, CLASS_NAME)),
             Source("TaxiNodes", listOf(0, TAXI_MAP, TAXI_X, TAXI_Y, TAXI_MOUNT_HORDE, TAXI_MOUNT_ALLIANCE)),
             Source("AreaTable", listOf(0, AREA_MAP, AREA_ZONE, AREA_EXPLORE_FLAG, AREA_LEVEL, AREA_NAME)),
-            Source("WorldMapArea", listOf(0, MAP_AREA_MAP, MAP_AREA_AREA, MAP_AREA_Y1, MAP_AREA_Y2, MAP_AREA_X1, MAP_AREA_X2)),
+            Source("WorldMapArea", listOf(0, MAP_AREA_MAP, MAP_AREA_AREA, MAP_AREA_Y1, MAP_AREA_Y2, MAP_AREA_X1, MAP_AREA_X2, MAP_AREA_VIRTUAL)),
+            Source("TaxiPath", listOf(0, 1, 2, 3)),
             Source("CharSections", listOf(0, SECTION_RACE, SECTION_GENDER, SECTION_KIND, SECTION_FLAGS, SECTION_VARIATION, SECTION_COLOR)),
         )
 
