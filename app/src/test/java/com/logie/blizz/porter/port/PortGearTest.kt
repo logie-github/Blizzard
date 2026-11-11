@@ -178,4 +178,24 @@ class PortGearTest {
         val sql = GearRules(1, 1, 4, PortFaction.ALLIANCE, GearTier.FRESH).sqlFilter(setOf(1), wide = false)
         assertTrue(sql, sql.contains("ItemLevel <= 12") && sql.contains("(FlagsExtra & 1) = 0") && sql.contains("(AllowableRace & 1) <> 0"))
     }
+
+    /** A quest's reward is the character's to have only when its race, class and level could have done the quest. */
+    @Test fun aQuestRewardCountsOnlyForWhoCouldHaveDoneTheQuest() {
+        val murlocsOnly = 1 shl 18
+        // The realm: item 979126 is the reward of a quest only murlocs (race 19) do, from level 10.
+        val db = PortTestData.FakeRealmDb().on("RewardItem1") { sql ->
+            if (sql.contains("& $murlocsOnly) <> 0") && Regex("MinLevel <= (\\d+)").find(sql)!!.groupValues[1].toInt() >= 10) listOf(listOf("979126")) else emptyList()
+        }
+        val source = RealmItemSource(db, "acore_world")
+        val voidElfRogue = GearRules(15, 4, 19, PortFaction.ALLIANCE, GearTier.FRESH)
+        assertEquals(emptySet<Int>(), source.obtainable(listOf(979126), emptySet(), voidElfRogue))
+        assertEquals(setOf(979126), source.obtainable(listOf(979126), emptySet(), GearRules(19, 1, 19, PortFaction.ALLIANCE, GearTier.FRESH)))
+        assertEquals(emptySet<Int>(), source.obtainable(listOf(979126), emptySet(), GearRules(19, 1, 9, PortFaction.ALLIANCE, GearTier.FRESH)))
+        val asked = db.queries.filter { it.contains("FROM quest_template") }.take(10)
+        assertEquals(10, asked.size)
+        for (sql in asked) assertTrue(sql, sql.contains("(q.AllowableRaces & ${1 shl 14}) <> 0") && sql.contains("(a.AllowableClasses & 8) <> 0") && sql.contains("q.MinLevel <= 19"))
+        for (sql in db.queries.filter { it.contains("_loot_template") }) assertTrue(sql, sql.contains("QuestRequired = 0"))
+        // A recipe's item is obtainable whoever asks.
+        assertEquals(setOf(979126), source.obtainable(listOf(979126), setOf(979126), voidElfRogue))
+    }
 }

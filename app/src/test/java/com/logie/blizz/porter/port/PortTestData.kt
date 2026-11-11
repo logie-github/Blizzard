@@ -95,7 +95,7 @@ object PortTestData {
 
     /** Skills and spells enough for a human or orc warrior and a hunter: weapons, armour, riding, a profession. */
     fun realmData(extraSpells: List<Map<Int, Any>> = emptyList(), extraAbilities: List<Map<Int, Any>> = emptyList(), factions: List<Map<Int, Any>> = emptyList(),
-                  extraTables: Map<String, DbcTable> = emptyMap()): RealmData {
+                  extraTables: Map<String, DbcTable> = emptyMap(), facialHair: List<IntArray> = emptyList()): RealmData {
         val learn = 36
         val skillEffect = 118
         val aura = 6
@@ -148,8 +148,12 @@ object PortTestData {
             "ChrRaces" to table("ChrRaces", HUMAN, ORC),
             "ChrClasses" to table("ChrClasses", WARRIOR, HUNTER),
             "Faction" to table("Faction", *factions.toTypedArray()),
-        ) + extraTables)
+        ) + extraTables, facialHair)
     }
+
+    /** CharSections' row: a race and gender's look of one kind (0 skin, 1 face, 3 hair), a player's to pick. */
+    fun section(id: Int, race: Int, gender: Int, kind: Int, variation: Int, color: Int, flags: Int = 1): Map<Int, Any> =
+        mapOf(0 to id, 1 to race, 2 to gender, 3 to kind, 7 to flags, 8 to variation, 9 to color)
 
     /** The world database's part: a human and an orc warrior and a human hunter, their trainers. */
     fun realmWorld(): RealmWorld = RealmWorld(
@@ -214,7 +218,7 @@ object PortTestData {
             it.inventoryType in inventoryTypes && it.itemLevel <= rules.maxItemLevel && it.requiredLevel <= rules.level && it.quality <= rules.maxQuality &&
                 (wide || (it.quality >= GearRules.QUALITY_UNCOMMON && it.requiredLevel >= rules.minRequiredLevel))
         }
-        override fun obtainable(ids: Collection<Int>, crafted: Set<Int>) = ids.filter { it !in unobtainable }.toSet()
+        override fun obtainable(ids: Collection<Int>, crafted: Set<Int>, rules: GearRules) = ids.filter { it !in unobtainable }.toSet()
     }
 
     /**

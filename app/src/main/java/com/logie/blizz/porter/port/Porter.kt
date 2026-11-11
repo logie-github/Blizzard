@@ -134,9 +134,12 @@ class Porter(
             if (options.level == null) "retail ${character.level} of ${PortLevels.RETAIL_CAP} is $level of this realm's ${cap.effective}" +
                 (if (cap.progression != null && cap.progression < cap.max) " (ChromieCraft's progression cap; the realm allows ${cap.max})" else "")
             else "$level, as chosen (retail ${character.level})")
-        if (character.raceId != race || character.classId != classId) {
+        val ownRace = PortTargets.raceCandidates(character.raceId).firstOrNull() == race
+        if (!ownRace || character.classId != classId) {
             decide(PortArea.CHARACTER, "race and class", PortOutcome.MAPPED,
                 "${PortTargets.retailRaceName(character.raceId)} ${PortTargets.retailClassName(character.classId)} is a ${data.raceName(race)} ${data.className(classId)} here")
+        } else if (character.raceId != race) {
+            decide(PortArea.CHARACTER, "race", PortOutcome.KEPT, "${PortTargets.retailRaceName(character.raceId)}: this realm's race $race")
         }
         if (character.name != name) decide(PortArea.CHARACTER, "name", PortOutcome.MAPPED, "${character.name} is $name here")
 
@@ -304,7 +307,7 @@ class Porter(
     ): Int {
         val level = rules.level
         val bag = source.bags(rules).filter { it.containerSlots > 0 && !GearPlanner.isUnreal(it.name) }
-            .let { list -> val ok = source.obtainable(list.map { it.entry }, crafted); list.filter { it.entry in ok } }.firstOrNull()
+            .let { list -> val ok = source.obtainable(list.map { it.entry }, crafted, rules); list.filter { it.entry in ok } }.firstOrNull()
         if (bag != null) {
             for (i in 0 until 4) items.add(plannedItem(bag, PortSlots.BAG_FIRST + i, 1))
             decide(PortArea.BAGS, "bags", PortOutcome.ADDED, "four ${bag.name} (${bag.containerSlots} slots)")
@@ -316,7 +319,7 @@ class Porter(
         val ranged = gear.firstOrNull { it.slot == PortSlots.RANGED }?.item
         if (ranged != null && ranged.itemClass == StatWeights.ITEM_WEAPON && ranged.subclass in setOf(GearPlanner.BOW, GearPlanner.GUN, GearPlanner.CROSSBOW)) {
             val kind = if (ranged.subclass == GearPlanner.GUN) AMMO_BULLET else AMMO_ARROW
-            val ammo = source.ammo(rules, kind).let { list -> val ok = source.obtainable(list.map { it.entry }, crafted); list.filter { it.entry in ok } }.firstOrNull()
+            val ammo = source.ammo(rules, kind).let { list -> val ok = source.obtainable(list.map { it.entry }, crafted, rules); list.filter { it.entry in ok } }.firstOrNull()
             if (ammo != null) {
                 val stack = ammo.stackable.coerceIn(1, 1000)
                 repeat(2) { items.add(plannedItem(ammo, next++, stack)) }
@@ -602,20 +605,27 @@ class RealmItemSource(private val db: RealmDb, private val worldDb: String) : It
         return db.query(worldDb, "${ItemTemplate.SELECT} WHERE ${rules.sqlFilter(inventoryTypes, wide)}").map(ItemTemplate::parse)
     }
 
-    override fun obtainable(ids: Collection<Int>, crafted: Set<Int>): Set<Int> {
+    override fun obtainable(ids: Collection<Int>, crafted: Set<Int>, rules: GearRules): Set<Int> {
         val wanted = ids.distinct()
         if (wanted.isEmpty()) return emptySet()
         val out = HashSet(wanted.filter { it in crafted })
+        // A quest's reward, when the character could have done the quest: its races (0: all), its classes (none or 0: all)
+        // and its level allow it.
+        val quests = "FROM quest_template q LEFT JOIN quest_template_addon a ON a.ID = q.ID" +
+            " WHERE (q.AllowableRaces = 0 OR (q.AllowableRaces & ${RealmData.raceBit(rules.race)}) <> 0)" +
+            " AND (a.AllowableClasses IS NULL OR a.AllowableClasses = 0 OR (a.AllowableClasses & ${RealmData.classBit(rules.classId)}) <> 0)" +
+            " AND q.MinLevel <= ${rules.level}"
         for (chunk in wanted.chunked(3000)) {
             val list = Sql.list(chunk)
+            // Loot anyone can have: not a drop only those on a quest see.
             val sources = listOf(
-                "SELECT Item FROM creature_loot_template WHERE Item IN ($list)",
-                "SELECT Item FROM reference_loot_template WHERE Item IN ($list)",
-                "SELECT Item FROM gameobject_loot_template WHERE Item IN ($list)",
-                "SELECT Item FROM item_loot_template WHERE Item IN ($list)",
+                "SELECT Item FROM creature_loot_template WHERE QuestRequired = 0 AND Item IN ($list)",
+                "SELECT Item FROM reference_loot_template WHERE QuestRequired = 0 AND Item IN ($list)",
+                "SELECT Item FROM gameobject_loot_template WHERE QuestRequired = 0 AND Item IN ($list)",
+                "SELECT Item FROM item_loot_template WHERE QuestRequired = 0 AND Item IN ($list)",
                 "SELECT item FROM npc_vendor WHERE item IN ($list)",
-            ) + (1..4).map { "SELECT RewardItem$it FROM quest_template WHERE RewardItem$it IN ($list)" } +
-                (1..6).map { "SELECT RewardChoiceItemID$it FROM quest_template WHERE RewardChoiceItemID$it IN ($list)" }
+            ) + (1..4).map { "SELECT q.RewardItem$it $quests AND q.RewardItem$it IN ($list)" } +
+                (1..6).map { "SELECT q.RewardChoiceItemID$it $quests AND q.RewardChoiceItemID$it IN ($list)" }
             for (rows in db.queryAll(worldDb, sources)) for (row in rows) row.firstOrNull()?.toIntOrNull()?.let(out::add)
         }
         return out

@@ -81,6 +81,37 @@ class PorterRigTest {
         File(out, "summary.txt").writeText(summary.toString())
     }
 
+    /**
+     * A port the realm refuses part way leaves nothing behind: a plan whose name another character took after it was
+     * planned (the script's own check stops it before any row), and one whose skills hold the same skill twice (the
+     * database refuses the skills after the character's row and its items went in: the transaction takes them back).
+     */
+    @Test fun aFailedPortLeavesNothingBehind() {
+        assumeTrue("BLIZZ_PORTER_RIG isn't set", rig != null)
+        assumeTrue(!portOpen(8085) && portOpen(3310))
+        val db = db()
+        val porter = Porter(db, RealmFiles(File(rig, "files"), PortRealm.of(Realm.CHROMIE)!!))
+        val fixture = PorterFixtures.hunter
+        val name = "Failport"
+        remove(db, name)
+        fun count(sql: String) = db.query("acore_characters", sql).first().first()!!.toInt()
+        val before = count("SELECT COUNT(*) FROM characters") to count("SELECT COUNT(*) FROM item_instance")
+        val plan = porter.plan(fixture.character, fixture.options.copy(name = name))
+        assertTrue(plan.refusals.toString(), plan.ready)
+
+        val broken = plan.copy(skills = plan.skills + plan.skills.first())
+        val refused = runCatching { porter.apply(broken) }.exceptionOrNull()
+        assertTrue("$refused", refused is RealmDbException && refused.message!!.contains("Duplicate entry"))
+        assertEquals(before, count("SELECT COUNT(*) FROM characters") to count("SELECT COUNT(*) FROM item_instance"))
+        assertEquals(0, count("SELECT COUNT(*) FROM characters WHERE name = ${Sql.text(name)}"))
+
+        val other = db.query("acore_characters", "SELECT name FROM characters WHERE name <> '' ORDER BY guid LIMIT 1").first().first()!!
+        val taken = plan.copy(name = other)
+        val stopped = runCatching { porter.apply(taken) }.exceptionOrNull()
+        assertTrue("$stopped", stopped is RealmDbException && stopped.message!!.contains("already has that name"))
+        assertEquals(before, count("SELECT COUNT(*) FROM characters") to count("SELECT COUNT(*) FROM item_instance"))
+    }
+
     /** What prove.sh checks after the character has been in the world: a key and its values, a line each. */
     private fun expectations(plan: PortPlan, result: PortResult): String = buildString {
         append("name\t${plan.name}\n")

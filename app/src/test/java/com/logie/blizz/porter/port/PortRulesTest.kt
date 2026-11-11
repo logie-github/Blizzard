@@ -26,6 +26,22 @@ class PortRulesTest {
         assertEquals(1, PortLevels.scaled(0, 80))
     }
 
+    @Test fun theArmorysSlotsAndInventoryTypesInEitherSpelling() {
+        for ((armory, slot) in listOf("head" to 0, "HEAD" to 0, "shoulder" to 2, "SHOULDER" to 2, "shirt" to 3, "SHIRT" to 3, "leg" to 6, "LEGS" to 6,
+            "foot" to 7, "FEET" to 7, "hand" to 9, "HANDS" to 9, "leftFinger" to 10, "FINGER_1" to 10, "rightFinger" to 11, "FINGER_2" to 11,
+            "leftTrinket" to 12, "TRINKET_1" to 12, "rightTrinket" to 13, "TRINKET_2" to 13, "back" to 14, "BACK" to 14, "weapon" to 15,
+            "MAIN_HAND" to 15, "offhand" to 16, "OFF_HAND" to 16, "tabard" to 18, "TABARD" to 18)) {
+            assertEquals(armory, slot, PortSlots.realmSlot(armory))
+        }
+        assertNull(PortSlots.realmSlot("profession_tool"))
+        assertEquals(InventoryTypes.TWO_HAND, InventoryTypes.of("TWOHWEAPON"))
+        assertEquals(InventoryTypes.RANGED_RIGHT, InventoryTypes.of("RANGEDRIGHT"))
+        assertEquals(InventoryTypes.HOLDABLE, InventoryTypes.of("HOLDABLE"))
+        assertEquals(InventoryTypes.ROBE, InventoryTypes.of("ROBE"))
+        assertEquals(InventoryTypes.OFF_HAND, InventoryTypes.of("WEAPONOFFHAND"))
+        assertNull(InventoryTypes.of("PROFESSION_TOOL"))
+    }
+
     @Test fun namesFollowTheRealmsRules() {
         assertEquals("Brannoc", PortNames.normalize("bRANNOC"))
         assertNull(PortNames.problem("Brannoc"))

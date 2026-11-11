@@ -56,6 +56,13 @@ class RealmDbTest {
         assertTrue(sent, sent.contains("SELECT 1 AS porter_n, porter_t.* FROM (SELECT y FROM u) porter_t;"))
     }
 
+    @Test fun theAppsCtlCommandIsRunWithTheDatabaseAfterIt() {
+        val script = File(temp.root, "ctl.sh")
+        script.writeText("#!/bin/sh\ncat > /dev/null\nprintf '%s\\t%s\\t%s\\n' \"\$1\" \"\$2\" \"\$FILES\"\n")
+        val db = ProcessRealmDb.of(com.logie.blizz.wow.WowCtl.Command(listOf("sh", script.path, "sql"), mapOf("FILES" to "/data/files"), temp.root))
+        assertEquals(listOf(listOf("sql", "acore_world", "/data/files")), db.query("acore_world", "SELECT 1"))
+    }
+
     @Test fun aFailureIsTheClientsOwnMessage() {
         val script = File(temp.root, "failing.sh")
         script.writeText("#!/bin/sh\ncat > /dev/null\necho 'ERROR 1644 (45000) at line 3: Porter: the name is taken' >&2\nexit 1\n")
