@@ -573,6 +573,11 @@ class OwnSkeleton:
     def __init__(self, data):
         c = chunks_of(data)
         m = c["MD21"]
+        self.parent = 0
+        gl, glo = arr(m, 20)
+        self.loops = list(struct.unpack_from("<%dI" % gl, m, glo))
+        kc, ko = arr(m, 52)
+        self.key_bones = list(struct.unpack_from("<%dh" % kc, m, ko))
         sc, so = arr(m, 28)
         self.seqs = [bytearray(m[so + i * SEQ:so + (i + 1) * SEQ]) for i in range(sc)]
         self.in_file = [bool(struct.unpack_from("<I", s, 12)[0] & 0x20) for s in self.seqs]
@@ -583,6 +588,10 @@ class OwnSkeleton:
             at = bo + i * BONE
             self.bones.append((m[at:at + 16], [Track.read(m, at + 16 + k * TRACK, size, in_file)
                                                 for k, size in enumerate((12, 8, 12))], m[at + 76:at + 88]))
+        ac, ao = arr(m, 240)
+        self.attachments = [(m[ao + i * ATTACH:ao + i * ATTACH + 20], Track.read(m, ao + i * ATTACH + 20, 1, in_file)) for i in range(ac)]
+        alc, alo = arr(m, 248)
+        self.attachment_lookup = list(struct.unpack_from("<%dh" % alc, m, alo))
         self.anim_files = {}
         raw = c.get("AFID", b"")
         for i in range(0, len(raw), 8):
@@ -617,13 +626,20 @@ def convert(files, policy, out_dir, log=print):
     name, folder = policy["name"], policy["folder"]
     m2_data = files(policy["model"])
     chunks = chunks_of(m2_data)
-    child = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0]))
+    # A model with a skeleton file (today's allied races), else its own bones (the ten races of 3.3.5's, Wrath++)
+    child = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0])) if "SKID" in chunks else OwnSkeleton(m2_data)
     parent = Skeleton(files(child.parent)) if child.parent else None
     merged = Merged(child, parent)
     model = Model(m2_data, child)
     parent_model = Model(files(policy["parent_model"]), parent) if parent and policy.get("parent_model") else None
     parent_map = {i: parent_model.index_of.get(parent.key(i), -1) for i in range(len(parent.seqs))} if parent_model else None
     skin = Skin(files(model.skin_ids[0]))
+    # A batch whose textures lie past the model's texture lookup (the blood elves' own model has some: parts drawn with
+    # another model's texture) can't be drawn by 3.3.5: left out.
+    kept = [b for b in skin.batches if b[9] + max(b[8], 1) <= len(model.texture_lookup) and b[6] < len(model.materials)]
+    if len(kept) != len(skin.batches):
+        log("%s: %d batches name textures or materials the model hasn't: left out" % (name, len(skin.batches) - len(kept)))
+        skin.batches = kept
     blob = Blob()
     d = blob.data
     d[0:4] = b"MD20"

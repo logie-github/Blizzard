@@ -10,8 +10,10 @@ import java.nio.file.Files
  * and its settings, cache and add-ons are its own, so nothing Wrath++ does reaches Wrath+'s game.
  *
  * The game's own archives (`Data/` and `Data/<locale>/` `*.MPQ` files, gigabytes the game and the realm only ever read)
- * are hard links to Wrath+'s rather than copies, where the storage allows (else copied). Never a patch a realm module
- * writes (`patch-4/F/M/U/V/W/Y/Z.MPQ`, and their markers): those are left out, and Wrath++'s own realm makes its own.
+ * are hard links to Wrath+'s rather than copies, where the storage allows (else copied), the HD look's own patches among
+ * them (`patch-A/F/W...`). Never a patch a realm module writes (`patch-M/U/V/Y/Z.MPQ`, and their markers): those are left
+ * out, and Wrath++'s own realm makes its own. (Until 2026-11-11 `patch-4/F/W` were left out too, the Alternative HD Patch's
+ * `patch-F` and `patch-W` with them: a copy made then gets them at the next Play, [addMissing].)
  * The same rule is `ctl.sh`'s `wrathpp_shareable`, which `ctl.sh wrathpp-check` holds the copy to.
  *
  * Plain files only, so it is unit-tested on a temporary folder. NOT run on a phone.
@@ -20,7 +22,7 @@ object WrathppClient {
     /** Written last: the copy is complete. */
     const val MARKER = ".wrathpp-client"
 
-    private val MODULE_PATCH = Regex("""patch-[4fmuvwyz]\.mpq(\..*)?""", RegexOption.IGNORE_CASE)
+    private val MODULE_PATCH = Regex("""patch-[muvyz]\.mpq(\..*)?""", RegexOption.IGNORE_CASE)
 
     /** Left out of the copy: the game's caches and logs (it makes them again), and the realm modules' patches. */
     fun skipped(relative: String): Boolean {
@@ -42,6 +44,27 @@ object WrathppClient {
 
     fun isMade(target: File): Boolean = File(target, MARKER).isFile
 
+    /**
+     * A game archive of [source]'s that a copy made before lacks (the HD look's `patch-F`/`patch-W`, left out until
+     * 2026-11-11, or one added to the game since): put in, linked where the storage allows. Nothing else is touched. Returns how many.
+     */
+    fun addMissing(source: File, target: File): Int {
+        var added = 0
+        source.walkTopDown().forEach { f ->
+            val rel = f.relativeTo(source).invariantSeparatorsPath
+            if (!f.isFile || !shareable(rel) || Files.isSymbolicLink(f.toPath())) return@forEach
+            val out = File(target, rel)
+            if (out.exists()) return@forEach
+            out.parentFile?.mkdirs()
+            val part = File(out.path + ".part")
+            part.delete()
+            if (runCatching { Files.createLink(part.toPath(), f.toPath()) }.isFailure) f.copyTo(part, overwrite = true)
+            if (!part.renameTo(out)) { part.delete(); throw IOException("${out.path} couldn't be put in place") }
+            added++
+        }
+        return added
+    }
+
     /** What [make] would copy (bytes not shared), for the space check. */
     fun bytesToCopy(source: File): Long =
         source.walkTopDown().filter { it.isFile }.sumOf { f ->
@@ -54,7 +77,10 @@ object WrathppClient {
      * when [target] would be inside [source] or the other way round, or when there is no room.
      */
     fun make(source: File, target: File, onProgress: (String, Float?) -> Unit = { _, _ -> }): Boolean {
-        if (isMade(target)) return false
+        if (isMade(target)) {
+            addMissing(source, target)
+            return false
+        }
         val src = source.canonicalFile
         val dst = target.canonicalFile
         if (dst.path == src.path || dst.path.startsWith(src.path + File.separator) || src.path.startsWith(dst.path + File.separator)) {

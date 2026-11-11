@@ -592,11 +592,12 @@ module_client() {
 }
 
 # Whether a Wrath++ game file may be the shared game's own (a hard link): an archive (.MPQ) that
-# is not a patch the realms' modules write (patch-4, F, M, U, V, W, Y, Z) nor a marker beside one.
+# is not a patch the realms' modules write (patch-M, U, V, Y, Z) nor a marker beside one. The HD look's
+# own patches (patch-A, F, W...) are the game's and may be shared.
 wrathpp_shareable() {
 	name=$(basename "$1" | tr 'A-Z' 'a-z')
 	case "$name" in
-	patch-[4fmuvwyz].mpq | patch-[4fmuvwyz].mpq.*) return 1 ;;
+	patch-[muvyz].mpq | patch-[muvyz].mpq.*) return 1 ;;
 	*.mpq) return 0 ;;
 	*) return 1 ;;
 	esac

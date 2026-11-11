@@ -1,0 +1,104 @@
+name: Wrath++ looks
+
+# Shadowlands' looks (9.2.7.45745) for the ten races of 3.3.5, for Wrath++ alone
+# (docs/wrathpp/SHADOWLANDS_OPTIONS.md): realm/warcraft/wrathpp/tools/sl_looks.py reads the game's tables
+# (wago.tools' CSVs), fetches the ten races' models and textures by file id (wago.tools), converts them with the allied
+# races' converter (realm/warcraft/modules/mod-allied-races/tools) and writes the character tables over the server's
+# own (server-data.env's data.zip: its dbc folder). Blizzard's files: never in the repository. Published from main as
+# the release wrathpp-looks (wrathpp-looks.zip and .json), which the app puts in Wrath++'s copy of the game
+# (Data/patch-Z.MPQ) and its server (share/dbc): WrathppLooks.kt.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/wrathpp-looks.yml
+      - realm/warcraft/wrathpp/tools/sl_looks.py
+      - realm/warcraft/wrathpp/tools/sl_inventory.py
+      - realm/warcraft/modules/mod-allied-races/tools/m2.py
+      - realm/warcraft/modules/mod-allied-races/tools/races.py
+      - realm/warcraft/modules/mod-allied-races/tools/textures.py
+      - realm/warcraft/modules/mod-allied-races/tools/names.py
+      - realm/warcraft/modules/mod-allied-races/tools/blp.py
+      - realm/warcraft/modules/mod-allied-races/tools/decimate.py
+      - realm/warcraft/modules/mod-allied-races/tools/check_m2.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wrathpp-looks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  looks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q python3-numpy python3-pil unzip zip
+
+      - name: The server's tables (data.zip's dbc)
+        run: |
+          . realm/warcraft/server-data.env
+          curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"
+          echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -
+          unzip -q -o data.zip 'dbc/CharSections.dbc' 'dbc/CharHairGeosets.dbc' 'dbc/CharacterFacialHairStyles.dbc' -d server-data
+          rm data.zip
+          ls -l server-data/dbc
+
+      - name: The game's tables of today
+        run: python3 realm/warcraft/wrathpp/tools/sl_looks.py fetch build/sl-csv
+
+      - name: What each race is made of
+        run: python3 realm/warcraft/wrathpp/tools/sl_looks.py races build/sl-csv build/looks.json | tee looks-report.txt
+
+      - uses: actions/cache@v4
+        with:
+          path: build/sl-cache
+          key: wrathpp-looks-files-${{ hashFiles('build/looks.json') }}
+          restore-keys: wrathpp-looks-files-
+
+      - name: Models and textures
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_looks.py package build/looks.json build/sl-cache server-data/dbc build/looks 2>&1 | tee package.log
+          [ -f build/looks/looks.files ]
+
+      - name: The package
+        run: |
+          ( cd build/looks && zip -q -r -1 ../../wrathpp-looks.zip client dbc looks.files )
+          size=$(stat -c %s wrathpp-looks.zip)
+          sha=$(sha256sum wrathpp-looks.zip | cut -d' ' -f1)
+          printf '{"size": %s, "sha256": "%s", "format": 1, "commit": "%s"}\n' "$size" "$sha" "${{ github.sha }}" > wrathpp-looks.json
+          cat wrathpp-looks.json
+          du -sh build/looks/client build/looks/dbc | tee -a looks-report.txt
+          wc -l < build/looks/looks.files | tee -a looks-report.txt
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrathpp-looks-logs
+          retention-days: 14
+          path: |
+            looks-report.txt
+            package.log
+            build/looks/looks.files
+
+      # Only main publishes: the app downloads whatever is published.
+      - name: Publish (release wrathpp-looks)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo="${{ github.repository }}"
+          if ! gh release view wrathpp-looks -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/wrathpp-looks" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create wrathpp-looks -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Wrath++ looks: Shadowlands' ten races (experimental)" \
+              --notes "Shadowlands' models, textures and character tables for the ten races of 3.3.5, for Wrath++'s copy of the game and its server. Downloaded by the app; not an app release."
+          fi
+          gh release upload wrathpp-looks wrathpp-looks.zip wrathpp-looks.json -R "$repo" --clobber

@@ -26,7 +26,7 @@ class WrathppClientTest {
         put("Wow.exe", "MZ")
         put("Data/common.MPQ"); put("Data/lichking.MPQ"); put("Data/enUS/locale-enUS.MPQ"); put("Data/enUS/realmlist.wtf", "set realmlist x")
         put("Data/patch-V.MPQ"); put("Data/patch-V.MPQ.alliedraces"); put("Data/patch-M.MPQ/realm-modules.stamp"); put("Data/patch-M.MPQ/Interface/a.lua")
-        put("Data/patch-H.MPQ", "hd")
+        put("Data/patch-H.MPQ", "hd"); put("Data/patch-F.MPQ", "alternative hd"); put("Data/patch-W.MPQ", "alternative hd")
         put("WTF/Config.wtf", "SET realmName \"ChromieCraft\"")
         put("Interface/AddOns/A/A.toc")
         put("Cache/WDB/enUS/x.wdb"); put("Logs/x.log")
@@ -37,7 +37,9 @@ class WrathppClientTest {
         assertTrue(WrathppClient.shareable("Data/common.MPQ"))
         assertTrue(WrathppClient.shareable("Data/enUS/patch-enUS-3.MPQ"))
         assertTrue(WrathppClient.shareable("Data/patch-H.mpq"))
-        for (no in listOf("Data/patch-V.MPQ", "Data/patch-m.mpq", "Data/patch-Z.MPQ", "Data/patch-4.MPQ", "Data/patch-V.MPQ.alliedraces",
+        // The HD look's own patches (the Alternative HD Patch's patch-F and patch-W) are the game's.
+        assertTrue(WrathppClient.shareable("Data/patch-F.MPQ")); assertTrue(WrathppClient.shareable("Data/patch-W.MPQ"))
+        for (no in listOf("Data/patch-V.MPQ", "Data/patch-m.mpq", "Data/patch-Z.MPQ", "Data/patch-U.MPQ", "Data/patch-Y.MPQ", "Data/patch-V.MPQ.alliedraces",
             "Data/enUS/realmlist.wtf", "Wow.exe", "Data/x/y/z.MPQ", "WTF/Config.wtf")) assertFalse(no, WrathppClient.shareable(no))
         assertTrue(WrathppClient.skipped("Data/patch-M.MPQ/Interface/a.lua"))
         assertTrue(WrathppClient.skipped("Cache/WDB/enUS/x.wdb"))
@@ -54,6 +56,7 @@ class WrathppClientTest {
         assertTrue(WrathppClient.isMade(dst))
         fun shared(rel: String) = Files.isSameFile(File(src, rel).toPath(), File(dst, rel).toPath())
         assertTrue(shared("Data/common.MPQ")); assertTrue(shared("Data/enUS/locale-enUS.MPQ")); assertTrue(shared("Data/patch-H.MPQ"))
+        assertTrue(shared("Data/patch-F.MPQ")); assertTrue(shared("Data/patch-W.MPQ"))
         assertFalse(shared("Wow.exe")); assertFalse(shared("WTF/Config.wtf")); assertFalse(shared("Data/enUS/realmlist.wtf"))
         // The realm modules' patches aren't taken: Wrath++'s realm makes its own.
         for (gone in listOf("Data/patch-V.MPQ", "Data/patch-V.MPQ.alliedraces", "Data/patch-M.MPQ", "Cache", "Logs")) assertFalse(gone, File(dst, gone).exists())
@@ -64,6 +67,21 @@ class WrathppClientTest {
         assertEquals(before, after)
         // Made once.
         assertFalse(WrathppClient.make(src, dst))
+    }
+
+    @Test fun aCopyMadeBeforeGetsTheArchivesItLacks() {
+        val src = game()
+        val dst = File(src.parentFile, "client-wrathpp")
+        assertTrue(WrathppClient.make(src, dst))
+        // as a copy made before 2026-11-11 was: without the HD look's patch-F and patch-W
+        File(dst, "Data/patch-F.MPQ").delete(); File(dst, "Data/patch-W.MPQ").delete()
+        File(dst, "WTF/Config.wtf").writeText("mine")
+        assertFalse(WrathppClient.make(src, dst))
+        assertTrue(Files.isSameFile(File(src, "Data/patch-F.MPQ").toPath(), File(dst, "Data/patch-F.MPQ").toPath()))
+        assertTrue(File(dst, "Data/patch-W.MPQ").isFile)
+        assertEquals("mine", File(dst, "WTF/Config.wtf").readText())
+        assertFalse(File(dst, "Data/patch-V.MPQ").exists())
+        assertEquals(0, WrathppClient.addMissing(src, dst))
     }
 
     @Test fun aCopyInsideTheGameIsRefused() {

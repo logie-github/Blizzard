@@ -39,6 +39,12 @@ not read here, and Wrath++ has none of those unlocks: offered to all until decid
 
 ## The way there
 
+Steps 1 and 2 are made (2026-11-11): `realm/warcraft/wrathpp/tools/sl_looks.py`, published by
+`.github/workflows/wrathpp-looks.yml` as the release `wrathpp-looks`, put in by the app (`WrathppLooks.kt`): the
+twenty models in Wrath++'s copy of the game as `Data/patch-Z.MPQ` (a folder, read after the HD look's `patch-W`), the
+three character tables there and in its server's `share/dbc`. What each slider holds, a race and sex, is
+`sl_looks.py races`' report; `FEATURES` there says which options make the feature slider. Not run on a phone.
+
 1. **Models.** Shadowlands' models of the ten races (ChrModel → CreatureDisplayInfo →
    CreatureModelData's file, fetched from wago.tools by file id) made 3.3.5 models by the converter the
    allied races already use (`realm/warcraft/modules/mod-allied-races/tools/m2.py`), keeping every
