@@ -157,7 +157,7 @@ internal class LivePortSession(private val database: RealmDatabase, private val 
             val database = RealmDatabase.open(context, step)
             try {
                 val command = database.sqlCommand()
-                val db = ProcessRealmDb(command.argv, command.env, command.directory)
+                val db = ProcessRealmDb.of(command)
                 val engine = PortEngine(db, RealmFiles(database.layout.root, port))
                 step("Reading the realm's own tables")
                 engine.data()
