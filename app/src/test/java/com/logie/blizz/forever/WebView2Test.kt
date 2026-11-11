@@ -51,12 +51,22 @@ class WebView2Test {
     }
 
     @Test
-    fun `the environment points the launcher at the fixed runtime with no-sandbox software GL`() {
+    fun `the environment points the launcher at the fixed runtime`() {
         val env = WebView2.ENV.toMap()
         assertEquals("C:\\webview2", env["WEBVIEW2_BROWSER_EXECUTABLE_FOLDER"])
         assertTrue(env.getValue("WEBVIEW2_USER_DATA_FOLDER").startsWith("C:\\"))
-        val args = env.getValue("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS")
-        assertTrue("--no-sandbox" in args && "--disable-gpu" in args && "swiftshader" in args)
+    }
+
+    @Test
+    fun `the forced browser arguments turn the GPU and DirectComposition off and log`() {
+        val args = WebView2.BROWSER_ARGS
+        assertTrue("--no-sandbox" in args)
+        assertTrue("--disable-gpu" in args)
+        assertTrue("--disable-direct-composition" in args)
+        assertTrue("swiftshader" in args)
+        assertTrue("--enable-logging" in args)
+        assertEquals("*", WebView2.POLICY_NAME)
+        assertTrue(WebView2.POLICY_KEY.endsWith("AdditionalBrowserArguments"))
     }
 
     private fun assertArrayEquals(a: ByteArray, b: ByteArray) = org.junit.Assert.assertArrayEquals(a, b)

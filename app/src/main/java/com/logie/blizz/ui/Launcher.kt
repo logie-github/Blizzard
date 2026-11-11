@@ -179,8 +179,9 @@ fun Launcher() {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
         // World of Warcraft: Forever runs its own offline realm on the phone (its own server package and client),
-        // not the WoW-app import; its Play/Install is handled apart ([com.logie.blizz.forever.ForeverPlay]).
-        if (game.id == "wow_forever") { com.logie.blizz.forever.ForeverPlay.play(context); return }
+        // World of Warcraft: Forever is on hold (its launcher can't run on the phone yet): the tile shows "Under
+        // construction" instead of Play and does nothing.
+        if (game.id == "wow_forever") return
         // Wrath++ (experimental): made from the Wrath+ import, so it plays from that entry ([com.logie.blizz.game.WowPlay] with wrathpp).
         if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) {
             val wrath = GameImportManager.library(context).get("wow")
