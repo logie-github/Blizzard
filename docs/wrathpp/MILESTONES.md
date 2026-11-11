@@ -14,7 +14,7 @@
 
 | Phase | Content | State |
 |---|---|---|
-| 0 Inventory | repo audit, pins, hazards, licensing | done (SOURCE_AUDIT.md); Legion 7.3.5 data inventory **not done** (LEGION_OPTIONS_735.md) |
+| 0 Inventory | repo audit, pins, hazards, licensing; the looks to carry | done (SOURCE_AUDIT.md); Shadowlands 9.2.7 options for the ten races done (SHADOWLANDS_OPTIONS.md: 277 options, 3529 choices), which replaces the Legion 7.3.5 inventory (LEGION_OPTIONS_735.md) |
 | 1 Client engine proof | build, boot, HD data, connect | build passes in CI; boot/HD/connect not done |
 | 2 Isolated infrastructure | realm 5 / 8087 / `*_wrathpp`, own paths, guards, rollback | `ctl.sh` done and tested; app page **Wrath++ (experimental)** with its Play flow (server package download, private game copy, realm start) done and unit-tested; arm64 server package built by `build-wrathpp-server.yml`; **not run on a phone** |
 | 3 Vertical slice | registry → client state → preview → payload → DB → world → observer → relog/restart | registry, payload, DB, world, observer, restart: done on the server and in the Lua mod; **preview and in-world drawing: not done** (Gate C) |

@@ -16,3 +16,4 @@ san="-fsanitize=address,undefined"
 	{ san=; "$CXX" -std=c++17 -Wall -Wextra -Werror -O1 "$HERE/test_codec.cpp" -o "$OUT/test_codec"; }
 "$OUT/test_codec" "$OUT/registry.bin" "$hash"
 python3 -I "$WPP/tools/test_registry.py"
+python3 -I "$WPP/tools/test_sl_inventory.py"
