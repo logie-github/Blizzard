@@ -98,3 +98,12 @@ Not tested: the `wrathpp-server` package build (CI, `build-wrathpp-server.yml`),
 
 Not run: anything in the game (the runtime under Wine/Box64, the native mod's reads, the creator's boxes).
 
+
+## 2026-11-11, Shadowlands' options
+
+| Test | Result |
+|---|---|
+| `tools/test_sl_inventory.py` (run by `protocol/tests/run.sh`): tables made in the test, the game's columns | **pass**, 4 tests: options and choices in the game's order per race and sex, other races' models left out, geoset ids (group × 100 + variant), materials, skinned models, restrictions for 3.3.5's classes (death knight only, all but death knights, demon hunter only, unlock type) |
+| `sl_inventory.py build` on wago.tools' 9.2.7.45745 tables | 20 models, 277 options, 3529 choices (`docs/wrathpp/SHADOWLANDS_OPTIONS.md`) |
+
+Not run: anything in the game; nothing drawn yet.
