@@ -52,4 +52,14 @@ object ForeverLauncher {
             if (!file.isFile) runCatching { file.writeText(content) }
         }
     }
+
+    /** Removes the seeded config so the next Play writes it afresh (a repair). */
+    fun clearConfig(driveC: File) {
+        configDir(driveC).deleteRecursively()
+    }
+
+    /** Deletes every placed launcher from a client folder (a repair re-asks the person to pick it). */
+    fun removePlaced(clientDir: File) {
+        NAMES.forEach { File(clientDir, it).delete() }
+    }
 }

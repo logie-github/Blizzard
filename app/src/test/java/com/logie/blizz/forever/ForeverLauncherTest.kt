@@ -44,6 +44,31 @@ class ForeverLauncherTest {
     }
 
     @Test
+    fun `clearConfig removes the seeded config so seedConfig writes it afresh`() {
+        val driveC = Files.createTempDirectory("drivec").toFile()
+        ForeverLauncher.seedConfig(driveC)
+        val cfg = File(driveC, "windows/config")
+        assertTrue(File(cfg, "launcher-mode.txt").isFile)
+        ForeverLauncher.clearConfig(driveC)
+        assertFalse(cfg.exists())
+        ForeverLauncher.seedConfig(driveC)
+        assertEquals("own", File(cfg, "launcher-mode.txt").readText())
+    }
+
+    @Test
+    fun `removePlaced deletes every known launcher name from the client folder`() {
+        val client = Files.createTempDirectory("client").toFile()
+        File(client, "WoWForeverLauncher.exe").writeText("new")
+        File(client, "ForeverLauncher.exe").writeText("old")
+        File(client, "Wow.exe").writeText("game")
+        ForeverLauncher.removePlaced(client)
+        assertNull(ForeverLauncher.find(client))
+        assertFalse(File(client, "ForeverLauncher.exe").exists())
+        // A non-launcher file in the folder is left alone.
+        assertTrue(File(client, "Wow.exe").isFile)
+    }
+
+    @Test
     fun `the seeded server points at this app's realm`() {
         // The client path is the F: drive (this app's files/forever), where the client sits under client.
         assertEquals("F:\\client", ForeverLauncher.FILES.getValue("client.txt"))

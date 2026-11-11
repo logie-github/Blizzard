@@ -253,6 +253,21 @@ object WindowsRuntime {
     }
 
     /** The games' Windows: made the first time, its screen, drives and launch options set every time. */
+    /**
+     * Clears World of Warcraft: Forever's own setup from the shared container so the next Play rebuilds it from
+     * the current version: the .NET runtime ([com.logie.blizz.forever.WineMono]), the launcher's seeded config
+     * ([com.logie.blizz.forever.ForeverLauncher]), and `C:\webview2` (an earlier version's browser runtime, now
+     * unused). The container is shared by every game, so only these Forever-specific paths are touched. Off the
+     * main thread; harmless when the container isn't made yet.
+     */
+    fun clearForeverRuntime(context: Context) {
+        val container = ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME } ?: return
+        val driveC = File(container.rootDir, ".wine/drive_c")
+        com.logie.blizz.forever.WineMono.remove(driveC)
+        com.logie.blizz.forever.ForeverLauncher.clearConfig(driveC)
+        File(driveC, "webview2").deleteRecursively()
+    }
+
     private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved): Container {
         // (disk: the manager reads every container's file, the drives make their folders)
         val manager = withContext(Dispatchers.IO) { ContainerManager(context) }

@@ -43,4 +43,19 @@ class WineMonoTest {
         File(mono, ".blizz-wine-mono").writeText("abc123")
         assertTrue(WineMono.installed(driveC))
     }
+
+    @Test
+    fun `remove clears the tree and its staging so installed is false again`() {
+        val driveC = Files.createTempDirectory("drivec").toFile()
+        val mono = File(driveC, "windows/mono")
+        File(mono, "mono-2.0").mkdirs(); File(mono, ".blizz-wine-mono").writeText("sha")
+        File(driveC, "windows/mono.new/x").mkdirs()
+        File(driveC, "windows/mono.old/x").mkdirs()
+        assertTrue(WineMono.installed(driveC))
+        WineMono.remove(driveC)
+        assertFalse(WineMono.installed(driveC))
+        assertFalse(File(driveC, "windows/mono").exists())
+        assertFalse(File(driveC, "windows/mono.new").exists())
+        assertFalse(File(driveC, "windows/mono.old").exists())
+    }
 }

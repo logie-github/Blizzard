@@ -49,6 +49,13 @@ object WineMono {
     fun installed(driveC: File): Boolean =
         installedSha(driveC) != null && File(monoDir(driveC), "mono-2.0").isDirectory
 
+    /** Removes the runtime from [driveC] so the next Play provisions it afresh (a repair). */
+    fun remove(driveC: File) {
+        monoDir(driveC).deleteRecursively()
+        File(driveC, "windows/mono.new").deleteRecursively()
+        File(driveC, "windows/mono.old").deleteRecursively()
+    }
+
     /**
      * Puts the .NET runtime in [driveC] if it is not already there: downloads `wine-mono.tar.xz` (checking its
      * SHA-256) and unpacks it into `C:\windows\mono`. Call off the main thread. [onProgress] is called with
