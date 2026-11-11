@@ -44,6 +44,9 @@ Steps 1 and 2 are made (2026-11-11): `realm/warcraft/wrathpp/tools/sl_looks.py`,
 twenty models in Wrath++'s copy of the game as `Data/patch-Z.MPQ` (a folder, read after the HD look's `patch-W`), the
 three character tables there and in its server's `share/dbc`. What each slider holds, a race and sex, is
 `sl_looks.py races`' report; `FEATURES` there says which options make the feature slider. Not run on a phone.
+Open: the Blood Elf man (`SKIP`): his converted model has shredded limbs; his skeleton file has 252 bones and no parent, the
+bone matrices at Stand are sane, the mesh reduction is not the cause (the same with the body left whole), and the tables
+keep the game's own rows for him until it is found. The other nineteen render right.
 
 1. **Models.** Shadowlands' models of the ten races (ChrModel → CreatureDisplayInfo →
    CreatureModelData's file, fetched from wago.tools by file id) made 3.3.5 models by the converter the

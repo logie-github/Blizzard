@@ -32,7 +32,8 @@ class LooksTablesTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         d = self.dir.name
-        old = [[1, 4, 0, 0, "Old\\NightElf.blp", "", "", 17, 0, 0], [2, 2, 0, 0, "Character\\Orc\\Male\\Skin.blp", "", "", 17, 0, 0]]
+        old = [[1, 4, 0, 0, "Old\\NightElf.blp", "", "", 17, 0, 0], [2, 2, 0, 0, "Character\\Orc\\Male\\Skin.blp", "", "", 17, 0, 0],
+               [3, 4, 1, 0, "Stock\\NightElfFemale.blp", "", "", 17, 0, 0]]
         with open(os.path.join(d, "CharSections.dbc"), "wb") as f:
             f.write(wdbc("iiiisssiii", old))
         with open(os.path.join(d, "CharHairGeosets.dbc"), "wb") as f:
@@ -48,13 +49,15 @@ class LooksTablesTest(unittest.TestCase):
         data = open(path, "rb").read()
         self.assertEqual(sl_looks.Dbc(data, "iiiisssiii").write(), data)
         self.assertEqual(data[:4], b"WDBC")
-        self.assertEqual(struct.unpack_from("<4I", data, 4)[:3], (2, 10, 40))
+        self.assertEqual(struct.unpack_from("<4I", data, 4)[:3], (3, 10, 40))
 
     def test_ten_races_replaced_others_kept(self):
         t = sl_looks.tables_for(LOOKS, self.dir.name)
         sections = t["CharSections"].rows
         self.assertIn([2, 2, 0, 0, "Character\\Orc\\Male\\Skin.blp", "", "", 17, 0, 0], sections)
         self.assertNotIn("Old\\NightElf.blp", [r[4] for r in sections])
+        # a sex the looks have no model for keeps the game's own rows
+        self.assertIn([3, 4, 1, 0, "Stock\\NightElfFemale.blp", "", "", 17, 0, 0], sections)
         elf = [r for r in sections if r[1] == 4]
         self.assertEqual(sorted({r[3] for r in elf}), [0, 1, 3, 4])                  # skin, face, hair, underwear
         self.assertEqual(len([r for r in elf if r[3] == 1]), 2)                        # one face x two eyes

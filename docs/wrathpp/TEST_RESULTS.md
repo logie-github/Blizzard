@@ -107,3 +107,11 @@ Not run: anything in the game (the runtime under Wine/Box64, the native mod's re
 | `sl_inventory.py build` on wago.tools' 9.2.7.45745 tables | 20 models, 277 options, 3529 choices (`docs/wrathpp/SHADOWLANDS_OPTIONS.md`) |
 
 Not run: anything in the game; nothing drawn yet.
+
+| `sl_looks.py package` (all twenty models fetched from wago.tools and converted here; 90 minutes) | 19 models built (the Blood Elf man left out), 6040 files, 847 MB; `sl_looks.py verify`: every file the new table rows name is in the package. Rendered (`render_m2.py`, Stand, a skin, face, hair and feature of each): the nineteen are right; the Blood Elf man's arms and legs came out shredded |
+| `tools/test_sl_looks.py` (run by `protocol/tests/run.sh`) | pass, 2 tests: tables written and read back byte for byte, the rows of a race and sex replaced while the other sex's stay |
+| App unit tests `com.logie.blizz.wrathpp.*` (`WrathppLooksTest`, `WrathppClientTest`) | pass: looks put in whole (game patch and server tables), a newer package replaces the old, a bad package leaves what was there, server tables restored from the patch; the game copy shares the HD look's patch-F/W and a copy made before gets them |
+| `mod-allied-races` `tools/test_tools.py`, `test_safety.py` (the converter changed) | pass |
+| `ctl.sh` isolation test | pass, 61/61 |
+
+Not run: anything in the game; the package on a phone.

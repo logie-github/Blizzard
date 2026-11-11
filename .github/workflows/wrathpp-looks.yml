@@ -69,7 +69,7 @@ jobs:
 
       - name: The package
         run: |
-          ( cd build/looks && zip -q -r -1 ../../wrathpp-looks.zip client dbc looks.files )
+          ( cd build/looks && zip -q -r -6 ../../wrathpp-looks.zip client dbc looks.files )
           size=$(stat -c %s wrathpp-looks.zip)
           sha=$(sha256sum wrathpp-looks.zip | cut -d' ' -f1)
           printf '{"size": %s, "sha256": "%s", "format": 1, "commit": "%s"}\n' "$size" "$sha" "${{ github.sha }}" > wrathpp-looks.json

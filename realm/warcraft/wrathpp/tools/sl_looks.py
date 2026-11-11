@@ -9,6 +9,7 @@ and its server's data.
 
     python3 tools/sl_looks.py fetch CSV_DIR                    the tables (wago.tools' CSVs at 9.2.7.45745)
     python3 tools/sl_looks.py races CSV_DIR LOOKS.json         what each race and sex is made of (from the tables)
+    python3 tools/sl_looks.py verify LOOKS.json DBC OUT        the files the tables name are all in OUT
     python3 tools/sl_looks.py package LOOKS.json CACHE DBC OUT  fetches into CACHE (files by id) and writes OUT:
                                                                OUT/client  the game's patch (game paths), the tables
                                                                            in DBFilesClient
@@ -72,6 +73,9 @@ AVAILABLE_ONLY = {(6, 0): {"Horn Style"}}
 # their horns' colour their hair colour: the hair texture).
 ALIASES = {6: {"Hair Style": "Foremane", "Hair Color": "Horn Color"}}
 SEXES = ("Male", "Female")
+# Models that don't convert yet: the game's own (Alternative HD) look stays for them, rows and all. The Blood Elf man's
+# arms and legs come out shredded (his skeleton file's 252 bones; the other nineteen models are right): open.
+SKIP = {(10, 0)}
 
 
 class Tables(allied.Tables):
@@ -95,6 +99,8 @@ def build_races(csv_dir):
     for race_id, (name, models) in RACES.items():
         entry = {"race": race_id, "name": name, "models": {}}
         for sex, chr_model in models.items():
+            if (race_id, sex) in SKIP:
+                continue
             for asked, today in ALIASES.get(race_id, {}).items():
                 tables.aliases[(str(chr_model), asked)] = today
             tables.only_available[str(chr_model)] = AVAILABLE_ONLY.get((race_id, sex), set())
@@ -178,17 +184,17 @@ def table_rows(looks):
 def tables_for(looks, dbc_dir):
     """The three tables: the server's own with every row of the ten races replaced by theirs. The glow column of the
     facial table (geoset group 17: night elves' eyes) as the race had it."""
-    races = {int(r) for r in looks["races"]}
+    mine = {(entry["race"], int(sex)) for entry in looks["races"].values() for sex in entry["models"]}
     out = {}
     read = lambda name: Dbc(open(os.path.join(dbc_dir, name + ".dbc"), "rb").read(), TABLE_KINDS[name])
     sections, hair, facial = table_rows(looks)
     t = read("CharSections")
-    kept = [r for r in t.rows if r[1] not in races]
+    kept = [r for r in t.rows if (r[1], r[2]) not in mine]
     next_id = max([r[0] for r in t.rows] + [0]) + 1
     t.rows = kept + [[next_id + i] + r for i, r in enumerate(sections)]
     out["CharSections"] = t
     t = read("CharHairGeosets")
-    kept = [r for r in t.rows if r[1] not in races]
+    kept = [r for r in t.rows if (r[1], r[2]) not in mine]
     next_id = max([r[0] for r in t.rows] + [0]) + 1
     t.rows = kept + [[next_id + i] + r for i, r in enumerate(hair)]
     out["CharHairGeosets"] = t
@@ -196,7 +202,7 @@ def tables_for(looks, dbc_dir):
     glow = {}
     for r in t.rows:
         glow.setdefault((r[0], r[1]), r[7])
-    kept = [r for r in t.rows if r[0] not in races]
+    kept = [r for r in t.rows if (r[0], r[1]) not in mine]
     t.rows = kept + [r[:7] + [glow.get((r[0], r[1]), 0)] for r in facial]
     out["CharacterFacialHairStyles"] = t
     return out
@@ -230,18 +236,44 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 with open(full, "wb") as out:
                     out.write(read(fid))
                 written.append(path)
-    tables = tables_for(looks, dbc_dir)
+    written += write_tables(looks, dbc_dir, out_dir)
+    missing = verify(looks, dbc_dir, out_dir)
+    if missing:
+        raise ValueError("%d files the tables name are not in the package, e.g. %s" % (len(missing), ", ".join(missing[:5])))
+    with open(os.path.join(out_dir, "looks.files"), "w") as out:
+        out.write("".join(p + "\n" for p in sorted(set(written))))
+    log("looks: %d files" % len(set(written)))
+
+
+def verify(looks, dbc_dir, out_dir):
+    """The files the ten races' new rows name that the package lacks (a table row naming no file is a white character)."""
+    client = os.path.join(out_dir, "client")
+    have = set()
+    for root, _, files in os.walk(client):
+        for f in files:
+            have.add(os.path.relpath(os.path.join(root, f), client).replace("/", "\\").lower())
+    sections, hair, facial = table_rows(looks)
+    named = {r[3] for r in sections} | {r[4] for r in sections} | {r[5] for r in sections}
+    named.discard("")
+    for entry in looks["races"].values():
+        for m in entry["models"].values():
+            named.add(m["folder"] + "\\" + m["name"] + ".m2")
+    return sorted(n for n in named if n.lower() not in have)
+
+
+def write_tables(looks, dbc_dir, out_dir):
+    """The three tables into OUT/client/DBFilesClient and OUT/dbc; their game paths."""
+    client = os.path.join(out_dir, "client")
     os.makedirs(os.path.join(client, "DBFilesClient"), exist_ok=True)
     os.makedirs(os.path.join(out_dir, "dbc"), exist_ok=True)
-    for name, t in tables.items():
+    written = []
+    for name, t in tables_for(looks, dbc_dir).items():
         blob = t.write()
         for path in (os.path.join(client, "DBFilesClient", name + ".dbc"), os.path.join(out_dir, "dbc", name + ".dbc")):
             with open(path, "wb") as out:
                 out.write(blob)
         written.append("DBFilesClient\\%s.dbc" % name)
-    with open(os.path.join(out_dir, "looks.files"), "w") as out:
-        out.write("".join(p + "\n" for p in sorted(set(written))))
-    log("looks: %d files" % len(set(written)))
+    return written
 
 
 def fetch(csv_dir):
@@ -268,6 +300,11 @@ def main(argv):
                     m["name"], len(m["skins"]), len(m["faces"]), len(m["eyes"]), len(m["hair"]), len(m["hair_colors"]),
                     len(m["features"]), ", ".join(m["feature_options"])))
         return 0
+    if len(argv) == 5 and argv[1] == "verify":
+        with open(argv[2]) as f:
+            missing = verify(json.load(f), argv[3], argv[4])
+        print("%d missing" % len(missing), *missing[:20], sep="\n")
+        return 1 if missing else 0
     if len(argv) == 6 and argv[1] == "package":
         package(argv[2], argv[3], argv[4], argv[5])
         return 0
