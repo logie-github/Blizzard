@@ -186,9 +186,23 @@ realm_build() {
 	case "$1" in ''|*[!0-9]*) echo "Not a build number: $1" >&2; exit 2 ;; esac
 	known=$(echo "SELECT COUNT(*) FROM build_info WHERE build = $1;" | db_client --batch --skip-column-names auth)
 	if [ "$known" != 1 ]; then
+		# Self-hosting: the build auth key check is off (configure: Network.SkipBuildAuthKeyCheck 1), so the realm can
+		# accept whatever build the client auto-updated to. Rather than refuse a client that is merely newer than the
+		# seed database, add the build to build_info, copied from the newest known build (through a temporary table, so
+		# it does not depend on the table's exact columns). The copied auth seeds are never checked (the check is off).
+		db_client auth >/dev/null 2>&1 <<SQL
+CREATE TEMPORARY TABLE _blizz_bi LIKE build_info;
+INSERT INTO _blizz_bi SELECT * FROM build_info ORDER BY build DESC LIMIT 1;
+UPDATE _blizz_bi SET build = $1;
+INSERT IGNORE INTO build_info SELECT * FROM _blizz_bi;
+DROP TEMPORARY TABLE _blizz_bi;
+SQL
+		known=$(echo "SELECT COUNT(*) FROM build_info WHERE build = $1;" | db_client --batch --skip-column-names auth)
+	fi
+	if [ "$known" != 1 ]; then
 		builds=$(echo "SELECT GROUP_CONCAT(build ORDER BY build) FROM build_info WHERE build >= 70000;" |
 			db_client --batch --skip-column-names auth)
-		echo "This realm doesn't support Forever client build $1 (it supports: $builds). Update the client, or wait for an app update." >&2
+		echo "This realm couldn't be set to Forever client build $1 (it knows: $builds). Reinstall the realm server." >&2
 		exit 3
 	fi
 	echo "UPDATE realmlist SET gamebuild = $1 WHERE id = 70;" | db_client auth
