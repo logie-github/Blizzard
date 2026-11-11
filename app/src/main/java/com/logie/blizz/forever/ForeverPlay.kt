@@ -181,8 +181,8 @@ object ForeverPlay {
                     if (!layout.client.isDirectory) return@withContext "Add the game client first, then the launcher."
                     val picked = app.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
                         ?.use { if (it.moveToFirst()) it.getString(0) else null }
-                    // Keep a launcher name the client start looks for; anything else becomes ForeverLauncher.exe.
-                    val target = File(layout.client, picked?.takeIf { it.endsWith(".exe", true) && it.contains("launcher", true) } ?: "ForeverLauncher.exe")
+                    // Keep a known launcher name the client start looks for; anything else becomes WoWForeverLauncher.exe.
+                    val target = File(layout.client, ForeverLauncher.fileNameFor(picked))
                     app.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
                         ?: return@withContext "That file couldn't be read."
                     null

@@ -64,7 +64,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -359,14 +358,13 @@ private fun PlayCta(game: Game, modifier: Modifier, onClick: () -> Unit) {
     val state = states[shown.id]
     val importable = GameImportManager.importable(shown.id)
     val (label, icon) = when {
-        // World of Warcraft: Forever is on hold (its launcher can't run on the phone yet): no Play.
-        shown.id == "wow_forever" -> "Under construction" to Icons.Default.Build
+        // World of Warcraft: Forever runs its own offline realm on the phone (its own Play flow, not an importer).
+        shown.id == "wow_forever" -> "Play" to Icons.Default.PlayArrow
         !importable -> "Play" to Icons.Default.PlayArrow
         state?.running == true -> "Importing…" to Icons.Default.Download
         state?.entry != null -> "Play" to Icons.Default.PlayArrow
         else -> "Install" to Icons.Default.Download
     }
-    val disabled = shown.id == "wow_forever"
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = 700f), label = "press")
@@ -379,8 +377,7 @@ private fun PlayCta(game: Game, modifier: Modifier, onClick: () -> Unit) {
             .clip(RoundedCornerShape(16.dp))
             .background(Modern.AccentBrush)
             .drawWithContent { drawContent(); drawRect(Color.White.copy(alpha = 0.12f * press)) }
-            .graphicsLayer { if (disabled) alpha = 0.5f }
-            .combinedClickable(interactionSource = interaction, indication = null, enabled = !disabled, onClick = {
+            .combinedClickable(interactionSource = interaction, indication = null, onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick()
             })
             .heightIn(min = 54.dp)
