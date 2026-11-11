@@ -121,9 +121,9 @@ object WrathppAddon {
         return out
     }
 
-    private fun fetchText(url: String): String = connect(url).let { c -> c.inputStream.bufferedReader().use { it.readText() }.also { c.disconnect() } }
+    internal fun fetchText(url: String): String = connect(url).let { c -> c.inputStream.bufferedReader().use { it.readText() }.also { c.disconnect() } }
 
-    private fun download(url: String, dest: File, onProgress: (Long, Long) -> Unit) {
+    internal fun download(url: String, dest: File, onProgress: (Long, Long) -> Unit) {
         val c = connect(url)
         val total = c.contentLengthLong
         var done = 0L
@@ -150,7 +150,7 @@ object WrathppAddon {
         throw IOException("Too many redirects")
     }
 
-    private fun sha256(file: File): String {
+    internal fun sha256(file: File): String {
         val d = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { input -> val b = ByteArray(1 shl 16); while (true) { val n = input.read(b); if (n < 0) break; d.update(b, 0, n) } }
         return d.digest().joinToString("") { "%02x".format(it) }
