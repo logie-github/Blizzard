@@ -3,6 +3,23 @@
 The client half of the mission: what was established about the source-built WarcraftXL client, what
 is implemented for it, and exactly what is missing before an extended category can be seen.
 
+## The 32-bit route (chosen 2026-11-10: the phone's own Wow.exe)
+
+The app already runs the stock 32-bit `Wow.exe` on the phone, so Wrath++ adds WarcraftXL's 32-bit runtime to its own
+copy of it rather than waiting for the 64-bit client:
+
+| Piece | Where | State |
+|---|---|---|
+| WarcraftXL 32-bit runtime, wxl.lua, glue-unlock | `wrathpp-client.yml` job `addon` (MSVC 2022 Win32, core patches 0001-0002) | builds in CI |
+| `wrathpp.native` (`client-mod/wrathpp-native`): `WrathPP_GetCustomization(i)` -> current, count, read from `CCharacterCreation::m_character` and the client's own count functions | same job | builds in CI; addresses from WarcraftXL's tables, **not run** |
+| `wrathpp.appearance` (Lua mod: the protocol) | same zip | mock-tested |
+| The creator's boxes (`client-mod/glue/WrathppCreate.lua`): each row "Face ... 3 / 9" under an Appearance header | `Data/patch-X.MPQ` in `client-wrathpp`, its GlueXML.toc with it last | **not run** |
+| `WowWrathpp.exe`: the game's program patched to load the runtime | app, `WxlPatcher.kt` (the same bytes as `wxl-core-patcher`, unit-tested against it) | unit-tested |
+| Download and install | app, `WrathppAddon.kt` (release `wrathpp-client-addon`, SHA-256 checked); a failure doesn't stop Play | unit-tested |
+
+Next: the models (Forever's or Shadowlands', through mod-allied-races' converters) and their extra categories as more
+boxes; drawing those through a hook on `CCharacterComponent::GeosRenderPrep` (0x004ED900) in the native mod.
+
 ## Status
 
 | | State |

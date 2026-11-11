@@ -86,3 +86,15 @@ that was not checked.
 | `ctl.sh` isolation | `realm/warcraft/wrathpp/tests/test-isolation.sh` | **pass, 61/61** (adds: `configure-realm wrathpp` touches nothing of main's/Remix's; archives may be shared read only, module patches may not). Fixed: the "no program started by another path" check had been passing because its grep pattern began with `-x` (read as an option); a mutation now makes it fail |
 
 Not tested: the `wrathpp-server` package build (CI, `build-wrathpp-server.yml`), anything on a phone.
+
+## 2026-11-11, the 32-bit add-on
+
+| Test | Result |
+|---|---|
+| `WxlPatcherTest`: a synthetic 32-bit image patched by the Kotlin port | **same SHA-256** as WarcraftXL's own `PeImage.cpp` steps (`9b504c7d…`, built natively by `tools/patcher-reference/run.sh`) |
+| `WrathppAddonTest`: the creator's GlueXML.toc (added last, other realms' module files dropped), the zip's paths | pass |
+| App unit tests, all | **pass**: 623 tests, 0 failures, 20 skipped |
+| `wrathpp-client.yml` job `addon` | **builds** (run 42928343249) after three fixes: WarcraftXL's test programs left out (they don't build on MSBuild here), only the targets shipped built, wxl.lua's target name |
+
+Not run: anything in the game (the runtime under Wine/Box64, the native mod's reads, the creator's boxes).
+
