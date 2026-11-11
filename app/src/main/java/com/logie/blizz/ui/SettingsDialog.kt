@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +52,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.logie.blizz.BuildConfig
+import com.logie.blizz.update.PatchNotes
 import com.logie.blizz.Game
 import com.logie.blizz.Games
 import com.logie.blizz.game.GameSettings
@@ -278,14 +283,59 @@ private fun SteamGridKeyCard() {
     )
 }
 
-/** Every version of every game, one row each: its box art, its name and what is set for it. */
+/** The launcher's patch notes first (they show here and nowhere else), then every version of every game, one row each: its box art, its name and what is set for it. */
 @Composable
 private fun GamesPage(onOpen: (Game) -> Unit) {
+    PatchNotesCard()
     Text("Each version has its own box art, loading screen and music.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
     for (base in Games.all) {
         val versions = listOf(base) + base.variants
         SettingCard(if (versions.size > 1) base.title else null) {
             for (version in versions) GameRow(version, label = if (versions.size > 1) (version.variantLabel ?: version.fullTitle) else null) { onOpen(version) }
+        }
+    }
+}
+
+/** What each update brought, one line a change, newest first ([PatchNotes]: kept from the releases the updater reads). */
+@Composable
+private fun PatchNotesCard() {
+    val context = LocalContext.current
+    val kept by PatchNotes.kept.collectAsState()
+    LaunchedEffect(Unit) { if (PatchNotes.kept.value == null) withContext(Dispatchers.IO) { PatchNotes.load(context) } }
+    var all by remember { mutableStateOf(false) }
+    val notes = kept.orEmpty()
+    SettingCard("Patch notes") {
+        if (notes.isEmpty()) {
+            Text(
+                "Each update's notes show here, a line for each change, once the launcher has looked for updates.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+        } else {
+            val shown = if (all) notes else notes.take(3)
+            for (release in shown) PatchNoteRow(release)
+            if (notes.size > shown.size) {
+                Text(
+                    "Earlier updates (${notes.size - shown.size})", style = MaterialTheme.typography.labelLarge, color = Colors.Ice,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).clickable { all = true }.padding(vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PatchNoteRow(release: PatchNotes.Release) {
+    val installed = BuildConfig.VERSION_CODE
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.width(78.dp)) {
+            Text("1.0.${release.versionCode}", style = MaterialTheme.typography.labelLarge, color = if (release.versionCode == installed) Colors.Ice else Colors.Text)
+            when {
+                release.versionCode == installed -> Text("installed", style = MaterialTheme.typography.bodySmall, color = Colors.Ice)
+                release.versionCode > installed -> Text("on its way", style = MaterialTheme.typography.bodySmall, color = Colors.Gold)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (line in release.lines) Text(line, style = MaterialTheme.typography.bodyMedium, color = Colors.Text)
         }
     }
 }
