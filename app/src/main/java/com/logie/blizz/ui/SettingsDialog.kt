@@ -377,7 +377,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     SettingCard("Forever Launcher") {
                         Text(
                             if (hasLauncher) "The Forever Launcher is in place; the client connects through it."
-                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play. For the Tauri/WebView2 launcher the app installs the WebView2 runtime it needs on the first run (~250 MB); a native launcher works too.",
+                            else "The client connects to the realm through the Forever Launcher, which you supply (WoWForeverLauncher.exe). Pick it once and the app runs it at every Play. It is a .NET program, so the app puts the .NET runtime (wine-mono) in place on the first run (~60 MB).",
                             style = MaterialTheme.typography.bodySmall, color = if (hasLauncher) Colors.Ice else Colors.Mist,
                         )
                         FrameButton(if (hasLauncher) "Replace launcher" else "Choose launcher (.exe)", primary = false) {

@@ -1,0 +1,44 @@
+name: Build the .NET runtime (wine-mono)
+
+# The Forever Launcher is a WinForms (.NET) program and Winlator's Wine ships no .NET runtime, so the app puts
+# wine-mono in place by copying its files into the container (com.logie.blizz.forever.WineMono). This builds that
+# tree from the official wine-mono MSI and attaches it to the release "wine-mono" as wine-mono.tar.xz with
+# wine-mono.json (version, size, SHA-256, unpacked size), which the app downloads on the first Forever Play.
+#
+# Manual only (workflow_dispatch): the runtime changes rarely, and the published asset is the one proven on the
+# desktop test rig. Run it to refresh the release (e.g. a new wine-mono version in realm/scripts/package-wine-mono.sh).
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: wine-mono version
+        required: false
+        default: "10.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Wine and tools
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends wine wine64 wine32 xvfb xz-utils curl
+
+      - name: Build the runtime
+        env:
+          WINE_MONO_VERSION: ${{ github.event.inputs.version }}
+        run: realm/scripts/package-wine-mono.sh build/wine-mono
+
+      - name: Publish to the wine-mono release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view wine-mono >/dev/null 2>&1 \
+            || gh release create wine-mono --title "wine-mono" --notes "The .NET runtime for the Forever Launcher (built by build-wine-mono.yml)."
+          gh release upload wine-mono build/wine-mono/wine-mono.tar.xz build/wine-mono/wine-mono.json --clobber

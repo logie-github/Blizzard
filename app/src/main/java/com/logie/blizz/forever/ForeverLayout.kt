@@ -32,16 +32,13 @@ class ForeverLayout(val root: File) {
 
     /** The program to start: the Forever Launcher if the user placed one (it sets the server key), else the client exe. */
     fun clientExe(): File? {
-        val names = listOf(
-            "ForeverLauncher.exe", "Forever Launcher.exe", "forever-launcher.exe",
-            "_forever_/Wow.exe", "_forever_/WowB.exe", "Wow.exe", "WowB.exe", "World of Warcraft Launcher.exe",
-        )
+        launcher()?.let { return it }
+        val names = listOf("_forever_/Wow.exe", "_forever_/WowB.exe", "Wow.exe", "WowB.exe", "World of Warcraft Launcher.exe")
         return names.map { File(client, it) }.firstOrNull { it.isFile }
     }
 
     /** The Forever Launcher the person placed (it sets the realm's game-server key in the client), or null. */
-    fun launcher(): File? = listOf("ForeverLauncher.exe", "Forever Launcher.exe", "forever-launcher.exe")
-        .map { File(client, it) }.firstOrNull { it.isFile }
+    fun launcher(): File? = ForeverLauncher.find(client)
 
     /** Whether a launcher is in place (the client connects through it). */
     fun hasLauncher() = launcher() != null
