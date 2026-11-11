@@ -61,7 +61,6 @@ object WrathppAddon {
     fun install(client: File, zip: ByteArray, sha: String) {
         val files = unzip(zip)
         val dll = files["WarcraftXL.dll"] ?: throw IOException("The add-on has no WarcraftXL.dll")
-        val glue = files.filterKeys { it.startsWith("Interface/GlueXML/") && it.endsWith(".lua") }
         val base = baseExecutable(client) ?: throw IOException("Wrath++'s copy of the game has no Wow.exe")
         // Its mods replace the add-on's earlier ones; nothing else in Mods/ is touched.
         for (name in files.keys.filter { it.startsWith("Mods/") }.map { it.split('/')[1] }.toSet()) File(client, "Mods/$name").deleteRecursively()
@@ -71,7 +70,6 @@ object WrathppAddon {
         }
         File(client, "WarcraftXL.dll").writeBytes(dll)
         WxlPatcher.patchFile(base, File(client, EXE))
-        writeGluePatch(client, glue.mapKeys { it.key.substringAfterLast('/') })
         File(client, MARKER).writeText("$sha\n")
     }
 
@@ -84,7 +82,11 @@ object WrathppAddon {
         return (lines.dropLastWhile { it.isBlank() } + added).joinToString("\r\n", postfix = "\r\n")
     }
 
-    private fun writeGluePatch(client: File, glue: Map<String, ByteArray>) {
+    /**
+     * `Data/patch-X.MPQ` in [client]: the creator's scripts ([glue], by file name) and GlueXML.toc with them added last.
+     * Written by the app at every Wrath++ Play (WrathppSetup), whether the add-on is in or not.
+     */
+    fun writeGluePatch(client: File, glue: Map<String, ByteArray>) {
         val data = File(client, "Data")
         val patch = File(data, PATCH)
         // The game's own archives, without this patch: what the toc is and which files exist.

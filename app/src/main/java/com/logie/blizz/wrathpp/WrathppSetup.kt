@@ -17,9 +17,42 @@ object WrathppSetup {
             report.say("Making Wrath++'s copy of the game (step 4 of 4)", 0f)
             WrathppClient.make(layout.client, layout.wrathppClient, report::say)
         }
-        // The add-on (WarcraftXL's runtime and the creator's boxes): Wrath++ still plays without it, as stock 3.3.5.
-        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }.onFailure { e ->
-            runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "addon.log").apply { parentFile?.mkdirs() }.appendText("${e.message}\n") }
+        // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.
+        val notes = StringBuilder()
+        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
+            .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
+            .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
+        // The creator's Legion-style column, from the app itself: whatever happened to the add-on.
+        report.say("Putting in Wrath++'s character creator", null)
+        runCatching {
+            val glue = context.assets.open(GLUE_ASSET).use { it.readBytes() }
+            WrathppAddon.writeGluePatch(layout.wrathppClient, mapOf("WrathppCreate.lua" to glue))
+        }.onSuccess { notes.append("creator patch: written\n") }.onFailure { e -> notes.append("creator patch FAILED: ${e.message}\n") }
+        val log = java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log")
+        runCatching { log.parentFile?.mkdirs(); log.writeText(notes.toString()) }
+    }
+
+    const val GLUE_ASSET = "wrathpp/WrathppCreate.lua"
+
+    /**
+     * After Wrath++'s game has started: a report of what it was set up with and how WarcraftXL's runtime got on (its log), so
+     * that a start that looked like stock 3.3.5 says why without anyone pasting anything.
+     */
+    fun report(context: Context) {
+        val layout = WowLayout.of(context)
+        val client = layout.wrathppClient
+        val setup = runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log").readText() }.getOrDefault("no setup.log")
+        val wxl = java.io.File(client, "Logs/WarcraftXL.log")
+        val wxlLog = runCatching { wxl.readLines().takeLast(120).joinToString("\n") }.getOrDefault("no Logs/WarcraftXL.log (the runtime didn't start, or wrote elsewhere)")
+        val files = listOf(WrathppAddon.EXE, "WarcraftXL.dll", "Mods/wrathpp.native/bin/x86/wrathpp-native.dll", "Mods/wxl.lua/bin/x86/wxl-lua.dll",
+            "Mods/wxl.glue-unlock/bin/x86/glue-unlock.dll", "Data/${WrathppAddon.PATCH}", "WowPatched.exe", "Wow.exe")
+            .joinToString("\n") { name -> val f = java.io.File(client, name); "$name: ${if (f.exists()) "${f.length()} bytes" else "missing"}" }
+        runCatching {
+            com.logie.blizz.reports.BugReports.report(
+                context, "Wrath++ start", "What Wrath++'s game was started with",
+                details = listOf("Add-on" to (WrathppAddon.installedSha(client) ?: "none")),
+                log = "$setup\n$files\n\n--- WarcraftXL.log ---\n$wxlLog",
+            )
         }
     }
 

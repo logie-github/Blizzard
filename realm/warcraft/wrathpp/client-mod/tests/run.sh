@@ -53,3 +53,4 @@ check(sent[3][1] == struct.pack("<BQ", 1, 0xAA), "  the query: one guid, 0xAA")
 print("decoded as the server does:", "all passed" if not fails else f"{fails} failed")
 sys.exit(1 if fails else 0)
 PY
+luajit "$HERE/test_creator.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppCreate.lua"

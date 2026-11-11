@@ -22,6 +22,7 @@ on:
       - realm/warcraft/wrathpp/patches/client/**
       - realm/warcraft/wrathpp/patches/core/**
       - realm/warcraft/wrathpp/client-mod/**
+      - app/src/main/assets/wrathpp/**
 
 permissions:
   contents: read
@@ -184,7 +185,7 @@ jobs:
           cp blizzard/realm/warcraft/wrathpp/client-mod/wrathpp-native/mod.json "$out/Mods/wrathpp.native/"
           cp "$native" "$out/Mods/wrathpp.native/bin/x86/"
           cp -r blizzard/realm/warcraft/wrathpp/client-mod/wrathpp "$out/Mods/wrathpp.appearance"
-          cp blizzard/realm/warcraft/wrathpp/client-mod/glue/*.lua "$out/Interface/GlueXML/"
+          cp blizzard/app/src/main/assets/wrathpp/WrathppCreate.lua "$out/Interface/GlueXML/"
           ( cd addon && 7z a -tzip -mx=9 ../wrathpp-client-addon.zip wrathpp-client-addon > /dev/null )
           size=$(stat -c %s wrathpp-client-addon.zip)
           sha=$(sha256sum wrathpp-client-addon.zip | cut -d' ' -f1)

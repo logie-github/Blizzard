@@ -97,6 +97,12 @@ object WowPlay {
                     legion = entry.gameId == LEGION_ID,
                     wrathpp = wrathpp,
                     setUpWrathpp = { say -> com.logie.blizz.wrathpp.WrathppSetup.run(app, say) },
+                    afterWrathppLaunch = {
+                        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                            kotlinx.coroutines.delay(90_000)
+                            com.logie.blizz.wrathpp.WrathppSetup.report(app)
+                        }
+                    },
                     launch = { WindowsRuntime.play(app, it, width to height) },
                     report = { _state.value = (it as? State.Preparing)?.copy(gameId = splash) ?: it },
                 )
@@ -135,6 +141,8 @@ object WowPlay {
         val wrathpp: Boolean = false,
         /** Gets Wrath++'s server and its copy of the game ready (off the main thread); [say] reports a step. Throws to fail. */
         val setUpWrathpp: ((say: (String, Float?) -> Unit) -> Unit) = {},
+        /** Once Wrath++'s game has been started (its report, a while later). */
+        val afterWrathppLaunch: () -> Unit = {},
     )
 
     fun clientFolder(root: File) = File(root, "files/client")
@@ -225,12 +233,18 @@ object WowPlay {
         withContext(Dispatchers.IO) { WowClientSetup.apply(own, own, env.size.first, env.size.second, "wrathpp", account) }
         waitForRealm(env, "Wrath++")?.let { return it }
         env.report(State.Preparing("Starting the game"))
-        // Its own program when the add-on is in (WarcraftXL's runtime loaded: the creator's boxes), else the game's.
-        val exe = withContext(Dispatchers.IO) {
-            if (File(own, com.logie.blizz.wrathpp.WrathppAddon.EXE).isFile) com.logie.blizz.wrathpp.WrathppAddon.EXE else WowClientSetup.executable(own, mods)
-        }
+        // Its own program when the add-on is in (WarcraftXL's runtime loaded), else the WoW app's patched copy, which loads
+        // changed interface files (the creator's column), else the game's.
+        val exe = withContext(Dispatchers.IO) { wrathppExecutable(own, mods) }
         env.launch(launchEntry(own, exe, env.title))
+        env.afterWrathppLaunch()
         return null
+    }
+
+    fun wrathppExecutable(client: File, modsPrefsJson: String?): String = when {
+        File(client, com.logie.blizz.wrathpp.WrathppAddon.EXE).isFile -> com.logie.blizz.wrathpp.WrathppAddon.EXE
+        File(client, WowClientSetup.PATCHED_EXE).isFile -> WowClientSetup.PATCHED_EXE
+        else -> WowClientSetup.executable(client, modsPrefsJson)
     }
 
     /** Legion: LegionCore's realm (the client is patched for it as it starts), its 7.3.5 client, the saved e-mail typed at its login. */

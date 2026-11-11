@@ -103,4 +103,39 @@ class WrathppAddonTest {
             try { WrathppAddon.unzip(zip(bad)); throw AssertionError("not refused: $bad") } catch (_: IOException) { }
         }
     }
+    @Test fun theCreatorsPatchIsReadByTheGameLast() {
+        val client = java.nio.file.Files.createTempDirectory("wrathpp").toFile()
+        try {
+            val data = File(client, "Data").apply { mkdirs() }
+            // The game's own archive with its table of contents.
+            val base = com.logie.blizz.wowclient.Mpq.Writer(File(data, "common.MPQ"))
+            base.add("Interface\\GlueXML\\GlueXML.toc", "GlueStrings.lua\r\nCharacterCreate.xml\r\nAlliedRacesCreate.lua\r\n".toByteArray())
+            base.add("Interface\\GlueXML\\GlueStrings.lua", "x".toByteArray())
+            base.add("Interface\\GlueXML\\CharacterCreate.xml", "x".toByteArray())
+            assertTrue(base.finish())
+            WrathppAddon.writeGluePatch(client, mapOf("WrathppCreate.lua" to "-- the column".toByteArray()))
+            val game = com.logie.blizz.wowclient.Mpq.Game(data)
+            try {
+                assertEquals("GlueStrings.lua\r\nCharacterCreate.xml\r\nWrathppCreate.lua\r\n", String(game.read("Interface\\GlueXML\\GlueXML.toc")!!))
+                assertEquals("-- the column", String(game.read("Interface\\GlueXML\\WrathppCreate.lua")!!))
+                assertEquals(File(data, WrathppAddon.PATCH).path, game.owner("Interface\\GlueXML\\GlueXML.toc")!!.path)
+            } finally { game.close() }
+            // Written again (every Play): the same, not the creator twice.
+            WrathppAddon.writeGluePatch(client, mapOf("WrathppCreate.lua" to "-- the column".toByteArray()))
+            val again = com.logie.blizz.wowclient.Mpq.Game(data)
+            try { assertEquals(1, String(again.read("Interface\\GlueXML\\GlueXML.toc")!!).split("WrathppCreate.lua").size - 1) } finally { again.close() }
+        } finally { client.deleteRecursively() }
+    }
+
+    @Test fun wrathppStartsItsOwnProgramElseThePatchedOne() {
+        val client = java.nio.file.Files.createTempDirectory("wrathpp").toFile()
+        try {
+            File(client, "Wow.exe").writeText("MZ")
+            assertEquals("Wow.exe", com.logie.blizz.game.WowPlay.wrathppExecutable(client, null))
+            File(client, "WowPatched.exe").writeText("MZ")
+            assertEquals("WowPatched.exe", com.logie.blizz.game.WowPlay.wrathppExecutable(client, null))
+            File(client, WrathppAddon.EXE).writeText("MZ")
+            assertEquals(WrathppAddon.EXE, com.logie.blizz.game.WowPlay.wrathppExecutable(client, null))
+        } finally { client.deleteRecursively() }
+    }
 }
