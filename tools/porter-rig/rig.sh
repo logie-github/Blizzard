@@ -72,6 +72,13 @@ ctl() {
 		RIG_MARIADB="$MARIA/bin/mariadb" sh "$FILES/server/ctl.rig.sh" "$@"
 }
 
+# The same in place of the calling (sub)shell, for a server started in the background: ctl.sh execs the server, the
+# loader wrapper execs qemu, so the pid the rig records ($!) is the server's own and ending it ends the server.
+ctl_exec() {
+	exec env FILES="$FILES" DB_PORT="$DB_PORT" TZ=UTC BLIZZ_LDSO="$RIG/bin/qemu-ld" BLIZZ_MARIA="$RIG/bin/maria" \
+		RIG_MARIADB="$MARIA/bin/mariadb" sh "$FILES/server/ctl.rig.sh" "$@"
+}
+
 fetch() {
 	mkdir -p "$RIG/dl" "$FILES"
 	if [ ! -x "$FILES/server/bin/worldserver" ]; then
@@ -91,13 +98,14 @@ fetch() {
 	. "$REPO/realm/warcraft/server-data.env"
 	python3 -I "$HERE/fetch-data.py" "$SERVER_DATA_URL" "$FILES/data" dbc Cameras maps
 	if [ ! -x "$MARIA/bin/mariadbd" ]; then
-		say "downloading MariaDB (the server and client programs only are kept)"
+		say "downloading MariaDB (only its server and client programs are kept)"
+		curl -sS -L --fail --retry 3 -o "$RIG/dl/mariadb.tar.gz" "$MARIADB_URL"
+		echo "$MARIADB_SHA256  $RIG/dl/mariadb.tar.gz" | sha256sum -c - > /dev/null || die "MariaDB's checksum is wrong"
 		rm -rf "$MARIA.new"
 		mkdir -p "$MARIA.new"
-		curl -sS -L --fail --retry 3 "$MARIADB_URL" | tee >(sha256sum | cut -d' ' -f1 > "$RIG/dl/mariadb.sha256") |
-			tar -C "$MARIA.new" -xz --strip-components=1 --wildcards '*/bin/mariadbd' '*/bin/mariadb' '*/bin/mariadb-admin' \
-				'*/lib/plugin/dialog.so' '*/lib/plugin/mysql_clear_password.so'
-		[ "$(cat "$RIG/dl/mariadb.sha256")" = "$MARIADB_SHA256" ] || die "MariaDB's checksum is wrong"
+		tar -C "$MARIA.new" -xzf "$RIG/dl/mariadb.tar.gz" --strip-components=1 --wildcards '*/bin/mariadbd' '*/bin/mariadb' '*/bin/mariadb-admin' \
+			'*/lib/plugin/dialog.so' '*/lib/plugin/mysql_clear_password.so'
+		rm -f "$RIG/dl/mariadb.tar.gz"
 		strip "$MARIA.new"/bin/* 2> /dev/null || true
 		mv "$MARIA.new" "$MARIA"
 	fi
@@ -142,6 +150,10 @@ prepare() {
 		setkey "$realm_etc/modules/playerbots.conf" Playerbots.MaxRandomBots 0
 		setkey "$realm_etc/modules/playerbots.conf" Playerbots.DisabledWithoutRealPlayer 1
 	done
+	# The character loader's warnings and its login line in the logs (the realm's own setting shows errors alone):
+	# what prove.sh reads to see that the world server had nothing to say about a ported character.
+	setkey "$FILES/etc/worldserver.conf" Logger.entities.player "4,Console Server"
+	setkey "$FILES/etc/worldserver.conf" Logger.entities.player.loading "3,Console Server"
 	if [ ! -f "$FILES/etc/.defaults" ]; then
 		setkey "$FILES/etc/modules/progression_system.conf" ProgressionSystem.Bracket_0 1
 		setkey "$FILES/etc/modules/progression_system.conf" ProgressionSystem.Bracket_1_19 1
@@ -219,7 +231,7 @@ account() {
 auth_start() {
 	if running authserver; then say "the login server is running"; return 0; fi
 	port_open 3724 && die "port 3724 is taken by another program"
-	ctl auth > "$FILES/logs/auth.out" 2>&1 &
+	(ctl_exec auth) > "$FILES/logs/auth.out" 2>&1 &
 	echo $! > "$PIDS/authserver.pid"
 	wait_for 120 "the login server didn't open port 3724: $(tail -5 "$FILES/logs/auth.out")" port_open 3724
 	say "the login server is up"
@@ -237,7 +249,7 @@ world_start() {
 	tail -f /dev/null > "$FILES/run/world.in" &
 	echo $! > "$PIDS/world-console.pid"
 	: > "$logs/world.out"
-	ctl world "$realm" < "$FILES/run/world.in" > "$logs/world.out" 2>&1 &
+	(ctl_exec world "$realm") < "$FILES/run/world.in" > "$logs/world.out" 2>&1 &
 	echo $! > "$PIDS/worldserver.pid"
 	echo "$logs/world.out" > "$PIDS/worldserver.log"
 	local start

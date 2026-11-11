@@ -80,6 +80,17 @@ class PorterTest {
         )
     }
 
+    /** A human man's looks: five skins, faces 0 to 2 on the last skin, hair styles 0 to 8 in colours 0 to 9, a death knight's skin. */
+    private fun looks(): DbcTable {
+        var id = 0
+        val rows = ArrayList<Map<Int, Any>>()
+        for (skin in 0..4) rows.add(PortTestData.section(++id, 1, 0, 0, 0, skin))
+        rows.add(PortTestData.section(++id, 1, 0, 0, 0, 9, flags = 0x5))
+        for (face in 0..2) rows.add(PortTestData.section(++id, 1, 0, 1, face, 4))
+        for (style in 0..8) for (color in 0..9) rows.add(PortTestData.section(++id, 1, 0, 3, style, color))
+        return PortTestData.table("CharSections", *rows.toTypedArray())
+    }
+
     private fun porter(db: RealmDb, realm: Realm = Realm.CHROMIE): Porter {
         val root = temp.root
         File(root, "etc/modules").mkdirs()
@@ -91,7 +102,8 @@ class PorterTest {
                 PortTestData.faction(76, "Orgrimmar", 14, raceMasks = listOf(160, 1101, 2, 528), bases = listOf(3100, -42000, 4000, 500), flags = listOf(273, 6, 17, 17)),
                 PortTestData.faction(1106, "Argent Crusade", 94, raceMasks = listOf(32767, 0, 0, 0), flags = listOf(16, 0, 0, 0)),
             ),
-            extraTables = clientTables(),
+            extraTables = clientTables() + mapOf("CharSections" to looks()),
+            facialHair = (0..5).map { intArrayOf(1, 0, it) },
         )
         return Porter(db, RealmFiles(root, PortRealm.of(realm)!!), now = { 1_800_000_000L }, data = data)
     }
@@ -112,7 +124,7 @@ class PorterTest {
         completedQuests = listOf(PortQuest(783, "A Threat Within"), PortQuest(86574, "The Weight of the World"), PortQuest(86575), PortQuest(788)),
         achievements = listOf(PortAchievement(6, 1_700_000_000L), PortAchievement(457), PortAchievement(614), PortAchievement(619), PortAchievement(40953)),
         titleIds = listOf(131, 448), activeTitleId = 131,
-        appearance = PortAppearance(4, 7, 9, 3, 4),
+        appearance = PortAppearance(9, 7, 9, 3, 4),
     )
 
     private val options = PortOptions(Realm.CHROMIE, "porter", "brannoc", race = 1, classId = 1, gender = 0, level = 80, money = 5_000_000_000L, gearTier = GearTier.FRESH)
@@ -126,6 +138,8 @@ class PorterTest {
         assertEquals(Porter.MAX_MONEY, plan.money)
         assertEquals(501, plan.estimatedGuid)
         assertEquals(Porter.AT_LOGIN_FIRST, plan.atLogin)
+        // Skin 9 is a death knight's, face 7 and hair style 9 beyond the race's: each the highest it has below.
+        assertEquals(PortAppearance(skin = 4, face = 2, hairStyle = 8, hairColor = 3, facialHair = 4), plan.appearance)
         assertEquals(PlannedPosition("Stormwind", 0, 1519, -8833.38f, 628.628f, 94.0066f, 1.06535f), plan.position)
 
         val bySlot = plan.items.associate { it.slot to it.entry }

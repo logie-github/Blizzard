@@ -134,9 +134,12 @@ class Porter(
             if (options.level == null) "retail ${character.level} of ${PortLevels.RETAIL_CAP} is $level of this realm's ${cap.effective}" +
                 (if (cap.progression != null && cap.progression < cap.max) " (ChromieCraft's progression cap; the realm allows ${cap.max})" else "")
             else "$level, as chosen (retail ${character.level})")
-        if (character.raceId != race || character.classId != classId) {
+        val ownRace = PortTargets.raceCandidates(character.raceId).firstOrNull() == race
+        if (!ownRace || character.classId != classId) {
             decide(PortArea.CHARACTER, "race and class", PortOutcome.MAPPED,
                 "${PortTargets.retailRaceName(character.raceId)} ${PortTargets.retailClassName(character.classId)} is a ${data.raceName(race)} ${data.className(classId)} here")
+        } else if (character.raceId != race) {
+            decide(PortArea.CHARACTER, "race", PortOutcome.KEPT, "${PortTargets.retailRaceName(character.raceId)}: this realm's race $race")
         }
         if (character.name != name) decide(PortArea.CHARACTER, "name", PortOutcome.MAPPED, "${character.name} is $name here")
 

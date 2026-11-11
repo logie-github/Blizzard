@@ -1,5 +1,6 @@
 package com.logie.blizz.porter.port
 
+import com.logie.blizz.wow.WowCtl
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -137,6 +138,14 @@ class ProcessRealmDb(
             if (index in results.indices) results[index].add(row.drop(1))
         }
         return results
+    }
+
+    companion object {
+        /**
+         * The realm's own `ctl.sh sql`, as the app runs it: [sql] is `WowCtl.command(layout, loader, timeZone, "sql")`
+         * (the shell, `ctl.blizz.sh`, its environment and folder); each call adds the database's name.
+         */
+        fun of(sql: WowCtl.Command): ProcessRealmDb = ProcessRealmDb(sql.argv, sql.env, sql.directory)
     }
 
     private fun run(database: String, sql: String): List<List<String?>> {

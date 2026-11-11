@@ -432,7 +432,7 @@ class GearPlanner(
         val how = if (retail == null) GearHow.ADDED else GearHow.REPLACEMENT
         val why = buildString {
             if (notes.isNotEmpty()) append(notes.joinToString("; ")).append("; ")
-            append(if (retail == null) "the class's ${PortSlots.name(slot).lowercase()} slot" else "the best for a ${role.name.lowercase()} of its level")
+            append(if (retail == null) "the class's ${PortSlots.name(slot).lowercase()} slot" else "the best for ${ROLE_WORDS.getValue(role)} of its level")
             append(" (item level ${best.itemLevel}")
             if (ofKind.isNotEmpty()) append(", the same kind of weapon")
             append(")")
@@ -618,6 +618,8 @@ class GearPlanner(
         /** Names the game's data uses for items no player gets: tests, placeholders, deprecated and NPC-only ones. */
         fun isUnreal(name: String): Boolean = UNREAL.any { it.containsMatchIn(name) }
         private fun norm(s: String) = s.lowercase().filter { it.isLetterOrDigit() }
+
+        private val ROLE_WORDS = mapOf(PortRole.TANK to "a tank", PortRole.HEALER to "a healer", PortRole.DAMAGE to "a damage dealer")
 
         const val SKILL_DUAL_WIELD = 118
         const val SKILL_SHIELD = 433
