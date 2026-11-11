@@ -178,3 +178,23 @@ def extractWarsmashNatives = tasks.register('extractWarsmashNatives', Sync) {
 }
 android.sourceSets.main.jniLibs.srcDir warsmashJni.get().asFile
 tasks.named('preBuild').configure { dependsOn extractWarsmashNatives }
+
+// The character porter's 3D preview (porter/engine, C++ and OpenGL ES 3): built with the NDK's own compiler into generated
+// output and packaged as libporter.so. (The module's CMake build is Winlator's; this small library stays out of it.)
+def porterJni = layout.buildDirectory.dir('generated/porterJni')
+def buildPorterNative = tasks.register('buildPorterNative', Exec) {
+    def engine = rootProject.file('porter/engine')
+    def sources = fileTree(engine) { include '*.cpp' }
+    inputs.files(fileTree(engine) { include '*.cpp', '*.h' })
+    def out = porterJni.get().file('arm64-v8a/libporter.so').asFile
+    outputs.file(out)
+    def host = System.getProperty('os.name').toLowerCase().contains('mac') ? 'darwin-x86_64' : 'linux-x86_64'
+    def ndk = new File(androidComponents.sdkComponents.sdkDirectory.get().asFile, "ndk/${android.ndkVersion}")
+    def clang = new File(ndk, "toolchains/llvm/prebuilt/$host/bin/aarch64-linux-android26-clang++")
+    doFirst { out.parentFile.mkdirs() }
+    commandLine([clang.path, '-shared', '-fPIC', '-O2', '-std=c++17', '-fvisibility=hidden', '-static-libstdc++',
+                 '-Wl,-z,max-page-size=16384', '-Wl,--gc-sections', '-ffunction-sections', '-fdata-sections',
+                 "-I${engine.path}"] + sources.files.collect { it.path }.sort() + ['-lGLESv3', '-lEGL', '-llog', '-o', out.path])
+}
+android.sourceSets.main.jniLibs.srcDir porterJni.get().asFile
+tasks.named('preBuild').configure { dependsOn buildPorterNative }

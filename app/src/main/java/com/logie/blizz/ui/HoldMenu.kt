@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
@@ -42,6 +43,8 @@ import com.logie.blizz.Game
 /** What a version's hold menu opens (Launcher hosts the screens): its launch options, its add-ons, the modules of its realm. */
 internal val LocalOpenOptions = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenAddons = staticCompositionLocalOf<(Game) -> Unit> { {} }
+/** Opens the Character Porter (World of Warcraft's boxes). */
+internal val LocalOpenPorter = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalOpenModules = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalOpenMusic = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenControls = staticCompositionLocalOf<(Game) -> Unit> { {} }
@@ -75,6 +78,8 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             if (!isWow && effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Mouse, "Controls") { onDismiss(); openControls(game) }
             if (hasAddons(effective.id)) HoldItem(Icons.Default.Extension, "Add-ons") { onDismiss(); openAddons(game) }
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
+            val openPorter = LocalOpenPorter.current
+            if (isWow && effective.id != "wow_forever") HoldItem(Icons.Default.PersonSearch, "Character Porter") { onDismiss(); openPorter() }
             HoldItem(Icons.Default.Image, "Art") { onDismiss(); openSplash(game) }
             val openMusic = LocalOpenMusic.current
             HoldItem(Icons.Default.MusicNote, "Music") { onDismiss(); openMusic(game) }

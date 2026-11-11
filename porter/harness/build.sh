@@ -10,5 +10,5 @@ include="$ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include"
 mkdir -p "$out/include"
 cp -r "$include/EGL" "$include/GLES2" "$include/GLES3" "$include/KHR" "$out/include/"
 g++ -std=c++17 -O2 -Wall -Wno-unused-parameter -DEGL_NO_X11 -DMESA_EGL_NO_X11_HEADERS -I"$out/include" -I"$here/../engine" \
-    "$here/harness.cpp" "$here"/../engine/*.cpp -l:libEGL.so.1 -l:libGLESv2.so.2 -o "$out/harness"
+    "$here/harness.cpp" "$here"/../engine/bytes.cpp "$here"/../engine/blp.cpp "$here"/../engine/m2.cpp "$here"/../engine/viewer.cpp -l:libEGL.so.1 -l:libGLESv2.so.2 -o "$out/harness"
 echo "$out/harness"

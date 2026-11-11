@@ -321,6 +321,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     var optionsOpen by remember { mutableStateOf(false) }
     var controlsOpen by remember { mutableStateOf(false) }
     var addonsOpen by remember { mutableStateOf(false) }
+    var porterOpen by remember { mutableStateOf(false) }
     var modulesOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val pickArt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -424,6 +425,12 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         FrameButton("Search add-ons", primary = false, modifier = Modifier.fillMaxWidth()) { addonsOpen = true }
                     }
                 }
+                if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
+                    SettingCard("Character Porter") {
+                        Text("Find any character on Blizzard's Armory and see them in 3D as they are dressed now; then bring them into your realm.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+                        FrameButton("Open the Character Porter", primary = false, modifier = Modifier.fillMaxWidth()) { porterOpen = true }
+                    }
+                }
                 if (game.id == "wow") {
                     SettingCard("Modules") {
                         Text(com.logie.blizz.wowmodules.modulesSummary(context), style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
@@ -465,5 +472,6 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     if (optionsOpen) GameOptionsDialog(game, onDismiss = { optionsOpen = false })
     if (controlsOpen) ControlsScreen(game, onDismiss = { controlsOpen = false })
     if (addonsOpen) WowAddonManager(game.id, onDismiss = { addonsOpen = false })
+    if (porterOpen) CharacterPorter(onDismiss = { porterOpen = false })
     if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
 }
