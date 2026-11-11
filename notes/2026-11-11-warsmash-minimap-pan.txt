@@ -1,0 +1,1 @@
+Warcraft III: the minimap pans the map more slowly, the battlefield following your finger, and a finger on it never counts as a tap or double tap, so one hand can pan while the other plays.
