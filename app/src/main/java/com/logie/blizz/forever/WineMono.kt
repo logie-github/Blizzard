@@ -97,7 +97,7 @@ object WineMono {
     fun monoEntryRel(name: String): String? {
         val clean = name.removePrefix("./")
         if (clean != "mono" && !clean.startsWith("mono/")) return null
-        val rel = clean.removePrefix("mono/").removePrefix("mono").removePrefix("/")
+        val rel = if (clean == "mono") "" else clean.removePrefix("mono/")
         if (rel.isEmpty() || rel.startsWith("/") || rel.split('/').any { it == ".." }) return null
         return rel
     }
