@@ -58,7 +58,7 @@ object Updater {
         scope.launch {
             runCatching { clearInstalledUpdate(app) }
             // Offline or GitHub unreachable: carry on, and look again next time.
-            val update = runCatching { findUpdate() }.getOrNull() ?: return@launch
+            val update = runCatching { findUpdate(app) }.getOrNull() ?: return@launch
             try {
                 _state.value = State.Downloading(update, 0, update.size)
                 val apk = download(app, update) { done, total -> _state.value = State.Downloading(update, done, total) }
@@ -99,11 +99,16 @@ object Updater {
         if (_state.value is State.Failed) _state.value = State.Idle
     }
 
-    /** The newest release if it's newer than this build, otherwise null. */
-    fun findUpdate(): Update? {
-        val body = connect("https://$API_HOST/repos/${BuildConfig.UPDATE_REPO}/releases?per_page=50", "application/vnd.github+json").let { c ->
+    /** This app's releases on GitHub (the latest fifty), as the API lists them. */
+    fun releasesJson(): String =
+        connect("https://$API_HOST/repos/${BuildConfig.UPDATE_REPO}/releases?per_page=50", "application/vnd.github+json").let { c ->
             try { c.inputStream.bufferedReader().use { it.readText() } } finally { c.disconnect() }
         }
+
+    /** The newest release if it's newer than this build, otherwise null. With [context], the releases' patch notes are kept ([PatchNotes]). */
+    fun findUpdate(context: Context? = null): Update? {
+        val body = releasesJson()
+        context?.let { runCatching { PatchNotes.keep(it, body) } }
         val update = UpdatePicker.pick(parse(body), BuildConfig.RELEASE_TAG_PREFIX, BuildConfig.VERSION_CODE) ?: return null
         return Update(update.versionCode, update.title, update.apk.name, update.apk.url, update.apk.size)
     }

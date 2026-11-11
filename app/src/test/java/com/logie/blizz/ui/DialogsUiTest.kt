@@ -58,6 +58,27 @@ class DialogsUiTest {
         UiShots.saveAll("settings-games", rule)
     }
 
+    @Test fun settingsGamesPageHasThePatchNotes() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        com.logie.blizz.update.PatchNotes.forget(context)
+        com.logie.blizz.update.PatchNotes.keep(
+            context,
+            """[{"tag_name":"blizzard-build-3","name":"Blizzard 1.0.3","body":"- Character Porter: bring a character from the Armory into ChromieCraft.\n- Patch notes: each update's one-line notes now show in Settings (the gear button), on the Games page.\n\nInstall Blizzard.apk."},
+               {"tag_name":"blizzard-build-2","name":"Blizzard 1.0.2","body":"- Warcraft III: clicks land where you tap."},
+               {"tag_name":"blizzard-build-1","name":"Blizzard 1.0.1","body":"- Diablo II starts at 800 by 600."},
+               {"tag_name":"blizzard-build-0","name":"Blizzard 1.0.0","body":"- The first release."}]""",
+        )
+        rule.setContent { BlizzTheme { SettingsDialog(onDismiss = {}) } }
+        settle()
+        rule.onNodeWithText("Games", ignoreCase = true).performClick()
+        settle(500)
+        rule.onNodeWithText("Warcraft III: clicks land where you tap.").assertExists()
+        rule.onNodeWithText("installed").assertExists()
+        rule.onNodeWithText("Earlier updates (1)").assertExists()
+        rule.onNodeWithText("The first release.").assertDoesNotExist()
+        UiShots.saveAll("settings-games-patch-notes", rule)
+    }
+
     @Test fun settingsForOneVersion() {
         rule.setContent { BlizzTheme { GameSettingsDialog(Games.find("wow_legion")!!, onDismiss = {}) } }
         settle()
