@@ -208,7 +208,7 @@ def compose(files, dbc, race, sex, skin, face, hair):
                 return r
         return None
     body = None
-    row = pick(0, skin, 0)
+    row = pick(0, 0, skin)
     if row:
         body = read_blp(files, row[4])
     if body is None:
@@ -217,7 +217,7 @@ def compose(files, dbc, race, sex, skin, face, hair):
     if body.shape[0] != 512:
         body = np.asarray(Image.fromarray(body).resize((512, 512)))
     body = np.array(body)
-    row = pick(4, skin, 0)
+    row = pick(4, 0, skin)
     if row:
         pelvis, torso = read_blp(files, row[4]), read_blp(files, row[5])
         if pelvis is not None:

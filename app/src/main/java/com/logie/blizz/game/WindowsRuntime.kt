@@ -160,31 +160,20 @@ object WindowsRuntime {
             withContext(Dispatchers.IO) {
                 val layout = com.logie.blizz.forever.ForeverLayout.of(context)
                 if (layout.caFile.isFile) LegionClientSetup.installCertificateBundle(layout.caFile, driveC)
-                // The Forever Launcher is a Tauri/WebView2 app. Put Microsoft's fixed-version WebView2 runtime in place
-                // (the loose files, no installer — Microsoft's installer fails under Wine) and point the launcher at it
-                // through the client's Wine HKCU\Environment. Only when a launcher is set: the bare client needs none.
+                // The Forever Launcher is a WinForms (.NET) program, and Winlator's Wine ships no .NET runtime, so a
+                // .NET program finds none and does not start. Put wine-mono in place (files only — Wine 10.10 finds it
+                // at C:\windows\mono by path, no installer and no first-run race), then seed the launcher's config so
+                // it opens straight on "This PC (own server)". Only when a launcher is set: the bare client needs neither.
                 if (layout.hasLauncher()) runCatching {
-                    if (!com.logie.blizz.forever.WebView2.installed(driveC)) {
+                    if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
                         _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
-                        com.logie.blizz.forever.WebView2.provision(driveC) { done, total ->
+                        com.logie.blizz.forever.WineMono.ensure(driveC) { done, total ->
                             _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
                         }
                     }
-                    // Point the launcher at the runtime (HKCU\Environment), and force the Chromium arguments through the
-                    // WebView2 registry policy — a Tauri app sets its own arguments, which makes the environment variable
-                    // for them be ignored, so the policy (appended regardless) is how they take effect.
-                    com.winlator.core.WineRegistryEditor(File(container.rootDir, ".wine/user.reg")).use { reg ->
-                        for ((name, value) in com.logie.blizz.forever.WebView2.ENV) reg.setStringValue("Environment", name, value)
-                        reg.setStringValue(com.logie.blizz.forever.WebView2.POLICY_KEY, com.logie.blizz.forever.WebView2.POLICY_NAME, com.logie.blizz.forever.WebView2.BROWSER_ARGS)
-                    }
-                    com.winlator.core.WineRegistryEditor(File(container.rootDir, ".wine/system.reg")).use { reg ->
-                        reg.setStringValue(com.logie.blizz.forever.WebView2.POLICY_KEY, com.logie.blizz.forever.WebView2.POLICY_NAME, com.logie.blizz.forever.WebView2.BROWSER_ARGS)
-                    }
-                    GameLog.webViewLog = com.logie.blizz.forever.WebView2.logFile(driveC)
+                    com.logie.blizz.forever.ForeverLauncher.seedConfig(driveC)
                 }
             }
-        } else {
-            GameLog.webViewLog = null
         }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
@@ -264,6 +253,21 @@ object WindowsRuntime {
     }
 
     /** The games' Windows: made the first time, its screen, drives and launch options set every time. */
+    /**
+     * Clears World of Warcraft: Forever's own setup from the shared container so the next Play rebuilds it from
+     * the current version: the .NET runtime ([com.logie.blizz.forever.WineMono]), the launcher's seeded config
+     * ([com.logie.blizz.forever.ForeverLauncher]), and `C:\webview2` (an earlier version's browser runtime, now
+     * unused). The container is shared by every game, so only these Forever-specific paths are touched. Off the
+     * main thread; harmless when the container isn't made yet.
+     */
+    fun clearForeverRuntime(context: Context) {
+        val container = ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME } ?: return
+        val driveC = File(container.rootDir, ".wine/drive_c")
+        com.logie.blizz.forever.WineMono.remove(driveC)
+        com.logie.blizz.forever.ForeverLauncher.clearConfig(driveC)
+        File(driveC, "webview2").deleteRecursively()
+    }
+
     private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved): Container {
         // (disk: the manager reads every container's file, the drives make their folders)
         val manager = withContext(Dispatchers.IO) { ContainerManager(context) }

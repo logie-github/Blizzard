@@ -92,10 +92,14 @@ def decimate(positions, triangles, target, locked=()):
         return any(edge_count.get(e, 0) == 1 for i in faces_of.get(v, ()) for e in edges(tris[i]) if v in e)
 
     version = {}
+    ZERO = np.zeros((4, 4))
 
     def cost(a, b):
         p = np.append(pos[b], 1.0)
-        return float(p @ (Q.get(a, 0) + Q.get(b, 0)) @ p)
+        # (a vertex of degenerate triangles alone has no quadric: nothing says what collapsing it costs, so it goes last)
+        if a not in Q or b not in Q:
+            return 1e30
+        return float(p @ (Q[a] + Q[b]) @ p)
 
     def allowed(a, b):
         if a in locked or a not in faces_of or b not in faces_of:
@@ -148,7 +152,8 @@ def decimate(positions, triangles, target, locked=()):
                 edge_count[e] = edge_count.get(e, 0) + 1
             faces_of.setdefault(b, set()).add(i)
         faces_of.pop(a, None)
-        Q[b] = Q.get(a, 0) + Q.get(b, 0)
+        if a in Q or b in Q:
+            Q[b] = Q.get(a, ZERO) + Q.get(b, ZERO)
         version[a] = version.get(a, 0) + 1
         version[b] = version.get(b, 0) + 1
         around = set()

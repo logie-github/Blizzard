@@ -179,10 +179,9 @@ fun Launcher() {
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
-        // World of Warcraft: Forever runs its own offline realm on the phone (its own server package and client),
-        // World of Warcraft: Forever is on hold (its launcher can't run on the phone yet): the tile shows "Under
-        // construction" instead of Play and does nothing.
-        if (game.id == "wow_forever") return
+        // World of Warcraft: Forever runs its own offline realm on the phone (its own server package and client,
+        // and the Forever Launcher the person supplies): its own Play flow ([ForeverPlay]), not an importer.
+        if (game.id == "wow_forever") { com.logie.blizz.forever.ForeverPlay.play(context); return }
         // Wrath++ (experimental): made from the Wrath+ import, so it plays from that entry ([com.logie.blizz.game.WowPlay] with wrathpp).
         if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) {
             val wrath = GameImportManager.library(context).get("wow")
@@ -426,10 +425,9 @@ private fun RuntimeOverlay() {
                     "The realm and the game are ready: the game starts and logs in to the realm on this phone.\n\n" +
                         "It can't enter the realm yet. The game checks the world server's identity against Blizzard's own key, " +
                         "and disconnects from any other server (\"You have been disconnected\", BLZ51901023). The Forever Launcher " +
-                        "(ForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
-                        "make or download it: pick the file once and it is run at every Play. For the current Tauri/WebView2 " +
-                        "launcher the app installs the WebView2 runtime it needs on the first run (a ~250 MB download); a native " +
-                        "launcher works too.",
+                        "(WoWForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
+                        "make or download it: pick the file once and it is run at every Play. It is a .NET program, so the app " +
+                        "puts the .NET runtime (wine-mono) in place on the first run (a ~60 MB download).",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {

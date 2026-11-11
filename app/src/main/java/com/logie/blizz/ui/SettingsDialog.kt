@@ -378,7 +378,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     SettingCard("Forever Launcher") {
                         Text(
                             if (hasLauncher) "The Forever Launcher is in place; the client connects through it."
-                            else "The client connects to the realm through the Forever Launcher, which you supply (a .exe). Pick it once and the app runs it at every Play. For the Tauri/WebView2 launcher the app installs the WebView2 runtime it needs on the first run (~250 MB); a native launcher works too.",
+                            else "The client connects to the realm through the Forever Launcher, which you supply (WoWForeverLauncher.exe). Pick it once and the app runs it at every Play. It is a .NET program, so the app puts the .NET runtime (wine-mono) in place on the first run (~60 MB).",
                             style = MaterialTheme.typography.bodySmall, color = if (hasLauncher) Colors.Ice else Colors.Mist,
                         )
                         FrameButton(if (hasLauncher) "Replace launcher" else "Choose launcher (.exe)", primary = false) {
@@ -387,15 +387,39 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     }
                     // Start over: the realm alone, or the realm and the downloaded client. Each asks first.
                     var confirmReset by remember { mutableStateOf<Boolean?>(null) }
-                    SettingCard("Reset") {
+                    var confirmRepair by remember { mutableStateOf(false) }
+                    SettingCard("Reset and repair") {
                         Text(
-                            "Reset realm deletes the realm server, its database (your characters) and its map data; the next Play downloads " +
+                            "Repair installation keeps your characters, the realm and the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client, but rebuilds everything " +
+                                "the app set up around them on the next Play (the .NET runtime, the launcher's settings, an old browser runtime, and the " +
+                                "launcher file itself — you pick it again). Use it if a Play seems to use old files.\n\n" +
+                                "Reset realm deletes the realm server, its database (your characters) and its map data; the next Play downloads " +
                                 "the server again (263 MB). Reset everything also deletes the game client (${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB, downloaded again on Play).",
                             style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
                         )
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FrameButton("Repair installation", primary = false) { confirmRepair = true }
                             FrameButton("Reset realm", primary = false) { confirmReset = false }
                             FrameButton("Reset everything", primary = false) { confirmReset = true }
+                        }
+                    }
+                    if (confirmRepair) {
+                        Dialog(onDismissRequest = { confirmRepair = false }) {
+                            Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                Text("Repair installation?", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Keeps your characters, the realm and the game client. Rebuilds the .NET runtime, the launcher's settings and an " +
+                                        "old browser runtime on the next Play, and removes the launcher file so you pick it again. The client's files are re-checked.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    FrameButton("Cancel", primary = false) { confirmRepair = false }
+                                    FrameButton("Repair") {
+                                        com.logie.blizz.forever.ForeverPlay.repair(context)
+                                        confirmRepair = false
+                                    }
+                                }
+                            }
                         }
                     }
                     confirmReset?.let { everything ->

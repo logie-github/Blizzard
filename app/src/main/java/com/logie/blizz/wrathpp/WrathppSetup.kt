@@ -22,6 +22,10 @@ object WrathppSetup {
         runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
             .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
+        // Shadowlands' looks for the ten races (WrathppLooks): without them, the game's own.
+        runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
+            .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
+            .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
         // The creator's Legion-style column, from the app itself: whatever happened to the add-on.
         report.say("Putting in Wrath++'s character creator", null)
         runCatching {
@@ -47,11 +51,15 @@ object WrathppSetup {
         val files = listOf(WrathppAddon.EXE, "WarcraftXL.dll", "Mods/wrathpp.native/bin/x86/wrathpp-native.dll", "Mods/wxl.lua/bin/x86/wxl-lua.dll",
             "Mods/wxl.glue-unlock/bin/x86/glue-unlock.dll", "Data/${WrathppAddon.PATCH}", "WowPatched.exe", "Wow.exe")
             .joinToString("\n") { name -> val f = java.io.File(client, name); "$name: ${if (f.exists()) "${f.length()} bytes" else "missing"}" }
+        // The game's archives in the order it reads them, folders (patch-M, patch-Z: the looks) marked.
+        val archives = java.io.File(client, "Data").listFiles()?.filter { it.name.endsWith(".mpq", ignoreCase = true) }?.sortedBy { it.name.lowercase() }
+            ?.joinToString("\n") { "Data/${it.name}: ${if (it.isDirectory) "folder" else "${it.length()} bytes"}" } ?: "no Data"
         runCatching {
             com.logie.blizz.reports.BugReports.report(
                 context, "Wrath++ start", "What Wrath++'s game was started with",
-                details = listOf("Add-on" to (WrathppAddon.installedSha(client) ?: "none")),
-                log = "$setup\n$files\n\n--- WarcraftXL.log ---\n$wxlLog",
+                details = listOf("Add-on" to (WrathppAddon.installedSha(client) ?: "none"),
+                    "Looks" to (WrathppLooks.installedSha(client, layout.wrathppServer) ?: "none")),
+                log = "$setup\n$files\n$archives\n\n--- WarcraftXL.log ---\n$wxlLog",
             )
         }
     }

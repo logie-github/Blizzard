@@ -17,7 +17,7 @@ under the app's files folder (`$FILES`, `ctl.sh`'s variable).
 | Path | What |
 |---|---|
 | `server-wrathpp/` | its server build, installed by the app from the `wrathpp-server` release (`WrathppServerPackage`) |
-| `client-wrathpp/` | its private copy of the game, made by the app from Wrath+'s (`WrathppClient`); must not be a link. Only the game's own archives (`Data/` and `Data/<locale>/` `*.MPQ`, not the realm modules' patch-4/F/M/U/V/W/Y/Z) may be hard links to Wrath+'s, read only; everything else is its own copy (`ctl.sh wrathpp-check` holds it to that) |
+| `client-wrathpp/` | its private copy of the game, made by the app from Wrath+'s (`WrathppClient`); must not be a link. Only the game's own archives (`Data/` and `Data/<locale>/` `*.MPQ`, not the realm modules' patch-M/U/V/Y/Z; the HD look's patch-A/F/W are the game's) may be hard links to Wrath+'s, read only; everything else is its own copy (`ctl.sh wrathpp-check` holds it to that) |
 | `etc-wrathpp/` | its configs (`configure` makes them only when `server-wrathpp/bin/worldserver` exists) |
 | `logs/wrathpp/`, `run/wrathpp/` | logs, pid file, the app-signal files (`selection`, `cutscene`, ...) |
 | `data-modules-wrathpp/` | the world server's data with its modules' DBC over the game's (links into the shared, read-only `data/`) |

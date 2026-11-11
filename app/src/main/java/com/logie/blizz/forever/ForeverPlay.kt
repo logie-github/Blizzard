@@ -100,6 +100,37 @@ object ForeverPlay {
         }
     }
 
+    /**
+     * Repairs the installation without losing the big downloads: keeps the realm server, the database (characters)
+     * and the game client, but clears everything the app set up around them so the next Play rebuilds it from the
+     * current version — the .NET runtime and the launcher's config in the container ([WindowsRuntime.clearForeverRuntime]),
+     * and the placed Forever Launcher (re-picked), which is how an old launcher from a previous version is replaced.
+     * It also re-checks the client's index files (the update section the game insists on). A running realm is stopped first.
+     */
+    fun repair(context: Context) {
+        val app = context.applicationContext
+        pauseDownload()
+        _state.value = State.Preparing("Repairing World of Warcraft: Forever")
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    repeat(100) { if (installer == null) return@repeat; Thread.sleep(100) }
+                    if (ForeverRealm.status.value.phase != ForeverRealm.Phase.STOPPED) runCatching { ForeverRealm.stop(app) }
+                    val layout = ForeverLayout.of(app)
+                    // The launcher a previous version left in the client folder is removed, so Play asks for the current one.
+                    ForeverLauncher.removePlaced(layout.client)
+                    // The container's Forever setup (the .NET runtime, the seeded config, an old browser runtime) is rebuilt on Play.
+                    runCatching { WindowsRuntime.clearForeverRuntime(app) }
+                    // The client's index files get the update section again, in place (nothing re-downloaded).
+                    runCatching { com.logie.blizz.forever.tact.CascStorageWriter.repairIndexes(File(layout.client, "Data/data")) }
+                }
+                _state.value = State.Idle
+            } catch (e: Throwable) {
+                _state.value = State.Failed("The repair didn't finish: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
+    }
+
     /** The client's touch controls id (the same `wow` gestures as the other WoW clients). */
     private const val GAME_ID = "wow-client"
     private const val PROFILE = "wow"
@@ -181,8 +212,8 @@ object ForeverPlay {
                     if (!layout.client.isDirectory) return@withContext "Add the game client first, then the launcher."
                     val picked = app.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
                         ?.use { if (it.moveToFirst()) it.getString(0) else null }
-                    // Keep a launcher name the client start looks for; anything else becomes ForeverLauncher.exe.
-                    val target = File(layout.client, picked?.takeIf { it.endsWith(".exe", true) && it.contains("launcher", true) } ?: "ForeverLauncher.exe")
+                    // Keep a known launcher name the client start looks for; anything else becomes WoWForeverLauncher.exe.
+                    val target = File(layout.client, ForeverLauncher.fileNameFor(picked))
                     app.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
                         ?: return@withContext "That file couldn't be read."
                     null

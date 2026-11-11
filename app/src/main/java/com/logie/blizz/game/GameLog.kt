@@ -86,23 +86,12 @@ object GameLog {
      */
     @Volatile var keeperLog: java.io.File? = null
 
-    /** Chromium's own debug log for the Forever launcher's WebView2 ([com.logie.blizz.forever.WebView2]); set at start when there is a launcher. */
-    @Volatile var webViewLog: java.io.File? = null
-
     /** The keeper's lines (the last [max]), each cut to 300 characters; "" when there is no log. */
     fun keeperLines(file: java.io.File? = keeperLog, max: Int = 80): String {
         val f = file?.takeIf { it.isFile } ?: return ""
         val lines = runCatching { f.readLines(Charsets.ISO_8859_1) }.getOrDefault(emptyList()).filter { it.isNotBlank() }
         if (lines.isEmpty()) return ""
         return "[session keeper]\n" + lines.takeLast(max).joinToString("\n") { it.take(300) }
-    }
-
-    /** The WebView2 debug log's telling lines (GL/D3D errors and the like), the last [max]; "" when there is none. */
-    fun webViewLines(file: java.io.File? = webViewLog, max: Int = 60): String {
-        val f = file?.takeIf { it.isFile } ?: return ""
-        val lines = runCatching { f.readLines(Charsets.ISO_8859_1) }.getOrDefault(emptyList()).filter { it.isNotBlank() }
-        if (lines.isEmpty()) return ""
-        return "[webview2]\n" + lines.takeLast(max).joinToString("\n") { it.take(300) }
     }
 
     /**
@@ -115,7 +104,6 @@ object GameLog {
         synchronized(loaded) { if (loaded.isEmpty()) "" else "[last ${loaded.size} libraries loaded]\n" + loaded.joinToString("\n") },
         synchronized(lines) { lines.joinToString("\n") },
         keeperLines(),
-        webViewLines(),
         synchronized(notes) { notes.joinToString("\n") },
     ).filter { it.isNotEmpty() }.joinToString("\n\n")
 }
