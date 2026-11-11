@@ -125,8 +125,13 @@ interface ItemSource {
      */
     fun candidates(inventoryTypes: Set<Int>, rules: GearRules, wide: Boolean): List<ItemTemplate>
 
-    /** Which of these items the game gives in some way: loot, a vendor, a quest, or a recipe ([crafted] are the realm's recipes' items). */
-    fun obtainable(ids: Collection<Int>, crafted: Set<Int>): Set<Int>
+    /**
+     * Which of these items the game gives a character of [rules]' race, class and level in some way: loot (not a drop
+     * only those on a quest see), a vendor, a quest it could have done (the quest's races, classes and level allow it),
+     * or a recipe ([crafted] are the realm's recipes' items). A reward of another race's own story (the murlocs') isn't
+     * this character's to have.
+     */
+    fun obtainable(ids: Collection<Int>, crafted: Set<Int>, rules: GearRules): Set<Int>
 }
 
 /** The limits a character's gear is chosen under: who wears it, at which level, how good it may be. */
@@ -366,7 +371,7 @@ class GearPlanner(
         val usable = HashMap<Int, List<ItemTemplate>>()
         fun fill(list: List<ItemTemplate>) {
             val ok = list.filter { problem(it) == null && !looksUnreal(it) }
-            val obtainable = source.obtainable(ok.map { it.entry }, crafted)
+            val obtainable = source.obtainable(ok.map { it.entry }, crafted, rules)
             for (slot in wanted.keys) {
                 usable[slot] = (usable[slot].orEmpty() + ok.filter { it.entry in obtainable && fitsSlot(it, slot, hands) }).distinctBy { it.entry }
             }

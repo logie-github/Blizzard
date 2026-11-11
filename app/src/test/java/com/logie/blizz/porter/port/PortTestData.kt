@@ -218,7 +218,7 @@ object PortTestData {
             it.inventoryType in inventoryTypes && it.itemLevel <= rules.maxItemLevel && it.requiredLevel <= rules.level && it.quality <= rules.maxQuality &&
                 (wide || (it.quality >= GearRules.QUALITY_UNCOMMON && it.requiredLevel >= rules.minRequiredLevel))
         }
-        override fun obtainable(ids: Collection<Int>, crafted: Set<Int>) = ids.filter { it !in unobtainable }.toSet()
+        override fun obtainable(ids: Collection<Int>, crafted: Set<Int>, rules: GearRules) = ids.filter { it !in unobtainable }.toSet()
     }
 
     /**
