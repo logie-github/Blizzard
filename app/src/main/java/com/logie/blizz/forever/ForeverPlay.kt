@@ -487,7 +487,7 @@ object ForeverPlay {
     private fun prefs(context: Context) = context.getSharedPreferences("forever", Context.MODE_PRIVATE)
 
     /** The game is about to start: what it writes about stopping from now on is this start's. */
-    private fun started(context: Context) = prefs(context).edit().putLong(STOP_SEEN, System.currentTimeMillis()).apply()
+    private fun started(context: Context) = prefs(context).edit().putLong(STOP_SEEN, System.currentTimeMillis()).putBoolean(STOP_PENDING, true).apply()
 
     /**
      * Sends what the game itself wrote about a start that went wrong (its crash file, or its storage log's
@@ -498,16 +498,23 @@ object ForeverPlay {
         val app = context.applicationContext
         scope.launch(Dispatchers.IO) {
             runCatching {
+                // Once per start (set by [started]): a game or launcher that ran now sends what it left behind.
+                if (!prefs(app).getBoolean(STOP_PENDING, false)) return@runCatching
+                prefs(app).edit().putBoolean(STOP_PENDING, false).apply()
                 val layout = ForeverLayout.of(app)
-                val game = File(layout.client, "_forever_").takeIf { it.isDirectory } ?: return@runCatching
+                val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
                 val since = prefs(app).getLong(STOP_SEEN, 0L)
-                if (since == 0L) return@runCatching
-                val stop = ForeverCtl.clientStop(game, since) ?: return@runCatching
-                prefs(app).edit().putLong(STOP_SEEN, stop.at).apply()
+                val stop = game?.let { ForeverCtl.clientStop(it, since) }
+                // The Forever Launcher is a .NET program: when it stops early it writes no WoW crash file, so also send
+                // the Wine/Box64 log (what it printed before it died) — that is where the reason for a launcher crash is.
+                val wine = com.logie.blizz.game.GameLog.snapshot().takeIf { it.isNotBlank() }
+                if (stop == null && wine == null) return@runCatching
+                val title = stop?.title ?: "The launcher or game stopped early"
+                val body = listOfNotNull(stop?.text, wine?.let { "[wine/box64]\n$it" }).joinToString("\n\n").take(7000)
                 com.logie.blizz.reports.BugReports.report(
-                    app, "WoW Forever", "The game stopped: ${stop.title}",
+                    app, "WoW Forever", "The game stopped: $title",
                     listOf("Program" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
-                    log = stop.text,
+                    log = body,
                 )
                 Unit
             }
@@ -515,6 +522,7 @@ object ForeverPlay {
     }
 
     private const val STOP_SEEN = "client.stop.seen"
+    private const val STOP_PENDING = "client.stop.pending"
 
     /** The client as its own game ("wow-client"), run under Winlator with the `wow` controls. */
     private fun launchEntry(client: File, exe: File) = LibraryEntry(
