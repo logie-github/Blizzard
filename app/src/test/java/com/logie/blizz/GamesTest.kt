@@ -19,9 +19,11 @@ class GamesTest {
         assertEquals(Games.all.size, Games.all.map { it.id }.toSet().size)
     }
 
-    @Test fun warcraftThreeIsOneTileWithThreeModes() {
+    @Test fun warcraftThreeIsOneTileWithItsTwoGames() {
         val wc3 = Games.all.single { it.id == "warcraft3_roc" }
-        assertEquals(listOf("warcraft3_tft", "warcraft3_warsmash"), wc3.variants.map { it.id })
+        // Both play in Warsmash: the separate Warsmash mode is gone (Warcraft3WarsmashImporter).
+        assertEquals(listOf("warcraft3_tft"), wc3.variants.map { it.id })
+        assertEquals(null, Games.find("warcraft3_warsmash"))
         assertEquals("Warcraft III: The Frozen Throne", Games.find("warcraft3_tft")!!.fullTitle)
     }
 }

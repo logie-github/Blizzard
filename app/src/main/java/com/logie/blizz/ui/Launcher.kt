@@ -175,7 +175,7 @@ fun Launcher() {
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
     // World of Warcraft: Forever: a game that fell back here says why by itself (its own crash file, sent as a report).
     LaunchedEffect(resumed) { com.logie.blizz.forever.ForeverPlay.reportClientStop(context) }
-    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
+    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { GameImportManager.migrateWarcraft3(context); Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
@@ -193,6 +193,8 @@ fun Launcher() {
         if (GameImportManager.importable(game.id)) {
             // An install this update left behind (its recipe changed): made again first, in the wizard, where its progress shows.
             if (GameImportManager.stale(context, game.id)) { GameImportManager.reinstall(context, game.id); wizardFor = game; return }
+            // Warcraft III plays in Warsmash now: an entry from its Winlator days is moved over first (the same files).
+            if (game.id.startsWith("warcraft3")) GameImportManager.migrateWarcraft3(context)
             val entry = GameImportManager.library(context).get(game.id)
             if (entry != null && (entry.runtime == com.logie.blizz.importer.LibraryEntry.RUNTIME_EXTERNAL || game.id in WOW_MODES) && java.io.File(entry.installPath, entry.executable).isFile) {
                 // World of Warcraft: the realm and the client, from the imported files (the WoW app isn't needed).

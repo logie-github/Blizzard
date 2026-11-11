@@ -533,7 +533,8 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     }
                 }
                 if (game.id != com.logie.blizz.d2r.D2r.GAME_ID) {
-                    SettingCard("Play") {
+                    // (Warcraft III plays in Warsmash: Winlator's launch options and touch controls aren't its)
+                    if (!game.id.startsWith("warcraft3")) SettingCard("Play") {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FrameButton("Launch options", primary = false) { optionsOpen = true }
                             if (game.id != "wow" && !game.id.startsWith("wow_")) FrameButton("Controls", primary = false) { controlsOpen = true }
