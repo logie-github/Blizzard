@@ -25,6 +25,12 @@
   YeaBwoi's `scripts/` when it is cloned beside this repository). Say what was tested and what wasn't:
   nothing here has run on a real phone unless the user says so.
 - `README.md` is the manual: keep it current with every change.
+- **A one-line patch note with every change** (the user: "Start leaving one line patch notes in the update when you update
+  the version. Put this only in the games, settings, gear button menu"). Each change that reaches `main` adds one file to
+  `notes/` (`YYYY-MM-DD-what.txt`, one line in plain words for the player: `notes/README.md`). CI's release step puts the
+  lines added since the previous release into the new release (`scripts/release-notes.sh`), and the app shows them only on
+  Settings' Games page (the gear button, `PatchNotes`): never in a popup, the update banner or anywhere else. Never edit or
+  remove a released note.
 - Reports from the app (crashes, failed installs, the launch test) arrive as GitHub issues on this
   repository once the `BLIZZ_REPORT_TOKEN` secret is set (it is). Read them with the issues tools
   before asking the user to paste anything.

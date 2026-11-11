@@ -1,0 +1,1240 @@
+{
+ "character": {
+  "achievement": 38750,
+  "avatar": {
+   "url": "https://render.worldofwarcraft.com/us/character/test-realm/1/1-avatar.jpg"
+  },
+  "averageItemLevel": 300,
+  "class": {
+   "id": 9,
+   "name": "Warlock",
+   "enum": "WARLOCK",
+   "slug": "warlock"
+  },
+  "faction": {
+   "id": 1,
+   "name": "Horde",
+   "enum": "HORDE",
+   "slug": "horde"
+  },
+  "gear": {
+   "back": {
+    "id": 272230,
+    "slot": {
+     "type": "BACK",
+     "name": "Back"
+    },
+    "bonus_list": [
+     12834,
+     41,
+     13662
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Pledgebearer's Pall",
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272230?namespace=static-us"
+     },
+     "id": 272230,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272230?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7876614.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "CLOAK",
+     "name": "Back"
+    },
+    "level": {
+     "value": 295,
+     "display_string": "Item Level 295"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/134111?namespace=static-us"
+      },
+      "name": "Hidden Cloak",
+      "id": 134111
+     },
+     "display_string": "Transmogrified to:\nHidden Cloak"
+    }
+   },
+   "chest": {
+    "id": 271549,
+    "slot": {
+     "type": "CHEST",
+     "name": "Chest"
+    },
+    "bonus_list": [
+     6652,
+     12834,
+     13690,
+     13698,
+     1548
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Damned Necrolyte's Rattling Robes",
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271549?namespace=static-us"
+     },
+     "id": 271549,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271549?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7520906.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "ROBE",
+     "name": "Chest"
+    },
+    "level": {
+     "value": 295,
+     "display_string": "Item Level 295"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/147185?namespace=static-us"
+      },
+      "name": "Diabolic Robe",
+      "id": 147185
+     },
+     "display_string": "Transmogrified to:\nDiabolic Robe"
+    }
+   },
+   "foot": {
+    "id": 171690,
+    "slot": {
+     "type": "FEET",
+     "name": "Feet"
+    },
+    "bonus_list": [
+     8902,
+     12841,
+     7756,
+     13662,
+     12699
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Coalwalker Sandals",
+    "modified_appearance_id": 106223,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/171690?namespace=static-us"
+     },
+     "id": 171690,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/171690?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/526167.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "FEET",
+     "name": "Feet"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/146986?namespace=static-us"
+      },
+      "name": "Emberscatter Treads",
+      "id": 146986
+     },
+     "display_string": "Transmogrified to:\nEmberscatter Treads"
+    }
+   },
+   "hand": {
+    "id": 271547,
+    "slot": {
+     "type": "HANDS",
+     "name": "Hands"
+    },
+    "bonus_list": [
+     6652,
+     12841,
+     13691,
+     13697,
+     1558
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Damned Necrolyte's Charred Grasps",
+    "modified_appearance_id": 307414,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271547?namespace=static-us"
+     },
+     "id": 271547,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271547?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7520895.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "HAND",
+     "name": "Hands"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/147182?namespace=static-us"
+      },
+      "name": "Diabolic Gloves",
+      "id": 147182
+     },
+     "display_string": "Transmogrified to:\nDiabolic Gloves"
+    }
+   },
+   "head": {
+    "id": 271546,
+    "slot": {
+     "type": "HEAD",
+     "name": "Head"
+    },
+    "bonus_list": [
+     42,
+     13696,
+     12834,
+     13692,
+     13698,
+     1548
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Skull of the Damned Necrolyte",
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271546?namespace=static-us"
+     },
+     "id": 271546,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271546?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7520904.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "HEAD",
+     "name": "Head"
+    },
+    "level": {
+     "value": 295,
+     "display_string": "Item Level 295"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/147183?namespace=static-us"
+      },
+      "name": "Diabolic Helm",
+      "id": 147183
+     },
+     "display_string": "Transmogrified to:\nDiabolic Helm"
+    }
+   },
+   "leftFinger": {
+    "id": 276171,
+    "sockets": [
+     {
+      "socket_type": {
+       "type": "PRISMATIC",
+       "name": "Prismatic Socket"
+      }
+     }
+    ],
+    "slot": {
+     "type": "FINGER_1",
+     "name": "Ring 1"
+    },
+    "bonus_list": [
+     12825,
+     6652,
+     13668,
+     11311
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Ophidian Circle",
+    "modified_appearance_id": 0,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/276171?namespace=static-us"
+     },
+     "id": 276171,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/276171?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7866605.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/0?namespace=static-us"
+     },
+     "name": "Miscellaneous",
+     "id": 0
+    },
+    "inventory_type": {
+     "type": "FINGER",
+     "name": "Finger"
+    },
+    "level": {
+     "value": 279,
+     "display_string": "Item Level 279"
+    }
+   },
+   "leftTrinket": {
+    "id": 274493,
+    "slot": {
+     "type": "TRINKET_1",
+     "name": "Trinket 1"
+    },
+    "bonus_list": [
+     12826,
+     6652,
+     11215
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Effigy of Ula'tek's Faithful",
+    "modified_appearance_id": 0,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/274493?namespace=static-us"
+     },
+     "id": 274493,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/274493?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/1058938.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/0?namespace=static-us"
+     },
+     "name": "Miscellaneous",
+     "id": 0
+    },
+    "inventory_type": {
+     "type": "TRINKET",
+     "name": "Trinket"
+    },
+    "level": {
+     "value": 282,
+     "display_string": "Item Level 282"
+    }
+   },
+   "leg": {
+    "id": 271545,
+    "slot": {
+     "type": "LEGS",
+     "name": "Legs"
+    },
+    "bonus_list": [
+     13693,
+     6652,
+     13698,
+     12841
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Damned Necrolyte's Leg Bindings",
+    "modified_appearance_id": 307398,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271545?namespace=static-us"
+     },
+     "id": 271545,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/271545?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7520905.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "LEGS",
+     "name": "Legs"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/147184?namespace=static-us"
+      },
+      "name": "Diabolic Leggings",
+      "id": 147184
+     },
+     "display_string": "Transmogrified to:\nDiabolic Leggings"
+    }
+   },
+   "neck": {
+    "id": 272229,
+    "sockets": [
+     {
+      "socket_type": {
+       "type": "PRISMATIC",
+       "name": "Prismatic Socket"
+      }
+     }
+    ],
+    "slot": {
+     "type": "NECK",
+     "name": "Neck"
+    },
+    "bonus_list": [
+     12834,
+     6652,
+     13668
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Serpentine Talisman",
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272229?namespace=static-us"
+     },
+     "id": 272229,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272229?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7866592.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/0?namespace=static-us"
+     },
+     "name": "Miscellaneous",
+     "id": 0
+    },
+    "inventory_type": {
+     "type": "NECK",
+     "name": "Neck"
+    },
+    "level": {
+     "value": 295,
+     "display_string": "Item Level 295"
+    }
+   },
+   "rightFinger": {
+    "id": 272147,
+    "sockets": [
+     {
+      "socket_type": {
+       "type": "PRISMATIC",
+       "name": "Prismatic Socket"
+      }
+     }
+    ],
+    "slot": {
+     "type": "FINGER_2",
+     "name": "Ring 2"
+    },
+    "bonus_list": [
+     12841,
+     6652,
+     13668
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Colubrine Band",
+    "modified_appearance_id": 0,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272147?namespace=static-us"
+     },
+     "id": 272147,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272147?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7866597.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/0?namespace=static-us"
+     },
+     "name": "Miscellaneous",
+     "id": 0
+    },
+    "inventory_type": {
+     "type": "FINGER",
+     "name": "Finger"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    }
+   },
+   "rightTrinket": {
+    "id": 251785,
+    "slot": {
+     "type": "TRINKET_2",
+     "name": "Trinket 2"
+    },
+    "bonus_list": [
+     12826,
+     6652,
+     11215
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Void-Reaper's Libram",
+    "modified_appearance_id": 0,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/251785?namespace=static-us"
+     },
+     "id": 251785,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/251785?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7636717.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/0?namespace=static-us"
+     },
+     "name": "Miscellaneous",
+     "id": 0
+    },
+    "inventory_type": {
+     "type": "TRINKET",
+     "name": "Trinket"
+    },
+    "level": {
+     "value": 282,
+     "display_string": "Item Level 282"
+    }
+   },
+   "shoulder": {
+    "id": 272236,
+    "slot": {
+     "type": "SHOULDER",
+     "name": "Shoulders"
+    },
+    "bonus_list": [
+     12841,
+     6652,
+     13662
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Pyrewalker's Mantlet",
+    "modified_appearance_id": 307868,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272236?namespace=static-us"
+     },
+     "id": 272236,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272236?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7874493.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "SHOULDER",
+     "name": "Shoulder"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/147186?namespace=static-us"
+      },
+      "name": "Diabolic Mantle",
+      "id": 147186
+     },
+     "display_string": "Transmogrified to:\nDiabolic Mantle\nDiabolic Mantle"
+    }
+   },
+   "waist": {
+    "id": 272237,
+    "slot": {
+     "type": "WAIST",
+     "name": "Waist"
+    },
+    "bonus_list": [
+     12841,
+     6652,
+     13696,
+     13662
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Pyrewalker's Obi",
+    "modified_appearance_id": 307869,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272237?namespace=static-us"
+     },
+     "id": 272237,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272237?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7874485.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "WAIST",
+     "name": "Waist"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/146999?namespace=static-us"
+      },
+      "name": "Strife-Riddled Cinch",
+      "id": 146999
+     },
+     "display_string": "Transmogrified to:\nStrife-Riddled Cinch"
+    }
+   },
+   "weapon": {
+    "id": 272273,
+    "slot": {
+     "type": "MAIN_HAND",
+     "name": "Main Hand"
+    },
+    "bonus_list": [
+     6652,
+     12846
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Enshrined Ceremonial Scepter",
+    "modified_appearance_id": 307902,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272273?namespace=static-us"
+     },
+     "id": 272273,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272273?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7761089.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/2?namespace=static-us"
+     },
+     "name": "Weapon",
+     "id": 2
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/2/item-subclass/10?namespace=static-us"
+     },
+     "name": "Staff",
+     "id": 10
+    },
+    "inventory_type": {
+     "type": "TWOHWEAPON",
+     "name": "Two-Hand"
+    },
+    "level": {
+     "value": 321,
+     "display_string": "Item Level 321"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/253285?namespace=static-us"
+      },
+      "name": "Felscorned Scythe of the Unmaker",
+      "id": 253285
+     },
+     "display_string": "Transmogrified to:\nFelscorned Scythe of the Unmaker"
+    }
+   },
+   "wrist": {
+    "id": 272238,
+    "slot": {
+     "type": "WRIST",
+     "name": "Wrist"
+    },
+    "bonus_list": [
+     12841,
+     6652,
+     13696,
+     13662
+    ],
+    "quality": {
+     "type": "EPIC",
+     "name": "Epic"
+    },
+    "name": "Pyrewalker's Wraps",
+    "modified_appearance_id": 307870,
+    "media": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272238?namespace=static-us"
+     },
+     "id": 272238,
+     "content": {
+      "_links": {
+       "self": {
+        "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/media/item/272238?namespace=static-us"
+       }
+      },
+      "assets": [
+       {
+        "key": "icon",
+        "value": "https://render.worldofwarcraft.com/us/icons/56/7874487.jpg"
+       }
+      ]
+     }
+    },
+    "item_class": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4?namespace=static-us"
+     },
+     "name": "Armor",
+     "id": 4
+    },
+    "item_subclass": {
+     "key": {
+      "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item-class/4/item-subclass/1?namespace=static-us"
+     },
+     "name": "Cloth",
+     "id": 1
+    },
+    "inventory_type": {
+     "type": "WRIST",
+     "name": "Wrist"
+    },
+    "level": {
+     "value": 305,
+     "display_string": "Item Level 305"
+    },
+    "transmog": {
+     "item": {
+      "key": {
+       "href": "https://partner-us.api.blizzard.net/GameDataService/v1/wow/item/147000?namespace=static-us"
+      },
+      "name": "Ravenous Devotee's Bracelets",
+      "id": 147000
+     },
+     "display_string": "Transmogrified to:\nRavenous Devotee's Bracelets"
+    }
+   }
+  },
+  "gender": {
+   "id": 0,
+   "name": "Male",
+   "enum": "MALE",
+   "slug": "male"
+  },
+  "guild": {
+   "name": "Fixture Guild",
+   "realm": {
+    "name": "Test Realm",
+    "realmId": 1,
+    "slug": "test-realm"
+   },
+   "region": "us",
+   "slug": "fixture-guild",
+   "url": "/en-us/worldsoul/us/armory/guild/test-realm/fixture-guild",
+   "faction": {
+    "id": 1,
+    "name": "Horde",
+    "enum": "HORDE",
+    "slug": "horde"
+   }
+  },
+  "isRemix": false,
+  "lastUpdatedTimestamp": {
+   "epoch": 1790115734000,
+   "iso8601": "2026-09-22T22:22:14Z"
+  },
+  "level": 90,
+  "media": {
+   "main-raw": {
+    "url": "https://render.worldofwarcraft.com/us/character/test-realm/1/1-main-raw.png"
+   },
+   "avatar": {
+    "url": "https://render.worldofwarcraft.com/us/character/test-realm/1/1-avatar.jpg"
+   }
+  },
+  "name": "Testhero",
+  "professions": {
+   "primaries": [
+    {
+     "description": "Higher smithing skill allows you to learn higher level smithing plans.  Blacksmithing plans can be found on trainers around the world as well as from quests and monsters.",
+     "icon": {
+      "url": "https://render.worldofwarcraft.com/us/icons/56/4620670.jpg"
+     },
+     "id": 164,
+     "name": "Blacksmithing",
+     "tiers": [
+      {
+       "id": 2477,
+       "maxSkillPoints": 300,
+       "name": "Classic Blacksmithing",
+       "skillPoints": 1
+      },
+      {
+       "id": 2822,
+       "maxSkillPoints": 100,
+       "name": "Dragon Isles Blacksmithing",
+       "skillPoints": 1
+      }
+     ]
+    },
+    {
+     "description": "Higher enchanting skill allows you to learn more powerful formulae.  Formulae can be found on trainers around the world as well as from quests and monsters.",
+     "icon": {
+      "url": "https://render.worldofwarcraft.com/us/icons/56/4620672.jpg"
+     },
+     "id": 333,
+     "name": "Enchanting",
+     "tiers": [
+      {
+       "id": 2494,
+       "maxSkillPoints": 300,
+       "name": "Classic Enchanting",
+       "skillPoints": 1
+      },
+      {
+       "id": 2825,
+       "maxSkillPoints": 100,
+       "name": "Dragon Isles Enchanting",
+       "skillPoints": 24
+      },
+      {
+       "id": 2874,
+       "maxSkillPoints": 100,
+       "name": "Khaz Algar Enchanting",
+       "skillPoints": 1
+      },
+      {
+       "id": 2909,
+       "maxSkillPoints": 100,
+       "name": "Midnight Enchanting",
+       "skillPoints": 64
+      }
+     ]
+    }
+   ],
+   "secondaries": [
+    {
+     "description": "Higher archaeology skill allows you to complete more valuable artifacts and collect more artifact fragments. Fragments can be found in ruins and dig sites.",
+     "icon": {
+      "url": "https://render.worldofwarcraft.com/us/icons/56/441139.jpg"
+     },
+     "id": 794,
+     "name": "Archaeology"
+    },
+    {
+     "description": "Higher cooking skill allows you to learn higher level cooking recipes.  Recipes can be found on trainers around the world as well as from quests and as drops from monsters.",
+     "icon": {
+      "url": "https://render.worldofwarcraft.com/us/icons/56/4620671.jpg"
+     },
+     "id": 185,
+     "name": "Cooking",
+     "tiers": [
+      {
+       "id": 2543,
+       "maxSkillPoints": 100,
+       "name": "Draenor Cooking",
+       "skillPoints": 1
+      },
+      {
+       "id": 2548,
+       "maxSkillPoints": 300,
+       "name": "Classic Cooking",
+       "skillPoints": 1
+      }
+     ]
+    },
+    {
+     "description": "Higher fishing skill increases your chance of catching fish in bodies of water around the world.  If you are having trouble catching fish in a given area, move to a lower level area or purchase a fishing lure and try again.",
+     "icon": {
+      "url": "https://render.worldofwarcraft.com/us/icons/56/4620674.jpg"
+     },
+     "id": 356,
+     "name": "Fishing",
+     "tiers": [
+      {
+       "id": 2592,
+       "maxSkillPoints": 300,
+       "name": "Classic Fishing",
+       "skillPoints": 1
+      },
+      {
+       "id": 2876,
+       "maxSkillPoints": 300,
+       "name": "Khaz Algar Fishing",
+       "skillPoints": 7
+      }
+     ]
+    }
+   ]
+  },
+  "race": {
+   "id": 2,
+   "name": "Orc",
+   "enum": "ORC",
+   "slug": "orc"
+  },
+  "realm": {
+   "name": "Test Realm",
+   "realmId": 1,
+   "slug": "test-realm"
+  },
+  "region": "us",
+  "slug": "testhero",
+  "spec": {
+   "id": 267,
+   "name": "Destruction",
+   "enum": "DESTRUCTION",
+   "role": {
+    "id": 3,
+    "name": "Damage",
+    "enum": "DAMAGE",
+    "slug": "damage"
+   },
+   "slug": "destruction"
+  },
+  "url": "/worldsoul/us/armory/character/test-realm/testhero/",
+  "render": {
+   "staticFallback": {
+    "url": "https://render.worldofwarcraft.com/shadow/profile-background/warlock-orc-male.jpg"
+   },
+   "foregroundFallback": {
+    "url": "https://render.worldofwarcraft.com/shadow/profile-raw/orc-male.png"
+   },
+   "background": {
+    "url": "https://render.worldofwarcraft.com/profile-backgrounds/v2/armory_bg_class_warlock.jpg",
+    "color": null
+   },
+   "shadow": {
+    "url": "https://render.worldofwarcraft.com/profile-foreground/foreground-shadow.png"
+   },
+   "foreground": {
+    "url": "https://render.worldofwarcraft.com/us/character/test-realm/1/1-main-raw.png"
+   }
+  },
+  "achievementUrl": "/worldsoul/us/armory/character/test-realm/testhero/achievements",
+  "isOutdated": false,
+  "showRangedSlot": false
+ },
+ "region": "us"
+}
