@@ -41,8 +41,12 @@ data class CharacterLook(
         hung.flatMap { it.textures.values } + skinned.flatMap { it.textures.values }).filter { it > 0 }.distinct()
 }
 
-/** What a character wears, as the Armory gives it: the slot, the item, the item whose look it was given, the item's own look among its variants. */
-data class Worn(val slot: String, val item: Int, val transmog: Int? = null, val appearance: Int? = null, val inventoryType: String = "")
+/**
+ * What a character wears, as the Armory gives it: the slot, the item, the item whose look it was given, the item's own look
+ * among its variants ([appearance]: an ItemModifiedAppearance id), or the variant by its modifier ([modifier]: Blizzard's API
+ * names what each slot shows so, as an item and its ItemAppearanceModifierID).
+ */
+data class Worn(val slot: String, val item: Int, val transmog: Int? = null, val appearance: Int? = null, val inventoryType: String = "", val modifier: Int? = null)
 
 /**
  * A character's look from the game's own tables ([Tables]: wago.tools'): the race's model and its customizations (the
@@ -193,7 +197,10 @@ class Looks(private val tables: Tables) {
                     appearances[ima.int("ItemAppearanceID")]?.let { displays[it.int("ItemDisplayInfoID")] }?.let { return it }
                 }
             }
-            for (ima in variants.filter { it.int("ItemID") == item }.sortedWith(compareBy({ it.int("ItemAppearanceModifierID") }, { it.int("OrderIndex") }))) {
+            val mine = variants.filter { it.int("ItemID") == item }.sortedWith(compareBy({ it.int("ItemAppearanceModifierID") }, { it.int("OrderIndex") }))
+            // The variant named by its modifier first, when it is named so.
+            val ordered = if (w.modifier == null) mine else mine.sortedBy { if (it.int("ItemAppearanceModifierID") == w.modifier) 0 else 1 }
+            for (ima in ordered) {
                 val display = appearances[ima.int("ItemAppearanceID")]?.let { displays[it.int("ItemDisplayInfoID")] }
                 if (display != null) return display
             }

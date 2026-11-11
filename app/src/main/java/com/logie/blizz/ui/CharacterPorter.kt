@@ -31,6 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +44,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -67,6 +69,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.logie.blizz.porter.BattleNetKey
 import com.logie.blizz.porter.Porter
 import com.logie.blizz.porter.armory.ArmoryCharacter
 import com.logie.blizz.porter.armory.ArmoryItem
@@ -91,7 +94,11 @@ import java.security.MessageDigest
  */
 @Composable
 fun CharacterPorter(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     var picked by remember { mutableStateOf<Found?>(null) }
+    var keyOpen by remember { mutableStateOf(false) }
+    var keyStamp by remember { mutableStateOf(0) }
+    val hasKey = remember(keyStamp) { BattleNetKey.get(context) != null }
     Dialog(onDismissRequest = { if (picked != null) picked = null else onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().padding(14.dp), contentAlignment = Alignment.Center) {
             Column(Modifier.widthIn(max = 1180.dp).fillMaxSize().panel()) {
@@ -109,10 +116,58 @@ fun CharacterPorter(onDismiss: () -> Unit) {
                             style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
                         )
                     }
+                    Icon(
+                        Icons.Default.Key, "Battle.net API key", tint = if (hasKey) Colors.Ice else Colors.Mist,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).clickable { keyOpen = true }.padding(10.dp).size(24.dp),
+                    )
                     CloseButton(onDismiss)
                 }
                 val found = picked
-                if (found == null) SearchPane(onPick = { picked = it }) else CharacterPane(found)
+                if (found == null) SearchPane(onPick = { picked = it }) else key(keyStamp) { CharacterPane(found, hasKey, onKey = { keyOpen = true }) }
+            }
+        }
+    }
+    if (keyOpen) KeyDialog(onDone = { keyOpen = false; keyStamp++ })
+}
+
+/** The person's own Battle.net API client: the id and the secret, tried before they are kept. */
+@Composable
+private fun KeyDialog(onDone: () -> Unit) {
+    val context = LocalContext.current
+    val kept = remember { BattleNetKey.get(context) }
+    var id by remember { mutableStateOf(kept?.first.orEmpty()) }
+    var secret by remember { mutableStateOf(kept?.second.orEmpty()) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    Dialog(onDismissRequest = onDone) {
+        Column(Modifier.widthIn(max = 520.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Battle.net API key (optional)", style = MaterialTheme.typography.titleMedium, color = Colors.Text)
+            Text(
+                "With a key of your own the porter also has the character's face, hair and skin as they chose them, the quests " +
+                    "they completed and their achievements. Make one for free at develop.battle.net: sign in, API Access, Create " +
+                    "Client (any name; no redirect address needed), then copy its Client ID and Client Secret here. They stay on this phone.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+            OutlinedTextField(id, { id = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Client ID") })
+            OutlinedTextField(secret, { secret = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Client Secret") },
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+            error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Modern.Bad) }
+            Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (busy) CircularProgressIndicator(Modifier.size(24.dp))
+                if (kept != null) FrameButton("Remove", primary = false) { BattleNetKey.clear(context); onDone() }
+                FrameButton("Cancel", primary = false) { onDone() }
+                FrameButton("Save") {
+                    if (busy || id.isBlank() || secret.isBlank()) return@FrameButton
+                    busy = true
+                    error = null
+                    scope.launch {
+                        val r = withContext(Dispatchers.IO) { runCatching { BattleNetKey.tried(id, secret) } }
+                        busy = false
+                        r.onSuccess { BattleNetKey.set(context, id, secret); onDone() }
+                            .onFailure { error = it.message ?: "Battle.net couldn't be reached." }
+                    }
+                }
             }
         }
     }
@@ -208,7 +263,7 @@ private sealed interface Shown {
 }
 
 @Composable
-private fun ColumnScope.CharacterPane(found: Found) {
+private fun ColumnScope.CharacterPane(found: Found, hasKey: Boolean, onKey: () -> Unit) {
     val context = LocalContext.current
     val character by produceState<Shown>(Shown.Loading, found) {
         value = withContext(Dispatchers.IO) {
@@ -223,13 +278,13 @@ private fun ColumnScope.CharacterPane(found: Found) {
             val wide = maxWidth > 720.dp
             if (wide) {
                 Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    ModelPane(context, s.c, Modifier.weight(1.1f).fillMaxHeight())
-                    Details(s.c, Modifier.weight(1f).fillMaxHeight())
+                    ModelPane(context, s.c, hasKey, Modifier.weight(1.1f).fillMaxHeight())
+                    Details(s.c, hasKey, onKey, Modifier.weight(1f).fillMaxHeight())
                 }
             } else {
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    ModelPane(context, s.c, Modifier.fillMaxWidth().height(460.dp))
-                    Details(s.c, Modifier.fillMaxWidth(), scroll = false)
+                    ModelPane(context, s.c, hasKey, Modifier.fillMaxWidth().height(460.dp))
+                    Details(s.c, hasKey, onKey, Modifier.fillMaxWidth(), scroll = false)
                 }
             }
         }
@@ -244,12 +299,17 @@ private sealed interface Model {
 
 /** The character in 3D, made ready (downloaded) the first time with its progress. */
 @Composable
-private fun ModelPane(context: Context, c: ArmoryCharacter, modifier: Modifier) {
+private fun ModelPane(context: Context, c: ArmoryCharacter, hasKey: Boolean, modifier: Modifier) {
     var state by remember(c) { mutableStateOf<Model>(Model.Working("Reading the game's tables…", null)) }
-    LaunchedEffect(c) {
+    LaunchedEffect(c, hasKey) {
         state = withContext(Dispatchers.IO) {
             runCatching {
-                Porter.prepare(context, c) { step ->
+                // With the person's key, the character's own face and hair (a refusal leaves the race's defaults).
+                val appearance = if (!hasKey) null else {
+                    state = Model.Working("Asking Blizzard's API for their face and hair…", null)
+                    runCatching { BattleNetKey.client(context)?.appearance(c.region, c.realmSlug, c.slug) }.getOrNull()
+                }
+                Porter.prepare(context, c, appearance) { step ->
                     state = when (step) {
                         Porter.Step.Tables -> Model.Working("Reading the game's tables…", null)
                         is Porter.Step.Files -> Model.Working(
@@ -315,7 +375,8 @@ private fun PreviewSurface(ready: Porter.Ready) {
 }
 
 @Composable
-private fun Details(c: ArmoryCharacter, modifier: Modifier, scroll: Boolean = true) {
+private fun Details(c: ArmoryCharacter, hasKey: Boolean, onKey: () -> Unit, modifier: Modifier, scroll: Boolean = true) {
+    val context = LocalContext.current
     val inner = if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier
     Column(modifier.then(inner), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Column {
@@ -334,10 +395,26 @@ private fun Details(c: ArmoryCharacter, modifier: Modifier, scroll: Boolean = tr
                 if (c.achievementPoints > 0) Tag("${c.achievementPoints} achievement points")
             }
         }
-        Text(
-            "Face, hair and skin are the race's defaults: the Armory doesn't say which a character chose.",
-            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-        )
+        if (hasKey) {
+            val more by produceState<Pair<Int, Int>?>(null, c) {
+                value = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val api = BattleNetKey.client(context) ?: return@runCatching null
+                        api.completedQuests(c.region, c.realmSlug, c.slug).size to api.achievements(c.region, c.realmSlug, c.slug).size
+                    }.getOrNull()
+                }
+            }
+            Text(
+                "Face, hair and skin as they chose them, from Blizzard's API" + (more?.let { (q, a) -> " · $q quests completed · $a achievements" } ?: ""),
+                style = MaterialTheme.typography.bodySmall, color = Colors.Ice,
+            )
+        } else {
+            Text(
+                "Face, hair and skin are the race's defaults: the Armory's website doesn't say which a character chose. A Battle.net API key of your own adds them, with quests and achievements.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+            FrameButton("Add a Battle.net key", primary = false) { onKey() }
+        }
         SectionLabel("Equipped")
         for (item in c.items) ItemRow(item)
         if (c.professions.isNotEmpty()) {

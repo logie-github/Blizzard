@@ -2,8 +2,10 @@ package com.logie.blizz.porter
 
 import android.content.Context
 import com.logie.blizz.BuildConfig
+import com.logie.blizz.porter.armory.Appearance
 import com.logie.blizz.porter.armory.Armory
 import com.logie.blizz.porter.armory.ArmoryCharacter
+import com.logie.blizz.porter.armory.BattleNet
 import com.logie.blizz.porter.look.CharacterLook
 import com.logie.blizz.porter.look.Looks
 import com.logie.blizz.porter.look.ModelFiles
@@ -49,13 +51,27 @@ object Porter {
     /** A look ready to draw: every file it names, and those its models name, are on the phone under [files]. */
     class Ready(val look: CharacterLook, val files: File, val build: String)
 
-    /** [c]'s look, with what it needs fetched. Long (the first time a race is seen, its model and skeleton are tens of MB): call off the main thread. */
-    fun prepare(context: Context, c: ArmoryCharacter, cancelled: () -> Boolean = { false }, progress: (Step) -> Unit = {}): Ready {
+    /**
+     * What [c] wears as the look shows it: the Armory's items with the looks they were given, or, with Blizzard's API's
+     * [appearance], what each slot shows by its item and variant (the Armory's inventory type kept, for the hand a weapon hangs in).
+     */
+    fun worn(c: ArmoryCharacter, appearance: Appearance?): List<Worn> {
+        val armory = c.items.map { Worn(it.slot, it.id, it.transmogItemId, it.modifiedAppearanceId, it.inventoryType) }
+        if (appearance == null || appearance.shown.isEmpty()) return armory
+        val shown = appearance.shown.mapNotNull { s -> BattleNet.armorySlot(s.slotType)?.let { slot -> slot to s } }.toMap()
+        val types = c.items.associate { it.slot to it.inventoryType }
+        return armory.filter { it.slot !in shown } + shown.map { (slot, s) -> Worn(slot, s.item, inventoryType = types[slot].orEmpty(), modifier = s.modifier) }
+    }
+
+    /**
+     * [c]'s look, with what it needs fetched; with Blizzard's API's [appearance] (the person's key), their own face and hair.
+     * Long (the first time a race is seen, its model and skeleton are tens of MB): call off the main thread.
+     */
+    fun prepare(context: Context, c: ArmoryCharacter, appearance: Appearance? = null, cancelled: () -> Boolean = { false }, progress: (Step) -> Unit = {}): Ready {
         val build = build(context)
         progress(Step.Tables)
         val tables = WagoTables(wagoNet, build, File(dir(context), "tables"))
-        val worn = c.items.map { Worn(it.slot, it.id, it.transmogItemId, it.modifiedAppearanceId, it.inventoryType) }
-        val look = Looks(tables).of(c.raceId, c.gender, c.classId, worn)
+        val look = Looks(tables).of(c.raceId, c.gender, c.classId, worn(c, appearance), appearance?.choices.orEmpty())
         val files = GameFiles(wagoNet, build, File(dir(context), "files"))
         var bytes = 0L
         var done = 0
