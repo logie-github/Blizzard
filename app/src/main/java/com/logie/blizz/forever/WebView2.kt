@@ -31,17 +31,38 @@ object WebView2 {
     const val DIR_WINDOWS = "C:\\webview2"
     const val USER_DATA_WINDOWS = "C:\\users\\xuser\\AppData\\Local\\ForeverWebView2"
 
+    /** Where Chromium's own debug log is written (read into the report), and the matching container path. */
+    const val LOG_WINDOWS = "C:\\webview2\\debug.log"
+    fun logFile(driveC: File) = File(runtimeDir(driveC), "debug.log")
+
     /**
-     * The environment the launcher's WebView2 is started with, written into the client's Wine `HKCU\Environment`
-     * (which keeps spaces, unlike the container's env string): use the fixed runtime above, a writable data folder,
-     * and the arguments Chromium needs under Wine — no sandbox (fails under Wine), software GL (no GPU under Box64;
-     * 145 still accepts `swiftshader`), and no code-integrity check (fails under Wine).
+     * The extra Chromium arguments the launcher's WebView2 is started with. The window opened on the phone but
+     * Chromium painted only one frame: its compositor's output device does `D3D11CreateDevice(WARP)` + Direct-
+     * Composition, which fail under Wine (no software-D3D adapter in DXVK). These turn the GPU and DirectComposition
+     * off so the output goes through a software bitmap instead, keep the sandbox and code-integrity checks off (both
+     * fail under Wine), force software GL (145 still accepts `swiftshader`), and log what Chromium does.
+     */
+    const val BROWSER_ARGS =
+        "--no-sandbox --disable-gpu --disable-gpu-compositing --disable-direct-composition " +
+            "--disable-features=RendererCodeIntegrity,RemoveRedirectionBitmap --use-angle=swiftshader " +
+            "--enable-logging --v=1 --log-file=$LOG_WINDOWS"
+
+    /**
+     * The WebView2 registry policy that forces [BROWSER_ARGS] onto the browser even though a Tauri app passes its own
+     * arguments (the `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` environment variable is ignored in that case; the policy
+     * is appended regardless). `*` applies to every WebView2 host. Set under HKLM, then HKCU.
+     */
+    const val POLICY_KEY = "Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments"
+    const val POLICY_NAME = "*"
+
+    /**
+     * The environment pointing the launcher at the fixed runtime, written into the client's Wine `HKCU\Environment`.
+     * The arguments go through the registry policy ([POLICY_KEY]) instead, because a Tauri app's own arguments make
+     * the matching environment variable be ignored.
      */
     val ENV: List<Pair<String, String>> = listOf(
         "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER" to DIR_WINDOWS,
         "WEBVIEW2_USER_DATA_FOLDER" to USER_DATA_WINDOWS,
-        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS" to
-            "--no-sandbox --disable-gpu --disable-gpu-compositing --use-angle=swiftshader --disable-features=RendererCodeIntegrity",
     )
 
     /** The runtime folder inside [driveC], and the program that proves it's unpacked. */

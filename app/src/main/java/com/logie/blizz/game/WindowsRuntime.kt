@@ -170,11 +170,21 @@ object WindowsRuntime {
                             _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
                         }
                     }
+                    // Point the launcher at the runtime (HKCU\Environment), and force the Chromium arguments through the
+                    // WebView2 registry policy — a Tauri app sets its own arguments, which makes the environment variable
+                    // for them be ignored, so the policy (appended regardless) is how they take effect.
                     com.winlator.core.WineRegistryEditor(File(container.rootDir, ".wine/user.reg")).use { reg ->
                         for ((name, value) in com.logie.blizz.forever.WebView2.ENV) reg.setStringValue("Environment", name, value)
+                        reg.setStringValue(com.logie.blizz.forever.WebView2.POLICY_KEY, com.logie.blizz.forever.WebView2.POLICY_NAME, com.logie.blizz.forever.WebView2.BROWSER_ARGS)
                     }
+                    com.winlator.core.WineRegistryEditor(File(container.rootDir, ".wine/system.reg")).use { reg ->
+                        reg.setStringValue(com.logie.blizz.forever.WebView2.POLICY_KEY, com.logie.blizz.forever.WebView2.POLICY_NAME, com.logie.blizz.forever.WebView2.BROWSER_ARGS)
+                    }
+                    GameLog.webViewLog = com.logie.blizz.forever.WebView2.logFile(driveC)
                 }
             }
+        } else {
+            GameLog.webViewLog = null
         }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
