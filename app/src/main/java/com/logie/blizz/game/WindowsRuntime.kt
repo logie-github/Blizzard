@@ -131,6 +131,9 @@ object WindowsRuntime {
         val legion = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == LegionClientSetup.VERSION
         // World of Warcraft: Forever's client: modern WoW with the same Wow_loader.dll start-up protection as Legion.
         val foreverClient = entry.gameId == "wow-client" && entry.clientVersion == "forever"
+        // Forever starts the Forever Launcher (a Windows GUI) before the game: its touch controls are plain tap-to-click
+        // while it is up ([GestureView.EXTRA_LAUNCHER]), not the WoW game gestures, so its buttons can be pressed.
+        val foreverLauncher = foreverClient && withContext(Dispatchers.IO) { com.logie.blizz.forever.ForeverLayout.of(context).hasLauncher() }
         if (legion) {
             withContext(Dispatchers.IO) {
                 val layout = com.logie.blizz.wow.WowLayout.legion(context)
@@ -202,6 +205,7 @@ object WindowsRuntime {
             .apply { if (keeper) putExtra("exec_wrapper", Borderless.command(entry.gameId)) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
+            .apply { if (foreverLauncher) putExtra(GestureView.EXTRA_LAUNCHER, true) }
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
             // The loading screen of the version played (Wrath+, Legion, OctoWoW share one client entry).
             .putExtra(GestureView.EXTRA_SPLASH, WowPlay.splashIdOf(entry))

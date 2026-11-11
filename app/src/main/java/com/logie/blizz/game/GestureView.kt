@@ -507,6 +507,12 @@ class GestureView(
         const val EXTRA_SPLASH = "com.logie.blizz.SPLASH"
         /** Its control profile ([LaunchProfile.id]). */
         const val EXTRA_PROFILE = "com.logie.blizz.PROFILE"
+        /**
+         * World of Warcraft: Forever only: the program started is the Forever Launcher (a Windows GUI), not the game.
+         * While it is up the touch controls are plain tap-to-click (its buttons are clicked, not read as the 3D game's
+         * cursor, and no password is typed into it); the WoW gestures and login begin when the game's own window appears.
+         */
+        const val EXTRA_LAUNCHER = "com.logie.blizz.LAUNCHER"
 
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"

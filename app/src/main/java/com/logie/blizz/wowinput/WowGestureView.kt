@@ -105,6 +105,13 @@ class WowGestureView(
     /** The text prompt on screen, if one is. */
     private var prompt: ComponentDialog? = null
     private var loginShown = false
+    /**
+     * World of Warcraft: Forever only ([com.logie.blizz.game.GestureView.EXTRA_LAUNCHER]): the Forever Launcher (a
+     * Windows GUI) is on screen before the game. While it is up a tap is a plain left click at that point (its buttons),
+     * not the 3D game's cursor-reading tap, and no password is typed into it. It flips to the normal WoW gestures and
+     * login as soon as the game's own full-screen window appears ([watchForGameWindow]).
+     */
+    private var inLauncher = activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_LAUNCHER, false)
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
     /** The account in the game's login box (Config.wtf), if the launcher knows which. */
     private val account: String? get() = activity.intent.getStringExtra(EXTRA_LOGIN_NAME)
@@ -225,6 +232,10 @@ class WowGestureView(
 
     /** The game's first window is up (the loading screen closed): the login screen wants the password. */
     fun onGameWindowShown() {
+        // Forever: the first window is the Forever Launcher, not the game. Show the cursor (it is a mouse GUI, and
+        // taps are plain clicks while [inLauncher]), do not type a password into it, and wait for the game's own
+        // window; this runs again — cleared of [inLauncher] — when that appears, and the real login begins then.
+        if (inLauncher) { xServer.renderer.isCursorVisible = true; watchForGameWindow(); return }
         // The pointer is there for the game (where taps click, what the cursor offers) but never
         // drawn: on a touch screen the finger is the pointer. The game screen shows it with its
         // first window; this comes right after.
@@ -276,7 +287,39 @@ class WowGestureView(
      * when the cursor offered more (talk, attack, loot, gather) and still does after the click, a
      * right click, which does it, as on a PC.
      */
+    /** Forever launcher only: a plain left click at the tapped point (its buttons), no cursor-reading or interaction. */
+    private fun plainClick(x: Float, y: Float) {
+        pointerTo(x, y)
+        val moves = pointerMoves
+        postDelayed({ if (moves == pointerMoves) click(Button.LEFT) }, CURSOR_SETTLE_MS)
+    }
+
+    private val gameWatch = Runnable { watchForGameWindow() }
+
+    /**
+     * Forever launcher only: waits for the game's own window (the launcher's Play opens it) and hands over to the
+     * normal WoW controls and login. The launcher is a small fixed window; the game fills the screen, so a renderable
+     * window about the size of the screen is the game. Polled every [GAME_WATCH_MS] while [inLauncher].
+     */
+    private fun watchForGameWindow() {
+        if (!inLauncher) return
+        val sw = xServer.screenInfo.width.toInt()
+        val sh = xServer.screenInfo.height.toInt()
+        val game = xServer.windowManager.focusedWindow?.takeIf {
+            it.isRenderable && it.width.toInt() >= sw * 9 / 10 && it.height.toInt() >= sh * 9 / 10
+        }
+        if (game != null) {
+            inLauncher = false
+            com.logie.blizz.game.GameLog.note("forever: game window up; WoW controls on")
+            onGameWindowShown()
+        } else {
+            removeCallbacks(gameWatch)
+            postDelayed(gameWatch, GAME_WATCH_MS)
+        }
+    }
+
     override fun tapAt(x: Float, y: Float) {
+        if (inLauncher) return plainClick(x, y)
         val now = SystemClock.uptimeMillis()
         // The same spot tapped again, not quick enough for a double tap: see below.
         val again = now - lastTapAt in TouchGestures.DOUBLE_TAP_MS..AGAIN_MS &&
@@ -344,6 +387,7 @@ class WowGestureView(
      * its own.
      */
     override fun doubleTapAt(x: Float, y: Float) {
+        if (inLauncher) return plainClick(x, y)
         // On the action bars, quick taps are presses of the buttons, as many as there are; on the
         // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
         // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
@@ -731,6 +775,8 @@ class WowGestureView(
         private const val LOGIN_SETTLE_MS = 1500L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
+        /** Forever: how often, while the launcher is up, to look for the game's own window and hand over to WoW controls. */
+        private const val GAME_WATCH_MS = 400L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
         private const val AGAIN_MS = 1500L
         /** How long a tap waits for the realm to say what it selected, and how often it looks. */
