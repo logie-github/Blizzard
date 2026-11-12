@@ -134,6 +134,14 @@ object WindowsRuntime {
         // Forever starts the Forever Launcher (a Windows GUI) before the game: its touch controls are plain tap-to-click
         // while it is up ([GestureView.EXTRA_LAUNCHER]), not the WoW game gestures, so its buttons can be pressed.
         val foreverLauncher = foreverClient && withContext(Dispatchers.IO) { com.logie.blizz.forever.ForeverLayout.of(context).hasLauncher() }
+        // Forever runs a .NET launcher (WinForms) and then the WoW client. Box64's aggressive PERFORMANCE preset
+        // corrupts .NET under ARM — its concurrent GC and lock-free code assume x86's strong memory ordering, which
+        // Box64 only emulates under STABILITY (STRONGMEM=2, SAFEFLAGS=2, no big blocks). That is the most likely cause
+        // of the launcher drawing its window and then crashing. Give the whole Forever session that safe preset.
+        if (foreverClient) withContext(Dispatchers.IO) {
+            container.setBox64Preset(com.winlator.box64.Box64Preset.STABILITY)
+            container.saveData()
+        }
         if (legion) {
             withContext(Dispatchers.IO) {
                 val layout = com.logie.blizz.wow.WowLayout.legion(context)
@@ -167,14 +175,17 @@ object WindowsRuntime {
                 // .NET program finds none and does not start. Put wine-mono in place (files only — Wine 10.10 finds it
                 // at C:\windows\mono by path, no installer and no first-run race), then seed the launcher's config so
                 // it opens straight on "This PC (own server)". Only when a launcher is set: the bare client needs neither.
-                if (layout.hasLauncher()) runCatching {
-                    if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
-                        _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
-                        com.logie.blizz.forever.WineMono.ensure(driveC) { done, total ->
-                            _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
+                if (layout.hasLauncher()) {
+                    runCatching {
+                        if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
+                            _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
+                            com.logie.blizz.forever.WineMono.ensure(driveC) { done, total ->
+                                _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
+                            }
                         }
                     }
-                    com.logie.blizz.forever.ForeverLauncher.seedConfig(driveC)
+                    // Seed even if the runtime step above threw, so the launcher still opens on "This PC (own server)".
+                    runCatching { com.logie.blizz.forever.ForeverLauncher.seedConfig(driveC) }
                 }
             }
         }
