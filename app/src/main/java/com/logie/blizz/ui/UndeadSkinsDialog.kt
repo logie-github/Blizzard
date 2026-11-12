@@ -45,16 +45,12 @@ internal fun UndeadSkinsDialog(onDismiss: () -> Unit) {
     var models by remember { mutableStateOf(runCatching { if (WrathppUndead.installed(store)) WrathppUndead.models(store) else emptyList() }.getOrDefault(emptyList())) }
     var working by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    // The file, where downloads are, by its name (when the app may look), else picked.
+    val found = remember { runCatching { com.logie.blizz.wrathpp.ImportFinder.find("wrathpp-undead-skins.zip") }.getOrNull() }
+    fun take(open: () -> java.io.InputStream) {
         working = true
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching {
-                    val input = context.contentResolver.openInputStream(uri) ?: throw java.io.IOException("The file couldn't be opened.")
-                    input.use { WrathppUndead.importZip(store, it) }
-                }
-            }
+            val result = withContext(Dispatchers.IO) { runCatching { open().use { WrathppUndead.importZip(store, it) } } }
             working = false
             result.onSuccess { models = it }
             Toast.makeText(
@@ -63,6 +59,9 @@ internal fun UndeadSkinsDialog(onDismiss: () -> Unit) {
                 Toast.LENGTH_LONG,
             ).show()
         }
+    }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) take { context.contentResolver.openInputStream(uri) ?: throw java.io.IOException("The file couldn't be opened.") }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -79,6 +78,7 @@ internal fun UndeadSkinsDialog(onDismiss: () -> Unit) {
             Text(
                 when {
                     working -> "Reading the file…"
+                    models.isEmpty() && found != null -> "None in yet. Found ${found.name} in ${found.parentFile?.name ?: "storage"}."
                     models.isEmpty() -> "None on this phone yet."
                     else -> "${models.sumOf { it.skins.size }} skins for ${models.size} races and sexes: " + models.joinToString(", ") { it.name } + "."
                 },
@@ -91,7 +91,10 @@ internal fun UndeadSkinsDialog(onDismiss: () -> Unit) {
             ) {
                 if (models.isNotEmpty() && !working) FrameButton("Remove", primary = false) { confirmRemove = true }
                 FrameButton("Close", primary = false, onClick = onDismiss)
-                if (!working) FrameButton(if (models.isEmpty()) "Pick the file" else "Pick another file") { pick.launch(arrayOf("*/*")) }
+                if (!working) {
+                    FrameButton(if (models.isEmpty()) "Pick the file" else "Pick another file", primary = found == null || models.isNotEmpty()) { pick.launch(arrayOf("*/*")) }
+                    if (found != null && models.isEmpty()) FrameButton("Use ${found.name}") { val file: java.io.File = found; take { file.inputStream() } }
+                }
             }
         }
     }

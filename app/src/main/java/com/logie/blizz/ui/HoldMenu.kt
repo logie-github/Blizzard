@@ -91,6 +91,12 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
                 HoldItem(Icons.Default.Face, "Undead skins (Wrath++)") { undeadSkins = true }
             }
             if (undeadSkins) UndeadSkinsDialog { undeadSkins = false; onDismiss() }
+            // Wrath++: Ralia's mod from your zip of it (RaliaDialog: looked for as ralia.zip, or picked).
+            var ralia by remember { mutableStateOf(false) }
+            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+                HoldItem(Icons.Default.Face, "Ralia's mod (Wrath++)") { ralia = true }
+            }
+            if (ralia) RaliaDialog { ralia = false; onDismiss() }
             // Warcraft III in Warsmash: Classic+, the remade models and textures (ClassicPlusDialog).
             var classicPlus by remember { mutableStateOf(false) }
             if (warsmash) HoldItem(Icons.Default.AutoAwesome, "Classic+ models") { classicPlus = true }

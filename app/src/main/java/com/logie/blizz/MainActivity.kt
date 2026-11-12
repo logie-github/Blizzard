@@ -13,6 +13,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Crashes and failures from now on go to GitHub as issues; ones waiting from before go now.
         com.logie.blizz.reports.BugReports.start(this)
+        // A crash of Wrath++'s game that was never reported (its runtime's logs stay on the phone) goes as the app starts.
+        applicationContext.let { app -> Thread { runCatching { com.logie.blizz.wrathpp.WrathppSetup.reportCrashes(app) } }.start() }
         // World of Warcraft: Play starts the realm through this.
         com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
         com.logie.blizz.wow.WowCtl.nativeWrapper = java.io.File(applicationInfo.nativeLibraryDir, "libblizzmaria.so")
