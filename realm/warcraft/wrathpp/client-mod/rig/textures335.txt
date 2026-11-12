@@ -1,0 +1,24 @@
+# Texture files of the 3.3.5 client that its own in-game interface names (the file after each name is where: the 3.3.5
+# FrameXML), for the creator's textures that the phone's glue files do not name themselves. The rig draws nothing, so a
+# texture the client does not have (a solid green square on the phone) is found by its name: every file the creator
+# names has to be in the phone's own glue files, be an icon of a 3.3.5 item or spell, or be in this list
+# (tools/known_textures.py, full.lua). A name is added here only with the 3.3.5 file that uses it.
+Interface\Buttons\UI-RotationLeft-Button-Up	DressUpFrame.xml
+Interface\Buttons\UI-RotationLeft-Button-Down	DressUpFrame.xml
+Interface\Buttons\UI-RotationRight-Button-Up	DressUpFrame.xml
+Interface\Buttons\UI-RotationRight-Button-Down	DressUpFrame.xml
+Interface\Buttons\ButtonHilight-Round	DressUpFrame.xml
+Interface\Buttons\UI-CheckBox-Up	UIPanelTemplates.xml
+Interface\Buttons\UI-CheckBox-Down	UIPanelTemplates.xml
+Interface\Buttons\UI-CheckBox-Highlight	UIPanelTemplates.xml
+Interface\Buttons\UI-CheckBox-Check	UIPanelTemplates.xml
+Interface\Buttons\UI-GroupLoot-Dice-Up	LootFrame.xml
+Interface\Buttons\UI-GroupLoot-Dice-Down	LootFrame.xml
+Interface\Buttons\UI-GroupLoot-Dice-Highlight	LootFrame.xml
+Interface\Minimap\MiniMap-TrackingBorder	Minimap.xml
+Interface\Minimap\UI-Minimap-ZoomInButton-Up	Minimap.xml
+Interface\Minimap\UI-Minimap-ZoomInButton-Down	Minimap.xml
+Interface\Minimap\UI-Minimap-ZoomOutButton-Up	Minimap.xml
+Interface\Minimap\UI-Minimap-ZoomOutButton-Down	Minimap.xml
+Interface\Minimap\UI-Minimap-ZoomButton-Highlight	Minimap.xml
+Interface\PaperDollInfoFrame\UI-GearManager-Undo	PaperDollFrame.lua

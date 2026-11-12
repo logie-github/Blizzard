@@ -17,7 +17,8 @@ on:
       - realm/warcraft/wrathpp/tools/sl_skin_names.py
       - realm/warcraft/wrathpp/data/skin_names.json
       - realm/warcraft/wrathpp/tools/sl_inventory.py
-      - realm/warcraft/wrathpp/client-mod/tests/test_creator_data.lua
+      - realm/warcraft/wrathpp/client-mod/rig/**
+      - app/src/main/assets/wrathpp/WrathppCreate.lua
       - realm/warcraft/modules/mod-allied-races/tools/m2.py
       - realm/warcraft/modules/mod-allied-races/tools/races.py
       - realm/warcraft/modules/mod-allied-races/tools/textures.py
@@ -28,6 +29,7 @@ on:
 
 permissions:
   contents: write
+  issues: read          # the rig reads the game's own creation screen from the phone's reports (rig/tools/fetch_stock.sh)
 
 concurrency:
   group: wrathpp-looks-${{ github.ref }}
@@ -51,6 +53,8 @@ jobs:
           curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"
           echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -
           unzip -q -o data.zip 'dbc/CharSections.dbc' 'dbc/CharHairGeosets.dbc' 'dbc/CharacterFacialHairStyles.dbc' -d server-data
+          # (and what the rig's game needs of the game's own: the races, the classes, which race may be which class)
+          unzip -q -o data.zip 'dbc/ChrRaces.dbc' 'dbc/ChrClasses.dbc' 'dbc/CharBaseInfo.dbc' 'dbc/FactionTemplate.dbc' 'dbc/FactionGroup.dbc' 'dbc/ItemDisplayInfo.dbc' 'dbc/SpellIcon.dbc' -d rig-dbc
           rm data.zip
           ls -l server-data/dbc
 
@@ -72,13 +76,22 @@ jobs:
           [ -f build/looks/looks.files ]
 
       # What the creator shows a race and sex (Shadowlands' options, their choices, their place in 3.3.5's five numbers):
-      # with the looks, since it is the key to their tables. The creator's script is then run on it, every choice of
-      # every option put on and read back.
+      # with the looks, since it is the key to their tables.
       - name: The creator's options
         run: |
           python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua | tee -a looks-report.txt
           echo 'Interface\GlueXML\WrathppLooks.lua' >> build/looks/looks.files
-          luajit realm/warcraft/wrathpp/client-mod/tests/test_creator_data.lua build/looks/client/Interface/GlueXML/WrathppLooks.lua app/src/main/assets/wrathpp/WrathppCreate.lua | tee -a looks-report.txt
+
+      # The creator run on the rig (realm/warcraft/wrathpp/client-mod/rig): the game's own creation screen (the phone's
+      # files), the client's creation logic and these looks' tables; every race, sex and class opened, every option's
+      # every choice tapped, the creator turned off. The looks are not published if it fails.
+      - name: The creator on the rig
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sh realm/warcraft/wrathpp/client-mod/rig/run.sh build/rig app/src/main/assets/wrathpp/WrathppCreate.lua \
+            build/looks/client/Interface/GlueXML/WrathppLooks.lua build/looks/client/DBFilesClient rig-dbc/dbc 2>&1 | grep -v '^ok ' | tee -a looks-report.txt
+          grep -q 'the rig: all passed' looks-report.txt
 
       # Which of today's files each skin was made from, by name: what the app's Ralia import matches a set of replacement
       # textures by (the names are in the repository: data/skin_names.json).

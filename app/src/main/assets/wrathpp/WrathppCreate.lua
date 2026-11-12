@@ -328,11 +328,17 @@ function W.Rows()
 				end
 			else
 				local value = number(FIELD[option.field])
-				local digit = decode(math.min(value, product(model.fields[option.field]) - 1), model.fields[option.field])[option.part]
-				for _, c in ipairs(option.choices) do
-					if ( allowed(c, dk) ) then
-						row.choices[#row.choices + 1] = c
-						if ( c.v == digit ) then row.at = #row.choices end
+				if ( value == nil ) then
+					-- the game has none of this for the character as it is (it counts 0): shown, greyed, not chosen from
+					row.kind, row.none = "later", true
+					for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end
+				else
+					local digit = decode(math.min(value, product(model.fields[option.field]) - 1), model.fields[option.field])[option.part]
+					for _, c in ipairs(option.choices) do
+						if ( allowed(c, dk) ) then
+							row.choices[#row.choices + 1] = c
+							if ( c.v == digit ) then row.at = #row.choices end
+						end
 					end
 				end
 			end
@@ -406,6 +412,43 @@ function W.AfterRandomize(wasUndead)
 		setNumber(FIELD.skin, undead.first + math.random(#undead.skins) - 1)
 	elseif ( not wasUndead and skin >= undead.first ) then
 		setNumber(FIELD.skin, math.random(undead.first) - 1)
+	end
+end
+
+-- A class's own choices. Shadowlands gives a death knight faces, eye colours and skins of its own and keeps the
+-- others' from it (and its own from the others); the game here knows no such rule (every face is every class's in
+-- its table, so that a death knight has faces at all), and what it picks by itself when the screen opens, at a new
+-- race, sex or class, and at Randomize can be a choice this class may not have. Such a number is moved onto this
+-- class's choice at the same place among its kind (a death knight's third face for the others' third).
+function W.Normalize()
+	local model, undead, dk = looks()
+	if ( not model ) then return end
+	local isUndead = undeadOn(model, undead)
+	for _, option in ipairs(model.options) do
+		local index = option.field and FIELD[option.field]
+		if ( index and not (isUndead and option.field == "skin") ) then
+			local value = number(index)
+			local parts = model.fields[option.field]
+			if ( value ~= nil and value < product(parts) ) then
+				local digits = decode(value, parts)
+				local current, mine = nil, {}
+				for _, c in ipairs(option.choices) do
+					if ( c.v == digits[option.part] ) then current = c end
+					if ( allowed(c, dk) ) then mine[#mine + 1] = c end
+				end
+				if ( #mine > 0 and (not current or not allowed(current, dk)) ) then
+					local place = 1
+					if ( current ) then
+						local n = 0
+						for _, c in ipairs(option.choices) do
+							if ( c.c == current.c ) then n = n + 1; if ( c == current ) then place = n end end
+						end
+					end
+					digits[option.part] = mine[math.min(place, #mine)].v
+					setNumber(index, encode(digits, parts))
+				end
+			end
+		end
 	end
 end
 
@@ -526,11 +569,7 @@ local notice = text(optionPanel, FONT_SMALL); notice:SetPoint("TOP", optionPanel
 local viewPanel = make("Frame", "WrathppViewPanel", root)
 viewPanel:SetWidth(230); viewPanel:SetHeight(40)
 viewPanel:SetPoint("TOPLEFT", root, "TOPLEFT", 24, -24)
--- "Name" over the game's own box for it, which Customize puts at the top in the middle
-local nameTitle = text(root, FONT_LABEL)
-nameTitle:SetText(NAME or "Name")
-nameTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-nameTitle:Hide()
+-- (the game's own box for the name has "Name" over it, a part of the box: Customize puts the box at the top in the middle)
 
 -- The buttons at the foot.
 local customizeButton = glueButton("WrathppCustomizeButton", root, "Customize", 170, function() WrathppCreate_SetStep(2) end, "GlueButtonTemplate")
@@ -547,6 +586,7 @@ randomizeButton:SetScript("OnClick", guarded(function()
 	local wasUndead = undeadOn(model, undead)
 	if ( type(CharacterCreate_Randomize) == "function" ) then CharacterCreate_Randomize() else RandomizeCharCustomization() end
 	W.AfterRandomize(wasUndead)
+	W.Normalize()
 	W.Regear()
 	WrathppCreate_Refresh()
 end))
@@ -599,7 +639,9 @@ local function holdButton(name, parent, up, down, held, tapped)
 	b.whileHeld = held
 	return b
 end
-local resetView = holdButton("WrathppResetView", viewPanel, "Interface\\Buttons\\UI-RefreshButton", nil, nil, function()
+-- (the turned arrow of 3.3.5's gear manager: Interface\\Buttons\\UI-RefreshButton, used here until build 237, is of a later game
+-- and not among 3.3.5's files; the rig now checks every texture's name: rig/textures335.txt)
+local resetView = holdButton("WrathppResetView", viewPanel, "Interface\\PaperDollInfoFrame\\UI-GearManager-Undo", nil, nil, function()
 	W.SetZoom(1, 0.6); W.spin = 0
 	if ( type(SetCharacterCreateFacing) == "function" ) then SetCharacterCreateFacing(-15) end
 end)
@@ -743,7 +785,7 @@ local function showRow(f, row)
 			f.choice.mark:Hide()
 		elseif ( row.kind == "later" ) then
 			f.choice.number:SetText("")
-			f.choice.label:SetText("Not drawn yet")
+			f.choice.label:SetText(row.none and "None for this character" or "Not drawn yet")
 			paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
 			f.choice.mark:Hide()
 		else
@@ -804,10 +846,10 @@ end
 
 function WrathppCreate_ClosePopout()
 	popout:Hide(); catcher:Hide()
-	popout.row, popout.owner = nil, nil
+	popout.row, popout.owner, popout.room = nil, nil, nil
 end
 
-local function fillPopout()
+local function fillPopout(room)
 	local row = popout.row
 	if ( not row ) then return end
 	local named = false
@@ -836,7 +878,10 @@ local function fillPopout()
 	end
 	for k = n + 1, #cells do cells[k]:Hide() end
 	local width = columns * (cw + 4) + 4
-	local height = math.min(lines * 38, 420)
+	-- as tall as its lines, as the screen has room for (room), and no taller than eleven lines; never under two
+	local height = math.min(lines * 38, 418)
+	room = room or popout.room                       -- (filled again as the rows are read again: the room it was given stays)
+	if ( room ) then height = math.max(math.min(76, lines * 38), math.min(height, math.floor((room - 20) / 38) * 38)) end
 	popoutList:SetWidth(width); popoutList.child:SetWidth(width)
 	popoutList:SetView(height)
 	popoutList:SetContentHeight(lines * 38)
@@ -849,15 +894,21 @@ function WrathppCreate_TogglePopout(f)
 	local row = f.row
 	if ( not row or row.kind ~= "list" ) then return end
 	popout.row, popout.owner = row, f
-	local _, columns = fillPopout()
-	-- under the row's box, as Shadowlands opens it; over it where there is no room under
+	-- Under the row's box, as Shadowlands opens it, or over it where there is more room there; no taller than the room
+	-- it has, so that all of it is on the screen (the list scrolls under a finger).
 	popout:ClearAllPoints()
-	local bottom = f.choice.GetBottom and f.choice:GetBottom()
-	local height = popout:GetHeight() or 0
-	if ( type(bottom) == "number" and bottom - height < 70 ) then
-		popout:SetPoint("BOTTOMRIGHT", f.choice, "TOPRIGHT", 0, 2)
+	popout.room = nil
+	local lines, columns = fillPopout()
+	local top, bottom = f.choice:GetTop(), f.choice:GetBottom()
+	local screen = (GlueParent and GlueParent:GetHeight()) or 768
+	if ( type(top) == "number" and type(bottom) == "number" and screen > 0 ) then
+		local below, above = bottom - 10, screen - top - 10
+		local under = (lines * 38 + 20 <= below) or (below >= above)
+		popout.room = under and below or above
+		lines, columns = fillPopout()
+		if ( under ) then popout:SetPoint("TOPRIGHT", f.choice, "BOTTOMRIGHT", 0, -2) else popout:SetPoint("BOTTOMRIGHT", f.choice, "TOPRIGHT", 0, 2) end
 	else
-		popout:SetPoint("TOPRIGHT", f.choice, "BOTTOMRIGHT", 0, -2)
+		popout:SetPoint("TOPRIGHT", optionPanel, "TOPLEFT", -6, 0)
 	end
 	local at = row.at or 1
 	popoutList.offset, popoutList.target = 0, 0
@@ -911,6 +962,9 @@ local function placeRaces()
 			if ( columns == 1 ) then label:SetPoint("LEFT", b, "RIGHT", 12, 0) else label:SetPoint("TOP", b, "BOTTOM", 0, -2) end
 			label:SetText(r.name or "")
 			label:Show()
+			-- (the game writes the chosen race's name on its button: every race has its name beside it here)
+			local own = b.GetName and b:GetName() and _G[b:GetName().."Text"]
+			if ( own ) then own:Hide() end
 		end
 		local lines = math.ceil(#side / columns)
 		tallest = math.max(tallest, 56 + lines * (columns == 1 and 62 or 78))
@@ -918,7 +972,41 @@ local function placeRaces()
 	alliancePanel:SetHeight(tallest); hordePanel:SetHeight(tallest)
 end
 
+-- The game's own pieces as they were (whose child, where, shown or not) before this script moved, hid or showed
+-- them: noted the first time the creator places anything, and put back as noted if it goes off, so that the game's
+-- own screen is whole again (build 235's went off with the races, sexes and classes left in its hidden panels).
+local kept, keptOrder = {}, {}
+local function keep(f)
+	if ( type(f) ~= "table" or kept[f] ) then return end
+	local k = { parent = f:GetParent(), shown = f:IsShown() and true or false, points = {} }
+	for i = 1, f:GetNumPoints() do k.points[i] = { f:GetPoint(i) } end
+	kept[f] = k
+	keptOrder[#keptOrder + 1] = f
+end
+local function keepAll()
+	if ( W.keptAll ) then return end
+	W.keptAll = true
+	for _, name in ipairs({ "CharacterCreateGenderButtonMale", "CharacterCreateGenderButtonFemale", "CharacterCreateConfigurationFrame", "CharCreateRandomizeButton",
+			"CharacterCreateCharacterClass", "CharacterCreateCharacterRace", "CharCreateOkayButton", "CharacterCreateRotateLeft", "CharacterCreateRotateRight",
+			"CharacterCreateNameEdit", "CharacterCreateRandomName", "CharCreateBackButton", "CharacterCreateWoWLogo" }) do keep(_G[name]) end
+	for _, prefix in ipairs({ "CharacterCreateRaceButton", "CharacterCreateClassButton", "CharacterCustomizationButtonFrame" }) do
+		local i = 1
+		while ( _G[prefix..i] ) do keep(_G[prefix..i]); keep(_G[prefix..i.."Text"]); i = i + 1 end
+	end
+end
+local function putBack()
+	for _, f in ipairs(keptOrder) do
+		local k = kept[f]
+		f:SetParent(k.parent)
+		f:ClearAllPoints()
+		for _, p in ipairs(k.points) do f:SetPoint(p[1], p[2] or k.parent, p[3], p[4], p[5]) end
+	end
+	-- shown or hidden as they were, once each is its own parent's again
+	for _, f in ipairs(keptOrder) do if ( kept[f].shown ) then f:Show() else f:Hide() end end
+end
+
 local function place()
+	keepAll()
 	for _, name in ipairs({ "CharacterCreateGenderButtonMale", "CharacterCreateGenderButtonFemale" }) do
 		local b = _G[name]
 		if ( b ) then
@@ -953,7 +1041,7 @@ local function place()
 	i = 1
 	while ( _G["CharacterCustomizationButtonFrame"..i] ) do _G["CharacterCustomizationButtonFrame"..i]:Hide(); i = i + 1 end
 	for _, name in ipairs({ "CharCreateRandomizeButton", "CharacterCreateCharacterClass", "CharacterCreateCharacterRace", "CharCreateOkayButton",
-			"CharacterCreateRotateLeft", "CharacterCreateRotateRight" }) do
+			"CharacterCreateRotateLeft", "CharacterCreateRotateRight", "CharacterCreateWoWLogo" }) do
 		if ( _G[name] ) then _G[name]:Hide() end
 	end
 	local naming = W.step == 2
@@ -961,14 +1049,13 @@ local function place()
 		CharacterCreateNameEdit:ClearAllPoints()
 		CharacterCreateNameEdit:SetPoint("TOP", root, "TOP", 0, -44)
 		if ( naming ) then CharacterCreateNameEdit:Show() else CharacterCreateNameEdit:Hide() end
-		nameTitle:ClearAllPoints()
-		nameTitle:SetPoint("BOTTOM", CharacterCreateNameEdit, "TOP", 0, 2)
 	end
-	if ( naming and CharacterCreateNameEdit ) then nameTitle:Show() else nameTitle:Hide() end
+	-- the game's button for a random name is the game's to show (it does where names may be drawn): beside the box
+	-- while the box is up and the game had it shown, away otherwise
 	if ( CharacterCreateRandomName ) then
 		CharacterCreateRandomName:ClearAllPoints()
 		CharacterCreateRandomName:SetPoint("RIGHT", CharacterCreateNameEdit or root, "LEFT", -6, 0)
-		if ( naming ) then CharacterCreateRandomName:Show() else CharacterCreateRandomName:Hide() end
+		if ( naming and (ALLOW_RANDOM_NAME_BUTTON or (kept[CharacterCreateRandomName] and kept[CharacterCreateRandomName].shown)) ) then CharacterCreateRandomName:Show() else CharacterCreateRandomName:Hide() end
 	end
 	if ( CharCreateBackButton ) then
 		CharCreateBackButton:ClearAllPoints()
@@ -1013,8 +1100,8 @@ local function refresh()
 		popout.row = popout.owner.row
 		if ( popout.row.kind == "list" ) then fillPopout() else WrathppCreate_ClosePopout() end
 	end
-	local race, sex = creating()
-	log("customize: "..tostring(race).."_"..tostring(sex)..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five"))
+	local race, sex, deathKnight = creating()
+	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five"))
 	if ( type(WrathPP_GetCustomization) ~= "function" ) then
 		notice:SetText("Wrath++ add-on not running: the game's own five")
 	elseif ( not model ) then
@@ -1046,23 +1133,36 @@ end
 WrathppCreate_SetStep = guarded(setStep)
 
 -- The game's own screen back, and why.
+-- The character as the game has it, for the log: race_sex, class, and each of the five numbers as "on/of how many".
+local function stateLine()
+	local parts = {}
+	pcall(function()
+		if ( type(WrathPP_GetCreating) == "function" ) then
+			local race, sex, class = WrathPP_GetCreating()
+			parts[#parts + 1] = tostring(race).."_"..tostring(sex).." class "..tostring(class)
+		end
+		if ( type(WrathPP_GetCustomization) == "function" ) then
+			for i = 1, 5 do
+				local current, count = WrathPP_GetCustomization(i)
+				parts[#parts + 1] = tostring(current).."/"..tostring(count)
+			end
+		end
+	end)
+	return table.concat(parts, " ")
+end
+
 function WrathppCreate_Disable(reason)
 	W.off = true
 	log("off: "..tostring(reason))
+	log("off with the character "..stateLine())
+	-- the game's own screen whole again: this script's pieces away (each by itself: one that fails doesn't keep the rest),
+	-- the game's back where and as they were, the view as the game has it
 	for _, f in ipairs({ alliancePanel, hordePanel, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel, customizeButton, backButton,
-			finishButton, randomizeButton, spinArea, popout, catcher }) do f:Hide() end
-	for _, name in ipairs({ "CharacterCreateConfigurationFrame", "CharCreateRandomizeButton", "CharCreateOkayButton", "CharCreateBackButton",
-			"CharacterCreateCharacterClass", "CharacterCreateCharacterRace", "CharacterCreateRotateLeft", "CharacterCreateRotateRight" }) do
-		if ( _G[name] ) then _G[name]:Show() end
-	end
-	local i = 1
-	while ( _G["CharacterCustomizationButtonFrame"..i] ) do _G["CharacterCustomizationButtonFrame"..i]:Show(); i = i + 1 end
-	nameTitle:Hide()
-	if ( CharacterCreateNameEdit ) then
-		CharacterCreateNameEdit:ClearAllPoints()
-		CharacterCreateNameEdit:SetPoint("BOTTOM", root, "BOTTOM", 0, 44)
-		CharacterCreateNameEdit:Show()
-	end
+			finishButton, randomizeButton, spinArea, popout, catcher }) do pcall(f.Hide, f) end
+	for _, label in pairs(raceLabels) do pcall(label.Hide, label) end
+	pcall(putBack)
+	W.zoom, W.zoomTarget = 1, 1
+	pcall(W.ApplyZoom)
 	if ( not W.reason ) then
 		W.reason = text(root, FONT_SMALL)
 		W.reason:SetPoint("TOP", root, "TOP", 0, -4)
@@ -1093,12 +1193,18 @@ local opened = guarded(function()
 		..", looks' options "..(type(WrathppLooks) == "table" and "in" or "not in")..", undead skins "..(type(WrathppUndead) == "table" and "in" or "not in"))
 	W.ApplyZoom()
 	WrathppCreate_SetStep(1)
+	W.Normalize()
 end)
 if ( type(CharacterCreate_OnShow) == "function" ) then
 	after("CharacterCreate_OnShow", function() W.made = true; W.pending = nil; opened() end)
 end
 for _, name in ipairs({ "SetCharacterRace", "SetCharacterGender", "SetCharacterClass", "CharacterCreate_UpdateHairCustomization" }) do
-	after(name, guarded(function() WrathppCreate_ClosePopout(); place(); if ( name ~= "CharacterCreate_UpdateHairCustomization" ) then W.Regear() end; WrathppCreate_Refresh() end))
+	after(name, guarded(function()
+		WrathppCreate_ClosePopout()
+		place()
+		if ( name ~= "CharacterCreate_UpdateHairCustomization" ) then W.Normalize(); W.Regear() end
+		WrathppCreate_Refresh()
+	end))
 end
 
 -- Every frame: the lists easing, the character turning, the view coming nearer; four times a second the rows again
