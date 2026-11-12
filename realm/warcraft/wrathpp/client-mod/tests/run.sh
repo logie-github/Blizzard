@@ -53,4 +53,6 @@ check(sent[3][1] == struct.pack("<BQ", 1, 0xAA), "  the query: one guid, 0xAA")
 print("decoded as the server does:", "all passed" if not fails else f"{fails} failed")
 sys.exit(1 if fails else 0)
 PY
-luajit "$HERE/test_creator.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppCreate.lua"
+# The creator (app/src/main/assets/wrathpp/WrathppCreate.lua) is tested on the rig (client-mod/rig/run.sh: the game's own
+# creation screen, its creation logic and its tables), with the looks, by wrathpp-looks.yml. It had a stand-in screen
+# of its own here, which passed three builds that failed on the phone, and is gone.

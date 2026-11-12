@@ -1,0 +1,1 @@
+Wrath++ creator: death knights can be customized (the game counted no faces for them), the list of choices stays on the screen, and the game's own screen is whole again if the creator turns itself off; the creator is now tested on a rig built from the game's own creation screen.

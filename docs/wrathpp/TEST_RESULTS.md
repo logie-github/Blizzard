@@ -212,3 +212,36 @@ this machine.
 **The other record** (#103): a launch of 11 November (native 0.1.0, before this work), 7m 44s in: the game jumped to
 `0x625AF8B0`, an address in no module, from `WowWrathpp.exe+0x28FAFC` under `WarcraftXL.dll+0xBDE1B`, with no frame
 drawn for the 427 s before (the last events to mods are that old: the app was in the background). Not looked into.
+
+## 2026-11-13: the rig, and what it found
+
+**The phone, build 235** (report #107 and two screenshots): the crash on Create Character is gone (`creator: opened`,
+`screen: race and class`), and 7.5 s later, at Customize: `creator: off: WrathppCreate.lua:331: bad argument #1 to
+'min' (number expected, got nil)`. The game's own screen that came back was broken: no race, sex or class buttons, Back
+over Randomize. The user: "Can you just test it on your rig rather than giving me shitty code".
+
+**The rig** (`realm/warcraft/wrathpp/client-mod/rig`): the phone's own creation-screen files (issues #57 to #64), the
+client's creation logic ported from its decompiled source, the game's tables, a widget engine that keeps to the
+client's rules, the native mod's functions. Its picture of the game's own screen at the phone's shape matches the
+phone's screenshot of it (the left panel with the banners, races, sexes, classes, the five rows and Randomize; the
+race's and the class's texts on the right; Accept and Back under them; the name's box at the foot in the middle).
+
+**The phone's failures on it, with the scripts the phone had.** Builds 226 to 232's script: `RIG CRASH: the game read
+the character being created, and there is none` as the screen is shown (`GetSelectedClass` from the creator's own
+OnShow, which runs before the game's). Builds 233 to 235's script with the phone's table: 124 race, sex and class
+combinations opened and Customize tapped, **19 fail, every one a death knight**, each with the phone's own words
+(`:331: bad argument #1 to 'min'`); the five numbers there read `face 1/0`: the game counts no face for a death knight
+(the looks' faces carried flag 1, everyone's but a death knight's; 3.3.5's own tables have a death knight's faces
+beside them, flag 5). The same script's full pass: 271 problems (lists of choices partly off the screen, rows with no
+current choice); its off path: 3 failures.
+
+**This build on it** (`run.sh`, two minutes): what the creator does, 33 checks; turned off, all 194 pieces of the
+game's own screen where and as they are without the creator, none of the creator's left, the game's own buttons
+working and Accept making the character chosen; every race, sex and class with every option's every choice: 9,094 taps
+and 9,342 checks, 0 problems; without undead skins 7,360 taps, without the native mod 2,108, on a 4:3 screen 7,412, on
+a 16:9 screen 7,412: 0 problems each. With the phone's present table (before the looks with the faces opened to every
+class reach it) the creator stays on for a death knight and its skin cannot be changed, which is the game's own rule
+there (`SetNextSkin` wants a face row the class may have).
+
+**Not tested**: the game itself and the phone. The rig has no art and draws nothing; a wrong texture name, a font the
+client lacks or a frame drawn under another are not seen on it.

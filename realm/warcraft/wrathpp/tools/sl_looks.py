@@ -189,7 +189,12 @@ def table_rows(looks):
                 for s in m["skins"]:
                     fid = names.face_file(m, face, s)
                     for eye in m["eyes"]:
-                        sections.append([race, sex, 1, names.face_lower(m, fid, eye), names.face_upper(m, eye), "", 1,
+                        # 17 (0x11): a face of every class's, a death knight's too. 3.3.5's own faces are 1 (every class
+                        # but a death knight) with a death knight's own faces beside them (5); today's game has no faces
+                        # of a death knight's own, and with 1 the game counted NO face for a death knight of these races
+                        # (CCharacterComponent::GetNumFacesForSkin: a death knight's rows need 0x4 or 0x10), so its face
+                        # and skin could not be changed, and Wrath++'s creator stopped on the count (12 November 2026).
+                        sections.append([race, sex, 1, names.face_lower(m, fid, eye), names.face_upper(m, eye), "", 17,
                                          names.face_variation(m, fi, eye["index"]), s["index"]])
             for h in m["hair"]:
                 for hc in m["hair_colors"]:
