@@ -170,3 +170,14 @@ kotlinc against stubs of Android's classes; `UpdaterTest`'s six new ones (a loca
 run in CI only. The creator on the stand-in screen: 70 checks (Gear: 8, the log: 5). The native mod 0.3.0
 (`WrathPP_SetGear`, `WrathPP_Log`) is compiled by CI (MSVC x86) and **has not run in the game**; nothing here has run
 on a phone.
+
+**Ralia's set, end to end here** (the app's own `WrathppRalia` and `WrathppBare`, compiled with kotlinc, on the looks
+package as CI makes it and the user's zip): `lookFor` took the zip in by itself (693 textures) and not a second time;
+`apply` put the set's over 133 of the looks' skins in 4.5 s (and nothing the second time); 127 of the women's 246
+underwear rows lost their textures with it and the other 119 by `WrathppBare` (246 of 246); after Remove every skin
+file is the looks' own again, byte for byte. Each written skin against the set's file it was made from (its body half
+at 512 x 512): a mean difference of 1.1 to 2.2 of 255 a channel, the palette's doing. The looks' own skin of the same
+number differs from the set's by under 2 on average too, which says the list of names pairs each skin with the right
+file (the set repaints parts of the same picture). The list: 296 of the looks' skin files named (wago.tools' file
+search, by the words `<model>skin`, and `nightelf_femaleskin` for the Night Elf women, whose files are named so); the
+skins of Shadowlands' newer colours have names of another kind and keep the looks' own.
