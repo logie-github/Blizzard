@@ -61,9 +61,36 @@ Without `BLIZZ_XRIG=1` the tests are skipped: CI and an ordinary test run pass o
 server up as display `:77`. A Wine program started with `DISPLAY=:77` (in `explorer /desktop=shell,WxH`, as the phone
 starts games) draws on it. Commands written to `/tmp/xrig-77-cmd`, one a line, are answered in `/tmp/xrig-77-out.txt`:
 `move X Y`, `click X Y`, `dclick X Y`, `down`/`up`, `key NAME`, `type text`, `shot file.png`, `windows`, `state`,
-`sleep MS`, `exec command`. The window tree is written to `/tmp/xrig-77-windows.txt` as it changes. Diablo II 1.13 was
+`pshot file.png` (below), `sleep MS`, `exec command`. The window tree is written to `/tmp/xrig-77-windows.txt` as it changes. Diablo II 1.13 was
 played this way through the keeper and winhandler.exe: its menu, a character named with the app's keys, a game entered,
 and the session ending when the game was quit from its own menu.
+
+## Through the phone's Box64
+
+The phone runs the same Wine through Box64 (arm64). That runs here too, slowly, with `qemu-user`: a program that fails only on
+the phone can be tried through the phone's own Box64 build before anything is changed for it (World of Warcraft: Forever's
+launcher, 12 November 2026: it ran, so Box64 was not what failed).
+
+1. `apt-get install qemu-user-static`; `mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc` and register
+   `qemu-aarch64-static` for arm64 programs with the flag `F` (README, "The Forever client and realm on the rig").
+2. Box64: unpack `app/winlator/assets/box64/box64-0.4.4.tzst` and put its `usr/local/bin/box64` into the runtime
+   (`winrootfs/usr/local/bin`); its loader path is Winlator's, so link `/data/data/com.winlator/files/rootfs` at the runtime.
+   `box64/default.box64rc` goes to `winrootfs/etc/config.box64rc`.
+3. The runtime's X library looks for the server under the runtime (`winrootfs/tmp/.X11-unix/X<display>`): link that at the
+   rig's socket (`/tmp/xrig-<display>/tmp/.X11-unix/X0`).
+4. Start as the phone does (`GuestProgramLauncherComponent`): `box64 <wine> explorer /desktop=shell,WxH ...` with
+   `LD_LIBRARY_PATH=winrootfs/usr/lib`, `BOX64_LD_LIBRARY_PATH=winrootfs/lib/x86_64-linux-gnu`, `TMPDIR=winrootfs/tmp`,
+   `ANDROID_SYSVSHM_SERVER=/tmp/xrig-<display>/tmp/.sysvshm/SM0`, `BOX64_RCFILE`, `BOX64_DYNAREC=1`, and the preset's
+   variables (`Box64PresetManager`). Without the shared memory server's address Wine's drawing faults in
+   `NtUserShowWindow`/`NtUserSetWindowPos` and no window shows; the rig's server takes both kinds of segment (the service's,
+   as on the phone, and this machine's own for the native Wine).
+
+A .NET program's window took three to four minutes to come up this way (seconds natively).
+
+`pshot FILE` in the hold mode writes the screen as the phone's renderer composes it (`GLRenderer`, with the games' forced
+full screen): black first, a plain undecorated window stretched over the screen, a layered or transparent window blended by
+its own alpha. `shot` shows what the windows hold instead. The window list says ` layered`, ` transparent` and the range of
+alpha in each mapped window's pixels: a window the renderer blends whose pixels carry alpha 0 is not seen on the phone.
 
 ## What it cannot do
 

@@ -119,6 +119,8 @@ object ForeverPlay {
                     val layout = ForeverLayout.of(app)
                     // The launcher a previous version left in the client folder is removed, so Play asks for the current one.
                     ForeverLauncher.removePlaced(layout.client)
+                    // Its config beside it too (also when the games' Windows isn't made yet).
+                    ForeverLauncher.clearConfig(layout.client, null)
                     // The container's Forever setup (the .NET runtime, the seeded config, an old browser runtime) is rebuilt on Play.
                     runCatching { WindowsRuntime.clearForeverRuntime(app) }
                     // The client's index files get the update section again, in place (nothing re-downloaded).

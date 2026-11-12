@@ -184,8 +184,9 @@ object WindowsRuntime {
                             }
                         }
                     }
-                    // Seed even if the runtime step above threw, so the launcher still opens on "This PC (own server)".
-                    runCatching { com.logie.blizz.forever.ForeverLauncher.seedConfig(driveC) }
+                    // Seed even if the runtime step above threw: the launcher's config beside it (its own-server mode, the
+                    // game folder, this realm's ports) and the realm's name in Windows' hosts file ([ForeverLauncher.seedConfig]).
+                    runCatching { com.logie.blizz.forever.ForeverLauncher.seedConfig(layout.client, driveC) }
                 }
             }
         }
@@ -279,7 +280,7 @@ object WindowsRuntime {
         val container = ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME } ?: return
         val driveC = File(container.rootDir, ".wine/drive_c")
         com.logie.blizz.forever.WineMono.remove(driveC)
-        com.logie.blizz.forever.ForeverLauncher.clearConfig(driveC)
+        com.logie.blizz.forever.ForeverLauncher.clearConfig(com.logie.blizz.forever.ForeverLayout.of(context).client, driveC)
         File(driveC, "webview2").deleteRecursively()
     }
 

@@ -63,8 +63,11 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
     init {
         wineserver("-k")
         shm.start()
-        // This machine's X library takes its shared memory from the kernel, not from Winlator's service: the server is handed those.
-        xServer.setSHMSegmentManager(com.winlator.xserver.SHMSegmentManager(HostSharedMemory()))
+        // This machine's X library takes its shared memory from the kernel, not from Winlator's service: the server is handed
+        // those, and the service's own too (the phone's arm64 libraries under Box64 and qemu ask the service, as on the phone).
+        val service = SysVSharedMemoryComponent::class.java.getDeclaredField("sysVSharedMemory").apply { isAccessible = true }
+            .get(shm) as com.winlator.sysvshm.SysVSharedMemory
+        xServer.setSHMSegmentManager(com.winlator.xserver.SHMSegmentManager(HostSharedMemory(service)))
         x.start()
         link.parentFile?.mkdirs()
         Files.deleteIfExists(link.toPath())
@@ -135,7 +138,8 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
         var p = w.parent
         while (p != null) { depth++; p = p.parent }
         "  ".repeat(depth) + "0x${Integer.toHexString(w.id)} '${w.name}' ${w.className} ${w.width}x${w.height}@${w.x},${w.y}" +
-            (if (w.attributes.isMapped) "" else " unmapped") + (if (w.isInputOutput) "" else " input-only") + (if (w.type == Window.Type.DIALOG) " dialog" else "")
+            (if (w.attributes.isMapped) "" else " unmapped") + (if (w.isInputOutput) "" else " input-only") + (if (w.type == Window.Type.DIALOG) " dialog" else "") +
+            (if (w.isLayered) " layered" else "") + (if (w.attributes.isTransparent) " transparent" else "") + alphaOf(w)
     }
 
     fun waitFor(what: String, timeoutMs: Long = 60_000, condition: () -> Boolean) {
@@ -183,7 +187,24 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
 
     private fun describe(w: Window?): String =
         if (w == null) "none" else "0x${Integer.toHexString(w.id)} '${w.name}' ${w.className} ${w.width}x${w.height}@${w.rootX},${w.rootY}" +
-            (if (w.isInputOutput) "" else " input-only") + (w.fullscreenTransformation?.let { " stretched to ${it.width}x${it.height}@${it.x},${it.y}" } ?: "")
+            (if (w.isInputOutput) "" else " input-only") + (w.fullscreenTransformation?.let { " stretched to ${it.width}x${it.height}@${it.x},${it.y}" } ?: "") +
+            // What decides how the phone's renderer draws it (GLRenderer.collectRenderableWindows): a layered or transparent
+            // window is blended by its own alpha, and one whose pixels carry alpha 0 is then not seen at all.
+            (if (w.isLayered) " layered" else "") + (if (w.attributes.isTransparent) " transparent" else "") + alphaOf(w)
+
+    /** " alpha MIN..MAX" of a mapped window's pixels (sampled), "" when it has none. */
+    private fun alphaOf(w: Window): String {
+        if (!w.attributes.isMapped) return ""
+        val content = w.content ?: return ""
+        val data = content.data ?: return ""
+        val pixels = data.duplicate().order(java.nio.ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+        val n = minOf(pixels.capacity(), content.width.toInt() * content.height.toInt())
+        if (n <= 0) return ""
+        var lo = 255; var hi = 0
+        var i = 0
+        while (i < n) { val a = pixels.get(i) ushr 24; if (a < lo) lo = a; if (a > hi) hi = a; i += 97 }
+        return " alpha $lo..$hi"
+    }
 
     /** Where the pointer is, the window under it, a grab and what it asks for, the focus: what a click would meet. */
     fun state(): String = xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.INPUT_DEVICE).use {
@@ -197,7 +218,7 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
     /**
      * One command of the hold mode's: `move X Y`, `click X Y [right]`, `dclick X Y`, `down [right]`, `up [right]`,
      * `key NAME [HELD...]` (XKeycode names: KEY_A, KEY_ENTER, KEY_SHIFT_L...), `type TEXT` (letters, digits and spaces),
-     * `shot [FILE]`, `windows`, `state`, `sleep MS`.
+     * `shot [FILE]`, `pshot [FILE]` (as the phone's renderer shows it: [phoneScreenshot]), `windows`, `state`, `sleep MS`.
      */
     fun command(line: String): String {
         val parts = line.split(Regex("\\s+"))
@@ -219,6 +240,7 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
                 "ok"
             }
             "shot" -> { val f = File(parts.getOrNull(1) ?: "/tmp/xrig-$display-screen.png"); screenshot(f); f.path }
+            "pshot" -> { val f = File(parts.getOrNull(1) ?: "/tmp/xrig-$display-phone.png"); phoneScreenshot(f); f.path }
             "windows" -> describe()
             "state" -> state()
             "sleep" -> { Thread.sleep(parts[1].toLong()); "ok" }
@@ -226,6 +248,63 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
             "exec" -> { winHandler.exec(line.substringAfter("exec ")); "sent" }
             else -> "unknown command"
         }
+    }
+
+    /**
+     * The screen as the phone's renderer composes it (GLRenderer, with the games' forced full screen): black first, then
+     * each renderable window in the server's order; a plain undecorated window smaller than the screen is stretched over
+     * it, and a layered or transparent window (or one whose parent is) is blended by its pixels' own alpha, so a window
+     * whose pixels carry alpha 0 leaves what is behind it. [screenshot] ignores both and shows what the windows hold.
+     */
+    fun phoneScreenshot(file: File) {
+        val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
+        val root = xServer.windowManager.rootWindow
+        xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER).use {
+            fun draw(w: Window, ox: Int, oy: Int) {
+                if (!w.isRenderable) return
+                if (w !== root && w.attributes.isViewable) {
+                    val parent = w.parent
+                    val transparent = w.attributes.isTransparent || parent.attributes.isTransparent || parent.isLayered || w.isLayered
+                    val inBounds = w.width >= com.winlator.xserver.ScreenInfo.MIN_WIDTH && w.height >= com.winlator.xserver.ScreenInfo.MIN_HEIGHT &&
+                        w.width < width && w.height < height
+                    val stretched = w.type == Window.Type.NORMAL && inBounds && w.hasNoDecorations()
+                    val content = w.content
+                    val data = content?.data
+                    if (content != null && data != null) {
+                        val pixels = data.duplicate().order(java.nio.ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+                        val cw = content.width.toInt(); val ch = content.height.toInt()
+                        if (pixels.capacity() >= cw * ch) {
+                            // (the stretch keeps the picture's shape, centred: FullscreenTransformation)
+                            val scale = if (stretched) minOf(width / cw.toFloat(), height / ch.toFloat()) else 1f
+                            val dw = if (stretched) Math.round(cw * scale) else cw
+                            val dh = if (stretched) Math.round(ch * scale) else ch
+                            val dx = if (stretched) (width - dw) / 2 else ox
+                            val dy = if (stretched) (height - dh) / 2 else oy
+                            for (y in 0 until dh) {
+                                val sy = dy + y
+                                if (sy < 0 || sy >= height) continue
+                                val py = minOf(ch - 1, (y / scale).toInt())
+                                for (x in 0 until dw) {
+                                    val sx = dx + x
+                                    if (sx < 0 || sx >= width) continue
+                                    val src = pixels.get(py * cw + minOf(cw - 1, (x / scale).toInt()))
+                                    val alpha = if (transparent) src ushr 24 else 255
+                                    if (alpha == 255) { image.setRGB(sx, sy, src and 0xffffff); continue }
+                                    if (alpha == 0) continue
+                                    val dst = image.getRGB(sx, sy)
+                                    fun mix(shift: Int) = (((src ushr shift) and 255) * alpha + ((dst ushr shift) and 255) * (255 - alpha)) / 255
+                                    image.setRGB(sx, sy, (mix(16) shl 16) or (mix(8) shl 8) or mix(0))
+                                }
+                            }
+                        }
+                    }
+                }
+                if (w.attributes.isRenderSubwindows) for (c in w.children) draw(c, ox + c.x, oy + c.y)
+            }
+            draw(root, root.x.toInt(), root.y.toInt())
+        }
+        file.parentFile?.mkdirs()
+        ImageIO.write(image, "png", file)
     }
 
     /** What the server holds of its mapped windows, drawn one over the other as the phone's screen would show them, as a PNG. */
@@ -278,10 +357,10 @@ object HostShm {
 }
 
 /** Winlator's shared memory, with the kernel's segments for the numbers it does not know itself (what Wine's X library uses on a desktop). */
-class HostSharedMemory : com.winlator.sysvshm.SysVSharedMemory() {
+class HostSharedMemory(private val service: com.winlator.sysvshm.SysVSharedMemory) : com.winlator.sysvshm.SysVSharedMemory() {
     private val attached = HashMap<Int, java.nio.ByteBuffer>()
 
-    override fun attach(shmid: Int): java.nio.ByteBuffer? = super.attach(shmid) ?: synchronized(attached) {
+    override fun attach(shmid: Int): java.nio.ByteBuffer? = service.attach(shmid) ?: synchronized(attached) {
         attached[shmid] ?: HostShm.attach(shmid)?.also { attached[shmid] = it }
     }
 
@@ -291,6 +370,6 @@ class HostSharedMemory : com.winlator.sysvshm.SysVSharedMemory() {
             if (key != null) attached.remove(key)
             key != null
         }
-        if (mine) HostShm.detach(data) else super.detach(data)
+        if (mine) HostShm.detach(data) else service.detach(data)
     }
 }
