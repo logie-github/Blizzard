@@ -65,6 +65,56 @@ keep the game's own rows for him until it is found. The other nineteen render ri
    may carry: protocol 2 sends the registry in parts (the hash over the whole), and the choices'
    names go with the client's add-on.
 
+## The creator (2026-11-12)
+
+The creator is Shadowlands' on the 3.3.5 screen (`app/src/main/assets/wrathpp/WrathppCreate.lua`; the README says what
+it looks like). What it shows is made with the looks: `tools/sl_creator.py data CSV_DIR LOOKS.json WrathppLooks.lua`
+(run by `wrathpp-looks.yml`, in the looks package at `client/Interface/GlueXML/WrathppLooks.lua`, put beside the
+creator's script in its patch by the app). For a race and sex:
+
+- **categories**: the game's (`ChrCustomizationCategory`: Face, Hair, Accessories, Body, Markings, in its order, with its
+  camera zoom; "Face (Undead)" and the like are Face). A druid's forms are left out.
+- **options** in the game's order (`OrderIndex`), a list or a switch (`OptionType`), each with its **choices** in the
+  order the game shows them (`UiOrderIndex`), their names, colour swatches (`SwatchColor_0`, `_1`) and class rule (a
+  death knight's alone, or every other class's; a demon hunter's alone is everyone's, as above).
+- **how a choice reaches the game**: the looks pack Shadowlands' options into 3.3.5's five numbers (`sl_looks.py`), and
+  the data says which part of which number an option is: `fields.face = {36, 7}` and `Eye Color` = part 2 of `face`
+  means the face number is face x 7 + eye colour. The creator reads the number (the native mod's
+  `WrathPP_GetCustomization`), shows each part as its own row, and sets the number with one part changed.
+- An option the looks don't carry has no part: **listed, greyed, not chosen from**. Per race and sex (2026-11-12):
+  Human men Face Shape, Eyebrows; Human women Eyebrows, Face Shape, Makeup; Orc men Scars, Grime, Earrings, Nose Ring,
+  Tusks, War Paint and its colour, Upright; Orc women Scars, War Paint and its colour; Dwarf men Earrings, Nose Ring,
+  Tattoo and its colour; Dwarf women Tattoo and its colour; Night Elf men Horns, Blindfold, Eyebrows, Ears, Scars,
+  Vines and their colour, Tattoo and its colour; Night Elf women those and Markings and their colour, Headdress;
+  Forsaken Skin Type; Tauren Hair, Face Paint, Headdress, Nose Ring, Necklace, Flower, Body Paint and its colour;
+  Gnome men Eyebrows; Gnome women Earring Color; Trolls Face Paint and Body Paint and their colours; Blood Elf women
+  Horns, Blindfold, Ears, Tattoo and its colour, Armbands, Jewelry Color, Bracelets; Draenei men Horn Decoration,
+  Jewelry Color, Tail; Draenei women Circlet, Hair Decoration, Jewelry Color. Drawing them is the native mod's work
+  (geosets inside the client's `GeosRenderPrep`, texture layers in its compositor): not written.
+
+Tests: `tools/test_sl_creator.py` (tables made in the test); `client-mod/tests/test_creator.lua` (the script on a stand-in
+for the game's screen); `client-mod/tests/test_creator_data.lua` (the script on the real data: every choice of every
+drawn option put on and read back; CI runs it on what it makes).
+
+## Open to everyone
+
+The Blood Elves' Dark Ranger look (achievement 15579 in today's game; the user: "unlock the dark ranger skin by default
+for blood elves"): `sl_looks.UNLOCKED_ACHIEVEMENTS`. The skin was among the women's skins already (index 10, a choice of
+`ReqType` 3); the red eyes are an eye colour the game marks hidden, left out until now with the demon hunters' blind
+eyes. With them the women's twelve eye colours are full (20 faces x 12 = 240 of 3.3.5's 255), and the death knights' own
+eye colour, the last, is the one that goes.
+
+## Undead skins (an import)
+
+New skin colours after a race and sex's own, from a file the user imports (the app: `WrathppUndead.kt`; the README says
+how it is used). `tools/undead_pack.py LOOKS.json CACHE SKINS OUT.zip` makes the file from pictures painted on today's
+textures: each skin's body half as the 512 x 512 skin, the head's part of its face cut as the model's head was laid out
+when it was converted (`m2.head_layout`, as `textures.py` cuts the game's own faces), under names of their own, with a
+`manifest.json` naming them. The app adds, for each skin, the rows the client asks of a skin colour before it offers it
+(`CCharacterComponent::SetNextSkin` in the pinned client source: the skin, the face row of the face that is on, the
+underwear row): a skin row, a face row for every face number of the race and sex (the skin's face, that number's eye
+texture) and an underwear row (the race's first skin's textures, or none), in the game's patch and the server's `share/dbc`.
+
 ## The options, a race and sex
 
 ### Human male (ChrModel 1)

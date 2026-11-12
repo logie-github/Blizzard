@@ -316,7 +316,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
                 overlays[related] = files[0]
     glow_geosets = {}
     for c in tables.option_choices(model_id, "Eye Color"):
-        if c["ID"] in blindfold_related or c["Flags"] != "0":
+        if c["ID"] in blindfold_related or (c["Flags"] != "0" and c["ID"] not in getattr(tables, "unlocked", ())):
             continue
         files = [f for _, fs in tables.choice_materials(c, TARGET_EYES) for f in fs]
         if not files:

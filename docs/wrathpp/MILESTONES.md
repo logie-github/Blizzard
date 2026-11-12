@@ -19,7 +19,7 @@
 | 2 Isolated infrastructure | realm 5 / 8087 / `*_wrathpp`, own paths, guards, rollback | `ctl.sh` done and tested; app page **Wrath++ (experimental)** with its Play flow (server package download, private game copy, realm start) done and unit-tested; arm64 server package built by `build-wrathpp-server.yml`; **not run on a phone** |
 | 3 Vertical slice | registry → client state → preview → payload → DB → world → observer → relog/restart | registry, payload, DB, world, observer, restart: done on the server and in the Lua mod; **preview and in-world drawing: not done** (Gate C) |
 | 4 Generalized compositor | texture layers, attachments, constraints | protocol carries the kinds; nothing drawn |
-| 5 Legion creator UI | adapted 7.3.5 layout on the WrathPP_* API | not started |
+| 5 Creator UI | Shadowlands' creator on the 3.3.5 screen, on the looks' own data | done for what the five numbers carry (6 to 9 options a race and sex, each its own row); the options nothing draws yet are listed greyed; tested on a stand-in and the real data, **not seen in the game** (SHADOWLANDS_OPTIONS.md, "The creator") |
 | 6 Races | one race/sex at a time from the verified inventory | not started |
 | 7 Android release | experimental installer, rollback | not started |
 

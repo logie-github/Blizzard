@@ -11,9 +11,9 @@ copy of it rather than waiting for the 64-bit client:
 | Piece | Where | State |
 |---|---|---|
 | WarcraftXL 32-bit runtime, wxl.lua, glue-unlock | `wrathpp-client.yml` job `addon` (MSVC 2022 Win32, core patches 0001-0002) | builds in CI |
-| `wrathpp.native` (`client-mod/wrathpp-native`): `WrathPP_GetCustomization(i)` -> current, count, read from `CCharacterCreation::m_character` and the client's own count functions | same job | builds in CI; addresses from WarcraftXL's tables, **not run** |
-| `wrathpp.appearance` (Lua mod: the protocol) | same zip | mock-tested |
-| The creator's boxes (`client-mod/glue/WrathppCreate.lua`): each row "Face ... 3 / 9" under an Appearance header | `Data/patch-X.MPQ` in `client-wrathpp`, its GlueXML.toc with it last | **not run** |
+| `wrathpp.native` (`client-mod/wrathpp-native`, 0.2.0): `WrathPP_GetCustomization(i)` -> current, count, read from `CCharacterCreation::m_character` and the client's own count functions; `WrathPP_SetCustomization(i, n)` puts a choice into those preferences as a number (the creator puts in the one before the one it wants and calls the game's own `CycleCharCustomization(i, 1)`, whose `SetNext...` moves onto it and redraws); `WrathPP_GetCreating()` -> race, sex, class | same job | 0.1.0 **loaded on the phone** (issue #99: "Wrath++ native loaded", the runtime's stages to `ready`); 0.2.0's two new functions build in CI, **not run** |
+| `wrathpp.appearance` (Lua mod: the protocol) | same zip | mock-tested; **loaded on the phone** by wxl.lua (issue #99) |
+| The creator (`app/src/main/assets/wrathpp/WrathppCreate.lua`): Shadowlands' two screens, the options of `WrathppLooks.lua` (SHADOWLANDS_OPTIONS.md, "The creator") | `Data/patch-X.MPQ` in `client-wrathpp`, its GlueXML.toc with the files last | tested on a stand-in for the screen and on the real data; **not seen in the game** |
 | `WowWrathpp.exe`: the game's program patched to load the runtime | app, `WxlPatcher.kt` (the same bytes as `wxl-core-patcher`, unit-tested against it) | unit-tested |
 | Download and install | app, `WrathppAddon.kt` (release `wrathpp-client-addon`, SHA-256 checked); a failure doesn't stop Play | unit-tested |
 

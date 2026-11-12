@@ -26,17 +26,37 @@ object WrathppSetup {
         runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
             .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
-        // The creator's Legion-style column, from the app itself: whatever happened to the add-on.
+        // The undead skins you imported (WrathppUndead): new colours after each race's own in the looks' tables, taken out
+        // again when the import is removed. Without the looks there is nothing to add them to.
+        val undead = runCatching { WrathppUndead.apply(WrathppUndead.store(context), layout.wrathppClient, layout.wrathppServer) }
+            .onSuccess { notes.append("undead skins: ${if (it != null) "in" else "none"}\n") }
+            .onFailure { e -> notes.append("undead skins FAILED: ${e.message}\n") }
+            .getOrNull()
+        // The creator (Shadowlands' two screens), from the app itself, whatever happened to the add-on; with it what it
+        // shows: the looks' own list of options (made with them: sl_creator.py) and the undead skins' (written above).
         report.say("Putting in Wrath++'s character creator", null)
         runCatching {
-            val glue = context.assets.open(GLUE_ASSET).use { it.readBytes() }
-            WrathppAddon.writeGluePatch(layout.wrathppClient, mapOf("WrathppCreate.lua" to glue))
+            WrathppAddon.writeGluePatch(layout.wrathppClient, glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead))
         }.onSuccess { notes.append("creator patch: written\n") }.onFailure { e -> notes.append("creator patch FAILED: ${e.message}\n") }
         val log = java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log")
         runCatching { log.parentFile?.mkdirs(); log.writeText(notes.toString()) }
     }
 
     const val GLUE_ASSET = "wrathpp/WrathppCreate.lua"
+    const val LOOKS_DATA = "WrathppLooks.lua"
+
+    /**
+     * The creator's files for its patch: the script ([creator]), the looks' options from the looks in [client] when they
+     * are in (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
+     * The script reads the other two when the creator opens, so the order they load in doesn't matter.
+     */
+    fun glue(creator: ByteArray, client: java.io.File, undead: String?): Map<String, ByteArray> {
+        val files = LinkedHashMap<String, ByteArray>()
+        files["WrathppCreate.lua"] = creator
+        java.io.File(client, "Data/${WrathppLooks.PATCH}/Interface/GlueXML/$LOOKS_DATA").takeIf { it.isFile }?.let { files[LOOKS_DATA] = it.readBytes() }
+        if (undead != null) files[WrathppUndead.LUA] = undead.toByteArray(Charsets.UTF_8)
+        return files
+    }
 
     /**
      * After Wrath++'s game has started: a report of what it was set up with and how WarcraftXL's runtime got on (its log), so
