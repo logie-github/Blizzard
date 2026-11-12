@@ -112,6 +112,7 @@ class WowGestureView(
      * login as soon as the game's own full-screen window appears ([watchForGameWindow]).
      */
     private var inLauncher = activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_LAUNCHER, false)
+    private var launcherNoted = false
     /**
      * World of Warcraft: Forever only ([com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR]): the game's `Errors` folder.
      * A crash file written there since this screen opened ends the session: on the desktop rig the game, having written
@@ -262,7 +263,15 @@ class WowGestureView(
         // Forever: the first window is the Forever Launcher, not the game. Show the cursor (it is a mouse GUI, and
         // taps are plain clicks while [inLauncher]), do not type a password into it, and wait for the game's own
         // window; this runs again — cleared of [inLauncher] — when that appears, and the real login begins then.
-        if (inLauncher) { xServer.renderer.isCursorVisible = true; watchForGameWindow(); return }
+        if (inLauncher) {
+            if (!launcherNoted) {
+                launcherNoted = true
+                com.logie.blizz.game.GameLog.note("forever: the launcher is up; taps are clicks, nothing is typed, until the game's own window")
+            }
+            xServer.renderer.isCursorVisible = true
+            watchForGameWindow()
+            return
+        }
         // The pointer is there for the game (where taps click, what the cursor offers) but never
         // drawn: on a touch screen the finger is the pointer. The game screen shows it with its
         // first window; this comes right after.
@@ -324,18 +333,14 @@ class WowGestureView(
     private val gameWatch = Runnable { watchForGameWindow() }
 
     /**
-     * Forever launcher only: waits for the game's own window (the launcher's Play opens it) and hands over to the
-     * normal WoW controls and login. The launcher is a small fixed window; the game fills the screen, so a renderable
-     * window about the size of the screen is the game. Polled every [GAME_WATCH_MS] while [inLauncher].
+     * Forever launcher only: waits for the game's own window (the launcher's PLAY NOW opens it) and hands over to the
+     * normal WoW controls and login. The game's window is told by its program, among all the server's windows
+     * ([com.logie.blizz.forever.ForeverLauncher.isGameWindow]): never by the focused window's size, which Wine's desktop
+     * has too. Polled every [GAME_WATCH_MS] while [inLauncher].
      */
     private fun watchForGameWindow() {
         if (!inLauncher) return
-        val sw = xServer.screenInfo.width.toInt()
-        val sh = xServer.screenInfo.height.toInt()
-        val game = xServer.windowManager.focusedWindow?.takeIf {
-            it.isRenderable && it.width.toInt() >= sw * 9 / 10 && it.height.toInt() >= sh * 9 / 10
-        }
-        if (game != null) {
+        if (gameProgramWindow()) {
             inLauncher = false
             com.logie.blizz.game.GameLog.note("forever: game window up; WoW controls on")
             onGameWindowShown()
@@ -344,6 +349,20 @@ class WowGestureView(
             postDelayed(gameWatch, GAME_WATCH_MS)
         }
     }
+
+    /** Whether one of the server's shown windows is the game's own. */
+    private fun gameProgramWindow(): Boolean = runCatching {
+        val sw = xServer.screenInfo.width.toInt()
+        val sh = xServer.screenInfo.height.toInt()
+        xServer.lock(XServer.Lockable.WINDOW_MANAGER).use {
+            fun visit(window: Window): Boolean {
+                if (!window.isRenderable) return false
+                if (com.logie.blizz.forever.ForeverLauncher.isGameWindow(window.className, window.width.toInt(), window.height.toInt(), sw, sh)) return true
+                return window.children.any { visit(it) }
+            }
+            visit(xServer.windowManager.rootWindow)
+        }
+    }.getOrDefault(false)
 
     override fun tapAt(x: Float, y: Float) {
         if (inLauncher) return plainClick(x, y)

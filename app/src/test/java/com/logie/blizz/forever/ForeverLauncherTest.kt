@@ -115,6 +115,24 @@ class ForeverLauncherTest {
     }
 
     @Test
+    fun `the game's window is told by its program, not by a window as big as the screen`() {
+        val (sw, sh) = 1828 to 1248
+        // The game, as the launcher starts it: its window is the screen's size (or a window at least half of it).
+        assertTrue(ForeverLauncher.isGameWindow("wow.exe", 1828, 1248, sw, sh))
+        assertTrue(ForeverLauncher.isGameWindow("Wow.exe", 1024, 768, sw, sh))
+        assertTrue(ForeverLauncher.isGameWindow("wowb.exe", 1828, 1248, sw, sh))
+        // Wine's desktop is as big as the screen and focused at every start: the phone's black screen (report 108).
+        assertFalse(ForeverLauncher.isGameWindow("explorer.exe", 1828, 1248, sw, sh))
+        // The launcher's own windows, whatever their size, and its name begins with "wow" too.
+        assertFalse(ForeverLauncher.isGameWindow("wowforeverlauncher.exe", 1008, 782, sw, sh))
+        assertFalse(ForeverLauncher.isGameWindow("wowforeverlauncher.exe", 1828, 1248, sw, sh))
+        // The game's small first windows (a splash, an error box), the crash reporter, a window without a program.
+        assertFalse(ForeverLauncher.isGameWindow("wow.exe", 400, 200, sw, sh))
+        assertFalse(ForeverLauncher.isGameWindow("blizzarderror.exe", 1828, 1248, sw, sh))
+        assertFalse(ForeverLauncher.isGameWindow("", 1828, 1248, sw, sh))
+    }
+
+    @Test
     fun `removePlaced deletes every known launcher name from the client folder`() {
         val client = Files.createTempDirectory("client").toFile()
         File(client, "WoWForeverLauncher.exe").writeText("new")
