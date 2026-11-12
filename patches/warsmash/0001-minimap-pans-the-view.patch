@@ -117,43 +117,61 @@
  			if (this.allowDrag) {
 --- a/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
 +++ b/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
-@@ -375,6 +375,10 @@
+@@ -79,6 +79,8 @@
+ 
+ 	private Scene uiScene;
+ 	private WarsmashUI meleeUI;
++	// The game's own UI under the toggle wrapper (meleeUI is a MeleeToggleUI): its minimap takes its fingers first.
++	private MeleeUI minimapUI;
+ 
+ 	private Music currentMusic;
+ 	private final WarsmashGdxMultiScreenGame screenManager;
+@@ -190,7 +192,7 @@
+ 				cameraRatesElement.getFieldFloatValue("FOV"), cameraRatesElement.getFieldFloatValue("Rotation"),
+ 				cameraRatesElement.getFieldFloatValue("Distance"), cameraRatesElement.getFieldFloatValue("Forward"),
+ 				cameraRatesElement.getFieldFloatValue("Strafe"));
+-		final MeleeUI baseMeleeUI = new MeleeUI(this.viewer.mapMpq, this.uiViewport, this.uiScene, portraitScene,
++		final MeleeUI baseMeleeUI = this.minimapUI = new MeleeUI(this.viewer.mapMpq, this.uiViewport, this.uiScene, portraitScene,
+ 				cameraPresets, cameraRates, this.viewer, new RootFrameListener() {
+ 					@Override
+ 					public void onCreate(final GameUI rootFrame) {
+@@ -375,6 +377,10 @@
  	@Override
  	public boolean touchDown(final int screenX, final int screenY, final int pointer, final int button) {
  		final float worldScreenY = this.viewer.canvas.getHeight() - screenY;
 +		// A finger on the minimap is the minimap's alone (Blizzard launcher): it pans, and the game's clicks never see it.
-+		if ((this.meleeUI instanceof MeleeUI) && ((MeleeUI) this.meleeUI).minimapTouchDown(screenX, screenY, pointer, button)) {
++		if ((this.minimapUI != null) && this.minimapUI.minimapTouchDown(screenX, screenY, pointer, button)) {
 +			return false;
 +		}
  
  		if (this.meleeUI.touchDown(screenX, screenY, worldScreenY, button)) {
  			return false;
-@@ -385,6 +389,9 @@
+@@ -385,6 +391,9 @@
  	@Override
  	public boolean touchUp(final int screenX, final int screenY, final int pointer, final int button) {
  		final float worldScreenY = this.viewer.canvas.getHeight() - screenY;
-+		if ((this.meleeUI instanceof MeleeUI) && ((MeleeUI) this.meleeUI).minimapTouchUp(pointer)) {
++		if ((this.minimapUI != null) && this.minimapUI.minimapTouchUp(pointer)) {
 +			return false;
 +		}
  
  		if (this.meleeUI.touchUp(screenX, screenY, worldScreenY, button)) {
  			return false;
-@@ -395,6 +402,9 @@
+@@ -395,6 +404,9 @@
  	@Override
  	public boolean touchDragged(final int screenX, final int screenY, final int pointer) {
  		final float worldScreenY = this.viewer.canvas.getHeight() - screenY;
-+		if ((this.meleeUI instanceof MeleeUI) && ((MeleeUI) this.meleeUI).minimapTouchDragged(screenX, screenY, pointer)) {
++		if ((this.minimapUI != null) && this.minimapUI.minimapTouchDragged(screenX, screenY, pointer)) {
 +			return false;
 +		}
  		if (this.meleeUI.touchDragged(screenX, screenY, worldScreenY, pointer)) {
  			return false;
  		}
-@@ -418,6 +428,9 @@
+@@ -418,6 +430,9 @@
  
  	@Override
  	public boolean touchCancelled(final int screenX, final int screenY, final int pointer, final int button) {
-+		if (this.meleeUI instanceof MeleeUI) {
-+			((MeleeUI) this.meleeUI).minimapTouchUp(pointer);
++		if (this.minimapUI != null) {
++			this.minimapUI.minimapTouchUp(pointer);
 +		}
  		return false;
  	}
