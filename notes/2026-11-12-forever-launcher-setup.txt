@@ -1,0 +1,1 @@
+World of Warcraft: Forever: the launcher is set up where it reads it (its own-server screen, the realm's ports, the game folder), so it shows the realm online and its PLAY NOW starts the game; the game still closes itself about a minute later, which is not fixed.

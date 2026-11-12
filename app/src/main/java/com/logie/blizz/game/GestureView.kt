@@ -519,6 +519,12 @@ class GestureView(
          */
         const val EXTRA_LAUNCHER = "com.logie.blizz.LAUNCHER"
 
+        /**
+         * World of Warcraft: Forever only: the game's `Errors` folder. A crash file written there while the game is up
+         * ends the session ([com.logie.blizz.forever.ForeverCtl.settledCrash]): the game stays on its last frame otherwise.
+         */
+        const val EXTRA_CRASH_DIR = "com.logie.blizz.CRASH_DIR"
+
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"
         private const val CLICK_MS = 40L

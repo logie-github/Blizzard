@@ -137,6 +137,33 @@ class ForeverCtlTest {
     }
 
     @Test
+    fun `a crash file that says Security Crash is the game's protection, another is not`() {
+        val security = "=====\nException: 0xC00000E5 (EXCEPTION_INTERNAL_ERROR) at 00006fffffc1d127\nProcessID: 852\n\n" +
+            "<Exception.IssueType> Exception\n<ExceptionType> Security Crash\n<Exception.Summary:>\n"
+        assertTrue(ForeverCtl.isSecurityCrash(security))
+        assertFalse(ForeverCtl.isSecurityCrash("Exception: ACCESS_VIOLATION\n<ExceptionType> Crash\n"))
+        assertFalse(ForeverCtl.isSecurityCrash("the words Security Crash in a sentence are not the line"))
+        val told = ForeverPlay.securityCrashText(launcher = true, title = "Exception: 0xC00000E5")
+        assertTrue(told.contains("Forever Launcher") && told.contains("Security Crash") && told.endsWith("Exception: 0xC00000E5"))
+        assertFalse(ForeverPlay.securityCrashText(launcher = false, title = "x").contains("Forever Launcher"))
+    }
+
+    @Test
+    fun `a crash file ends the session once it is written and finished, an older one never`() {
+        val errors = Files.createTempDirectory("errors").toFile()
+        // No folder yet (the game makes it at its first crash), an empty one, a dump alone, a file from before this start.
+        assertNull(ForeverCtl.settledCrash(File(errors, "none"), since = 0, now = 10_000))
+        assertNull(ForeverCtl.settledCrash(errors, since = 0, now = 10_000))
+        File(errors, "2026-11-12_Crash_1.dmp").apply { writeText("x"); setLastModified(5_000_000) }
+        File(errors, "2026-11-11_Crash_0.txt").apply { writeText("old"); setLastModified(1_000_000) }
+        assertNull(ForeverCtl.settledCrash(errors, since = 2_000_000, now = 9_000_000))
+        val crash = File(errors, "2026-11-12_Crash_1.txt").apply { writeText("Exception"); setLastModified(5_000_000) }
+        // Still being written (changed within the last three seconds): not yet.
+        assertNull(ForeverCtl.settledCrash(errors, since = 2_000_000, now = 5_001_000))
+        assertEquals(crash, ForeverCtl.settledCrash(errors, since = 2_000_000, now = 5_003_000))
+    }
+
+    @Test
     fun `without a crash file the storage log's failures are, each once`() {
         val game = Files.createTempDirectory("game").toFile()
         val log = File(File(game, "Logs").apply { mkdirs() }, "Tact.log")
