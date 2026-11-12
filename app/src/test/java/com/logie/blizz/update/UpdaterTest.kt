@@ -48,6 +48,8 @@ class UpdaterTest {
     /** What the fake file server does with each request in turn: bytes sent before the connection drops; null: all of it. */
     private val cuts = java.util.Collections.synchronizedList(ArrayList<Int?>())
     private var honourRange = true
+    /** Every request dropped before an answer, once [cuts] is used up (Java's client asks again by itself after such a drop, so a count of them would run out). */
+    @Volatile private var dead = false
     private var server: HttpServer? = null
 
     private fun serve(): String {
@@ -57,7 +59,7 @@ class UpdaterTest {
             ranges += range
             val from = if (honourRange) range?.removePrefix("bytes=")?.substringBefore('-')?.toInt() ?: 0 else 0
             if (from > payload.size) { ex.sendResponseHeaders(416, -1); ex.close(); return@createContext }
-            val cut = if (cuts.isEmpty()) null else cuts.removeAt(0)
+            val cut = if (cuts.isEmpty()) (if (dead) 0 else null) else cuts.removeAt(0)
             if (cut == 0) { ex.close(); return@createContext }                         // dropped before an answer
             val body = payload.copyOfRange(from, payload.size)
             if (range != null && honourRange) ex.responseHeaders.add("Content-Range", "bytes $from-${payload.size - 1}/${payload.size}")
@@ -89,11 +91,13 @@ class UpdaterTest {
 
     @Test fun whatArrivedIsKeptForTheNextTime() {
         val url = serve()
-        cuts += listOf(120_000, 0, 0, 0, 0, 0, 0, 0)                                    // some of it, then nothing however often it is tried
+        cuts += 120_000                                                                 // some of it, then nothing however often it is tried
+        dead = true
         val partial = File(tmp.root, "226-Blizzard.apk.part")
         try { Updater.fetch(url, partial, payload.size.toLong(), { _, _ -> }, pause = {}); fail("finished") } catch (_: IOException) { }
         val kept = partial.length()
         assertTrue("kept $kept", kept in 1 until payload.size)
+        dead = false
         cuts.clear()
         ranges.clear()
         Updater.fetch(url, partial, payload.size.toLong(), { _, _ -> }, pause = {})     // the next check
