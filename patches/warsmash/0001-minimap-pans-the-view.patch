@@ -1,0 +1,178 @@
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -321,6 +321,18 @@
+ 	private UIFrame inventoryCover;
+ 	private SpriteFrame cursorFrame;
+ 	private MeleeUIMinimap meleeUIMinimap;
++	// Touch (Blizzard launcher): a finger put on the minimap pans the view as dragging the battlefield would (the ground follows
++	// the finger, at the battlefield's scale), and is no part of what the other fingers do: it never clicks, selects or counts
++	// toward a double click, so one hand can pan while the other plays.
++	private static final float MINIMAP_PAN_SPEED = 1f;
++	private int minimapPanPointer = -1;
++	private int minimapPointers = 0;
++	private final Vector2 minimapPanStartScreen = new Vector2();
++	private final Vector3 minimapPanCameraStart = new Vector3();
++	private final Vector2 minimapPanPerPixelX = new Vector2();
++	private final Vector2 minimapPanPerPixelY = new Vector2();
++	private final Vector3 minimapPanProbeA = new Vector3();
++	private final Vector3 minimapPanProbeB = new Vector3();
+ 	private final CPlayerUnitOrderListener unitOrderListener;
+ 	private StringFrame errorMessageFrame;
+ 	private final ArrayDeque<GameMessage> gameMessages = new ArrayDeque<>();
+@@ -1643,10 +1655,10 @@
+ 		final int maxX = minX + this.uiViewport.getScreenWidth();
+ 		final int minY = this.uiViewport.getScreenY();
+ 		final int maxY = minY + this.uiViewport.getScreenHeight();
+-		final boolean left = (mouseX <= (minX + 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled;
+-		final boolean right = (mouseX >= (maxX - 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled;
+-		final boolean up = (mouseY <= (minY + 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled;
+-		final boolean down = (mouseY >= (maxY - 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled;
++		final boolean left = (mouseX <= (minX + 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled && (this.minimapPanPointer == -1);
++		final boolean right = (mouseX >= (maxX - 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled && (this.minimapPanPointer == -1);
++		final boolean up = (mouseY <= (minY + 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled && (this.minimapPanPointer == -1);
++		final boolean down = (mouseY >= (maxY - 3)) && WarsmashConstants.CATCH_CURSOR && this.userControlEnabled && (this.minimapPanPointer == -1);
+ 		this.cameraManager.applyVelocity(deltaTime, up, down, left, right);
+ 
+ 		mouseX = Math.max(minX, Math.min(maxX, mouseX));
+@@ -4078,6 +4090,68 @@
+ 		return false;
+ 	}
+ 
++	/**
++	 * A finger put down on the minimap (Blizzard launcher): true when it is the minimap's, and then nothing else sees it. The first
++	 * one pans the view; another put on the minimap meanwhile does nothing.
++	 */
++	public boolean minimapTouchDown(final int screenX, final int screenY, final int pointer, final int button) {
++		if (!this.userControlEnabled || (button != Input.Buttons.LEFT) || (pointer < 0) || (pointer > 30)) {
++			return false;
++		}
++		screenCoordsVector.set(screenX, screenY);
++		this.uiViewport.unproject(screenCoordsVector);
++		if (!this.meleeUIMinimap.containsMouse(screenCoordsVector.x, screenCoordsVector.y)) {
++			return false;
++		}
++		this.minimapPointers |= (1 << pointer);
++		if (this.minimapPanPointer == -1) {
++			this.minimapPanPointer = pointer;
++			this.minimapPanStartScreen.set(screenX, screenY);
++			this.minimapPanCameraStart.set(this.cameraManager.target);
++			// How far the ground under the middle of the screen moves for a pixel across and up, as the view looks now.
++			final int centerX = (int) (this.war3MapViewer.canvas.getWidth() / 2);
++			final int centerY = (int) (this.war3MapViewer.canvas.getHeight() / 2);
++			final float z = this.cameraManager.target.z;
++			this.war3MapViewer.getClickLocationOnZPlane(this.minimapPanProbeA, centerX, centerY, z);
++			this.war3MapViewer.getClickLocationOnZPlane(this.minimapPanProbeB, centerX + 100, centerY, z);
++			this.minimapPanPerPixelX.set((this.minimapPanProbeB.x - this.minimapPanProbeA.x) / 100f,
++					(this.minimapPanProbeB.y - this.minimapPanProbeA.y) / 100f);
++			this.war3MapViewer.getClickLocationOnZPlane(this.minimapPanProbeB, centerX, centerY + 100, z);
++			this.minimapPanPerPixelY.set((this.minimapPanProbeB.x - this.minimapPanProbeA.x) / 100f,
++					(this.minimapPanProbeB.y - this.minimapPanProbeA.y) / 100f);
++		}
++		return true;
++	}
++
++	/** A minimap finger moving: the panning one moves the view so the ground follows it; true for any of the minimap's fingers. */
++	public boolean minimapTouchDragged(final int screenX, final int screenY, final int pointer) {
++		if ((pointer < 0) || (pointer > 30) || ((this.minimapPointers & (1 << pointer)) == 0)) {
++			return false;
++		}
++		if (pointer == this.minimapPanPointer) {
++			final float across = (screenX - this.minimapPanStartScreen.x) * MINIMAP_PAN_SPEED;
++			// (the screen's y grows downwards, the picking's upwards)
++			final float up = (this.minimapPanStartScreen.y - screenY) * MINIMAP_PAN_SPEED;
++			this.cameraManager.target.x = this.minimapPanCameraStart.x
++					- ((this.minimapPanPerPixelX.x * across) + (this.minimapPanPerPixelY.x * up));
++			this.cameraManager.target.y = this.minimapPanCameraStart.y
++					- ((this.minimapPanPerPixelX.y * across) + (this.minimapPanPerPixelY.y * up));
++		}
++		return true;
++	}
++
++	/** A minimap finger lifted (or its touch cancelled): true when it was the minimap's. */
++	public boolean minimapTouchUp(final int pointer) {
++		if ((pointer < 0) || (pointer > 30) || ((this.minimapPointers & (1 << pointer)) == 0)) {
++			return false;
++		}
++		this.minimapPointers &= ~(1 << pointer);
++		if (pointer == this.minimapPanPointer) {
++			this.minimapPanPointer = -1;
++		}
++		return true;
++	}
++
+ 	@Override
+ 	public boolean touchDown(final int screenX, final int screenY, final float worldScreenY, final int button) {
+ 		previousTouchScreenX = screenX;
+@@ -4757,10 +4831,7 @@
+ 		this.uiViewport.unproject(screenCoordsVector);
+ 		loadTooltip();
+ 		if (this.meleeUIMinimap.containsMouse(screenCoordsVector.x, screenCoordsVector.y)) {
+-			final Vector2 worldPoint = this.meleeUIMinimap.getWorldPointFromScreen(screenCoordsVector.x,
+-					screenCoordsVector.y);
+-			this.cameraManager.target.x = worldPoint.x;
+-			this.cameraManager.target.y = worldPoint.y;
++			// (a drag from elsewhere crossing the minimap moves nothing: the minimap's own finger pans, minimapTouchDragged)
+ 		}
+ 		else {
+ 			if (this.allowDrag) {
+--- a/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
++++ b/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
+@@ -79,6 +79,8 @@
+ 
+ 	private Scene uiScene;
+ 	private WarsmashUI meleeUI;
++	// The game's own UI under the toggle wrapper (meleeUI is a MeleeToggleUI): its minimap takes its fingers first.
++	private MeleeUI minimapUI;
+ 
+ 	private Music currentMusic;
+ 	private final WarsmashGdxMultiScreenGame screenManager;
+@@ -190,7 +192,7 @@
+ 				cameraRatesElement.getFieldFloatValue("FOV"), cameraRatesElement.getFieldFloatValue("Rotation"),
+ 				cameraRatesElement.getFieldFloatValue("Distance"), cameraRatesElement.getFieldFloatValue("Forward"),
+ 				cameraRatesElement.getFieldFloatValue("Strafe"));
+-		final MeleeUI baseMeleeUI = new MeleeUI(this.viewer.mapMpq, this.uiViewport, this.uiScene, portraitScene,
++		final MeleeUI baseMeleeUI = this.minimapUI = new MeleeUI(this.viewer.mapMpq, this.uiViewport, this.uiScene, portraitScene,
+ 				cameraPresets, cameraRates, this.viewer, new RootFrameListener() {
+ 					@Override
+ 					public void onCreate(final GameUI rootFrame) {
+@@ -375,6 +377,10 @@
+ 	@Override
+ 	public boolean touchDown(final int screenX, final int screenY, final int pointer, final int button) {
+ 		final float worldScreenY = this.viewer.canvas.getHeight() - screenY;
++		// A finger on the minimap is the minimap's alone (Blizzard launcher): it pans, and the game's clicks never see it.
++		if ((this.minimapUI != null) && this.minimapUI.minimapTouchDown(screenX, screenY, pointer, button)) {
++			return false;
++		}
+ 
+ 		if (this.meleeUI.touchDown(screenX, screenY, worldScreenY, button)) {
+ 			return false;
+@@ -385,6 +391,9 @@
+ 	@Override
+ 	public boolean touchUp(final int screenX, final int screenY, final int pointer, final int button) {
+ 		final float worldScreenY = this.viewer.canvas.getHeight() - screenY;
++		if ((this.minimapUI != null) && this.minimapUI.minimapTouchUp(pointer)) {
++			return false;
++		}
+ 
+ 		if (this.meleeUI.touchUp(screenX, screenY, worldScreenY, button)) {
+ 			return false;
+@@ -395,6 +404,9 @@
+ 	@Override
+ 	public boolean touchDragged(final int screenX, final int screenY, final int pointer) {
+ 		final float worldScreenY = this.viewer.canvas.getHeight() - screenY;
++		if ((this.minimapUI != null) && this.minimapUI.minimapTouchDragged(screenX, screenY, pointer)) {
++			return false;
++		}
+ 		if (this.meleeUI.touchDragged(screenX, screenY, worldScreenY, pointer)) {
+ 			return false;
+ 		}
+@@ -418,6 +430,9 @@
+ 
+ 	@Override
+ 	public boolean touchCancelled(final int screenX, final int screenY, final int pointer, final int button) {
++		if (this.minimapUI != null) {
++			this.minimapUI.minimapTouchUp(pointer);
++		}
+ 		return false;
+ 	}
+ 

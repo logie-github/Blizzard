@@ -1,0 +1,12 @@
+--- a/core/src/com/etheller/warsmash/util/WarsmashConstants.java
++++ b/core/src/com/etheller/warsmash/util/WarsmashConstants.java
+@@ -64,7 +64,8 @@
+ 	public static String[] JASS_FILE_LIST = { "Scripts\\common.j", "Scripts\\Blizzard.j", "Scripts\\war3map.j" };
+ 	public static final float GAME_SPEED_TIME_FACTOR = 0.5f;
+ 
+-	public static final boolean SHOW_FPS = true;
++	// No frame counter over the game or its menus (Blizzard launcher).
++	public static final boolean SHOW_FPS = false;
+ 
+ 	public static void loadConstants(final GameObject emulatorConstants, final DataTable warsmashIni) {
+ 		GAME_PATH = Os.getenv("game_files");
