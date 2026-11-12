@@ -1,0 +1,36 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
+index 07b1490..f5f8a07 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
+@@ -115,7 +115,7 @@ public class RenderUnit implements RenderWidget {
+ 		if (typeData != null) {
+ 			boolean changedAnimProps = false;
+ 			for (final SecondaryTag secondaryTag : typeData.getRequiredAnimationNames()) {
+-				if (this.unitAnimationListenerImpl.addSecondaryTag(secondaryTag)) {
++				if (this.unitAnimationListenerImpl.addSecondaryTag(alternateFor(instance, secondaryTag))) {
+ 					changedAnimProps = true;
+ 				}
+ 			}
+@@ -784,4 +784,22 @@ public class RenderUnit implements RenderWidget {
+ 		this.unitAnimationListenerImpl.clearHeadFacing();
+ 		this.unitAnimationListenerImpl.clearTurretFacing();
+ 	}
++
++	/**
++	 * Blizzard launcher: "alternateex" (the Prophet's raven in the Prologue, the druids' and the demon hunters' other forms)
++	 * plays the model's Alternate sequences, as the original does, where the model has none tagged AlternateEx (Medivh's
++	 * raven is "Stand Alternate", "Walk Alternate"...). Asking for AlternateEx alone matched no sequence, so the unit stood in
++	 * its first form.
++	 */
++	private static SecondaryTag alternateFor(final MdxComplexInstance instance, final SecondaryTag tag) {
++		if ((tag != SecondaryTag.ALTERNATEEX) || !(instance.model instanceof MdxModel)) {
++			return tag;
++		}
++		for (final Sequence sequence : ((MdxModel) instance.model).getSequences()) {
++			if (sequence.getSecondaryTags().contains(SecondaryTag.ALTERNATEEX)) {
++				return tag;
++			}
++		}
++		return SecondaryTag.ALTERNATE;
++	}
+ }
