@@ -1,6 +1,7 @@
 #!/bin/sh
-# FFmpeg's Bink pieces for Warcraft III's movies (the Warsmash player, movie/player.c): the bink demuxer, the bink
-# video and Bink audio decoders, swscale and swresample, as static libraries. Nothing else of FFmpeg is built.
+# FFmpeg's pieces for Warcraft III's movies (the Warsmash player, movie/player.c): 1.2x's Movies\<name>.mpq are AVI
+# files (MPEG-4 Part 2 video, FourCC BLZ0, really DivX 5; MP3 sound), so the avi demuxer, the mpeg4 and mp3
+# decoders with their parsers, swscale and swresample, as static libraries. Nothing else of FFmpeg is built.
 #
 #   scripts/build-ffmpeg.sh          the phone's (arm64-v8a, Android 26) into app/ffmpeg/arm64-v8a (git-ignored)
 #   scripts/build-ffmpeg.sh --host   this machine's (x86_64 Linux) into build/ffmpeg-host, for the desktop tests
@@ -44,12 +45,12 @@ rm -rf "$SRC" "$OUT"
 mkdir -p "$SRC"
 tar -xJf "$ARCHIVE" -C "$SRC" --strip-components 1
 
-# Only what plays a Bink file: its container, its video and audio, the picture's conversion and the sound's.
+# Only what plays the game's movies: their container, their video and sound, the picture's conversion and the sound's.
 COMMON="--disable-everything --disable-programs --disable-doc --disable-network --disable-autodetect
 	--disable-avdevice --disable-avfilter --disable-debug --enable-static --disable-shared --enable-pic
 	--enable-avcodec --enable-avformat --enable-avutil --enable-swscale --enable-swresample
-	--enable-demuxer=bink --enable-decoder=bink --enable-decoder=binkaudio_rdft --enable-decoder=binkaudio_dct
-	--enable-protocol=file"
+	--enable-demuxer=avi --enable-decoder=mpeg4 --enable-decoder=mp3float --enable-decoder=mp3
+	--enable-parser=mpeg4video --enable-parser=mpegaudio --enable-protocol=file"
 
 if [ "$HOST" = 1 ]; then
 	# shellcheck disable=SC2086
@@ -71,4 +72,4 @@ fi
 rm -rf "$OUT/share"
 cp "$SRC/COPYING.LGPLv2.1" "$OUT/COPYING.LGPLv2.1"
 printf '%s\n' "$STAMP" > "$OUT/STAMP"
-echo "FFmpeg $FFMPEG_VERSION (Bink only) built in $OUT"
+echo "FFmpeg $FFMPEG_VERSION (the movies' decoders only) built in $OUT"

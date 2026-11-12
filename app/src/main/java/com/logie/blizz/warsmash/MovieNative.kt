@@ -2,7 +2,7 @@ package com.logie.blizz.warsmash
 
 import android.view.Surface
 
-/** The movie player built from movie/ (libwc3movie.so: FFmpeg's Bink decoders, AAudio for the sound). */
+/** The movie player built from movie/ (libwc3movie.so: FFmpeg's AVI, MPEG-4 and MP3 decoders; AAudio for the sound). */
 internal object MovieNative {
     init {
         System.loadLibrary("wc3movie")

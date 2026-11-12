@@ -1,7 +1,7 @@
 /*
- * Warcraft III's movies (Bink 1 video, Bink audio) decoded with FFmpeg: the frames as RGBA pictures and the sound as
- * 16-bit stereo, in the order the file holds them. The phone's player (android.c) puts them on the screen and through
- * AAudio; the desktop harness (harness.c) checks them.
+ * Warcraft III's movies decoded with FFmpeg (1.2x's Movies\<name>.mpq are AVI files: MPEG-4 Part 2 video, MP3 sound):
+ * the frames as RGBA pictures and the sound as 16-bit stereo, in the order the file holds them. The phone's player
+ * (android.c) puts them on the screen and through AAudio; the desktop harness (harness.c) checks them.
  */
 #ifndef WC3_MOVIE_PLAYER_H
 #define WC3_MOVIE_PLAYER_H

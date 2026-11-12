@@ -25,6 +25,7 @@ struct Movie {
 	int pcm_frames_cap;
 	MovieInfo info;
 	int eof, vflushed, aflushed;
+	double last_video; /* the last picture's time, for one that comes without (the decoder's held-back last one) */
 	AVCodecContext *pending; /* the decoder that may have frames to hand out */
 };
 
@@ -62,6 +63,7 @@ Movie *movie_open(const char *path, char *err, size_t errlen) {
 	Movie *m = calloc(1, sizeof *m);
 	if (!m) return NULL;
 	m->vidx = m->aidx = -1;
+	m->last_video = -1;
 	int r = avformat_open_input(&m->fmt, path, NULL, NULL);
 	if (r < 0) {
 		say(err, errlen, "the movie didn't open", r);
@@ -129,8 +131,11 @@ static int picture(Movie *m, MovieEvent *ev) {
 	uint8_t *dst[4] = {m->rgba, NULL, NULL, NULL};
 	int dst_stride[4] = {m->stride, 0, 0, 0};
 	sws_scale(m->sws, (const uint8_t *const *) f->data, f->linesize, 0, f->height, dst, dst_stride);
+	double t = seconds(m, m->vidx, f);
+	if (t < 0) t = m->last_video < 0 ? 0 : m->last_video + (m->info.fps > 0 ? 1.0 / m->info.fps : 1.0 / 24);
+	m->last_video = t;
 	ev->type = MOVIE_VIDEO;
-	ev->pts = seconds(m, m->vidx, f);
+	ev->pts = t;
 	ev->rgba = m->rgba;
 	ev->stride = m->stride;
 	ev->pcm = NULL;

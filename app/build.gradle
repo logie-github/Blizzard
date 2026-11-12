@@ -199,7 +199,7 @@ def buildPorterNative = tasks.register('buildPorterNative', Exec) {
 android.sourceSets.main.jniLibs.srcDir porterJni.get().asFile
 tasks.named('preBuild').configure { dependsOn buildPorterNative }
 
-// Warcraft III's movies (movie/: a Bink player for Warsmash) linked with FFmpeg's Bink pieces, which
+// Warcraft III's movies (movie/: their player for Warsmash) linked with FFmpeg's decoders for them, which
 // scripts/build-ffmpeg.sh builds into app/ffmpeg/arm64-v8a (git-ignored) the first time.
 def movieJni = layout.buildDirectory.dir('generated/movieJni')
 def ffmpegDir = file('ffmpeg/arm64-v8a')
