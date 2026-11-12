@@ -9,12 +9,18 @@ import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-/** The undead skins' import ([WrathppUndead]): the zip taken in, its skins added to the looks' table as new colours, taken out again. */
+/**
+ * The undead skins' import ([WrathppUndead]): the zip taken in, its skins added to the looks' table as new colours, taken
+ * out again. (Robolectric: the manifest is read with Android's org.json, which is only a stub in a plain unit test.)
+ */
+@RunWith(RobolectricTestRunner::class)
 class WrathppUndeadTest {
     @get:Rule val tmp = TemporaryFolder()
 

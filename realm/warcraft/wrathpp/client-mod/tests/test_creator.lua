@@ -64,6 +64,14 @@ check(CharacterCreateClassButton3.parent == WrathppClassPanel and CharacterCreat
 check(not CharacterCreateConfigurationFrame.shown and not CharacterCustomizationButtonFrame1.shown and not CharCreateOkayButton.shown, "  the game's own panel, rows and Accept put away")
 check(WrathppCustomizeButton.shown and not WrathppFinishButton.shown and CharacterCreateNameEdit.shown, "  Customize, the name; no Finish yet")
 
+-- opened by the screen's own frame too (a screen that calls its OnShow some other way than by the function's name)
+WrathppAlliancePanel:Hide(); CharacterCreateConfigurationFrame:Show()
+WrathppDriver.scripts.OnShow(WrathppDriver)
+check(WrathppAlliancePanel.shown and not CharacterCreateConfigurationFrame.shown, "the creator's own frame shown opens it as well")
+CharacterCreateConfigurationFrame:Show(); CharacterCustomizationButtonFrame1:Show()
+WrathppDriver.scripts.OnUpdate(WrathppDriver, 0.02)
+check(not CharacterCreateConfigurationFrame.shown and not CharacterCustomizationButtonFrame1.shown, "  and what the game's own OnShow put back after it is put away again on the next frame")
+
 -- Customize, without the native mod ---------------------------------------------------------------------------------------
 WrathppCustomizeButton:Click()
 check(WrathppOptionPanel.shown and not WrathppAlliancePanel.shown and WrathppFinishButton.shown and WrathppBackButton.shown, "Customize: the options, Back, Finish; the races put away")

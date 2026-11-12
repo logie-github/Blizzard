@@ -937,17 +937,18 @@ local function after(name, fn)
 		return a, b, c
 	end
 end
+-- The creator opened. However the game's screen runs its own OnShow (by the function's name, or bound to the function
+-- it was when the screen was made), this is told: the function's name is wrapped, and the driver below, a frame of the
+-- screen's, has an OnShow of its own. Twice is the same as once. The game's own OnShow may run after the driver's, so
+-- the pieces are placed again on the first frames.
 local opened = guarded(function()
 	W.category = nil
 	W.zoom, W.zoomTarget, W.focusY, W.focusTarget, W.spin = 1, 1, 0.6, 0.6, 0
+	W.fresh = 3
 	W.ApplyZoom()
 	WrathppCreate_SetStep(1)
 end)
-if ( type(CharacterCreate_OnShow) == "function" ) then
-	after("CharacterCreate_OnShow", opened)
-elseif ( type(CharacterCreate) == "table" and CharacterCreate.HookScript ) then
-	CharacterCreate:HookScript("OnShow", opened)
-end
+if ( type(CharacterCreate_OnShow) == "function" ) then after("CharacterCreate_OnShow", opened) end
 for _, name in ipairs({ "SetCharacterRace", "SetCharacterGender", "SetCharacterClass", "CharacterCreate_UpdateHairCustomization" }) do
 	after(name, guarded(function() WrathppCreate_ClosePopout(); place(); WrathppCreate_Refresh() end))
 end
@@ -956,8 +957,13 @@ end
 -- (what the game's own state is, however it changed).
 local driver = make("Frame", "WrathppDriver", root)
 local sinceRefresh = 0
+driver:SetScript("OnShow", opened)
 driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	elapsed = elapsed or arg1 or 0
+	if ( (W.fresh or 0) > 0 ) then
+		W.fresh = W.fresh - 1
+		WrathppCreate_SetStep(W.step)
+	end
 	for _, s in ipairs(scrollers) do s:Update(elapsed) end
 	if ( W.turning ) then
 		local x, y = cursor()
