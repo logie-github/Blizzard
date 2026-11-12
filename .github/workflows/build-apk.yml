@@ -120,6 +120,23 @@ jobs:
       - name: Prepare Warsmash Android engine
         run: scripts/prepare-warsmash.sh
 
+      # FFmpeg's Bink pieces for Warcraft III's movies (scripts/build-ffmpeg.sh), cached by the script that pins them.
+      - name: Look for FFmpeg
+        id: ffmpeg
+        uses: actions/cache/restore@v4
+        with:
+          path: app/ffmpeg
+          key: blizz-ffmpeg-v1-${{ hashFiles('scripts/build-ffmpeg.sh') }}
+      - name: Build FFmpeg (Bink only, for the movies)
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-ffmpeg.sh
+      - name: Save FFmpeg
+        if: steps.ffmpeg.outputs.cache-hit != 'true' && matrix.task == 'assemble'
+        uses: actions/cache/save@v4
+        with:
+          path: app/ffmpeg
+          key: ${{ steps.ffmpeg.outputs.cache-primary-key }}
+
       - run: chmod +x gradlew
       - name: Build the APK
         if: matrix.task == 'assemble'

@@ -12,3 +12,4 @@ app/stratagus/
 app/warsmash/
 .kotlin/
 __pycache__/
+app/ffmpeg/

@@ -198,3 +198,36 @@ def buildPorterNative = tasks.register('buildPorterNative', Exec) {
 }
 android.sourceSets.main.jniLibs.srcDir porterJni.get().asFile
 tasks.named('preBuild').configure { dependsOn buildPorterNative }
+
+// Warcraft III's movies (movie/: a Bink player for Warsmash) linked with FFmpeg's Bink pieces, which
+// scripts/build-ffmpeg.sh builds into app/ffmpeg/arm64-v8a (git-ignored) the first time.
+def movieJni = layout.buildDirectory.dir('generated/movieJni')
+def ffmpegDir = file('ffmpeg/arm64-v8a')
+def buildFfmpeg = tasks.register('buildFfmpeg', Exec) {
+    inputs.file(rootProject.file('scripts/build-ffmpeg.sh'))
+    outputs.dir(ffmpegDir)
+    onlyIf { !new File(ffmpegDir, 'lib/libavcodec.a').isFile() }
+    def ndk = new File(androidComponents.sdkComponents.sdkDirectory.get().asFile, "ndk/${android.ndkVersion}")
+    environment 'ANDROID_NDK_ROOT', ndk.path
+    commandLine 'sh', rootProject.file('scripts/build-ffmpeg.sh').path
+}
+def buildMovieNative = tasks.register('buildMovieNative', Exec) {
+    dependsOn buildFfmpeg
+    def sources = [rootProject.file('movie/player.c'), rootProject.file('movie/android.c')]
+    inputs.files(sources + [rootProject.file('movie/player.h')])
+    inputs.dir(ffmpegDir)
+    def out = movieJni.get().file('arm64-v8a/libwc3movie.so').asFile
+    outputs.file(out)
+    def host = System.getProperty('os.name').toLowerCase().contains('mac') ? 'darwin-x86_64' : 'linux-x86_64'
+    def ndk = new File(androidComponents.sdkComponents.sdkDirectory.get().asFile, "ndk/${android.ndkVersion}")
+    def clang = new File(ndk, "toolchains/llvm/prebuilt/$host/bin/aarch64-linux-android26-clang")
+    doFirst { out.parentFile.mkdirs() }
+    def lib = { name -> new File(ffmpegDir, "lib/lib${name}.a").path }
+    commandLine([clang.path, '-shared', '-fPIC', '-O2', '-std=c11', '-fvisibility=default',
+                 '-Wl,-z,max-page-size=16384', '-Wl,--gc-sections', '-ffunction-sections', '-fdata-sections',
+                 '-Wl,-Bsymbolic', '-Wl,--exclude-libs,ALL', "-I${new File(ffmpegDir, 'include').path}"] + sources.collect { it.path } +
+                [lib('avformat'), lib('avcodec'), lib('swscale'), lib('swresample'), lib('avutil'),
+                 '-laaudio', '-landroid', '-llog', '-lm', '-o', out.path])
+}
+android.sourceSets.main.jniLibs.srcDir movieJni.get().asFile
+tasks.named('preBuild').configure { dependsOn buildMovieNative }
