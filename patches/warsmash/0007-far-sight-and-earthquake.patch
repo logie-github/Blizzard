@@ -1,0 +1,229 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityEarthquake.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityEarthquake.java
+new file mode 100644
+index 0000000..dafa5f9
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityEarthquake.java
+@@ -0,0 +1,148 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.farseer;
++
++import java.util.HashMap;
++import java.util.Map;
++
++import com.badlogic.gdx.math.Rectangle;
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffSlow;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponent;
++
++/**
++ * Earthquake (AOeq), channeled: after the effect delay (Data A) the ground at the target shakes for the spell's
++ * duration, damaging buildings (Data B per second) and slowing ground units (Data C) inside an area that grows from
++ * the ability's area to its final area (Data D).
++ */
++public class CAbilityEarthquake extends CAbilityPointTargetSpellBase {
++	private static final float INTERVAL = 0.25f;
++
++	private float effectDelay;
++	private float buildingDamagePerSecond;
++	private float slowPercent;
++	private float areaOfEffect;
++	private float finalArea;
++	private War3ID buffId;
++	private War3ID effectId;
++
++	private int startTick;
++	private int endTick;
++	private int nextTick;
++	private SimulationRenderComponent effect;
++	private final Map<CUnit, CBuffSlow> slowed = new HashMap<>();
++	private final Rectangle recycleRect = new Rectangle();
++
++	public CAbilityEarthquake(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.earthquake;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.effectDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.buildingDamagePerSecond = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.slowPercent = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.finalArea = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++		this.effectId = AbstractCAbilityTypeDefinition.getEffectId(worldEditorAbility, level);
++	}
++
++	private static int ticks(final float seconds) {
++		return (int) StrictMath.ceil(seconds / WarsmashConstants.SIMULATION_STEP_TIME);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int now = simulation.getGameTurnTick();
++		this.startTick = now + ticks(this.effectDelay);
++		this.endTick = this.startTick + ticks(getDuration());
++		this.nextTick = this.startTick;
++		this.slowed.clear();
++		this.effect = simulation.spawnSpellEffectOnPoint(target.getX(), target.getY(), 0, this.effectId,
++				CEffectType.EFFECT, 0);
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int now = simulation.getGameTurnTick();
++		if (now >= this.endTick) {
++			return false;
++		}
++		if (now < this.nextTick) {
++			return true;
++		}
++		this.nextTick = now + ticks(INTERVAL);
++		final float progress = (now - this.startTick) / (float) Math.max(1, this.endTick - this.startTick);
++		final float area = this.areaOfEffect
++				+ ((Math.max(this.finalArea, this.areaOfEffect) - this.areaOfEffect) * progress);
++		final float buildingDamage = this.buildingDamagePerSecond * INTERVAL;
++		final float slowDuration = (this.endTick - now) * WarsmashConstants.SIMULATION_STEP_TIME;
++		final Map<CUnit, CBuffSlow> inside = new HashMap<>();
++		simulation.getWorldCollision().enumUnitsInRect(
++				this.recycleRect.set(target.getX() - area, target.getY() - area, area * 2, area * 2), (unit) -> {
++					if (!unit.isDead() && unit.canReach(target, area)
++							&& unit.canBeTargetedBy(simulation, caster, getTargetsAllowed())) {
++						if (unit.isBuilding()) {
++							unit.damage(simulation, caster, false, true, CAttackType.SPELLS, CDamageType.DEMOLITION,
++									CWeaponSoundTypeJass.WHOKNOWS.name(), buildingDamage);
++						}
++						else {
++							CBuffSlow slow = this.slowed.remove(unit);
++							if ((slow == null) || !unit.getAbilities().contains(slow)) {
++								slow = new CBuffSlow(simulation.getHandleIdAllocator().createId(), this.buffId,
++										slowDuration, 0, this.slowPercent);
++								unit.add(simulation, slow);
++							}
++							inside.put(unit, slow);
++						}
++					}
++					return false;
++				});
++		endSlows(simulation);
++		this.slowed.putAll(inside);
++		return true;
++	}
++
++	/** Takes the slow off every unit that still has it from this earthquake. */
++	private void endSlows(final CSimulation simulation) {
++		for (final Map.Entry<CUnit, CBuffSlow> entry : this.slowed.entrySet()) {
++			if (entry.getKey().getAbilities().contains(entry.getValue())) {
++				entry.getKey().remove(simulation, entry.getValue());
++			}
++		}
++		this.slowed.clear();
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		endSlows(game);
++		if (this.effect != null) {
++			this.effect.remove();
++			this.effect = null;
++		}
++	}
++
++	@Override
++	public float getUIAreaOfEffect() {
++		return this.areaOfEffect;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFarSight.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFarSight.java
+new file mode 100644
+index 0000000..559eb24
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFarSight.java
+@@ -0,0 +1,45 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.farseer;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CTimedCircleFogModifier;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState;
++
++/** Far Sight (AOfs): the area around the target point is seen by the caster's player for the spell's duration. */
++public class CAbilityFarSight extends CAbilityPointTargetSpellBase {
++	private float areaOfEffect;
++
++	public CAbilityFarSight(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.farsight;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		simulation.getPlayer(caster.getPlayerIndex()).addFogModifer(simulation, new CTimedCircleFogModifier(
++				CFogState.VISIBLE, this.areaOfEffect, target.getX(), target.getY(), getDuration()), false);
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		return false;
++	}
++
++	@Override
++	public float getUIAreaOfEffect() {
++		return this.areaOfEffect;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index d30233f..774cb89 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -38,6 +38,8 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.ni
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.warden.CAbilityBlink;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.blademaster.CAbilityWhirlWind;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.farseer.CAbilityChainLightning;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.farseer.CAbilityEarthquake;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.farseer.CAbilityFarSight;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.farseer.CAbilityFeralSpirit;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.taurenchieftain.CAbilityWarStomp;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.deathknight.CAbilityDarkRitual;
+@@ -140,6 +142,10 @@ public class CAbilityData {
+ 				new CAbilityTypeDefinitionSpellBase((handleId, alias) -> new CAbilityFeralSpirit(handleId, alias)));
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AOcl"),
+ 				new CAbilityTypeDefinitionSpellBase((handleId, alias) -> new CAbilityChainLightning(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AOfs"),
++				new CAbilityTypeDefinitionSpellBase((handleId, alias) -> new CAbilityFarSight(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AOeq"),
++				new CAbilityTypeDefinitionSpellBase((handleId, alias) -> new CAbilityEarthquake(handleId, alias)));
+ 
+ 		// Tauren Chieftain
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AOws"),
