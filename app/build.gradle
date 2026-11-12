@@ -206,7 +206,7 @@ def ffmpegDir = file('ffmpeg/arm64-v8a')
 def buildFfmpeg = tasks.register('buildFfmpeg', Exec) {
     inputs.file(rootProject.file('scripts/build-ffmpeg.sh'))
     outputs.dir(ffmpegDir)
-    onlyIf { !new File(ffmpegDir, 'lib/libavcodec.a').isFile() }
+    // The script itself knows whether its build is current (its STAMP: the release and the script), and returns at once if so.
     def ndk = new File(androidComponents.sdkComponents.sdkDirectory.get().asFile, "ndk/${android.ndkVersion}")
     environment 'ANDROID_NDK_ROOT', ndk.path
     commandLine 'sh', rootProject.file('scripts/build-ffmpeg.sh').path

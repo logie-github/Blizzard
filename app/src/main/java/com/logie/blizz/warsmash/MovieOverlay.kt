@@ -3,34 +3,61 @@ package com.logie.blizz.warsmash
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.os.SystemClock
 import android.util.Log
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.FrameLayout
+import android.widget.TextView
 import java.io.File
 
 /**
- * Warcraft III's movies over the engine, one after another, on black at their own shape: a tap skips the one playing,
- * [skipAll] (Back) all of them. [onDone] runs on the main thread once the last has ended. The engine goes on underneath
- * (its sound paused by the activity meanwhile).
+ * Warcraft III's movies over the engine, one after another, on black at their own shape, with the captions the game
+ * shows over them where given: a tap skips the one playing, [skipAll] (Back) all of them. [onDone] runs on the main
+ * thread once the last has ended. The engine waits underneath (its drawing and sound held by the activity meanwhile).
  */
 @SuppressLint("ViewConstructor")
-internal class MovieOverlay(context: Context, movies: List<File>, private val onDone: () -> Unit) : FrameLayout(context), SurfaceHolder.Callback {
+internal class MovieOverlay(context: Context, movies: List<Movie>, private val onDone: () -> Unit) : FrameLayout(context), SurfaceHolder.Callback {
+    /** A movie's file and the text of its caption file, null where it is shown without. */
+    data class Movie(val file: File, val captions: String?)
+
     private val queue = ArrayDeque(movies)
     private val surface = SurfaceView(context)
+    private val caption = TextView(context)
     @Volatile private var handle = 0L
     private var thread: Thread? = null
     private var ready = false
     private var finished = false
     private var movieSize: IntArray? = null
+    private var cues: List<WarsmashMovies.Cue> = emptyList()
+    private var startedAt = 0L
+
+    private val captionTick = object : Runnable {
+        override fun run() {
+            if (handle == 0L) return
+            val now = (SystemClock.uptimeMillis() - startedAt) / 1000.0
+            val text = WarsmashMovies.at(cues, now)?.text.orEmpty()
+            if (caption.text.toString() != text) caption.text = text
+            postDelayed(this, 100)
+        }
+    }
 
     init {
         setBackgroundColor(Color.BLACK)
         surface.setZOrderMediaOverlay(true)
         surface.holder.addCallback(this)
         addView(surface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER))
+        // Over the black below the picture (the movies are far wider than the screen), white with a shadow as the game's.
+        caption.setTextColor(Color.WHITE)
+        caption.setShadowLayer(4f, 0f, 2f, Color.BLACK)
+        caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        caption.gravity = Gravity.CENTER_HORIZONTAL
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        caption.setPadding(pad, 0, pad, pad * 2)
+        addView(caption, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
         isClickable = true
     }
 
@@ -59,7 +86,7 @@ internal class MovieOverlay(context: Context, movies: List<File>, private val on
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
 
-    /** The surface goes (the app left): the movie stops there, and its thread is waited for before the surface is let go. */
+    /** The surface goes (the app left): the movies stop there, and the thread is waited for before the surface is let go. */
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         ready = false
         skipAll()
@@ -68,28 +95,34 @@ internal class MovieOverlay(context: Context, movies: List<File>, private val on
 
     private fun next() {
         if (finished) return
-        val file = queue.removeFirstOrNull()
-        if (file == null) {
+        val movie = queue.removeFirstOrNull()
+        if (movie == null) {
             finished = true
+            caption.text = ""
             onDone()
             return
         }
         val h = try {
-            MovieNative.open(file.path)
+            MovieNative.open(movie.file.path)
         } catch (e: Exception) {
-            Log.w(TAG, "${file.name} didn't open: ${e.message}")
+            Log.w(TAG, "${movie.file.name} didn't open: ${e.message}")
             next()
             return
         }
         handle = h
-        val size = MovieNative.size(h)
-        fit(size)
+        fit(MovieNative.size(h))
+        cues = movie.captions?.let(WarsmashMovies::cues).orEmpty()
+        caption.text = ""
+        startedAt = SystemClock.uptimeMillis()
+        removeCallbacks(captionTick)
+        if (cues.isNotEmpty()) post(captionTick)
         val holder = surface.holder
         thread = Thread({
             val result = runCatching { MovieNative.run(h, holder.surface) }.getOrDefault(-1)
-            if (result < 0) Log.w(TAG, "${file.name} stopped with $result")
+            if (result < 0) Log.w(TAG, "${movie.file.name} stopped with $result")
             post {
                 handle = 0L
+                removeCallbacks(captionTick)
                 MovieNative.close(h)
                 thread = null
                 if (ready) next() else if (!finished) {

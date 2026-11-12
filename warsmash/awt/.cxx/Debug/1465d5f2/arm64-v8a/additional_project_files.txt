@@ -1,9 +1,0 @@
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/headers/awtcompat_native_components.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/common/exceptions.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcmm/cmmapi.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcmm/cmmerror.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcmm/NativeCMM.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcmm/NativeImageFormat.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcms/cmscam97.c.rej
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcms/icc34.h
-/home/user/Blizzard/app/warsmash/android-awt/awtcompat/src/main/cpp/lcms/lcms.h
