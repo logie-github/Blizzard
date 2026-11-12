@@ -134,6 +134,22 @@ class ClassicPlusTest {
     }
 
     @Test
+    fun aFileWithoutTheClassicPlusFolderGivesNothing() {
+        val archive = File(tmp.root, "other.7z")
+        SevenZOutputFile(archive).use { out ->
+            val entry = out.createArchiveEntry(File(tmp.root, "x"), "SomeMod/Units/Footman.mdx")
+            entry.size = 5
+            entry.setDirectory(false)
+            out.putArchiveEntry(entry)
+            out.write("model".toByteArray())
+            out.closeArchiveEntry()
+        }
+        val into = File(tmp.root, "out")
+        ClassicPlus.unpack(archive, into)
+        assertTrue("the importer then says it isn't Classic+", into.walkTopDown().none { it.isFile })
+    }
+
+    @Test
     fun googleDrivesWarningPageLeadsToTheFile() {
         val page = """<html><body><form id="download-form" action="https://drive.usercontent.google.com/download" method="get">
             <input type="submit" id="uc-download-link" class="goog-inline-block jfk-button" value="Download anyway"/>

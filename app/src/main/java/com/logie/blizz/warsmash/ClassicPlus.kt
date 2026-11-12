@@ -1,6 +1,8 @@
 package com.logie.blizz.warsmash
 
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.apache.commons.compress.archivers.sevenz.SevenZFile
@@ -15,8 +17,10 @@ import java.util.Locale
 /**
  * Classic+ (Piotr Bednarczuk, kenshin.pl/classicplus): Warcraft III's units, trees and textures remade in more detail and
  * true to the original's look, played in Warsmash as a layer over the game's own files (the user, 12 November 2026:
- * "Integrate this hd model and texture pack if possible"). The author's archive is fetched on the phone (never in the app
- * or the repository) and made ready for Warsmash once ([prepare]): each DDS texture repacked as the BLP the game asks for
+ * "Integrate this hd model and texture pack if possible"). The author's archive is imported, never shipped with the app
+ * or the repository: the file you downloaded yourself, picked on the phone ([importFile]: "Give me the option to upload
+ * the download"), or fetched by the app from the author's link ([install]). It is made ready for Warsmash once
+ * ([prepare]): each DDS texture repacked as the BLP the game asks for
  * (the same DXT data under the .blp name, as Reforged finds it), and the models in Reforged's newer format (MDX 1100: the
  * pack's missiles and spell effects, a market and three units) left out, as Warsmash 1.0.4 can't read them; those keep the
  * game's own. The engine reads the layer in any case (patches/warsmash/0004).
@@ -27,15 +31,18 @@ object ClassicPlus {
     private const val DRIVE_ID = "1vndUBXEFwlMNBUWhUUphSoCr3WhEPE2h"
     const val SIZE = 412_785_709L
     const val SHA256 = "d6fd0ac0c0d770b8ebf5d8f650a9d1271ddf175de10ad6d3dbbf8e3ae523521e"
-    /** Raised whenever what [prepare] makes of the archive changes: the pack is made again. */
+    /** Raised whenever what [prepare] makes of the archive changes: the pack is imported again. */
     const val RECIPE = 1
+    /** What importing needs free, the archive aside: the pack unpacked and made ready. */
+    private const val ROOM = 900L shl 20
     private const val INNER = "Classic+/"
 
     fun root(context: Context) = File(context.filesDir, "warsmash-classicplus")
     fun folder(context: Context) = File(root(context), "Classic+")
     private fun stamp(context: Context) = File(root(context), "STAMP")
     private fun marker(context: Context) = File(root(context), "ON")
-    private fun stampText() = "$SHA256 $RECIPE"
+    /** Any version of the pack is kept (a picked file may be newer than the one the app downloads); the recipe is what counts. */
+    private fun stampText() = "recipe $RECIPE"
 
     fun installed(context: Context): Boolean =
         folder(context).isDirectory && runCatching { stamp(context).readText().trim() == stampText() }.getOrDefault(false)
@@ -65,35 +72,77 @@ object ClassicPlus {
     private val mutable = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> get() = mutable
 
-    /** Fetches the archive, makes the pack ready and turns it on, on a thread of its own; [state] says how it goes. */
+    /** Fetches the author's archive from his link, then imports it as [importFile] does. */
+    fun install(context: Context) = work(context) { app ->
+        val archive = File(app.cacheDir, "classicplus-$VERSION.7z")
+        if (!(archive.isFile && archive.length() == SIZE && sha256(archive) == SHA256)) download(archive)
+        mutable.value = State.Working("Checking", 1f)
+        if (sha256(archive) != SHA256) {
+            archive.delete()
+            throw IOException("The download isn't Classic+ $VERSION as the app knows it (the author may have updated it): download it from $PAGE and pick the file instead.")
+        }
+        archive
+    }
+
+    /** The archive you downloaded yourself (kenshin_lab_….7z), picked on the phone: copied in, then made ready and turned on. */
+    fun importFile(context: Context, uri: Uri) = work(context) { app ->
+        val size = runCatching {
+            app.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c -> if (c.moveToFirst()) c.getLong(0) else -1L }
+        }.getOrNull() ?: -1L
+        if (size > 0 && app.cacheDir.usableSpace < size + ROOM) {
+            throw IOException("Not enough free space: about ${(size + ROOM) shr 20} MB is needed.")
+        }
+        val archive = File(app.cacheDir, "classicplus-picked.7z")
+        val input = app.contentResolver.openInputStream(uri) ?: throw IOException("The file couldn't be opened.")
+        input.use { i ->
+            archive.outputStream().use { out ->
+                val buffer = ByteArray(1 shl 16)
+                var total = 0L
+                while (true) {
+                    val n = i.read(buffer)
+                    if (n < 0) break
+                    out.write(buffer, 0, n)
+                    total += n
+                    mutable.value = State.Working("Reading the file", if (size > 0) (total.toFloat() / size).coerceIn(0f, 1f) else 0f)
+                }
+            }
+        }
+        archive
+    }
+
+    /** Gets the archive ([fetch]), unpacks it, makes it ready and turns it on, on a thread of its own; [state] says how it goes. */
     @Synchronized
-    fun install(context: Context) {
+    private fun work(context: Context, fetch: (Context) -> File) {
         if (mutable.value is State.Working) return
         val app = context.applicationContext
         mutable.value = State.Working("Starting", 0f)
         Thread({
+            var archive: File? = null
             try {
-                val archive = File(app.cacheDir, "classicplus-$VERSION.7z")
-                if (!(archive.isFile && archive.length() == SIZE && sha256(archive) == SHA256)) download(archive)
-                mutable.value = State.Working("Checking", 1f)
-                if (sha256(archive) != SHA256) {
-                    archive.delete()
-                    throw IOException("The archive isn't Classic+ $VERSION as the app knows it (the author may have updated it).")
-                }
+                archive = fetch(app)
                 val staging = File(root(app), "staging")
                 staging.deleteRecursively()
-                unpack(archive, staging) { f -> mutable.value = State.Working("Unpacking", f) }
+                try {
+                    unpack(archive, staging) { f -> mutable.value = State.Working("Unpacking", f) }
+                } catch (e: IOException) {
+                    throw IOException("That file isn't the Classic+ download (a .7z from $PAGE): ${e.message}")
+                }
+                if (staging.walkTopDown().none { it.isFile }) {
+                    staging.deleteRecursively()
+                    throw IOException("That file has no Classic+ folder in it: it isn't the Classic+ download from $PAGE.")
+                }
                 mutable.value = State.Working("Making it ready for Warsmash", 1f)
                 prepare(staging)
                 val target = folder(app)
                 target.deleteRecursively()
                 if (!staging.renameTo(target)) throw IOException("The pack couldn't be put in place.")
                 stamp(app).writeText(stampText() + "\n")
-                archive.delete()
                 setOn(app, true)
                 mutable.value = State.Done
             } catch (e: Exception) {
                 mutable.value = State.Failed(e.message ?: e.toString())
+            } finally {
+                archive?.delete()
             }
         }, "classicplus").start()
     }
