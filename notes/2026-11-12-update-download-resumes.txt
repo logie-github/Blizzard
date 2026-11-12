@@ -1,0 +1,1 @@
+App updates: a download that breaks off carries on from where it stopped instead of starting again.

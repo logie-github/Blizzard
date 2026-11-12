@@ -489,6 +489,11 @@ class GestureView(
                 moviesOff -> sendReport("stopped in a movie", "A movie's window was up when the game's programs went; the movies are set aside.")
             }
         }
+        // World of Warcraft's screen gone: a crash of Wrath++'s game that its runtime wrote down is sent (WrathppSetup.reportCrashes).
+        if (gameId == "wow-client") {
+            val app = activity.applicationContext
+            Thread { runCatching { Thread.sleep(3000); com.logie.blizz.wrathpp.WrathppSetup.reportCrashes(app) } }.start()
+        }
         removeCallbacks(noWindowReport)
         removeCallbacks(minuteReport)
         removeCallbacks(typeNext)

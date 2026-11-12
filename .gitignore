@@ -12,3 +12,6 @@ app/stratagus/
 app/warsmash/
 .kotlin/
 __pycache__/
+app/ffmpeg/
+# The engine modules' native build trees (CMake), made by every build.
+warsmash/*/.cxx/

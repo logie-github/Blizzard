@@ -115,3 +115,100 @@ Not run: anything in the game; nothing drawn yet.
 | `ctl.sh` isolation test | pass, 61/61 |
 
 Not run: anything in the game; the package on a phone.
+
+
+## 2026-11-12, Shadowlands' creator, the undead skins, the Dark Ranger eyes
+
+Machine: Linux x86_64 container; LuaJIT 2.1, Python 3 with numpy and Pillow, Kotlin 2.0.21's compiler alone (no Android
+SDK here: the app's own suite is CI's).
+
+| Test | Result |
+|---|---|
+| `client-mod/tests/run.sh` | **pass**: the Lua mod's 29 + 5 checks as before; `test_creator.lua`, the new creator on a stand-in for the 3.3.5 screen: 57 checks (the two screens and the game's buttons moved; without the native mod the game's five; Shadowlands' rows in its order under its categories; a number unpacked into its options and packed back; a class's choices; an option nothing draws listed greyed; a choice by arrows and from the list, by the game's steps the shorter way round or the native set in one; the Undead switch, its skins, Randomize on either side; a list dragged, flicked, eased, the row not tapped; the character turned by a finger, carried on, turned by a held button; zoom by wheel, buttons and category; Finish, Back; a race without looks; an error putting the game's screen back) |
+| `test_creator_data.lua` on `WrathppLooks.lua` made here from wago.tools' 9.2.7.45745 tables | **pass**: 19 races and sexes, 263 option rows, 3,439 choices each put on, read back as the one on, no other number moved |
+| `protocol/tests/run.sh` | **pass**: as before, with `test_sl_creator.py` (6 tests: order, categories, parts of a number, choices as shown, swatches, class rules, an undrawn option, the Lua) and `test_undead_pack.py` (3 tests: skins in order, the textures read back at the sizes the models draw, the underwear note) |
+| `sl_looks.py races` with the Dark Ranger eyes | only BloodElfFemale's looks change (eye 9 of 12 is 0xcc0000; the death knights' eye gone); the allied races' `races.json` is the same with and without the change to `races.py` |
+| `sl_looks.py package` here (19 models, 6,040 files) | **pass** (its own `check_m2` on every model) |
+| `WrathppUndeadTest` (the app's importer), compiled with kotlinc beside stand-ins for `WrathppLooks`' two names and Android's `Context` | **pass**, 7 tests: a table read back as written; skins as new colours after the race's own with a face row for every face number and an underwear row, nothing of the game's changed; applied twice or taken out leaves none twice; the zip taken in, a wrong one refused and the last kept; applied to a game and server folder, again after new looks, taken out |
+| The importer on the looks made here and the 68-skin file | CharSections 3,721,240 -> 4,187,680 bytes, the same bytes for the game and the server; then `render_m2.py` (the game's reading of the tables and files) on each of the 17 models with each of its four undead skins: 68 of 68 drawn, the skins and faces in place |
+
+### Not tested
+
+- **The creator in the game**: nothing here runs the 3.3.5 client. On the phone the runtime, the native mod 0.1.0 and the
+  Lua mod load (issue #99); whether `WrathPP_GetCustomization`'s numbers are right there, and everything of the new
+  script, is not known.
+- The native mod 0.2.0: compiled by CI only.
+- The app's whole unit suite and its build with the new dialog and menu entry: CI (`build-apk`), run on this branch
+  before the merge.
+- The undead skins in the game, a character made with one accepted by the live server, and the import dialog on a phone.
+
+
+## 2026-11-12 (later): a crash on Create Character, the reporter, Gear, Ralia's set, the women's underwear
+
+**What was reported.** After app build 226 (the Shadowlands creator): "So far I'm not seeing the new options and also
+I'm not seeing the shadowlands menu", then "The game crashed for me. When clicking on create character", then "I don't
+think the reporter works right". Nothing had reached this repository after report #99 (03:49 UTC, app 219).
+
+**Why nothing arrived.** (1) `BugReports.report` sends the same failure once a day, the same being the title with its
+numbers out; the Wrath++ start report's title is one sentence, so every start after #99 was dropped on the phone.
+(2) A game that closes by itself is reported for every game but World of Warcraft's client (`gameId == "wow-client"` is
+left out of `GestureView`'s report). (3) The Wrath++ report went only 90 s into a launch. **The cause of the crash is
+not known yet**: the client is the user's own and is not on this machine, so the creator has only been run on the
+stand-in screen.
+
+**What was changed.** `WrathppLogs` reads WarcraftXL's logs of the launches (the runtime writes `[crash]` lines: the
+fault, the address as `WowWrathpp.exe+0x...`, the chain of calls; thirty launches are kept): each crash is sent once
+(`Wrath++ crash`), as the app starts, before a start, 90 s after it and when the game's screen goes, so **the crash that
+already happened is sent by the next build as the app opens**. The creator writes its steps to the same log
+(`WrathPP_Log`, native 0.3.0). A crash with the creator on the screen leaves it out for that build. The start report
+goes whenever its content changed.
+
+**Tested here.** `WrathppLogsTest` (5: a crash read with where the creator was, handed out once across the log's
+renaming, the creator's lines, the creator left out for one build), `WrathppBareTest` (1), `WrathppRaliaTest` (7, with
+painted underwear over the looks' own and back), `BlpTest` (7, alpha), `WrathppUndeadTest` (7): 27 run here with
+kotlinc against stubs of Android's classes; `UpdaterTest`'s six new ones (a local server that drops the connection)
+run in CI only. The creator on the stand-in screen: 70 checks (Gear: 8, the log: 5). The native mod 0.3.0
+(`WrathPP_SetGear`, `WrathPP_Log`) is compiled by CI (MSVC x86) and **has not run in the game**; nothing here has run
+on a phone.
+
+**Ralia's set, end to end here** (the app's own `WrathppRalia` and `WrathppBare`, compiled with kotlinc, on the looks
+package as CI makes it and the user's zip): `lookFor` took the zip in by itself (693 textures) and not a second time;
+`apply` put the set's over 133 of the looks' skins in 4.5 s (and nothing the second time); 127 of the women's 246
+underwear rows lost their textures with it and the other 119 by `WrathppBare` (246 of 246); after Remove every skin
+file is the looks' own again, byte for byte. Each written skin against the set's file it was made from (its body half
+at 512 x 512): a mean difference of 1.1 to 2.2 of 255 a channel, the palette's doing. The looks' own skin of the same
+number differs from the set's by under 2 on average too, which says the list of names pairs each skin with the right
+file (the set repaints parts of the same picture). The list: 296 of the looks' skin files named (wago.tools' file
+search, by the words `<model>skin`, and `nightelf_femaleskin` for the Night Elf women, whose files are named so); the
+skins of Shadowlands' newer colours have names of another kind and keep the looks' own.
+
+## 2026-11-12 (the crash on Create Character): what the phone's report said, and the fix
+
+**The report** (#102 and #104, sent by build 232 from the logs on the phone; #104's launch was build 232 itself):
+`unhandled access violation (0xC0000005) reading 0x1C at WowWrathpp.exe+0xE0A9B, the main thread, 25.8 s after launch`,
+`eax=0 ecx=0 edi=004E0A60`, the frames above it the Lua machine's (`+0x45651C`, `+0x45898A`...). The creator's own lines
+just before it: `creator: opened: native 0.3.0, looks' options in, undead skins in`, `creator: screen: race and class`,
+then the crash 4 ms later.
+
+**What is at that address** (the decompiled client at the pinned commit, `CharacterCreation_Scripts.cpp`): the function
+at `0x004E0A60` is `Script_GetSelectedClass`, which pushes
+`GetDisplayClassNameFromRecord(classRec, CCharacterCreation::m_character->m_data.m_preferences.m_sexID, ...)`: the
+character's data is at +0x18 and the sex at +4 of it, so with no character it reads 0x1C. The creator called
+`GetSelectedClass()` (to write the class's name over the class buttons) from its own frame's OnShow, which the game
+runs before its own `CharacterCreate_OnShow`, whose `ResetCharCustomize` makes the character. That OnShow of the
+creator's was added in build 226; builds 226 to 232 crash at the first opening of the creation screen in a launch.
+
+**The fix.** Nothing of the creator runs before the game has its character (`hasCharacter`, asked by every handler:
+the native mod's `WrathPP_GetCreating`, else a frame drawn since the screen was shown); the creator's own frame notes
+that the screen was shown and the next frame opens the creator.
+
+**Tested here.** The stand-in screen (`mock_glue.lua`) now has the game's character made by the game's own OnShow, and
+counts a call made without it to any of the functions that read it unchecked. `test_creator.lua` shows the screen as the
+client does (the creator's frame first, then the game's OnShow bound to its function, then a frame), with and without
+the native mod: **the script of builds 226 to 232 fails it at `GetSelectedClass` and `GetAvailableRaces`; the fixed
+script passes** (82 checks; the real data, 3,439 choices, with no such call). Not run in the game: the client is not on
+this machine.
+
+**The other record** (#103): a launch of 11 November (native 0.1.0, before this work), 7m 44s in: the game jumped to
+`0x625AF8B0`, an address in no module, from `WowWrathpp.exe+0x28FAFC` under `WarcraftXL.dll+0xBDE1B`, with no frame
+drawn for the 427 s before (the last events to mods are that old: the app was in the background). Not looked into.

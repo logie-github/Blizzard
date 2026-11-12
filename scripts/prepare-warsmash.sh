@@ -20,7 +20,9 @@ mkdir -p "$WORK/unpacked"
 tar -xzf "$ARCHIVE" -C "$WORK/unpacked" --strip-components=1
 SRC="$WORK/unpacked"
 mkdir -p "$OUT"
+# A fresh copy each time, so nothing a patch added before (a new file) is left to trip the patches over it.
 for dir in core shared fdfparser jassparser android-awt assets libgdx gdx-controllers-android; do
+    rm -rf "${OUT:?}/$dir"
     cp -R "$SRC/$dir" "$OUT/"
 done
 cp "$SRC/LICENSE" "$OUT/LICENSE"

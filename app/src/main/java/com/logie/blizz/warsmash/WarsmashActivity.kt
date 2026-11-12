@@ -7,6 +7,8 @@ import android.opengl.GLES30
 import android.opengl.GLES32
 import android.os.Bundle
 import android.system.Os
+import android.view.KeyEvent
+import android.view.ViewGroup
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.audio.Sound
@@ -16,6 +18,7 @@ import com.etheller.warsmash.KeysEmulator
 import com.etheller.warsmash.WarsmashGdxMenuScreen
 import com.etheller.warsmash.WarsmashGdxMultiScreenGame
 import com.etheller.warsmash.units.DataTable
+import com.etheller.warsmash.util.MovieHost
 import com.etheller.warsmash.util.StringBundle
 import com.etheller.warsmash.viewer5.AudioContext
 import com.etheller.warsmash.viewer5.AudioDestination
@@ -31,6 +34,8 @@ import java.io.File
 class WarsmashActivity : AndroidApplication() {
     private val keys = KeysEmulator()
     private var started = false
+    private var overlay: MovieOverlay? = null
+    private var foreground = false
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -63,9 +68,11 @@ class WarsmashActivity : AndroidApplication() {
             val ini = assets.open("warsmash.ini").bufferedReader().use { it.readText() }
             val emulator = ini.substring(ini.indexOf("[GamingNetwork]"))
             val table = DataTable(StringBundle.EMPTY).apply {
-                (WarsmashConfig.sources(gameDir, support) + "\n" + emulator).byteInputStream().use { readTXT(it, true) }
+                // Classic+ (its models and textures) over the game's files when it is on (ClassicPlus).
+                (WarsmashConfig.sources(gameDir, support, ClassicPlus.layer(this@WarsmashActivity)) + "\n" + emulator).byteInputStream().use { readTXT(it, true) }
             }
             extensions()
+            movies(gameDir)
             val game = WarsmashGdxMultiScreenGame { engine ->
                 engine.screen = WarsmashGdxMenuScreen(table, engine, keys)
             }
@@ -100,6 +107,66 @@ class WarsmashActivity : AndroidApplication() {
     private fun escape() { Gdx.app.postRunnable { keys.onKeyDownListener?.invoke(Input.Keys.ESCAPE); keys.onKeyUpListener?.invoke(Input.Keys.ESCAPE) } }
     @Deprecated("Game back maps to Escape")
     override fun onBackPressed() { if (started) escape() else finish() }
+
+    /**
+     * Warcraft III's movies, where the engine asks for them (MovieHost, patches/warsmash/0003): the files in the game's
+     * Movies folder, played by MovieOverlay over the engine, whose drawing and sound wait meanwhile. The once-only ones
+     * (the introduction, each campaign's opening for a profile) are remembered here.
+     */
+    private fun movies(gameDir: File) {
+        val seen = getSharedPreferences("warsmash-movies", MODE_PRIVATE)
+        MovieHost.player = object : MovieHost.Player {
+            override fun play(names: Array<String>, captions: Array<String?>, done: Runnable) {
+                runOnUiThread { showMovies(gameDir, names, captions, done) }
+            }
+
+            override fun seen(key: String) = seen.getBoolean(key, false)
+            override fun markSeen(key: String) { seen.edit().putBoolean(key, true).apply() }
+        }
+    }
+
+    private fun showMovies(gameDir: File, names: Array<String>, captions: Array<String?>, done: Runnable) {
+        val movies = names.indices.mapNotNull { i -> WarsmashMovies.find(gameDir, names[i])?.let { MovieOverlay.Movie(it, captions.getOrNull(i)) } }
+        if (movies.isEmpty() || overlay != null || isFinishing) {
+            done.run()
+            return
+        }
+        Gdx.graphics.isContinuousRendering = false
+        audio.pause()
+        lateinit var shown: MovieOverlay
+        shown = MovieOverlay(this, movies) {
+            (shown.parent as? ViewGroup)?.removeView(shown)
+            overlay = null
+            // Away from the app the sound comes back with it (AndroidApplication's onResume).
+            if (foreground) audio.resume()
+            Gdx.graphics.isContinuousRendering = true
+            done.run()
+        }
+        overlay = shown
+        addContentView(shown, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    }
+
+    /** While a movie plays the keys are its: Back skips them all, Escape, Space and Enter the one playing. */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val shown = overlay ?: return super.dispatchKeyEvent(event)
+        if (event.action == KeyEvent.ACTION_UP) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_BACK -> shown.skipAll()
+                KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_ENTER -> shown.skipOne()
+            }
+        }
+        return true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        foreground = true
+    }
+
+    override fun onPause() {
+        foreground = false
+        super.onPause()
+    }
     override fun onDestroy() {
         super.onDestroy()
         if (isFinishing) android.os.Process.killProcess(android.os.Process.myPid())

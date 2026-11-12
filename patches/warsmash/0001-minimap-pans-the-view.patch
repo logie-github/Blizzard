@@ -7,7 +7,7 @@
 +	// Touch (Blizzard launcher): a finger put on the minimap pans the view as dragging the battlefield would (the ground follows
 +	// the finger, at the battlefield's scale), and is no part of what the other fingers do: it never clicks, selects or counts
 +	// toward a double click, so one hand can pan while the other plays.
-+	private static final float MINIMAP_PAN_SPEED = 1f;
++	private static final float MINIMAP_PAN_SPEED = 2f;
 +	private int minimapPanPointer = -1;
 +	private int minimapPointers = 0;
 +	private final Vector2 minimapPanStartScreen = new Vector2();

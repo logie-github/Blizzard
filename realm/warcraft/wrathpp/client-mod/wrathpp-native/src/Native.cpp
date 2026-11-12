@@ -8,6 +8,22 @@
 //   WrathPP_GetCustomization(i)  i: 1 skin colour, 2 face, 3 hair style, 4 hair colour, 5 facial hair
 //                                (NUM_CHAR_CUSTOMIZATIONS' order) -> current (1-based), count; nothing
 //                                while no character is on the creator.
+//   WrathPP_SetCustomization(i, n)  puts choice n (1-based) of customization i into the character being made, as a
+//                                number alone: nothing is drawn. The creator puts in the choice BEFORE the one it wants
+//                                and calls the game's own CycleCharCustomization(i, 1), whose "next" (SetNextSkin,
+//                                SetNextFace... at the client's pinned source) then moves onto the wanted one through
+//                                the client's own checks and redraws: one step in place of up to a hundred.
+//                                -> true, or nothing while no character is on the creator or n is past the count.
+//   WrathPP_GetCreating()        -> race id, sex (0 a man, 1 a woman), class id of the character being made.
+//   WrathPP_SetGear(on)          the character being made with its starting outfit (true) or without (false), to see
+//                                the skin. Without: what the client's own CCharacterCreation::Dress does first, the
+//                                twelve item slots taken off (CCharacterComponent::RemoveItem, 0x004EE460, thiscall:
+//                                the address WarcraftXL's own Component.RemoveItem seam attaches at). With: Dress
+//                                itself (0x004E0FD0, a static function without arguments), which takes them off and
+//                                puts the class's outfit on. Nothing is drawn until the creator's next step of a
+//                                customization (the client's StartLoad). -> true, or nothing while no character is on it.
+//   WrathPP_Log(text)            a line of the creator's into the runtime's log, tagged wrathpp, "creator: text": what
+//                                the creator did (built, opened, which screen, why it went off), for the app's reports.
 //   WrathPP_NativeVersion()      -> this mod's version, for the interface to know it is there.
 //
 // Addresses and layouts: WarcraftXL-Labs/core's offset tables and the decompiled client
@@ -42,11 +58,11 @@ namespace
         uint32_t race, sex, classId, hairColor, skin, face, facialHair, hairStyle;
     };
 
-    const Preferences* Creating()
+    Preferences* Creating()
     {
         const uintptr_t component = *reinterpret_cast<const uintptr_t*>(0x00B6B1A0);
         if (!component) return nullptr;
-        return reinterpret_cast<const Preferences*>(component + 0x18);
+        return reinterpret_cast<Preferences*>(component + 0x18);
     }
 
     /// The current choice (0-based) and how many there are, for customization 0..4.
@@ -81,8 +97,53 @@ namespace
             return false;
         }
     }
+
+    /// Customization 0..4's number put in (0-based, below its count). The game draws nothing until its own next step.
+    bool SetCustomization(int which, int32_t value)
+    {
+        int32_t current = 0, count = 0;
+        if (!Customization(which, current, count) || value < 0 || value >= count) return false;
+        Preferences* p = Creating();
+        switch (which)
+        {
+        case 0: p->skin = static_cast<uint32_t>(value); return true;
+        case 1: p->face = static_cast<uint32_t>(value); return true;
+        case 2: p->hairStyle = static_cast<uint32_t>(value); return true;
+        case 3: p->hairColor = static_cast<uint32_t>(value); return true;
+        case 4: p->facialHair = static_cast<uint32_t>(value); return true;
+        default: return false;
+        }
+    }
+
+    using RemoveItemFn = void(__thiscall*)(void*, int32_t);
+    using DressFn = void(__cdecl*)();
+
+    bool SetGear(bool on)
+    {
+        const uintptr_t component = *reinterpret_cast<const uintptr_t*>(0x00B6B1A0);
+        if (!component) return false;
+        if (on)
+        {
+            reinterpret_cast<DressFn>(0x004E0FD0)();
+            return true;
+        }
+        for (int32_t slot = 0; slot < 12; slot++) // NUM_ITEM_SLOTS
+            reinterpret_cast<RemoveItemFn>(0x004EE460)(reinterpret_cast<void*>(component), slot);
+        return true;
+    }
+
+    bool CreatingWho(int32_t& race, int32_t& sex, int32_t& cls)
+    {
+        const Preferences* p = Creating();
+        if (!p) return false;
+        race = static_cast<int32_t>(p->race); sex = static_cast<int32_t>(p->sex); cls = static_cast<int32_t>(p->classId);
+        return true;
+    }
 #else
     bool Customization(int, int32_t&, int32_t&) { return false; }
+    bool SetCustomization(int, int32_t) { return false; }
+    bool CreatingWho(int32_t&, int32_t&, int32_t&) { return false; }
+    bool SetGear(bool) { return false; }
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -99,7 +160,53 @@ namespace
         call.PushNumber(static_cast<double>(count));
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.1.0"); }
+    void SetCustomizationCall(wxl::ScriptCall& call)
+    {
+        const auto index = call.Number(0);
+        const auto value = call.Number(1);
+        if (!index || *index < 1 || *index > 5 || !value)
+        {
+            call.Fail("WrathPP_SetCustomization(i, n): i is 1 to 5, n a choice from 1");
+            return;
+        }
+        if (!SetCustomization(static_cast<int>(*index) - 1, static_cast<int32_t>(*value) - 1)) return;
+        call.PushBool(true);
+    }
+
+    void GetCreating(wxl::ScriptCall& call)
+    {
+        int32_t race = 0, sex = 0, cls = 0;
+        if (!CreatingWho(race, sex, cls)) return;
+        call.PushNumber(static_cast<double>(race));
+        call.PushNumber(static_cast<double>(sex));
+        call.PushNumber(static_cast<double>(cls));
+    }
+
+    void SetGearCall(wxl::ScriptCall& call)
+    {
+        const auto on = call.Bool(0);
+        if (!on)
+        {
+            call.Fail("WrathPP_SetGear(on): on is true or false");
+            return;
+        }
+        if (!SetGear(*on)) return;
+        call.PushBool(true);
+    }
+
+    /// A line of the creator's into the runtime's log (Logs/WarcraftXL.log), which the app's reports carry.
+    void LogCall(wxl::ScriptCall& call)
+    {
+        const auto text = call.String(0);
+        if (!text)
+        {
+            call.Fail("WrathPP_Log(text): text is a string");
+            return;
+        }
+        wxl::Log(WXL_LOG_INFO, kTag, "creator: {}", text->substr(0, 400));
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.3.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -109,6 +216,10 @@ namespace
             const wxl::ScriptService script;
             if (!script) return;
             for (auto [name, result] : {std::pair{"WrathPP_GetCustomization", script.RegisterFunction<&GetCustomization>("WrathPP_GetCustomization")},
+                                        std::pair{"WrathPP_SetCustomization", script.RegisterFunction<&SetCustomizationCall>("WrathPP_SetCustomization")},
+                                        std::pair{"WrathPP_GetCreating", script.RegisterFunction<&GetCreating>("WrathPP_GetCreating")},
+                                        std::pair{"WrathPP_SetGear", script.RegisterFunction<&SetGearCall>("WrathPP_SetGear")},
+                                        std::pair{"WrathPP_Log", script.RegisterFunction<&LogCall>("WrathPP_Log")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));

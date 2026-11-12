@@ -1,0 +1,259 @@
+diff --git a/core/src/com/etheller/warsmash/datasources/FolderDataSource.java b/core/src/com/etheller/warsmash/datasources/FolderDataSource.java
+index cf57d39..36d6fb6 100644
+--- a/core/src/com/etheller/warsmash/datasources/FolderDataSource.java
++++ b/core/src/com/etheller/warsmash/datasources/FolderDataSource.java
+@@ -10,6 +10,9 @@ import java.nio.file.Paths;
+ import java.nio.file.StandardOpenOption;
+ import java.util.Collection;
+ import java.util.HashSet;
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
+ import java.util.Set;
+ import java.util.function.Consumer;
+ 
+@@ -17,6 +20,9 @@ public class FolderDataSource implements DataSource {
+ 
+ 	private final Path folderPath;
+ 	private final Set<String> listfile;
++	// Blizzard launcher: the game names its files in any case (Windows doesn't mind) and a phone's storage does, so a
++	// path that isn't there as asked is looked up in any case among the folder's files.
++	private final Map<String, String> anyCase = new HashMap<>();
+ 
+ 	public FolderDataSource(final Path folderPath) {
+ 		this.folderPath = folderPath;
+@@ -32,11 +38,24 @@ public class FolderDataSource implements DataSource {
+ 		catch (final IOException e) {
+ 			throw new RuntimeException(e);
+ 		}
++		for (final String name : this.listfile) {
++			this.anyCase.putIfAbsent(name.toLowerCase(Locale.US), name);
++		}
++	}
++
++	/** The path as the folder has it: as asked when it's there, else the folder's file of that name in any case. */
++	private String inFolder(final String filepath) {
++		final String fixed = fixFilepath(filepath);
++		if ("".equals(fixed) || Files.exists(this.folderPath.resolve(fixed))) {
++			return fixed;
++		}
++		final String known = this.anyCase.get(fixed.toLowerCase(Locale.US));
++		return known != null ? known : fixed;
+ 	}
+ 
+ 	@Override
+ 	public InputStream getResourceAsStream(String filepath) throws IOException {
+-		filepath = fixFilepath(filepath);
++		filepath = inFolder(filepath);
+ 		if (!has(filepath)) {
+ 			return null;
+ 		}
+@@ -45,7 +64,7 @@ public class FolderDataSource implements DataSource {
+ 
+ 	@Override
+ 	public File getFile(String filepath) throws IOException {
+-		filepath = fixFilepath(filepath);
++		filepath = inFolder(filepath);
+ 		if (!has(filepath)) {
+ 			return null;
+ 		}
+@@ -64,7 +83,7 @@ public class FolderDataSource implements DataSource {
+ 
+ 	@Override
+ 	public ByteBuffer read(String path) throws IOException {
+-		path = fixFilepath(path);
++		path = inFolder(path);
+ 		if (!has(path)) {
+ 			return null;
+ 		}
+@@ -73,7 +92,7 @@ public class FolderDataSource implements DataSource {
+ 
+ 	@Override
+ 	public boolean has(String filepath) {
+-		filepath = fixFilepath(filepath);
++		filepath = inFolder(filepath);
+ 		if ("".equals(filepath)) {
+ 			return false; // special case for folder data source, dont do this
+ 		}
+diff --git a/core/src/com/etheller/warsmash/pjblp/Blp2.java b/core/src/com/etheller/warsmash/pjblp/Blp2.java
+index 4199a3c..3d171af 100644
+--- a/core/src/com/etheller/warsmash/pjblp/Blp2.java
++++ b/core/src/com/etheller/warsmash/pjblp/Blp2.java
+@@ -110,31 +110,41 @@ public class Blp2 {
+ 		return ((1 << toBits) - 1) / ((1 << fromBits) - 1);
+ 	}
+ 
++	// Blizzard launcher: the DXT colours in ints (they were Java's signed bytes, so a channel over 127 went negative and
++	// its blends came out as noise), 5 and 6 bits widened exactly, the blends at the format's own thirds and halves.
++	static int widen5(int v) {
++		return (v << 3) | (v >> 2);
++	}
++
++	static int widen6(int v) {
++		return (v << 2) | (v >> 4);
++	}
++
+ 	static void dx1Colors(byte[] out, int color0, int color1) {
+-		byte r0 = (byte) (((color0 >> 11) & 31) * dxt5to8);
+-		byte g0 = (byte) (((color0 >> 5) & 63) * dxt6to8);
+-		byte b0 = (byte) ((color0 & 31) * dxt5to8);
+-		byte r1 = (byte) (((color1 >> 11) & 31) * dxt5to8);
+-		byte g1 = (byte) (((color1 >> 5) & 63) * dxt6to8);
+-		byte b1 = (byte) ((color1 & 31) * dxt5to8);
++		int r0 = widen5((color0 >> 11) & 31);
++		int g0 = widen6((color0 >> 5) & 63);
++		int b0 = widen5(color0 & 31);
++		int r1 = widen5((color1 >> 11) & 31);
++		int g1 = widen6((color1 >> 5) & 63);
++		int b1 = widen5(color1 & 31);
+ 		// Minimum and maximum colors.
+-		out[0] = r0;
+-		out[1] = g0;
+-		out[2] = b0;
++		out[0] = (byte) r0;
++		out[1] = (byte) g0;
++		out[2] = (byte) b0;
+ 		out[3] = (byte) 255;
+-		out[4] = r1;
+-		out[5] = g1;
+-		out[6] = b1;
++		out[4] = (byte) r1;
++		out[5] = (byte) g1;
++		out[6] = (byte) b1;
+ 		out[7] = (byte) 255;
+ 		// Interpolated colors.
+ 		if (color0 > color1) {
+-			out[8] = (byte) ((5 * r0 + 3 * r1) >> 3);
+-			out[9] = (byte) ((5 * g0 + 3 * g1) >> 3);
+-			out[10] = (byte) ((5 * b0 + 3 * b1) >> 3);
++			out[8] = (byte) (((2 * r0) + r1) / 3);
++			out[9] = (byte) (((2 * g0) + g1) / 3);
++			out[10] = (byte) (((2 * b0) + b1) / 3);
+ 			out[11] = (byte) 255;
+-			out[12] = (byte) ((5 * r1 + 3 * r0) >> 3);
+-			out[13] = (byte) ((5 * g1 + 3 * g0) >> 3);
+-			out[14] = (byte) ((5 * b1 + 3 * b0) >> 3);
++			out[12] = (byte) (((2 * r1) + r0) / 3);
++			out[13] = (byte) (((2 * g1) + g0) / 3);
++			out[14] = (byte) (((2 * b1) + b0) / 3);
+ 			out[15] = (byte) 255;
+ 		}
+ 		else {
+@@ -150,26 +160,26 @@ public class Blp2 {
+ 	}
+ 
+ 	static void dx3Colors(byte[] out, int color0, int color1) {
+-		byte r0 = (byte) (((color0 >> 11) & 31) * dxt5to8);
+-		byte g0 = (byte) (((color0 >> 5) & 63) * dxt6to8);
+-		byte b0 = (byte) ((color0 & 31) * dxt5to8);
+-		byte r1 = (byte) (((color1 >> 11) & 31) * dxt5to8);
+-		byte g1 = (byte) (((color1 >> 5) & 63) * dxt6to8);
+-		byte b1 = (byte) ((color1 & 31) * dxt5to8);
++		int r0 = widen5((color0 >> 11) & 31);
++		int g0 = widen6((color0 >> 5) & 63);
++		int b0 = widen5(color0 & 31);
++		int r1 = widen5((color1 >> 11) & 31);
++		int g1 = widen6((color1 >> 5) & 63);
++		int b1 = widen5(color1 & 31);
+ 		// Minimum and maximum colors.
+-		out[0] = r0;
+-		out[1] = g0;
+-		out[2] = b0;
+-		out[3] = r1;
+-		out[4] = g1;
+-		out[5] = b1;
++		out[0] = (byte) r0;
++		out[1] = (byte) g0;
++		out[2] = (byte) b0;
++		out[3] = (byte) r1;
++		out[4] = (byte) g1;
++		out[5] = (byte) b1;
+ 		// Interpolated colors.
+-		out[6] = (byte) ((5 * r0 + 3 * r1) >> 3);
+-		out[7] = (byte) ((5 * g0 + 3 * g1) >> 3);
+-		out[8] = (byte) ((5 * b0 + 3 * b1) >> 3);
+-		out[9] = (byte) ((5 * r1 + 3 * r0) >> 3);
+-		out[10] = (byte) ((5 * g1 + 3 * g0) >> 3);
+-		out[11] = (byte) ((5 * b1 + 3 * b0) >> 3);
++		out[6] = (byte) (((2 * r0) + r1) / 3);
++		out[7] = (byte) (((2 * g0) + g1) / 3);
++		out[8] = (byte) (((2 * b0) + b1) / 3);
++		out[9] = (byte) (((2 * r1) + r0) / 3);
++		out[10] = (byte) (((2 * g1) + g0) / 3);
++		out[11] = (byte) (((2 * b1) + b0) / 3);
+ 	}
+ 
+ 	static void dx5Alphas(byte[] out, int alpha0, int alpha1) {
+@@ -178,18 +188,14 @@ public class Blp2 {
+ 		out[1] = (byte) alpha1;
+ 		// Interpolated alphas.
+ 		if (alpha0 > alpha1) {
+-			out[2] = (byte) ((54 * alpha0 + 9 * alpha1) >> 6);
+-			out[3] = (byte) ((45 * alpha0 + 18 * alpha1) >> 6);
+-			out[4] = (byte) ((36 * alpha0 + 27 * alpha1) >> 6);
+-			out[5] = (byte) ((27 * alpha0 + 36 * alpha1) >> 6);
+-			out[6] = (byte) ((18 * alpha0 + 45 * alpha1) >> 6);
+-			out[7] = (byte) ((9 * alpha0 + 54 * alpha1) >> 6);
++			for (int i = 1; i <= 6; i++) {
++				out[i + 1] = (byte) ((((7 - i) * alpha0) + (i * alpha1)) / 7);
++			}
+ 		}
+ 		else {
+-			out[2] = (byte) ((12 * alpha0 + 3 * alpha1) >> 4);
+-			out[3] = (byte) ((9 * alpha0 + 6 * alpha1) >> 4);
+-			out[4] = (byte) ((6 * alpha0 + 9 * alpha1) >> 4);
+-			out[5] = (byte) ((3 * alpha0 + 12 * alpha1) >> 4);
++			for (int i = 1; i <= 4; i++) {
++				out[i + 1] = (byte) ((((5 - i) * alpha0) + (i * alpha1)) / 5);
++			}
+ 			out[6] = 0;
+ 			out[7] = (byte) 255;
+ 		}
+@@ -399,7 +405,8 @@ public class Blp2 {
+ 	}
+ 
+ 	static int[][] readBGRAArray(DataView view, int offset, int size) {
+-		int[][] d = new int[4][];
++		// Blizzard launcher: room for the whole palette (was 4 entries, so every BLP2 image threw).
++		int[][] d = new int[size][];
+ 		for (int i = 0; i < size; i++) {
+ 			d[i] = readBGRA(view, offset + i * 4);
+ 		}
+@@ -481,21 +488,29 @@ public class Blp2 {
+ 			throw new RuntimeException("'Not a blp2 image'");
+ 		}
+ 		var image = new blpImage();
+-		image.type = (int) uint32(view, 4);
++		// Blizzard launcher: the header's fields at their byte offsets (uint32() counts 32-bit words, and these were byte
++		// offsets, so every BLP2 image came out 0x0), the sizes kept where they are read, and the full-size picture
++		// decoded whatever the mipmap byte says (it was "levels - 1": -1 for an image without mipmaps).
++		image.type = (int) view.getUint32(4, true);
+ 		image.encoding = uint8(view, 8);
+ 		image.alphaDepth = uint8(view, 9);
+ 		image.alphaEncoding = uint8(view, 10);
+ 		image.mipLevels = uint8(view, 11);
+-		image.width = (int) uint32(view, 12);
+-		image.height = (int) uint32(view, 16);
+-		image.offsets = uint32Array(view, 20, 16);
+-		image.engths = uint32Array(view, 20 + 16 * 4, 16);
+-		image.palette = readBGRAArray(view, 20 + 32 * 4, 256);
+-		var mipLevel = image.mipLevels - 1;
++		image.width = (int) view.getUint32(12, true);
++		image.height = (int) view.getUint32(16, true);
++		image.offsets = new long[16];
++		image.engths = new long[16];
++		for (int i = 0; i < 16; i++) {
++			image.offsets[i] = view.getUint32(20 + (i * 4), true);
++			image.engths[i] = view.getUint32(84 + (i * 4), true);
++		}
++		image.palette = readBGRAArray(view, 148, 256);
++		var mipLevel = 0;
+ 		var width = image.width >> mipLevel;
+ 		var height = image.height >> mipLevel;
+ 		var offset = (int)image.offsets[mipLevel];
+-		var size = image.lengths[mipLevel];
++		// Blizzard launcher: the sizes are read into engths (sic); lengths was never filled.
++		var size = (int) image.engths[mipLevel];
+ //		console.info(blpFormat(image));
+ 		switch (blpFormat(image)) {
+ 		case BLP_FORMAT_PALETTED_NO_ALPHA:

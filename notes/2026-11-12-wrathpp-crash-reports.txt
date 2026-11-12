@@ -1,0 +1,1 @@
+Wrath++: a crash of the game is reported by itself from its own log (also one that already happened), and the start report is sent whenever something changed, not once a day.

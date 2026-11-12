@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.RestartAlt
@@ -83,6 +85,22 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
             val openPorter = LocalOpenPorter.current
             if (isWow && effective.id != "wow_forever") HoldItem(Icons.Default.PersonSearch, "Character Porter") { onDismiss(); openPorter() }
+            // Wrath++: the undead skins you import (UndeadSkinsDialog), new skins under its creator's Undead switch.
+            var undeadSkins by remember { mutableStateOf(false) }
+            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+                HoldItem(Icons.Default.Face, "Undead skins (Wrath++)") { undeadSkins = true }
+            }
+            if (undeadSkins) UndeadSkinsDialog { undeadSkins = false; onDismiss() }
+            // Wrath++: Ralia's mod from your zip of it (RaliaDialog: looked for as ralia.zip, or picked).
+            var ralia by remember { mutableStateOf(false) }
+            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+                HoldItem(Icons.Default.Face, "Ralia's mod (Wrath++)") { ralia = true }
+            }
+            if (ralia) RaliaDialog { ralia = false; onDismiss() }
+            // Warcraft III in Warsmash: Classic+, the remade models and textures (ClassicPlusDialog).
+            var classicPlus by remember { mutableStateOf(false) }
+            if (warsmash) HoldItem(Icons.Default.AutoAwesome, "Classic+ models") { classicPlus = true }
+            if (classicPlus) ClassicPlusDialog { classicPlus = false; onDismiss() }
             HoldItem(Icons.Default.Image, "Art") { onDismiss(); openSplash(game) }
             val openMusic = LocalOpenMusic.current
             HoldItem(Icons.Default.MusicNote, "Music") { onDismiss(); openMusic(game) }
