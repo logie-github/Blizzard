@@ -505,16 +505,24 @@ object ForeverPlay {
                 val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
                 val since = prefs(app).getLong(STOP_SEEN, 0L)
                 val stop = game?.let { ForeverCtl.clientStop(it, since) }
-                // The Forever Launcher is a .NET program: when it stops early it writes no WoW crash file, so also send
+                // The Forever Launcher is a .NET program: when it stops early it writes no WoW crash file, so also keep
                 // the Wine/Box64 log (what it printed before it died) — that is where the reason for a launcher crash is.
-                val wine = com.logie.blizz.game.GameLog.snapshot().takeIf { it.isNotBlank() }
+                // The end holds the crash; the start is mostly thread-naming noise.
+                val wine = com.logie.blizz.game.GameLog.snapshot().takeIf { it.isNotBlank() }?.takeLast(7000)
                 if (stop == null && wine == null) return@runCatching
                 val title = stop?.title ?: "The launcher or game stopped early"
-                val body = listOfNotNull(stop?.text, wine?.let { "[wine/box64]\n$it" }).joinToString("\n\n").take(7000)
+                val body = listOfNotNull(stop?.text, wine?.let { "[wine/box64]\n$it" }).joinToString("\n\n")
                 com.logie.blizz.reports.BugReports.report(
                     app, "WoW Forever", "The game stopped: $title",
                     listOf("Program" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
-                    log = body,
+                    log = body.take(7000),
+                )
+                // The upload above can fail on a flaky network. When the launcher stopped early (a real crash, not a
+                // long play session), also show the log in the app with Copy, so it can be sent even then.
+                val early = since > 0 && System.currentTimeMillis() - since < EARLY_STOP_MS
+                if (early) _state.value = State.Failed(
+                    "World of Warcraft: Forever stopped (${layout.clientExe()?.name ?: "launcher"}).\n\n" +
+                        "Tap Copy and send me this:\n\n$body",
                 )
                 Unit
             }
@@ -523,6 +531,8 @@ object ForeverPlay {
 
     private const val STOP_SEEN = "client.stop.seen"
     private const val STOP_PENDING = "client.stop.pending"
+    /** Under this from the start, a stop is a crash (not a real play session): its log is shown in the app to copy. */
+    private const val EARLY_STOP_MS = 120_000L
 
     /** The client as its own game ("wow-client"), run under Winlator with the `wow` controls. */
     private fun launchEntry(client: File, exe: File) = LibraryEntry(
