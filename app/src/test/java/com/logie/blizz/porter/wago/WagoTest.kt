@@ -19,7 +19,8 @@ class WagoTest {
 
     /** A wago.tools that answers a table's filter from rows of its own, and notes what was asked. */
     private class Site(private val header: String, private val rows: List<String>, private val column: Int) : Net {
-        val asked = ArrayList<String>()
+        // Synchronized: GameFiles fetches on four threads at once (a plain list could lose one of them: CI run 220).
+        val asked: MutableList<String> = java.util.Collections.synchronizedList(ArrayList())
         override fun get(url: String, headers: Map<String, String>): Net.Reply {
             asked += url
             val values = Regex("exact%3A([0-9%7C]+)").find(url)!!.groupValues[1].split("%7C").map { it.toInt() }.toSet()
