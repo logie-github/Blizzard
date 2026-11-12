@@ -7,7 +7,8 @@
 --                   on (its number, colour swatch and name) between a previous and a next arrow; tapping the choice
 --                   opens the list of them all. Randomize; the character turns under a finger, by the two turn
 --                   buttons and by itself after a flick; the wheel (a pinch) and the two zoom buttons bring it
---                   nearer; lists longer than their panel scroll under a finger, eased; Back, Finish.
+--                   nearer; lists longer than their panel scroll under a finger, eased; Back, Finish. Gear, last in every category, takes the starting
+--                   outfit off and puts it back.
 --
 -- What an option is and how a choice reaches the game is WrathppLooks (made with the looks by
 -- realm/warcraft/wrathpp/tools/sl_creator.py): 3.3.5 keeps five numbers a character, and Shadowlands' options are
@@ -43,6 +44,17 @@ local BACKDROP = {
 	tile = true, tileSize = 16, edgeSize = 16,
 	insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
+
+-- What the creator did, into WarcraftXL's log (the native mod's WrathPP_Log), which the app's reports carry: whether
+-- it was built, opened, which screen was up, why it went off. A line is written once, when it changes.
+local lastLine
+local function log(line)
+	line = tostring(line)
+	if ( line == lastLine ) then return end
+	lastLine = line
+	if ( type(WrathPP_Log) == "function" ) then pcall(WrathPP_Log, line) end
+end
+W.Log = log
 
 local function build()
 
@@ -224,6 +236,7 @@ function W.Rows()
 			for k = 1, count or 0 do row.choices[k] = { v = k - 1, n = "" } end
 			rows[#rows + 1] = row
 		end
+		if ( type(WrathPP_SetGear) == "function" ) then rows[#rows + 1] = { name = "Gear", kind = "switch", gear = true, on = W.gear ~= false } end
 		return rows, nil
 	end
 	local isUndead = undeadOn(model, undead)
@@ -265,6 +278,8 @@ function W.Rows()
 	if ( undead and W.category == accessories ) then
 		rows[#rows + 1] = { name = "Undead", kind = "switch", undead = true, on = isUndead }
 	end
+	-- Gear, last in every category: the starting outfit on or off (to see a skin)
+	if ( type(WrathPP_SetGear) == "function" ) then rows[#rows + 1] = { name = "Gear", kind = "switch", gear = true, on = W.gear ~= false } end
 	return rows, model
 end
 
@@ -301,6 +316,20 @@ function W.SetUndead(on)
 	elseif ( not on and skin >= undead.first ) then
 		setNumber(FIELD.skin, W.living[key] or 0)
 	end
+end
+
+-- The character with its starting outfit or without, to see the skin (the native mod's WrathPP_SetGear: the outfit taken
+-- off as the game's own dressing takes it off, or the game's dressing itself). The game draws at its next step of a
+-- customization: the hair colour stepped on and back.
+function W.SetGear(on)
+	if ( type(WrathPP_SetGear) ~= "function" ) then return end
+	W.gear = on and true or false
+	if ( WrathPP_SetGear(W.gear) ) then step(FIELD.haircolor, 1); step(FIELD.haircolor, -1) end
+end
+
+-- The game dresses the character again whenever its race, sex or class changes and when it randomizes.
+function W.Regear()
+	if ( W.gear == false ) then W.SetGear(false) end
 end
 
 -- After the game's own Randomize: an undead skin only while Undead is on, a living one otherwise.
@@ -442,6 +471,7 @@ local randomizeButton = glueButton("WrathppRandomize", root, RANDOMIZE or "Rando
 	local wasUndead = undeadOn(model, undead)
 	if ( type(CharacterCreate_Randomize) == "function" ) then CharacterCreate_Randomize() else RandomizeCharCustomization() end
 	W.AfterRandomize(wasUndead)
+	W.Regear()
 	WrathppCreate_Refresh()
 end)
 randomizeButton:SetPoint("BOTTOMRIGHT", optionPanel, "TOPRIGHT", 0, 6)
@@ -588,7 +618,9 @@ local function rowFrame(k)
 	f.choice:SetScript("OnClick", tapped(function() WrathppCreate_TogglePopout(f) end))
 	f.check:SetScript("OnClick", tapped(function(self)
 		WrathppCreate_ClosePopout()
-		if ( f.row.undead ) then W.SetUndead(self:GetChecked() and true or false) else W.Choose(f.row, self:GetChecked() and 2 or 1) end
+		if ( f.row.undead ) then W.SetUndead(self:GetChecked() and true or false)
+		elseif ( f.row.gear ) then W.SetGear(self:GetChecked() and true or false)
+		else W.Choose(f.row, self:GetChecked() and 2 or 1) end
 	end))
 	for _, piece in ipairs({ f, f.previous, f.next, f.choice, f.check }) do
 		if ( piece.EnableMouse ) then piece:EnableMouse(true) end
@@ -879,6 +911,8 @@ local function refresh()
 		popout.row = popout.owner.row
 		if ( popout.row.kind == "list" ) then fillPopout() else WrathppCreate_ClosePopout() end
 	end
+	local race, sex = creating()
+	log("customize: "..tostring(race).."_"..tostring(sex)..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five"))
 	if ( type(WrathPP_GetCustomization) ~= "function" ) then
 		notice:SetText("Wrath++ add-on not running: the game's own five")
 	elseif ( not model ) then
@@ -893,6 +927,7 @@ WrathppCreate_Refresh = guarded(refresh)
 local function setStep(n)
 	if ( W.off ) then return end
 	W.step = n
+	log(n == 1 and "screen: race and class" or "screen: customize")
 	local first = n == 1
 	place()
 	local function show(frame, on) if ( frame ) then if ( on ) then frame:Show() else frame:Hide() end end end
@@ -912,6 +947,7 @@ WrathppCreate_SetStep = guarded(setStep)
 -- The game's own screen back, and why.
 function WrathppCreate_Disable(reason)
 	W.off = true
+	log("off: "..tostring(reason))
 	for _, f in ipairs({ alliancePanel, hordePanel, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel, customizeButton, backButton,
 			finishButton, randomizeButton, spinArea, popout, catcher }) do f:Hide() end
 	for _, name in ipairs({ "CharacterCreateConfigurationFrame", "CharCreateRandomizeButton", "CharCreateOkayButton", "CharCreateBackButton",
@@ -945,12 +981,15 @@ local opened = guarded(function()
 	W.category = nil
 	W.zoom, W.zoomTarget, W.focusY, W.focusTarget, W.spin = 1, 1, 0.6, 0.6, 0
 	W.fresh = 3
+	W.gear = true                                         -- the game dresses the character as the creator opens
+	log("opened: native "..tostring(type(WrathPP_NativeVersion) == "function" and WrathPP_NativeVersion() or "none")
+		..", looks' options "..(type(WrathppLooks) == "table" and "in" or "not in")..", undead skins "..(type(WrathppUndead) == "table" and "in" or "not in"))
 	W.ApplyZoom()
 	WrathppCreate_SetStep(1)
 end)
 if ( type(CharacterCreate_OnShow) == "function" ) then after("CharacterCreate_OnShow", opened) end
 for _, name in ipairs({ "SetCharacterRace", "SetCharacterGender", "SetCharacterClass", "CharacterCreate_UpdateHairCustomization" }) do
-	after(name, guarded(function() WrathppCreate_ClosePopout(); place(); WrathppCreate_Refresh() end))
+	after(name, guarded(function() WrathppCreate_ClosePopout(); place(); if ( name ~= "CharacterCreate_UpdateHairCustomization" ) then W.Regear() end; WrathppCreate_Refresh() end))
 end
 
 -- Every frame: the lists easing, the character turning, the view coming nearer; four times a second the rows again
@@ -958,6 +997,8 @@ end
 local driver = make("Frame", "WrathppDriver", root)
 local sinceRefresh = 0
 driver:SetScript("OnShow", opened)
+-- Closed (a character made, or Back): the next opening starts dressed, and the log says the creator was left.
+driver:SetScript("OnHide", function() W.gear = true; log("closed") end)
 driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	elapsed = elapsed or arg1 or 0
 	if ( (W.fresh or 0) > 0 ) then
@@ -1003,9 +1044,12 @@ for _, f in ipairs({ alliancePanel, hordePanel, sexPanel, classPanel, categoryPa
 end -- build
 
 local ok, err = pcall(build)
-if ( not ok ) then
+if ( ok ) then
+	log("built")
+else
 	-- the game's own screen, untouched, and why
 	W.off, W.error = true, err
+	log("off at build: "..tostring(err))
 	for _, f in ipairs(made) do pcall(f.Hide, f) end
 	pcall(function()
 		local s = root:CreateFontString(nil, "OVERLAY", "GlueFontHighlightSmall")

@@ -142,3 +142,31 @@ SDK here: the app's own suite is CI's).
   before the merge.
 - The undead skins in the game, a character made with one accepted by the live server, and the import dialog on a phone.
 
+
+## 2026-11-12 (later): a crash on Create Character, the reporter, Gear, Ralia's set, the women's underwear
+
+**What was reported.** After app build 226 (the Shadowlands creator): "So far I'm not seeing the new options and also
+I'm not seeing the shadowlands menu", then "The game crashed for me. When clicking on create character", then "I don't
+think the reporter works right". Nothing had reached this repository after report #99 (03:49 UTC, app 219).
+
+**Why nothing arrived.** (1) `BugReports.report` sends the same failure once a day, the same being the title with its
+numbers out; the Wrath++ start report's title is one sentence, so every start after #99 was dropped on the phone.
+(2) A game that closes by itself is reported for every game but World of Warcraft's client (`gameId == "wow-client"` is
+left out of `GestureView`'s report). (3) The Wrath++ report went only 90 s into a launch. **The cause of the crash is
+not known yet**: the client is the user's own and is not on this machine, so the creator has only been run on the
+stand-in screen.
+
+**What was changed.** `WrathppLogs` reads WarcraftXL's logs of the launches (the runtime writes `[crash]` lines: the
+fault, the address as `WowWrathpp.exe+0x...`, the chain of calls; thirty launches are kept): each crash is sent once
+(`Wrath++ crash`), as the app starts, before a start, 90 s after it and when the game's screen goes, so **the crash that
+already happened is sent by the next build as the app opens**. The creator writes its steps to the same log
+(`WrathPP_Log`, native 0.3.0). A crash with the creator on the screen leaves it out for that build. The start report
+goes whenever its content changed.
+
+**Tested here.** `WrathppLogsTest` (5: a crash read with where the creator was, handed out once across the log's
+renaming, the creator's lines, the creator left out for one build), `WrathppBareTest` (1), `WrathppRaliaTest` (7, with
+painted underwear over the looks' own and back), `BlpTest` (7, alpha), `WrathppUndeadTest` (7): 27 run here with
+kotlinc against stubs of Android's classes; `UpdaterTest`'s six new ones (a local server that drops the connection)
+run in CI only. The creator on the stand-in screen: 70 checks (Gear: 8, the log: 5). The native mod 0.3.0
+(`WrathPP_SetGear`, `WrathPP_Log`) is compiled by CI (MSVC x86) and **has not run in the game**; nothing here has run
+on a phone.

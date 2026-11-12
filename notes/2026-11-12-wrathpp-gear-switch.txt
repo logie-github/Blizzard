@@ -1,0 +1,1 @@
+Wrath++ creator: a Gear switch (last in every category) takes the starting outfit off to show the skin, and puts it back.

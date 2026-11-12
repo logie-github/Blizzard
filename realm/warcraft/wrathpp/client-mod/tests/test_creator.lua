@@ -50,6 +50,13 @@ local function rowNames()
 	return table.concat(out, ", ")
 end
 
+-- What the creator writes to the runtime's log (the native mod's WrathPP_Log), for the app's reports.
+local logged = {}
+function WrathPP_Log(line) logged[#logged + 1] = line end
+local function loggedLine(start, with)
+	for _, l in ipairs(logged) do if l:sub(1, #start) == start and (not with or l:find(with, 1, true)) then return l end end
+end
+
 dofile(script)
 local W = WrathppCreator
 check(not W.off, "the script loads on the game's screen"..(W.error and (": "..tostring(W.error)) or ""))
@@ -129,6 +136,29 @@ WrathppCreate_ClosePopout()
 rowNamed("Hair Style").next:Click()
 check(state[3] == 0, "the arrows go round the ends")
 
+-- Gear ------------------------------------------------------------------------------------------------------------------
+check(not rowNamed("Gear"), "no Gear switch without the native mod's WrathPP_SetGear")
+local gear = {}
+function WrathPP_SetGear(on) gear[#gear + 1] = on; return true end
+WrathppCreate_Refresh()
+local g = rowNamed("Gear")
+check(g and g.row.kind == "switch" and g.check.checked and rowNames():match(", Gear$"), "with it: Gear, last in the category, on")
+game.cycles = 0
+local colour = state[4]
+g.check:SetChecked(false); g.check:Click()
+check(#gear == 1 and gear[1] == false and game.cycles == 2 and state[4] == colour, "off: the outfit taken off, and a step on and back so the game draws (the hair colour as it was)")
+check(not rowNamed("Gear").check.checked, "  the switch shows it off")
+WrathppCategory2:Click()
+check(rowNamed("Gear") and not rowNamed("Gear").check.checked, "  in every category")
+SetCharacterClass(1)
+check(#gear == 2 and gear[2] == false, "the game dresses the character again when its class changes: taken off again")
+g = rowNamed("Gear"); g.check:SetChecked(true); g.check:Click()
+check(gear[#gear] == true and rowNamed("Gear").check.checked, "on: the game's own dressing")
+local n = #gear
+SetCharacterClass(1)
+check(#gear == n, "  and nothing more to do when the class changes")
+WrathppCategory1:Click()
+
 -- Undead -----------------------------------------------------------------------------------------------------------------
 WrathppCategory2:Click()
 check(not rowNamed("Undead"), "no Undead switch without the imported skins")
@@ -139,7 +169,7 @@ check(undead and undead.row.kind == "switch" and not undead.check.checked, "with
 undead.check:SetChecked(true); undead.check:Click()
 check(state[1] == 3 and rowNamed("Undead").check.checked, "on: the first undead skin (the colour after the race's own)")
 WrathppCategory1:Click()
-check(rowNames() == "Skin Color, Hair Style, Hair Color", "undead: no Face row (an undead skin has its own face) ("..rowNames()..")")
+check(rowNames() == "Skin Color, Hair Style, Hair Color, Gear", "undead: no Face row (an undead skin has its own face) ("..rowNames()..")")
 skin = rowNamed("Skin Color")
 check(#skin.row.choices == 4 and skin.row.choices[2].n == "Ash" and skin.row.at == 1, "  and Skin Color lists the undead skins alone")
 skin.next:Click()
@@ -157,7 +187,7 @@ check(state[1] < 3, "Randomize while living never lands on an undead skin")
 -- A list under a finger ------------------------------------------------------------------------------------------------------
 local list = WrathppOptionList
 list:SetView(100); WrathppCreate_Refresh()
-check(list:Limit() == 5 * 58 - 100, "a list longer than its panel scrolls ("..list:Limit()..")")
+check(list:Limit() == 6 * 58 - 100, "a list longer than its panel scrolls ("..list:Limit()..")")
 game.cursor = { 500, 300 }
 local row = rowNamed("Necklace")
 row.choice.scripts.OnMouseDown(row.choice)
@@ -205,7 +235,7 @@ WrathppBackButton:Click()
 check(WrathppAlliancePanel.shown and not WrathppOptionPanel.shown and W.zoomTarget == 1, "Back: the races again, the view out")
 game.race = 6; SetCharacterRace(6)
 WrathppCustomizeButton:Click()
-check(rowNames() == "Skin Color, Face, Hair Style, Hair Color, Facial Hair" and rowNamed("Face").row.kind == "list", "a race the looks don't have: the game's five, each a numbered list")
+check(rowNames() == "Skin Color, Face, Hair Style, Hair Color, Facial Hair, Gear" and rowNamed("Face").row.kind == "list", "a race the looks don't have: the game's five, each a numbered list, and Gear")
 game.cycles, game.sets, state[2] = 0, 0, 0
 rowNamed("Face").choice:Click(); WrathppChoice5:Click()
 check(state[2] == 4, "  and a number picked from it is set")
@@ -215,5 +245,15 @@ WrathppCreate_ClosePopout()
 game.fail = true
 WrathppCreate_Refresh()
 check(W.off and CharacterCreateConfigurationFrame.shown and CharacterCustomizationButtonFrame1.shown and not WrathppOptionPanel.shown, "an error here puts the game's own screen back")
+
+-- The log -------------------------------------------------------------------------------------------------------------------------
+check(logged[1] == "built" and loggedLine("opened: native ") and loggedLine("screen: race and class") and loggedLine("screen: customize"),
+	"the log says the creator was built, opened, and which screen was up ("..tostring(logged[1])..", "..#logged.." lines)")
+check(loggedLine("customize: 1_1, ", "Shadowlands' options") and loggedLine("customize: 1_1, ", "the game's own five") and loggedLine("customize: 2_", "the game's own five"),
+	"  whose options were up, and whether Shadowlands' or the game's five ("..tostring(loggedLine("customize: 1_1, ", "Shadowlands' options"))..")")
+check(logged[#logged]:sub(1, 5) == "off: ", "  and why it went off ("..tostring(logged[#logged])..")")
+check(#logged < 60, "  a line only when it changes ("..#logged.." lines)")
+WrathppDriver.scripts.OnHide(WrathppDriver)
+check(logged[#logged] == "closed" and W.gear == true, "  closed: said, and the next opening is dressed")
 print(fails == 0 and "all passed" or (fails.." failed"))
 os.exit(fails == 0 and 0 or 1)

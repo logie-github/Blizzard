@@ -14,6 +14,8 @@ on:
       - .github/workflows/wrathpp-looks.yml
       - realm/warcraft/wrathpp/tools/sl_looks.py
       - realm/warcraft/wrathpp/tools/sl_creator.py
+      - realm/warcraft/wrathpp/tools/sl_skin_names.py
+      - realm/warcraft/wrathpp/data/skin_names.json
       - realm/warcraft/wrathpp/tools/sl_inventory.py
       - realm/warcraft/wrathpp/client-mod/tests/test_creator_data.lua
       - realm/warcraft/modules/mod-allied-races/tools/m2.py
@@ -77,6 +79,13 @@ jobs:
           python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua | tee -a looks-report.txt
           echo 'Interface\GlueXML\WrathppLooks.lua' >> build/looks/looks.files
           luajit realm/warcraft/wrathpp/client-mod/tests/test_creator_data.lua build/looks/client/Interface/GlueXML/WrathppLooks.lua app/src/main/assets/wrathpp/WrathppCreate.lua | tee -a looks-report.txt
+
+      # Which of today's files each skin was made from, by name: what the app's Ralia import matches a set of replacement
+      # textures by (the names are in the repository: data/skin_names.json).
+      - name: The skins' names
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_skin_names.py list build/looks.json realm/warcraft/wrathpp/data/skin_names.json build/looks/client/wrathpp-skins.json | tee -a looks-report.txt
+          echo 'wrathpp-skins.json' >> build/looks/looks.files
 
       - name: The package
         run: |

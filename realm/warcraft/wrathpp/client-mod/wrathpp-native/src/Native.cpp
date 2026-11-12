@@ -15,6 +15,15 @@
 //                                the client's own checks and redraws: one step in place of up to a hundred.
 //                                -> true, or nothing while no character is on the creator or n is past the count.
 //   WrathPP_GetCreating()        -> race id, sex (0 a man, 1 a woman), class id of the character being made.
+//   WrathPP_SetGear(on)          the character being made with its starting outfit (true) or without (false), to see
+//                                the skin. Without: what the client's own CCharacterCreation::Dress does first, the
+//                                twelve item slots taken off (CCharacterComponent::RemoveItem, 0x004EE460, thiscall:
+//                                the address WarcraftXL's own Component.RemoveItem seam attaches at). With: Dress
+//                                itself (0x004E0FD0, a static function without arguments), which takes them off and
+//                                puts the class's outfit on. Nothing is drawn until the creator's next step of a
+//                                customization (the client's StartLoad). -> true, or nothing while no character is on it.
+//   WrathPP_Log(text)            a line of the creator's into the runtime's log, tagged wrathpp, "creator: text": what
+//                                the creator did (built, opened, which screen, why it went off), for the app's reports.
 //   WrathPP_NativeVersion()      -> this mod's version, for the interface to know it is there.
 //
 // Addresses and layouts: WarcraftXL-Labs/core's offset tables and the decompiled client
@@ -106,6 +115,23 @@ namespace
         }
     }
 
+    using RemoveItemFn = void(__thiscall*)(void*, int32_t);
+    using DressFn = void(__cdecl*)();
+
+    bool SetGear(bool on)
+    {
+        const uintptr_t component = *reinterpret_cast<const uintptr_t*>(0x00B6B1A0);
+        if (!component) return false;
+        if (on)
+        {
+            reinterpret_cast<DressFn>(0x004E0FD0)();
+            return true;
+        }
+        for (int32_t slot = 0; slot < 12; slot++) // NUM_ITEM_SLOTS
+            reinterpret_cast<RemoveItemFn>(0x004EE460)(reinterpret_cast<void*>(component), slot);
+        return true;
+    }
+
     bool CreatingWho(int32_t& race, int32_t& sex, int32_t& cls)
     {
         const Preferences* p = Creating();
@@ -117,6 +143,7 @@ namespace
     bool Customization(int, int32_t&, int32_t&) { return false; }
     bool SetCustomization(int, int32_t) { return false; }
     bool CreatingWho(int32_t&, int32_t&, int32_t&) { return false; }
+    bool SetGear(bool) { return false; }
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -155,7 +182,31 @@ namespace
         call.PushNumber(static_cast<double>(cls));
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.2.0"); }
+    void SetGearCall(wxl::ScriptCall& call)
+    {
+        const auto on = call.Bool(0);
+        if (!on)
+        {
+            call.Fail("WrathPP_SetGear(on): on is true or false");
+            return;
+        }
+        if (!SetGear(*on)) return;
+        call.PushBool(true);
+    }
+
+    /// A line of the creator's into the runtime's log (Logs/WarcraftXL.log), which the app's reports carry.
+    void LogCall(wxl::ScriptCall& call)
+    {
+        const auto text = call.String(0);
+        if (!text)
+        {
+            call.Fail("WrathPP_Log(text): text is a string");
+            return;
+        }
+        wxl::Log(WXL_LOG_INFO, kTag, "creator: {}", text->substr(0, 400));
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.3.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -167,6 +218,8 @@ namespace
             for (auto [name, result] : {std::pair{"WrathPP_GetCustomization", script.RegisterFunction<&GetCustomization>("WrathPP_GetCustomization")},
                                         std::pair{"WrathPP_SetCustomization", script.RegisterFunction<&SetCustomizationCall>("WrathPP_SetCustomization")},
                                         std::pair{"WrathPP_GetCreating", script.RegisterFunction<&GetCreating>("WrathPP_GetCreating")},
+                                        std::pair{"WrathPP_SetGear", script.RegisterFunction<&SetGearCall>("WrathPP_SetGear")},
+                                        std::pair{"WrathPP_Log", script.RegisterFunction<&LogCall>("WrathPP_Log")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));
