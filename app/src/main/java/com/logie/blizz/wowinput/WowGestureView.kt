@@ -112,6 +112,28 @@ class WowGestureView(
      * login as soon as the game's own full-screen window appears ([watchForGameWindow]).
      */
     private var inLauncher = activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_LAUNCHER, false)
+    /**
+     * World of Warcraft: Forever only ([com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR]): the game's `Errors` folder.
+     * A crash file written there since this screen opened ends the session: on the desktop rig the game, having written
+     * one, stayed up with its last frame on the screen and took no input, so the phone would show a frozen picture.
+     */
+    private val crashDir = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR)?.let { java.io.File(it) }
+    private val openedAt = System.currentTimeMillis()
+    private var crashSeen = false
+    private val crashWatch = object : Runnable {
+        override fun run() {
+            val dir = crashDir ?: return
+            if (crashSeen) return
+            val crash = runCatching { com.logie.blizz.forever.ForeverCtl.settledCrash(dir, openedAt, System.currentTimeMillis()) }.getOrNull()
+            if (crash != null) {
+                crashSeen = true
+                com.logie.blizz.game.GameLog.note("forever: the game wrote a crash file (${crash.name}); leaving the game")
+                onLeave.run()
+                return
+            }
+            postDelayed(this, CRASH_WATCH_MS)
+        }
+    }
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
     /** The account in the game's login box (Config.wtf), if the launcher knows which. */
     private val account: String? get() = activity.intent.getStringExtra(EXTRA_LOGIN_NAME)
@@ -162,10 +184,15 @@ class WowGestureView(
                     removeCallbacks(screenCheck)
                     postDelayed(screenCheck, SCREEN_CHECK_MS)
                 }
+                if (crashDir != null && !crashSeen) {
+                    removeCallbacks(crashWatch)
+                    postDelayed(crashWatch, CRASH_WATCH_MS)
+                }
             }
 
             override fun onStop(owner: LifecycleOwner) {
                 removeCallbacks(screenCheck)
+                removeCallbacks(crashWatch)
             }
         })
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
@@ -777,6 +804,7 @@ class WowGestureView(
         private const val CURSOR_SETTLE_MS = 90L
         /** Forever: how often, while the launcher is up, to look for the game's own window and hand over to WoW controls. */
         private const val GAME_WATCH_MS = 400L
+        private const val CRASH_WATCH_MS = 2000L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
         private const val AGAIN_MS = 1500L
         /** How long a tap waits for the realm to say what it selected, and how often it looks. */

@@ -110,6 +110,25 @@ object ForeverCtl {
     }
 
     /**
+     * Whether a crash file's text ([ClientStop.text]) says the game's own protection ended it (`<ExceptionType> Security
+     * Crash`): seen on the desktop rig some 50 seconds after the Forever Launcher started the game, each time, and never
+     * with the game started by itself. Not a damaged installation: nothing the app can repair.
+     */
+    fun isSecurityCrash(text: String): Boolean =
+        text.lineSequence().any { it.trim().equals("<ExceptionType> Security Crash", ignoreCase = true) }
+
+    /**
+     * The crash file the game has written since [since] and finished ([settleMs] without a change, at [now]): the newest
+     * `.txt` in its `Errors` folder ([errors]), else null. After writing it the game stayed up on the rig, its last frame
+     * on the screen and its program hung, so the game screen asks this while the game runs and leaves when there is one.
+     */
+    fun settledCrash(errors: File, since: Long, now: Long, settleMs: Long = 3000): File? =
+        errors.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".txt", ignoreCase = true) && it.lastModified() > since }
+            ?.maxByOrNull { it.lastModified() }
+            ?.takeIf { now - it.lastModified() >= settleMs }
+
+    /**
      * The client's `WTF/Config.wtf` with its login portal set to this phone (`SET portal "127.0.0.1"`): the line
      * replaced if there is one, added if not; the rest of the person's settings kept. A language is set where
      * there is none (the downloaded client is enUS): without it the game opens a Windows list box to ask, before

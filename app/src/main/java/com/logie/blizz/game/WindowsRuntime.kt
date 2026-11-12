@@ -218,6 +218,8 @@ object WindowsRuntime {
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .apply { if (foreverLauncher) putExtra(GestureView.EXTRA_LAUNCHER, true) }
+            // Forever: the game's crash files, watched while it runs (a crashed game stays on its last frame).
+            .apply { if (foreverClient) putExtra(GestureView.EXTRA_CRASH_DIR, File(folder, "_forever_/Errors").path) }
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
             // The loading screen of the version played (Wrath+, Legion, OctoWoW share one client entry).
             .putExtra(GestureView.EXTRA_SPLASH, WowPlay.splashIdOf(entry))

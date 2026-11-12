@@ -522,7 +522,10 @@ object ForeverPlay {
                 // The upload above can fail on a flaky network. When the launcher stopped early (a real crash, not a
                 // long play session), also show the log in the app with Copy, so it can be sent even then.
                 val early = since > 0 && System.currentTimeMillis() - since < EARLY_STOP_MS
-                if (early) _state.value = State.Failed(
+                // The game's own protection ended it: said in plain words whenever it happens (it comes about a minute
+                // after the game starts, which can be long after Play: the launcher waits for its PLAY NOW).
+                if (stop != null && ForeverCtl.isSecurityCrash(stop.text)) _state.value = State.Failed(securityCrashText(layout.hasLauncher(), stop.title))
+                else if (early) _state.value = State.Failed(
                     "World of Warcraft: Forever stopped (${layout.clientExe()?.name ?: "launcher"}).\n\n" +
                         "Tap Copy and send me this:\n\n$body",
                 )
@@ -530,6 +533,16 @@ object ForeverPlay {
             }
         }
     }
+
+    /** What the person is told when the game's protection ended it ([ForeverCtl.isSecurityCrash]). */
+    internal fun securityCrashText(launcher: Boolean, title: String): String =
+        "World of Warcraft: Forever closed itself.\n\n" +
+            "The game's own protection ended it (its crash file says \"Security Crash\"). " +
+            (if (launcher) "That is what happens here about a minute after the Forever Launcher starts the game: " +
+                "the game does not accept what the launcher does to it on this app's Windows layer. " else "") +
+            "The installation is not damaged, and Repair or a reinstall won't change it" +
+            (if (launcher) ": it takes a launcher version from its makers that the game accepts here." else ".") +
+            "\n\n$title"
 
     private const val STOP_SEEN = "client.stop.seen"
     private const val STOP_PENDING = "client.stop.pending"
