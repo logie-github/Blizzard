@@ -13,7 +13,9 @@ on:
     paths:
       - .github/workflows/wrathpp-looks.yml
       - realm/warcraft/wrathpp/tools/sl_looks.py
+      - realm/warcraft/wrathpp/tools/sl_creator.py
       - realm/warcraft/wrathpp/tools/sl_inventory.py
+      - realm/warcraft/wrathpp/client-mod/tests/test_creator_data.lua
       - realm/warcraft/modules/mod-allied-races/tools/m2.py
       - realm/warcraft/modules/mod-allied-races/tools/races.py
       - realm/warcraft/modules/mod-allied-races/tools/textures.py
@@ -39,7 +41,7 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q python3-numpy python3-pil unzip zip
+          sudo apt-get install -y -q python3-numpy python3-pil unzip zip luajit
 
       - name: The server's tables (data.zip's dbc)
         run: |
@@ -66,6 +68,15 @@ jobs:
         run: |
           python3 realm/warcraft/wrathpp/tools/sl_looks.py package build/looks.json build/sl-cache server-data/dbc build/looks 2>&1 | tee package.log
           [ -f build/looks/looks.files ]
+
+      # What the creator shows a race and sex (Shadowlands' options, their choices, their place in 3.3.5's five numbers):
+      # with the looks, since it is the key to their tables. The creator's script is then run on it, every choice of
+      # every option put on and read back.
+      - name: The creator's options
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua | tee -a looks-report.txt
+          echo 'Interface\GlueXML\WrathppLooks.lua' >> build/looks/looks.files
+          luajit realm/warcraft/wrathpp/client-mod/tests/test_creator_data.lua build/looks/client/Interface/GlueXML/WrathppLooks.lua app/src/main/assets/wrathpp/WrathppCreate.lua | tee -a looks-report.txt
 
       - name: The package
         run: |

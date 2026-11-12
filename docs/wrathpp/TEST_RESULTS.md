@@ -115,3 +115,30 @@ Not run: anything in the game; nothing drawn yet.
 | `ctl.sh` isolation test | pass, 61/61 |
 
 Not run: anything in the game; the package on a phone.
+
+
+## 2026-11-12, Shadowlands' creator, the undead skins, the Dark Ranger eyes
+
+Machine: Linux x86_64 container; LuaJIT 2.1, Python 3 with numpy and Pillow, Kotlin 2.0.21's compiler alone (no Android
+SDK here: the app's own suite is CI's).
+
+| Test | Result |
+|---|---|
+| `client-mod/tests/run.sh` | **pass**: the Lua mod's 29 + 5 checks as before; `test_creator.lua`, the new creator on a stand-in for the 3.3.5 screen: 55 checks (the two screens and the game's buttons moved; without the native mod the game's five; Shadowlands' rows in its order under its categories; a number unpacked into its options and packed back; a class's choices; an option nothing draws listed greyed; a choice by arrows and from the list, by the game's steps the shorter way round or the native set in one; the Undead switch, its skins, Randomize on either side; a list dragged, flicked, eased, the row not tapped; the character turned by a finger, carried on, turned by a held button; zoom by wheel, buttons and category; Finish, Back; a race without looks; an error putting the game's screen back) |
+| `test_creator_data.lua` on `WrathppLooks.lua` made here from wago.tools' 9.2.7.45745 tables | **pass**: 19 races and sexes, 263 option rows, 3,439 choices each put on, read back as the one on, no other number moved |
+| `protocol/tests/run.sh` | **pass**: as before, with `test_sl_creator.py` (6 tests: order, categories, parts of a number, choices as shown, swatches, class rules, an undrawn option, the Lua) and `test_undead_pack.py` (3 tests: skins in order, the textures read back at the sizes the models draw, the underwear note) |
+| `sl_looks.py races` with the Dark Ranger eyes | only BloodElfFemale's looks change (eye 9 of 12 is 0xcc0000; the death knights' eye gone); the allied races' `races.json` is the same with and without the change to `races.py` |
+| `sl_looks.py package` here (19 models, 6,040 files) | **pass** (its own `check_m2` on every model) |
+| `WrathppUndeadTest` (the app's importer), compiled with kotlinc beside stand-ins for `WrathppLooks`' two names and Android's `Context` | **pass**, 7 tests: a table read back as written; skins as new colours after the race's own with a face row for every face number and an underwear row, nothing of the game's changed; applied twice or taken out leaves none twice; the zip taken in, a wrong one refused and the last kept; applied to a game and server folder, again after new looks, taken out |
+| The importer on the looks made here and the 68-skin file | CharSections 3,721,240 -> 4,187,680 bytes, the same bytes for the game and the server; then `render_m2.py` (the game's reading of the tables and files) on each of the 17 models with each of its four undead skins: 68 of 68 drawn, the skins and faces in place |
+
+### Not tested
+
+- **The creator in the game**: nothing here runs the 3.3.5 client. On the phone the runtime, the native mod 0.1.0 and the
+  Lua mod load (issue #99); whether `WrathPP_GetCustomization`'s numbers are right there, and everything of the new
+  script, is not known.
+- The native mod 0.2.0: compiled by CI only.
+- The app's whole unit suite and its build with the new dialog and menu entry: CI (`build-apk`), run on this branch
+  before the merge.
+- The undead skins in the game, a character made with one accepted by the live server, and the import dialog on a phone.
+

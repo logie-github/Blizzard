@@ -72,6 +72,13 @@ AVAILABLE_ONLY = {(6, 0): {"Horn Style"}}
 # Today's names for an option the allied races' reading asks for by another (the Tauren's mane is their hair style,
 # their horns' colour their hair colour: the hair texture).
 ALIASES = {6: {"Hair Style": "Foremane", "Hair Color": "Horn Color"}}
+# Looks today's game opens by an achievement, open to everyone on Wrath++ from the start: the Blood Elves' Dark Ranger
+# skin and red eyes (achievement 15579; the user: "unlock the dark ranger skin by default for blood elves"). The skin
+# was among the skins already (a choice any class may pick once it is unlocked); the eye colour is marked as one the
+# creator hides (Flags) and was left out with the demon hunters' blind eyes. With it the women's twelve eye colours
+# (3.3.5 holds 255 faces: 20 faces x 12) no longer have room for the death knights' own, which is the last and goes:
+# 3.3.5 lights a death knight's eyes by itself.
+UNLOCKED_ACHIEVEMENTS = {10: {"15579"}}
 SEXES = ("Male", "Female")
 # Models that don't convert yet: the game's own (Alternative HD) look stays for them, rows and all. The Blood Elf man's
 # arms and legs come out shredded (his skeleton file's 252 bones; the other nineteen models are right): open.
@@ -85,6 +92,17 @@ class Tables(allied.Tables):
         super().__init__(csv_dir)
         self.aliases = {}
         self.only_available = {}
+        self.unlocked = set()
+
+    def unlock(self, model_id, achievements):
+        """The choices of a model's options that only an achievement of [achievements] closes: never left out for being hidden."""
+        for o in self.options.values():
+            if o["ChrModelID"] != str(model_id):
+                continue
+            for c in self.choices[o["ID"]]:
+                req = self.reqs.get(c["ChrCustomizationReqID"])
+                if req is not None and req.get("ReqAchievementID") in achievements:
+                    self.unlocked.add(c["ID"])
 
     def option_choices(self, model_id, name, only_available=True):
         name = self.aliases.get((str(model_id), name), name)
@@ -104,6 +122,7 @@ def build_races(csv_dir):
             for asked, today in ALIASES.get(race_id, {}).items():
                 tables.aliases[(str(chr_model), asked)] = today
             tables.only_available[str(chr_model)] = AVAILABLE_ONLY.get((race_id, sex), set())
+            tables.unlock(chr_model, UNLOCKED_ACHIEVEMENTS.get(race_id, set()))
             key = "wpp%d_%d" % (race_id, sex)
             allied.FEATURES[(key, sex)] = FEATURES[(race_id, sex)]
             file_id = allied.model_file(tables, chr_model)
