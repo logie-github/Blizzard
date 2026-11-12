@@ -68,7 +68,8 @@ class WarsmashActivity : AndroidApplication() {
             val ini = assets.open("warsmash.ini").bufferedReader().use { it.readText() }
             val emulator = ini.substring(ini.indexOf("[GamingNetwork]"))
             val table = DataTable(StringBundle.EMPTY).apply {
-                (WarsmashConfig.sources(gameDir, support) + "\n" + emulator).byteInputStream().use { readTXT(it, true) }
+                // Classic+ (its models and textures) over the game's files when it is on (ClassicPlus).
+                (WarsmashConfig.sources(gameDir, support, ClassicPlus.layer(this@WarsmashActivity)) + "\n" + emulator).byteInputStream().use { readTXT(it, true) }
             }
             extensions()
             movies(gameDir)

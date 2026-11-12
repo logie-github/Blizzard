@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Extension
@@ -83,6 +84,10 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
             val openPorter = LocalOpenPorter.current
             if (isWow && effective.id != "wow_forever") HoldItem(Icons.Default.PersonSearch, "Character Porter") { onDismiss(); openPorter() }
+            // Warcraft III in Warsmash: Classic+, the remade models and textures (ClassicPlusDialog).
+            var classicPlus by remember { mutableStateOf(false) }
+            if (warsmash) HoldItem(Icons.Default.AutoAwesome, "Classic+ models") { classicPlus = true }
+            if (classicPlus) ClassicPlusDialog { classicPlus = false; onDismiss() }
             HoldItem(Icons.Default.Image, "Art") { onDismiss(); openSplash(game) }
             val openMusic = LocalOpenMusic.current
             HoldItem(Icons.Default.MusicNote, "Music") { onDismiss(); openMusic(game) }
