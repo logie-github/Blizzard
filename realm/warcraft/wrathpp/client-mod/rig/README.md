@@ -28,13 +28,19 @@ What the engine keeps to, each because the stand-in did not:
   phone's shape (1125 x 768), and inside a scroll frame only where the scroll frame shows it. A tap on what is not on
   the screen, is off its edge, scrolled out of sight or disabled is refused.
 - **A script's error stops that script and is kept**, as the game stops it and goes on.
+- **A texture is a file's name, and the name has to be one the client has.** The rig draws nothing, so a texture
+  3.3.5 does not have (a solid green square on the phone) shows only by its name. Every file a Wrath++ script names
+  (`E.files`, with the line that named it) has to be named by the phone's own glue files, be the icon of a 3.3.5 item
+  or spell (`ItemDisplayInfo.dbc`, `SpellIcon.dbc`), or be in `textures335.txt`: the files 3.3.5's own in-game
+  interface names, each with the file that names it (`tools/known_textures.py`). The first run of the check found one:
+  the reset-view button's `Interface\Buttons\UI-RefreshButton` is of a later game.
 
 ## Running it
 
     sh run.sh WORK app/src/main/assets/wrathpp/WrathppCreate.lua WrathppLooks.lua CLIENT_DBC STOCK_DBC
 
 `CLIENT_DBC`: the looks' `DBFilesClient` folder; `STOCK_DBC`: `ChrRaces`, `ChrClasses`, `CharBaseInfo`,
-`FactionTemplate` and `FactionGroup` from `data.zip`. Needs `luajit`, `python3` and `gh` (the phone's files are
+`FactionTemplate`, `FactionGroup`, `ItemDisplayInfo` and `SpellIcon` from `data.zip`. Needs `luajit`, `python3` and `gh` (the phone's files are
 fetched from this repository's issues). `wrathpp-looks.yml` runs it with the looks it has just made and does not
 publish them if it fails. About two minutes:
 
@@ -46,11 +52,13 @@ publish them if it fails. About two minutes:
 - `full.lua`: every race, sex and class as the first character: Customize, every category, every row's arrows, every
   choice of every list (tapped where it is, scrolled to as a finger would), every switch, Randomize, Back, Finish,
   the screen closed and opened; after each tap no error, no crash, the creator on, the row showing what was chosen and
-  the other rows as they were. Then again without undead skins, without the native mod, on a 4:3 and a 16:9 screen.
+  the other rows as they were; at the end, every texture file the creator named is one the client is known to have.
+  Then again without undead skins, without the native mod, on a 4:3 and a 16:9 screen.
 - `shot.lua` and `tools/draw.py`: the screen as a picture of where things are (not the game's art), to look at.
 
 ## What it is not
 
-It is not the game. It has no art, no fonts and no 3D, and a frame's place is worked out, not drawn by the client. What
+It is not the game. It has no art, no fonts and no 3D, and a frame's place is worked out, not drawn by the client
+(a texture's name is checked; how it looks at the size it is given is not). What
 it does not know about the real client it cannot show; when the phone shows something it missed, the rig is taught it
 (a rule in `engine.lua` or `game.lua`, from the client's source or the phone's report) before the creator is changed.

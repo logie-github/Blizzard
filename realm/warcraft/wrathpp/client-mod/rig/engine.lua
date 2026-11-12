@@ -12,6 +12,22 @@ local E = { frames = {}, templates = {}, errors = {}, screen = { w = 1125, h = 7
 
 local function fail(fmt, ...) error(string.format(fmt, ...), 3) end
 
+-- Every texture file a script names (not the game's XML: those the game has), with the script's line that named it:
+-- E.files[name] = "WrathppCreate.lua:642". The rig draws nothing, so a file the client does not have is found by its name.
+E.files = {}
+local function names(file)
+	if ( type(file) ~= "string" or file == "" ) then return end
+	for level = 3, 12 do
+		local info = debug.getinfo(level, "Sl")
+		if ( not info ) then break end
+		if ( not info.short_src:match("engine%.lua$") and info.what ~= "C" ) then
+			E.files[file] = E.files[file] or (info.short_src:match("[^/\\]*$")..":"..tostring(info.currentline))
+			return
+		end
+	end
+	E.files[file] = E.files[file] or "?"
+end
+
 -- Classes -------------------------------------------------------------------------------------------------------------
 local Region = {}
 local Frame, Texture, FontString = setmetatable({}, { __index = Region }), setmetatable({}, { __index = Region }), setmetatable({}, { __index = Region })
@@ -254,7 +270,7 @@ function Frame:EnableMouse(on) self.__mouse = on and true or false end
 function Frame:IsMouseEnabled() return self.__mouse and 1 or nil end
 function Frame:EnableMouseWheel(on) self.__wheel = on and true or false end
 function Frame:EnableKeyboard(on) self.__keyboard = on and true or false end
-function Frame:SetBackdrop(t) if ( t ~= nil and type(t) ~= "table" ) then fail("SetBackdrop: table expected") end; self.__backdrop = t end
+function Frame:SetBackdrop(t) if ( t ~= nil and type(t) ~= "table" ) then fail("SetBackdrop: table expected") end; self.__backdrop = t; if ( t ) then names(t.bgFile); names(t.edgeFile) end end
 function Frame:GetBackdrop() return self.__backdrop end
 local function colour(what, r, g, b) if ( type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" ) then fail("%s: r, g, b are numbers", what) end end
 function Frame:SetBackdropColor(r, g, b, a) colour("SetBackdropColor", r, g, b); self.__backdropColor = { r, g, b, a or 1 } end
@@ -288,6 +304,7 @@ local function buttonTexture(self, key, tex, suffix)
 	if ( type(tex) ~= "string" ) then fail("%s: a texture or its file's name", suffix) end
 	if ( not t ) then t = new("Texture", nil, self); t.__allPoints = self; self[key] = t end
 	t.__file = tex
+	names(tex)
 end
 function Button:SetNormalTexture(t) buttonTexture(self, "__normal", t, "SetNormalTexture") end
 function Button:GetNormalTexture() return self.__normal end
@@ -377,7 +394,7 @@ function ModelFFX:AddPetLight() end
 -- Texture, FontString, Font -----------------------------------------------------------------------------------------------
 function Texture:SetTexture(a, b, c, d)
 	if ( type(a) == "number" ) then colour("SetTexture", a, b, c); self.__colour = { a, b, c, d or 1 }; self.__file = nil
-	elseif ( a == nil or type(a) == "string" ) then self.__file = a; self.__colour = nil
+	elseif ( a == nil or type(a) == "string" ) then self.__file = a; self.__colour = nil; names(a)
 	else fail("SetTexture: a file's name or r, g, b") end
 	return 1
 end

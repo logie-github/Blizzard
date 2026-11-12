@@ -3,6 +3,7 @@
 -- opens the screen, taps every race, both sexes and every class that can be tapped, Customize, every category, every row's
 -- arrows and every choice of its list, Randomize, Gear, Undead, Back, Finish, and closes and opens the screen again.
 -- After each tap: no error, no crash, the creator still on, the row showing what was chosen, the other rows as they were.
+-- At the end: every texture file the creator named is one the 3.3.5 client is known to have.
 local dir, creator, looks, undead, quick = arg[1], arg[2], arg[3], arg[4], arg[5] == "quick"
 local work = os.getenv("RIG_WORK") or dir
 local data = os.getenv("RIG_DATA") or (work.."/data")
@@ -113,6 +114,7 @@ end
 
 local started = os.clock()
 local done = {}
+local named = {}           -- every texture file a script named, and the line that named it
 for _, pair in ipairs(T.baseInfo) do
 	for sex = 0, 1 do
 		local race, class = pair[1], pair[2]
@@ -139,9 +141,23 @@ for _, pair in ipairs(T.baseInfo) do
 			ok(R, "closed and opened again")
 		end)
 		if not good then fail("the rig stopped: "..tostring(err):sub(1, 300)) end
+		for file, by in pairs(R.E.files) do named[file] = named[file] or by end
 		if deep then done[key] = true; if class == 6 then done[key.."dk"] = true end end
 	end
 end
-print(("%d taps, %d checks, %.0f s; %d problems"):format(taps, checks, os.clock() - started, fails.n or 0))
+-- the textures Wrath++'s scripts named: each one a file the 3.3.5 client is known to have (the rig draws nothing: a file the
+-- client does not have is a green square on the phone, and only its name shows it here)
+local known = dofile(work.."/textures.lua")
+local files = 0
+where = "textures"
+for file, by in pairs(named) do
+	if by:match("^Wrathpp") then
+		files = files + 1
+		local name = file:gsub("/", "\\"):lower():gsub("%.blp$", ""):gsub("%.tga$", "")
+		if not known[name] then fail(file.." ("..by.."): not a file the 3.3.5 client is known to have (textures335.txt)") end
+	end
+end
+if files == 0 then fail("no texture named by the creator was seen: the check is not looking") end
+print(("%d taps, %d checks, %d textures named, %.0f s; %d problems"):format(taps, checks, files, os.clock() - started, fails.n or 0))
 for _, f in ipairs(fails) do print("  "..f) end
 os.exit((fails.n or 0) == 0 and 0 or 1)

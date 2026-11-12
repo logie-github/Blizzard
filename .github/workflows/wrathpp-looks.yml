@@ -54,7 +54,7 @@ jobs:
           echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -
           unzip -q -o data.zip 'dbc/CharSections.dbc' 'dbc/CharHairGeosets.dbc' 'dbc/CharacterFacialHairStyles.dbc' -d server-data
           # (and what the rig's game needs of the game's own: the races, the classes, which race may be which class)
-          unzip -q -o data.zip 'dbc/ChrRaces.dbc' 'dbc/ChrClasses.dbc' 'dbc/CharBaseInfo.dbc' 'dbc/FactionTemplate.dbc' 'dbc/FactionGroup.dbc' -d rig-dbc
+          unzip -q -o data.zip 'dbc/ChrRaces.dbc' 'dbc/ChrClasses.dbc' 'dbc/CharBaseInfo.dbc' 'dbc/FactionTemplate.dbc' 'dbc/FactionGroup.dbc' 'dbc/ItemDisplayInfo.dbc' 'dbc/SpellIcon.dbc' -d rig-dbc
           rm data.zip
           ls -l server-data/dbc
 

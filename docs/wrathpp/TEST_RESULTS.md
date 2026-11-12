@@ -245,3 +245,15 @@ there (`SetNextSkin` wants a face row the class may have).
 
 **Not tested**: the game itself and the phone. The rig has no art and draws nothing; a wrong texture name, a font the
 client lacks or a frame drawn under another are not seen on it.
+
+**The textures' names, the same evening** (after CI's first run of the rig passed: `wrathpp-looks` run 19, "The creator
+on the rig" 2 min 2 s, the looks with the faces opened to every class published). The rig now keeps every texture file
+a Wrath++ script names with the line that named it, and each has to be a file the client is known to have: named by
+the phone's own glue files, the icon of a 3.3.5 item or spell (`ItemDisplayInfo.dbc`'s icon column, `SpellIcon.dbc`),
+or in `rig/textures335.txt` (20 names, each checked against the 3.3.5 interface file that uses it:
+wowgaming/3.3.5-interface-files). 31 files named by the creator; **one was not a 3.3.5 file**:
+`Interface\Buttons\UI-RefreshButton` (the reset-view button; 3.3.5's own Refresh buttons are text buttons), now
+`Interface\PaperDollInfoFrame\UI-GearManager-Undo` (`PaperDollFrame.lua`). The fonts and button templates the creator
+names (`GlueFontNormal`, `GlueFontNormalLarge`, `GlueFontHighlight`, `GlueFontHighlightSmall`, `GlueButtonTemplate`,
+`GlueButtonSmallTemplate`) are each named by the phone's own files. Still not seen on the rig: how a texture looks at
+the size it is given, and a frame drawn under another.

@@ -639,7 +639,9 @@ local function holdButton(name, parent, up, down, held, tapped)
 	b.whileHeld = held
 	return b
 end
-local resetView = holdButton("WrathppResetView", viewPanel, "Interface\\Buttons\\UI-RefreshButton", nil, nil, function()
+-- (the turned arrow of 3.3.5's gear manager: Interface\\Buttons\\UI-RefreshButton, used here until build 237, is of a later game
+-- and not among 3.3.5's files; the rig now checks every texture's name: rig/textures335.txt)
+local resetView = holdButton("WrathppResetView", viewPanel, "Interface\\PaperDollInfoFrame\\UI-GearManager-Undo", nil, nil, function()
 	W.SetZoom(1, 0.6); W.spin = 0
 	if ( type(SetCharacterCreateFacing) == "function" ) then SetCharacterCreateFacing(-15) end
 end)
