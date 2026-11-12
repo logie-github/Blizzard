@@ -60,10 +60,29 @@ W.Log = log
 
 local function build()
 
--- What a button or the screen runs: whatever fails in it puts the game's own screen back (WrathppCreate_Disable).
-local function guarded(fn)
+-- Whether the game has a character on the creator. The game makes it in its own OnShow (ResetCharCustomize), and its
+-- functions for the creator read it without looking whether there is one: GetSelectedClass, GetSelectedSex,
+-- GetNameForRace, GetAvailableRaces, GetAvailableClasses, CycleCharCustomization, RandomizeCharCustomization,
+-- SetCharacterCreateFacing... Called without one the game dies (12 November 2026: an access violation reading 0x1C
+-- at 0x004E0A9B, GetSelectedClass, called from this script's own OnShow, which ran before the game's). So nothing
+-- here runs before this says yes: every handler goes through guarded(), which asks. The native mod knows
+-- (WrathPP_GetCreating gives nothing while there is none); without it, yes once the game's own OnShow has been run
+-- (W.made: its wrapped name was called, or a frame has been drawn since the screen was shown).
+local function hasCharacter()
+	if ( type(WrathPP_GetCreating) == "function" ) then
+		local ok, race = pcall(WrathPP_GetCreating)
+		if ( ok ) then return race ~= nil end
+	end
+	return W.made == true
+end
+W.HasCharacter = hasCharacter
+
+-- What a button or the screen runs, once the game has its character: whatever fails in it puts the game's own screen
+-- back (WrathppCreate_Disable). `always`: also without a character (the frame's own ticking, which waits for one).
+local function guarded(fn, always)
 	return function(...)
 		if ( W.off ) then return end
+		if ( not always and not hasCharacter() ) then return end
 		local ok, err = pcall(fn, ...)
 		if ( not ok ) then WrathppCreate_Disable(err) end
 	end
@@ -1075,7 +1094,9 @@ local opened = guarded(function()
 	W.ApplyZoom()
 	WrathppCreate_SetStep(1)
 end)
-if ( type(CharacterCreate_OnShow) == "function" ) then after("CharacterCreate_OnShow", opened) end
+if ( type(CharacterCreate_OnShow) == "function" ) then
+	after("CharacterCreate_OnShow", function() W.made = true; W.pending = nil; opened() end)
+end
 for _, name in ipairs({ "SetCharacterRace", "SetCharacterGender", "SetCharacterClass", "CharacterCreate_UpdateHairCustomization" }) do
 	after(name, guarded(function() WrathppCreate_ClosePopout(); place(); if ( name ~= "CharacterCreate_UpdateHairCustomization" ) then W.Regear() end; WrathppCreate_Refresh() end))
 end
@@ -1084,11 +1105,24 @@ end
 -- (what the game's own state is, however it changed).
 local driver = make("Frame", "WrathppDriver", root)
 local sinceRefresh = 0
-driver:SetScript("OnShow", opened)
+-- The screen shown: the game's own OnShow may not have run yet (this frame's runs first), and until it has there is no
+-- character, so nothing is opened from here: the first frame drawn after it opens the creator (OnUpdate below).
+driver:SetScript("OnShow", function() if ( not W.off ) then W.pending = 1 end end)
 -- Closed (a character made, or Back): the next opening starts dressed, and the log says the creator was left.
-driver:SetScript("OnHide", function() W.gear = true; log("closed") end)
+driver:SetScript("OnHide", function() W.gear = true; W.pending = nil; W.made = nil; log("closed") end)
 driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	elapsed = elapsed or arg1 or 0
+	if ( W.pending ) then
+		-- a frame after the screen was shown: the game's OnShow has run, its character is there
+		W.pending = W.pending - 1
+		if ( W.pending > 0 ) then return end
+		W.made = true
+		if ( not hasCharacter() ) then W.pending = 1; log("waiting: the game has no character on the creator yet"); return end
+		W.pending = nil
+		opened()
+		return
+	end
+	if ( not hasCharacter() ) then return end
 	if ( (W.fresh or 0) > 0 ) then
 		W.fresh = W.fresh - 1
 		WrathppCreate_SetStep(W.step)
@@ -1123,7 +1157,7 @@ driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	end
 	sinceRefresh = sinceRefresh + elapsed
 	if ( sinceRefresh >= 0.25 ) then sinceRefresh = 0; WrathppCreate_Refresh() end
-end))
+end, true))
 
 -- Nothing of this shows before the creator is opened (the game's own pieces are moved then, not now).
 for _, f in ipairs({ alliancePanel, hordePanel, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel, customizeButton, backButton,

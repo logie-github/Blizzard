@@ -181,3 +181,34 @@ number differs from the set's by under 2 on average too, which says the list of 
 file (the set repaints parts of the same picture). The list: 296 of the looks' skin files named (wago.tools' file
 search, by the words `<model>skin`, and `nightelf_femaleskin` for the Night Elf women, whose files are named so); the
 skins of Shadowlands' newer colours have names of another kind and keep the looks' own.
+
+## 2026-11-12 (the crash on Create Character): what the phone's report said, and the fix
+
+**The report** (#102 and #104, sent by build 232 from the logs on the phone; #104's launch was build 232 itself):
+`unhandled access violation (0xC0000005) reading 0x1C at WowWrathpp.exe+0xE0A9B, the main thread, 25.8 s after launch`,
+`eax=0 ecx=0 edi=004E0A60`, the frames above it the Lua machine's (`+0x45651C`, `+0x45898A`...). The creator's own lines
+just before it: `creator: opened: native 0.3.0, looks' options in, undead skins in`, `creator: screen: race and class`,
+then the crash 4 ms later.
+
+**What is at that address** (the decompiled client at the pinned commit, `CharacterCreation_Scripts.cpp`): the function
+at `0x004E0A60` is `Script_GetSelectedClass`, which pushes
+`GetDisplayClassNameFromRecord(classRec, CCharacterCreation::m_character->m_data.m_preferences.m_sexID, ...)`: the
+character's data is at +0x18 and the sex at +4 of it, so with no character it reads 0x1C. The creator called
+`GetSelectedClass()` (to write the class's name over the class buttons) from its own frame's OnShow, which the game
+runs before its own `CharacterCreate_OnShow`, whose `ResetCharCustomize` makes the character. That OnShow of the
+creator's was added in build 226; builds 226 to 232 crash at the first opening of the creation screen in a launch.
+
+**The fix.** Nothing of the creator runs before the game has its character (`hasCharacter`, asked by every handler:
+the native mod's `WrathPP_GetCreating`, else a frame drawn since the screen was shown); the creator's own frame notes
+that the screen was shown and the next frame opens the creator.
+
+**Tested here.** The stand-in screen (`mock_glue.lua`) now has the game's character made by the game's own OnShow, and
+counts a call made without it to any of the functions that read it unchecked. `test_creator.lua` shows the screen as the
+client does (the creator's frame first, then the game's OnShow bound to its function, then a frame), with and without
+the native mod: **the script of builds 226 to 232 fails it at `GetSelectedClass` and `GetAvailableRaces`; the fixed
+script passes** (82 checks; the real data, 3,439 choices, with no such call). Not run in the game: the client is not on
+this machine.
+
+**The other record** (#103): a launch of 11 November (native 0.1.0, before this work), 7m 44s in: the game jumped to
+`0x625AF8B0`, an address in no module, from `WowWrathpp.exe+0x28FAFC` under `WarcraftXL.dll+0xBDE1B`, with no frame
+drawn for the 427 s before (the last events to mods are that old: the app was in the background). Not looked into.

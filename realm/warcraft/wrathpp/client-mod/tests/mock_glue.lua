@@ -65,32 +65,47 @@ end
 NUM_CHAR_CUSTOMIZATIONS = 5
 SEX_MALE, SEX_FEMALE = 2, 3
 
-local game = { race = 1, sex = 3, class = "WARRIOR", facing = 0, cursor = { 0, 0 }, cycles = 0, sets = 0, created = nil, fail = false }
+-- game.character: whether the game has a character on the creator. The client makes it in its own OnShow
+-- (ResetCharCustomize), and these of its functions read it without looking whether there is one (the decompiled
+-- client's CharacterCreation_Scripts.cpp: GetSelectedClass, GetSelectedSex, GetNameForRace, GetAvailableRaces,
+-- GetAvailableClasses, GetClassesForRace, GetFacialHairCustomization, and through the character CycleCharCustomization,
+-- RandomizeCharCustomization, SetCharacterCreateFacing): called without one the game dies (12 November 2026: reading
+-- 0x1C in GetSelectedClass). Here such a call is counted in game.crashes, which a test wants at 0.
+local game = { race = 1, sex = 3, class = "WARRIOR", facing = 0, cursor = { 0, 0 }, cycles = 0, sets = 0, created = nil, fail = false,
+	character = false, crashes = 0, crashedIn = {} }
+local function needsCharacter(name)
+	if ( not game.character ) then game.crashes = game.crashes + 1; game.crashedIn[#game.crashedIn + 1] = name end
+end
 -- the five numbers (from 0) and how many of each: a human woman's as the test's looks have them, four undead skins after
 local state = { 2, 0, 0, 0, 0 }
 local counts = { 3 + 4, 3 * 2, 4, 3, 3 * 2 }
 function GetAvailableRaces()
+	needsCharacter("GetAvailableRaces")
 	local out = {}
 	for _, t in ipairs(TOKENS) do out[#out + 1] = t.." people"; out[#out + 1] = t; out[#out + 1] = 1 end
 	return unpack(out)
 end
-function GetNameForRace() if game.fail then error("the game said no") end; return TOKENS[game.race].." people", TOKENS[game.race] end
-function GetSelectedSex() return game.sex end
-function GetSelectedClass() return game.class == "DEATHKNIGHT" and "Death Knight" or "Warrior", game.class end
+function GetNameForRace() needsCharacter("GetNameForRace"); if game.fail then error("the game said no") end; return TOKENS[game.race].." people", TOKENS[game.race] end
+function GetSelectedSex() needsCharacter("GetSelectedSex"); return game.sex end
+function GetSelectedClass() needsCharacter("GetSelectedClass"); return game.class == "DEATHKNIGHT" and "Death Knight" or "Warrior", game.class end
 function CycleCharCustomization(i, delta)
+	needsCharacter("CycleCharCustomization")
 	game.cycles = game.cycles + 1
 	state[i] = (state[i] + (delta > 0 and 1 or -1)) % counts[i]
 end
-function RandomizeCharCustomization() for i = 1, 5 do state[i] = game.random and game.random[i] or 0 end end
+function RandomizeCharCustomization() needsCharacter("RandomizeCharCustomization"); for i = 1, 5 do state[i] = game.random and game.random[i] or 0 end end
 function CharacterCreate_Randomize() RandomizeCharCustomization() end
 function GetCharacterCreateFacing() return game.facing end
-function SetCharacterCreateFacing(f) game.facing = f end
+function SetCharacterCreateFacing(f) needsCharacter("SetCharacterCreateFacing"); game.facing = f end
 function GetCursorPosition() return game.cursor[1], game.cursor[2] end
 function CharacterCreate_Okay() game.created = true end
-function CharacterCreate_OnShow() end
+-- The game's own OnShow makes the character (ResetCharCustomize) before anything else of it.
+function CharacterCreate_OnShow() game.character = true end
 function SetCharacterRace() end
 function SetCharacterGender() end
 function SetCharacterClass() end
 function CharacterCreate_UpdateHairCustomization() end
 
-return { game = game, state = state, counts = counts, tokens = TOKENS, frame = frame }
+-- stockOnShow: the game's own OnShow as the screen was made with it (a screen bound to the function itself never calls
+-- a name wrapped later).
+return { game = game, state = state, counts = counts, tokens = TOKENS, frame = frame, stockOnShow = CharacterCreate_OnShow }

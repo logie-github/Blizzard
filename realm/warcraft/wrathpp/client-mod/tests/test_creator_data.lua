@@ -66,5 +66,7 @@ for index, token in ipairs(mock.tokens) do
 		end
 	end
 end
+-- nothing of the game's asked while it had no character on the creator (the game dies of that: mock_glue.lua)
+if mock.game.crashes > 0 then fail("the game's functions were called without a character: "..table.concat(mock.game.crashedIn, ", ")) end
 print(("%d races and sexes, %d option rows, %d choices put on and read back: %s"):format(models, options, choices, fails == 0 and "all as chosen" or (fails.." wrong")))
 os.exit(fails == 0 and models > 0 and 0 or 1)

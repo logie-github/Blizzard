@@ -95,6 +95,32 @@ unbuilt patch to a decompiled client is not evidence of anything.
 
 Events: `WRATHPP_READY`, `WRATHPP_APPEARANCE` (guid), `WRATHPP_RESULT` (code, guid, category).
 
+## The creation screen's functions that need the character (found from a crash, 2026-11-12)
+
+The game keeps the character being created in `CCharacterCreation::m_character` (0x00B6B1A0), made by
+`ResetCharCustomize` (the game's own `CharacterCreate_OnShow` calls it) or `CustomizeExistingCharacter`. These script
+functions read it without looking whether there is one, and the game dies when there is none (reports #102, #104:
+`GetSelectedClass` reading 0x1C). From `CharacterCreation_Scripts.cpp` at the pinned commit:
+
+| Function | Address | What it reads |
+| --- | --- | --- |
+| `GetSelectedClass` | 0x004E0A60 | the character's sex, for the class's name |
+| `GetSelectedSex` | 0x004E0A30 | its sex |
+| `GetNameForRace` | 0x004E0670 | its sex, for the race's name |
+| `GetAvailableRaces` | 0x004E1880 | its sex |
+| `GetAvailableClasses` | 0x004E0830 | its sex |
+| `GetClassesForRace` | 0x004E19A0 | its sex |
+| `GetFacialHairCustomization` | 0x004E0970 | its sex |
+| `GetCreateBackgroundModel` | 0x004E0DD0 | the character |
+| `UpdateCustomizationScene` | 0x004DFC90 | the character |
+| `PaidChange_GetName` | 0x004E1B70 | the character |
+
+Through `CCharacterCreation`'s own functions the same holds for `CycleCharCustomization`, `RandomizeCharCustomization`,
+`SetCharacterCreateFacing` and `SetSelectedSex`. A frame of the creation screen hears OnShow before the game's own
+OnShow has run, so a script that is not the game's must not call any of these from its OnShow: Wrath++'s creator asks
+`WrathPP_GetCreating` first (nothing while there is no character) and opens a frame later. `GetSelectedRace`,
+`GetHairCustomization`, `GetFactionForRace`, `GetRandomName` and `GetCharacterCreateFacing` do not read it.
+
 ## Gate E (Android) plan
 
 The x64 client under the app's Winlator/Wine/Box64 is a different runtime from the 32-bit `Wow.exe`

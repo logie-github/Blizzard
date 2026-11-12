@@ -62,6 +62,31 @@ local W = WrathppCreator
 check(not W.off, "the script loads on the game's screen"..(W.error and (": "..tostring(W.error)) or ""))
 check(not WrathppAlliancePanel.shown and CharacterCreateConfigurationFrame.shown, "nothing is moved before the creator opens")
 
+-- The screen shown as the client shows it ---------------------------------------------------------------------------------
+-- The crash of 12 November 2026: this script's frame hears that the screen is shown BEFORE the game's own OnShow has
+-- made the character, and the game's functions for the creator die without one (GetSelectedClass read 0x1C). The
+-- stand-in counts such a call (game.crashes). First with the native mod, which knows whether there is a character.
+function WrathPP_GetCreating() if game.character then return game.race, game.sex == 3 and 1 or 0, 1 end end
+WrathppDriver.scripts.OnShow(WrathppDriver)
+check(game.crashes == 0 and not WrathppAlliancePanel.shown, "the screen shown before the game has its character: nothing of the game's is asked ("..table.concat(game.crashedIn, ", ")..")")
+tick(0.1, 5)
+check(game.crashes == 0 and not WrathppAlliancePanel.shown and loggedLine("waiting: "), "  frames without a character: still nothing asked, nothing opened, and the log says it waits")
+SetCharacterRace(1); WrathppCreate_SetStep(1); WrathppCreate_Refresh()
+check(game.crashes == 0 and not WrathppAlliancePanel.shown, "  nor by anything else that would run in between")
+mock.stockOnShow()                                   -- the game's own, bound to the function: the wrapped name is not called
+tick(0.02)
+check(game.crashes == 0 and WrathppAlliancePanel.shown and not CharacterCreateConfigurationFrame.shown, "  the game's OnShow has made the character: the next frame opens the creator")
+-- and without the native mod: a frame after the screen was shown
+WrathPP_GetCreating = nil
+game.character = false; W.made = nil
+WrathppAlliancePanel:Hide(); CharacterCreateConfigurationFrame:Show()
+WrathppDriver.scripts.OnHide(WrathppDriver); WrathppDriver.scripts.OnShow(WrathppDriver)
+SetCharacterRace(1); WrathppCreate_Refresh()
+check(game.crashes == 0 and not WrathppAlliancePanel.shown, "without the native mod: nothing asked before a frame has been drawn")
+mock.stockOnShow(); tick(0.02)
+check(game.crashes == 0 and WrathppAlliancePanel.shown, "  then opened, the game's own OnShow having run")
+WrathppAlliancePanel:Hide(); CharacterCreateConfigurationFrame:Show()
+
 -- Race and class -------------------------------------------------------------------------------------------------------
 show()
 check(WrathppAlliancePanel.shown and WrathppHordePanel.shown and WrathppClassPanel.shown and not WrathppOptionPanel.shown, "opened: the two sides' races and the classes, no options")
@@ -73,8 +98,8 @@ check(WrathppCustomizeButton.shown and not WrathppFinishButton.shown and not Cha
 
 -- opened by the screen's own frame too (a screen that calls its OnShow some other way than by the function's name)
 WrathppAlliancePanel:Hide(); CharacterCreateConfigurationFrame:Show()
-WrathppDriver.scripts.OnShow(WrathppDriver)
-check(WrathppAlliancePanel.shown and not CharacterCreateConfigurationFrame.shown, "the creator's own frame shown opens it as well")
+WrathppDriver.scripts.OnShow(WrathppDriver); tick(0.02)
+check(WrathppAlliancePanel.shown and not CharacterCreateConfigurationFrame.shown, "the creator's own frame shown opens it as well, a frame later")
 CharacterCreateConfigurationFrame:Show(); CharacterCustomizationButtonFrame1:Show()
 WrathppDriver.scripts.OnUpdate(WrathppDriver, 0.02)
 check(not CharacterCreateConfigurationFrame.shown and not CharacterCustomizationButtonFrame1.shown, "  and what the game's own OnShow put back after it is put away again on the next frame")
@@ -249,6 +274,8 @@ WrathppCreate_ClosePopout()
 game.fail = true
 WrathppCreate_Refresh()
 check(W.off and CharacterCreateConfigurationFrame.shown and CharacterCustomizationButtonFrame1.shown and not WrathppOptionPanel.shown, "an error here puts the game's own screen back")
+
+check(game.crashes == 0, "nothing of the game's was asked without a character, all through ("..table.concat(game.crashedIn, ", ")..")")
 
 -- The log -------------------------------------------------------------------------------------------------------------------------
 check(logged[1] == "built" and loggedLine("opened: native ") and loggedLine("screen: race and class") and loggedLine("screen: customize"),
