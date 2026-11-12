@@ -69,7 +69,7 @@ check(CharacterCreateRaceButton1.parent == WrathppAlliancePanel and CharacterCre
 check(CharacterCreateRaceButton6.parent == WrathppHordePanel and CharacterCreateRaceButton10.parent == WrathppHordePanel, "  the Horde's on the right (Orc ... Blood Elf)")
 check(CharacterCreateClassButton3.parent == WrathppClassPanel and CharacterCreateGenderButtonFemale.parent == WrathppSexPanel, "  the game's class and sex buttons in their panels")
 check(not CharacterCreateConfigurationFrame.shown and not CharacterCustomizationButtonFrame1.shown and not CharCreateOkayButton.shown, "  the game's own panel, rows and Accept put away")
-check(WrathppCustomizeButton.shown and not WrathppFinishButton.shown and CharacterCreateNameEdit.shown, "  Customize, the name; no Finish yet")
+check(WrathppCustomizeButton.shown and not WrathppFinishButton.shown and not CharacterCreateNameEdit.shown and WrathppSexPanel.shown, "  Customize and the sexes; the name and Finish are the next screen's (Shadowlands)")
 
 -- opened by the screen's own frame too (a screen that calls its OnShow some other way than by the function's name)
 WrathppAlliancePanel:Hide(); CharacterCreateConfigurationFrame:Show()
@@ -92,6 +92,10 @@ state[2] = 0
 function WrathPP_GetCustomization(i) return state[i] + 1, counts[i] end
 WrathppCreate_Refresh()
 check(WrathppCategory1.shown and WrathppCategory1.label.text == "Face" and WrathppCategory2.label.text == "Accessories" and WrathppCategory3.label.text == "Body", "the race's categories in Shadowlands' order")
+check(WrathppCategory3.points[1][1] == "RIGHT" and WrathppCategory3.points[1][4] == 0 and WrathppCategory1.points[1][4] == -108 and WrathppCategory1.lit and not WrathppCategory2.lit,
+	"  round buttons in a row from the right, the chosen one lit ("..tostring(WrathppCategory1.points[1][4])..")")
+check(CharacterCreateNameEdit.shown and CharacterCreateNameEdit.points[1][1] == "TOP" and not WrathppSexPanel.shown and WrathppViewPanel.points[1][1] == "TOPLEFT",
+	"  the name at the top in the middle, the view's buttons top left, no sexes here (Shadowlands' Customize)")
 check(rowNames() == "Face, Skin Color, Hair Style, Hair Color", "Face's options in Shadowlands' order ("..rowNames()..")")
 state[1] = 0; WrathppCreate_Refresh()
 local skin = rowNamed("Skin Color")
@@ -187,7 +191,7 @@ check(state[1] < 3, "Randomize while living never lands on an undead skin")
 -- A list under a finger ------------------------------------------------------------------------------------------------------
 local list = WrathppOptionList
 list:SetView(100); WrathppCreate_Refresh()
-check(list:Limit() == 6 * 58 - 100, "a list longer than its panel scrolls ("..list:Limit()..")")
+check(list:Limit() == 6 * 50 - 100, "a list longer than its panel scrolls ("..list:Limit()..")")
 game.cursor = { 500, 300 }
 local row = rowNamed("Necklace")
 row.choice.scripts.OnMouseDown(row.choice)
