@@ -1,0 +1,1 @@
+Warcraft III: with a hero selected, Move then a tap on an item walks him over to pick it up; the minimap pans twice as far.
