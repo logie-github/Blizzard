@@ -1023,9 +1023,11 @@ local function categoryButton(k)
 	end
 	return b
 end
-local function showCategory(b, name, chosen)
+local function showCategory(b, name, chosen, female)
 	local word = string.match(name or "", "^(%a+)") or ""
 	local art = CATEGORY_ART[word] or "body"
+	-- a woman's Body: her own picture (a torso: bust, belly, hips; body_icon.py), where the art has it
+	if ( word == "Body" and female and piece("charactercreate-icon-customize-figure") ) then art = "figure" end
 	b:Set("charactercreate-icon-customize-"..art..(chosen and "-selected" or ""), chosen, false, CATEGORY_PLAIN[word] or "Interface\\Icons\\INV_Misc_QuestionMark", { 0.08, 0.92, 0.08, 0.92 })
 end
 
@@ -1515,16 +1517,20 @@ local function refresh()
 	-- the categories of this race and sex, in a row that ends 20 from the screen's right edge
 	local n = 0
 	if ( model and number(FIELD.skin) ) then
+		-- the Body tab last in the row (the user: "the tab needs to be the last tab"), the others in their own order
+		local row = {}
+		for _, c in ipairs(model.categories) do if ( c.name ~= "Body" ) then row[#row + 1] = c end end
+		for _, c in ipairs(model.categories) do if ( c.name == "Body" ) then row[#row + 1] = c end end
 		local found = false
-		for _, c in ipairs(model.categories) do if ( c.id == W.category ) then found = true end end
-		if ( not found ) then W.category = model.categories[1].id end
-		for k, c in ipairs(model.categories) do
+		for _, c in ipairs(row) do if ( c.id == W.category ) then found = true end end
+		if ( not found ) then W.category = row[1].id end
+		for k, c in ipairs(row) do
 			local b = categoryButton(k)
 			b.category, b.zoom = c.id, c.zoom
 			b.label:SetText(c.name)
 			b:ClearAllPoints()
-			b:SetPoint("RIGHT", categoryPanel, "RIGHT", -(#model.categories - k) * u(104 - 21), 0)
-			showCategory(b, c.name, c.id == W.category)
+			b:SetPoint("RIGHT", categoryPanel, "RIGHT", -(#row - k) * u(104 - 21), 0)
+			showCategory(b, c.name, c.id == W.category, model.sex == 1)
 			b:Show()
 			n = k
 		end

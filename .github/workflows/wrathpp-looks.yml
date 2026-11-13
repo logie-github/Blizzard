@@ -18,6 +18,7 @@ on:
       - realm/warcraft/wrathpp/data/skin_names.json
       - realm/warcraft/wrathpp/tools/sl_inventory.py
       - realm/warcraft/wrathpp/tools/sl_ui_art.py
+      - realm/warcraft/wrathpp/tools/body_icon.py
       - realm/warcraft/wrathpp/client-mod/rig/**
       - app/src/main/assets/wrathpp/WrathppCreate.lua
       - realm/warcraft/modules/mod-allied-races/tools/m2.py
