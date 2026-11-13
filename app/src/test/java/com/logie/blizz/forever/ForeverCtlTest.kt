@@ -174,6 +174,20 @@ class ForeverCtlTest {
     }
 
     @Test
+    fun `a stop is reported only after the game screen opened for this Play and closed`() {
+        val play = 1_000_000L
+        // Still preparing (the screen of the last session, or none yet): not a stop (report 122).
+        assertFalse(ForeverPlay.sessionOver(play, screenOpenedAt = 0, screenAlive = false))
+        assertFalse(ForeverPlay.sessionOver(play, screenOpenedAt = play - 60_000, screenAlive = false))
+        // The game screen up (the launcher only seen in between): not yet.
+        assertFalse(ForeverPlay.sessionOver(play, screenOpenedAt = play + 5_000, screenAlive = true))
+        // It opened after this Play and is gone: the session is over.
+        assertTrue(ForeverPlay.sessionOver(play, screenOpenedAt = play + 5_000, screenAlive = false))
+        // No Play recorded: never.
+        assertFalse(ForeverPlay.sessionOver(0, screenOpenedAt = 5_000, screenAlive = false))
+    }
+
+    @Test
     fun `a crash file ends the session once it is written and finished, an older one never`() {
         val errors = Files.createTempDirectory("errors").toFile()
         // No folder yet (the game makes it at its first crash), an empty one, a dump alone, a file from before this start.

@@ -29,7 +29,7 @@
  *    program exits: the desktop closes, Wine exits, and the app returns to the launcher.
  *
  * It also tells the app what only a program inside the games' Windows can see: its log (C:\windows\borderless.log: the
- * game's windows, a dialog box's words) and whether a dialog box is up (C:\windows\borderless.dialog).
+ * game's windows, a dialog box's words, each of the game's programs as it starts and ends with its exit code) and whether a dialog box is up (C:\windows\borderless.dialog).
  *
  * Built with Zig for x86_64 Windows (scripts/build-tools.sh), the Windows subsystem: no console.
  */
@@ -279,6 +279,59 @@ static BOOL CALLBACK strip(HWND hwnd, LPARAM lparam)
     return TRUE;
 }
 
+/*
+ * The game's programs one by one, as they start and end: "program started: Name.exe (pid N)" and "program ended: Name.exe
+ * (pid N, code 0x...)", the code the program ended with (a crash's exception code, or what it returned). A program started
+ * from the game's own (World of Warcraft: Forever's launcher starts the game) that ends while the launcher stays up leaves
+ * the session running: the app reads these lines to know the game went, and why (the phone, 13 November 2026).
+ */
+#define TRACKED 32
+static DWORD tracked_pid[TRACKED];
+static HANDLE tracked_handle[TRACKED];
+static char tracked_name[TRACKED][64];
+static int tracked_count;
+
+static void track_programs(void)
+{
+    PROCESSENTRY32W entry;
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    DWORD self = GetCurrentProcessId();
+    DWORD seen[256];
+    int seen_count = 0, i, j;
+
+    if (snapshot == INVALID_HANDLE_VALUE) return;
+    entry.dwSize = sizeof(entry);
+    if (Process32FirstW(snapshot, &entry)) {
+        do {
+            if (!entry.th32ProcessID || entry.th32ProcessID == self || kept_name(entry.szExeFile)) continue;
+            if (seen_count < 256) seen[seen_count++] = entry.th32ProcessID;
+            for (i = 0; i < tracked_count; i++) if (tracked_pid[i] == entry.th32ProcessID) break;
+            if (i < tracked_count || tracked_count >= TRACKED) continue;
+            tracked_pid[tracked_count] = entry.th32ProcessID;
+            tracked_handle[tracked_count] = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, entry.th32ProcessID);
+            WideCharToMultiByte(CP_ACP, 0, entry.szExeFile, -1, tracked_name[tracked_count], 64, NULL, NULL);
+            note("program started: %s (pid %lu)", tracked_name[tracked_count], entry.th32ProcessID);
+            tracked_count++;
+        } while (Process32NextW(snapshot, &entry));
+    }
+    CloseHandle(snapshot);
+    for (i = 0; i < tracked_count; ) {
+        for (j = 0; j < seen_count; j++) if (seen[j] == tracked_pid[i]) break;
+        if (j < seen_count) { i++; continue; }
+        {
+            DWORD code = 0;
+            if (tracked_handle[i] && GetExitCodeProcess(tracked_handle[i], &code))
+                note("program ended: %s (pid %lu, code 0x%08lX)", tracked_name[i], tracked_pid[i], code);
+            else note("program ended: %s (pid %lu, code unknown)", tracked_name[i], tracked_pid[i]);
+        }
+        if (tracked_handle[i]) CloseHandle(tracked_handle[i]);
+        tracked_count--;
+        tracked_pid[i] = tracked_pid[tracked_count];
+        tracked_handle[i] = tracked_handle[tracked_count];
+        lstrcpynA(tracked_name[i], tracked_name[tracked_count], sizeof(tracked_name[0]));
+    }
+}
+
 /* How many programs of the game's are running: every process but Wine's own and the session's helpers. The first one's name goes into [name] (64 characters). */
 static int game_processes(char *name)
 {
@@ -376,6 +429,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
             helper_gone = 1;
         }
         games = game_processes(game);
+        track_programs();
         windows_gone(games > 0);
         now = GetTickCount();
         if (games != last_games) {

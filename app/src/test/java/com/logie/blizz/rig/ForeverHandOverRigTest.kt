@@ -45,7 +45,9 @@ class ForeverHandOverRigTest {
     }
 
     private val log = File(XRig.windowsDir, "inputprobe.log")
-    private fun typed() = if (log.isFile) log.readLines().filter { it.contains("CHAR") || it.contains("KEYDOWN") } else emptyList()
+    /** The stand-in for the game writes its own log. */
+    private val gameLog = File(XRig.windowsDir, "inputprobe-game.log")
+    private fun typed(file: File = log) = if (file.isFile) file.readLines().filter { it.contains("CHAR") || it.contains("KEYDOWN") } else emptyList()
 
     /** The main thread's work done as the clock runs (the view's own timers), for [ms] or until [until] holds. */
     private fun pump(ms: Long, until: () -> Boolean = { false }) {
@@ -124,14 +126,52 @@ class ForeverHandOverRigTest {
             pump(30_000) { GameLog.snapshot().contains("game window up") }
             assertTrue("handed over:\n${GameLog.snapshot()}\n${rig.describe()}", GameLog.snapshot().contains("game window up"))
             assertEquals("wow.exe", rig.xServer.windowManager.focusedWindow?.className?.lowercase())
+            assertEquals(emptyList<String>(), typed(gameLog))
             assertEquals(emptyList<String>(), typed())
             // Not before the game's own cursor (its login screen) is up: a modern client's login screen comes late.
             pump(2_000)
-            assertEquals("typed before the login screen", emptyList<String>(), typed())
+            assertEquals("typed before the login screen", emptyList<String>(), typed(gameLog))
             pump(25_000) { GameLog.snapshot().contains("login: typed") }
             pump(3_000)
-            val chars = typed().filter { it.contains("CHAR") }.mapNotNull { Regex("'(.)'").find(it)?.groupValues?.get(1) }.joinToString("")
+            val chars = typed(gameLog).filter { it.contains("CHAR") }.mapNotNull { Regex("'(.)'").find(it)?.groupValues?.get(1) }.joinToString("")
             assertTrue("the password typed into the game: '$chars'\n${GameLog.snapshot()}", chars.contains("forever"))
+            assertEquals("nothing typed into the launcher", emptyList<String>(), typed())
+        }
+    }
+
+    /**
+     * The game's program ends while the launcher stays up (the phone, 13 November 2026: "IN GAME", then the launcher back
+     * on PLAY NOW, the game never seen): the keeper says so with the exit code, the app notes it, and the touch controls are
+     * the launcher's again (a tap is one plain click on it, nothing typed).
+     */
+    @Test fun whenTheGameEndsTheLauncherIsTheLaunchersAgain() {
+        assumeTrue(XRig.enabled)
+        XRig(600, 400).use { rig ->
+            GameLog.clear()
+            val view = screen(rig)
+            GameLog.keeperLog = File(XRig.windowsDir, "borderless.log")
+            rig.install(File(XRig.programs, "inputprobe.exe"))
+            log.delete(); gameLog.delete()
+            rig.game("C:\\windows", "inputprobe.exe", "fixed", frames = false)
+            pump(30_000) { rig.window("inputprobe") != null && log.isFile && log.readText().contains("START") }
+            File(XRig.programs, "inputprobe.exe").copyTo(File(XRig.windowsDir, "Wow.exe"), overwrite = true)
+            rig.run("C:\\windows\\Wow.exe", "game")
+            pump(30_000) { GameLog.snapshot().contains("game window up") }
+            assertTrue(GameLog.snapshot().contains("game window up"))
+            pump(25_000) { GameLog.snapshot().contains("login: typed") }
+            // The game's program ends (Alt+F4 on its window: it returns 0).
+            rig.key(com.winlator.xserver.XKeycode.KEY_F4, com.winlator.xserver.XKeycode.KEY_ALT_L)
+            pump(15_000) { GameLog.snapshot().contains("ended by itself") }
+            val keeper = File(XRig.windowsDir, "borderless.log").readText()
+            assertTrue("the keeper's lines:\n$keeper", Regex("program ended: Wow\\.exe \\(pid \\d+, code 0x00000000\\)").containsMatchIn(keeper))
+            assertTrue("noted:\n${GameLog.snapshot()}", GameLog.snapshot().contains("forever: the game's program ended by itself: Wow.exe, code 0x00000000"))
+            // The launcher is the launcher's again: a tap is one plain click on it.
+            val before = log.readLines().count { it.contains("LDOWN") }
+            val typedBefore = typed().size
+            view.tapAt(com.winlator.core.AppUtils.getScreenWidth() / 2f, com.winlator.core.AppUtils.getScreenHeight() / 2f)
+            pump(2_500)
+            assertEquals("one click on the launcher:\n${log.readLines().takeLast(6).joinToString("\n")}", before + 1, log.readLines().count { it.contains("LDOWN") })
+            assertEquals(typedBefore, typed().size)
         }
     }
 }

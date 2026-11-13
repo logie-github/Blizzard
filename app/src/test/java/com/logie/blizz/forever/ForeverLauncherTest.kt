@@ -185,6 +185,15 @@ class ForeverLauncherTest {
     }
 
     @Test
+    fun `the keeper's line for the game's program ending is read, others are not`() {
+        assertEquals(ForeverLauncher.Ended("Wow.exe", 812, "0xC0000005"), ForeverLauncher.gameEnded("41 program ended: Wow.exe (pid 812, code 0xC0000005)"))
+        assertEquals(ForeverLauncher.Ended("WOW.EXE", 7, "unknown"), ForeverLauncher.gameEnded("9 program ended: WOW.EXE (pid 7, code unknown)"))
+        assertEquals(null, ForeverLauncher.gameEnded("41 program ended: WoWForeverLauncher.exe (pid 300, code 0x00000000)"))
+        assertEquals(null, ForeverLauncher.gameEnded("12 program started: Wow.exe (pid 812)"))
+        assertEquals(null, ForeverLauncher.gameEnded("5 window of class 'waApplication Window' gone"))
+    }
+
+    @Test
     fun `removePlaced deletes every known launcher name from the client folder`() {
         val client = Files.createTempDirectory("client").toFile()
         File(client, "WoWForeverLauncher.exe").writeText("new")

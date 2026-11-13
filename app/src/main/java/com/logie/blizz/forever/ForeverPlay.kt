@@ -503,6 +503,11 @@ object ForeverPlay {
             runCatching {
                 // Once per start (set by [started]): a game or launcher that ran now sends what it left behind.
                 if (!prefs(app).getBoolean(STOP_PENDING, false)) return@runCatching
+                // Only once the game screen has opened for this Play and closed again: the launcher's screen also
+                // comes back while Play is still preparing (the phone, report 122 of 13 November 2026: "stopped early"
+                // with nothing of Wine's, sent before any Windows program had run). Still pending until then.
+                val since0 = prefs(app).getLong(STOP_SEEN, 0L)
+                if (!sessionOver(since0, com.logie.blizz.game.GameLog.startedAt, com.logie.blizz.selftest.RunningGame.alive())) return@runCatching
                 prefs(app).edit().putBoolean(STOP_PENDING, false).apply()
                 val layout = ForeverLayout.of(app)
                 val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
@@ -534,6 +539,36 @@ object ForeverPlay {
             }
         }
     }
+
+    /**
+     * The game's own program ended while the session went on (the Forever Launcher stays up): a report with its exit code,
+     * the game's crash file if it wrote one, and Wine's lines of the moment. Sent by itself, once per program that ended.
+     */
+    fun reportGameEnded(context: Context, program: String, code: String) {
+        val app = context.applicationContext
+        val wine = com.logie.blizz.game.GameLog.snapshot().takeLast(6000)
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val layout = ForeverLayout.of(app)
+                val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
+                val crash = game?.let { ForeverCtl.clientStop(it, prefs(app).getLong(STOP_SEEN, 0L)) }
+                val body = listOfNotNull(crash?.text?.take(3000), "[wine/box64]\n$wine").joinToString("\n\n")
+                com.logie.blizz.reports.BugReports.report(
+                    app, "WoW Forever", "The game's program ended by itself: $program, code $code",
+                    listOf("Program" to program, "Exit code" to code, "Launcher" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
+                    log = body.takeLast(7000),
+                )
+            }
+        }
+    }
+
+    /**
+     * Whether the session of the Play started at [since] is over: its game screen opened after that ([screenOpenedAt],
+     * [com.logie.blizz.game.GameLog.startedAt]) and is no longer up ([screenAlive]). Before that the launcher's screen
+     * coming back is no stop (Play is still preparing, or the game is only out of sight).
+     */
+    internal fun sessionOver(since: Long, screenOpenedAt: Long, screenAlive: Boolean): Boolean =
+        since > 0 && screenOpenedAt >= since && !screenAlive
 
     /** What the person is told when the game's protection ended it ([ForeverCtl.isSecurityCrash]). */
     internal fun securityCrashText(launcher: Boolean, title: String): String =

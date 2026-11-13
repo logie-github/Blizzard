@@ -57,7 +57,12 @@ object GameLog {
     }
 
     /** Starts listening to the programs' output (once; after Winlator has set up its own listeners). */
+    /** When the game screen last started its session ([start]; System.currentTimeMillis), 0 before any. */
+    @Volatile var startedAt: Long = 0L
+        private set
+
     fun start() {
+        startedAt = System.currentTimeMillis()
         clear()
         ProcessHelper.addDebugCallback(callback)
     }

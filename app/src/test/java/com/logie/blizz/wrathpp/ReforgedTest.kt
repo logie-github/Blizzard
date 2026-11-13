@@ -176,7 +176,7 @@ class ReforgedTest {
         assertTrue(Reforged.masked("interface/glues/CHARACTERCREATE/x.blp"))
         assertTrue(Reforged.masked("Interface\\Glues\\models\\BE_B.blp"))
         assertFalse(Reforged.masked("Interface\\GLUES\\LOADINGSCREENS\\InstanceAlteracValley.blp"))
-        assertFalse(Reforged.masked("Interface\\Glues\\Models\\UI_MainMenu_Northrend\\UI_MainMenu_Northrend.m2"))
+        assertTrue(Reforged.masked("Interface\\Glues\\Models\\UI_MainMenu_Northrend\\UI_MainMenu_Northrend.m2"))
         assertFalse(Reforged.masked("Interface\\FrameXML\\ActionBar.lua"))
         assertFalse(Reforged.masked("Character\\Human\\Male\\HumanMale.m2"))
     }

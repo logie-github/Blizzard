@@ -225,6 +225,8 @@ object WindowsRuntime {
             .apply { if (foreverLauncher) putExtra(GestureView.EXTRA_LAUNCHER, true) }
             // Forever: the game's crash files, watched while it runs (a crashed game stays on its last frame).
             .apply { if (foreverClient) putExtra(GestureView.EXTRA_CRASH_DIR, File(folder, "_forever_/Errors").path) }
+            // Wrath++ run by WarcraftXL: its log says when the login screen is up, for auto-login (GestureView.EXTRA_READY_LOG).
+            .apply { if (entry.executable.equals(com.logie.blizz.wrathpp.WrathppAddon.EXE, ignoreCase = true)) putExtra(GestureView.EXTRA_READY_LOG, File(folder, "Logs/WarcraftXL.log").path) }
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
             // The loading screen of the version played (Wrath+, Legion, OctoWoW share one client entry).
             .putExtra(GestureView.EXTRA_SPLASH, WowPlay.splashIdOf(entry))

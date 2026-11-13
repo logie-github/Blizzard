@@ -525,6 +525,12 @@ class GestureView(
          */
         const val EXTRA_CRASH_DIR = "com.logie.blizz.CRASH_DIR"
 
+        /**
+         * Wrath++ with WarcraftXL's runtime only: its log (`Logs/WarcraftXL.log`), which says when the login screen is up
+         * ([com.logie.blizz.wrathpp.WrathppLogs.ready]); auto-login types the password then instead of after a fixed time.
+         */
+        const val EXTRA_READY_LOG = "com.logie.blizz.READY_LOG"
+
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"
         private const val CLICK_MS = 40L
