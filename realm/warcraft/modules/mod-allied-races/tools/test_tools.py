@@ -93,6 +93,21 @@ for i in range(n - 1):
 cut = decimate.decimate(gpos, np.array(gtris), 300)
 corners = {0, n - 1, n * (n - 1), n * n - 1}
 check(290 <= len(cut) <= 300 and corners <= set(cut.ravel().tolist()), "a grid of %d triangles comes down to %d, corners kept" % (len(gtris), len(cut)))
+# Two sections meeting along a line (the grid's right column is the left column of a second grid): the vertices of the
+# join, and each section's outline, are what m2 pins; with them pinned, the two cut down alone still meet edge to edge.
+right = gpos + np.array([1.0, 0.0, 0.0])
+both = np.concatenate([gpos, right])
+second = np.array(gtris) + n * n
+joins = m2.shared_positions(both, {"a": np.array(gtris), "b": second})
+check(len(joins["a"]) == n and len(joins["b"]) == n, "the join between two sections: %d and %d vertices" % (len(joins["a"]), len(joins["b"])))
+check(m2.outline(np.array(gtris)) == {v for v in range(n * n) if v % n in (0, n - 1) or v // n in (0, n - 1)}, "a grid's outline is its border")
+def on_join(tris):
+    """The points along the join (x = 1) a section's triangles use."""
+    return {tuple(np.round(both[int(v)], 5)) for v in np.asarray(tris).ravel() if abs(both[int(v)][0] - 1.0) < 1e-9}
+pa, pb = decimate.decimate(both, np.array(gtris), 200, locked=joins["a"]), decimate.decimate(both, second, 200, locked=joins["b"])
+check(on_join(pa) == on_join(pb) == on_join(np.array(gtris)), "pinned, the two sections cut down alone still meet at every point of the join")
+la, lb = decimate.decimate(both, np.array(gtris), 200), decimate.decimate(both, second, 120)
+check(on_join(la) != on_join(lb), "(not pinned they meet at different points: a crack, %d and %d points)" % (len(on_join(la)), len(on_join(lb))))
 keep = decimate.plan({"body": 100, "hair": 100, "gear": 100}, 250, [("gear", 0.5), ("hair", 0.6), ("body", 0.75)])
 check(keep["gear"] == 0.5 and keep["body"] == 1.0 and abs(keep["hair"] - 1.0) < 1e-9, "the planner takes from the gear first and only what's needed")
 keep = decimate.plan({"body": 100, "gear": 100}, 120, [("gear", 0.5)])

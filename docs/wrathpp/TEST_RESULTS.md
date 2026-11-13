@@ -341,3 +341,25 @@ faults, each found in the client's source and each now a rule of the rig:
   `SetDesaturated` and `full.lua` fails on one in a Wrath++ script: on build 241's script it finds it.
 
 Run here after: `run.sh` with the new art, nine passes, 0 problems. Not run: the game; the next pictures are the phone's.
+
+## 2026-11-13: the swipe on the creator, and the models' seams
+
+The user, on build 243: "This is soooo much better ... The swipes on the character creator should not be pressing the
+keyboard only turning the model. Also the models have lots of seam gaps." The phone's own pictures arrived too (issues
+#109 to #111, build 242's two screens as the game drew them: `rig/tools/fetch_pictures.py` put them together).
+
+**The swipe.** `WowGestureView` knew the creation screen only by a picture of the 3.3.5 creator's banners; on the
+Shadowlands screen a finger walked. Now the creator says it is up (`WrathPP_SetScreen`, native 0.4.0; the touch's
+`CreatorScreen`). Run here: the rig, `behaviour.lua` 45 checks (the creator up on both screens with nothing to drag on
+the first, the option list's place on Customize, an open list's place, said once and not every frame, "creator 0" as it
+closes); `CreatorScreenTest` 3 of 3 with kotlinc; the native mod's new function compiled here for syntax with g++ and
+the SDK's headers (its Windows part only by reading: MSVC builds it in CI). Not run: the native mod in the game, the
+touch on the phone.
+
+**The seams.** Found in `decimate.py`: a vertex on a section's outline could slide along it, and two sections cut down
+alone came apart where they meet. `m2.py` pins the joins and the bare body's outlines. Run here, from the cached source
+files: all nineteen models converted (each within 3.3.5's 65535 indices), the openings measured before and after (README);
+the Human woman rendered from four sides with the old and new cut, the old one's crack across the knee and slivers at
+the ankle and heel found by machine (background seen through the figure) and by eye, gone in the new; `test_tools.py`
+(two sections cut down pinned meet at every point of their join; not pinned they do not). Not run: the models in the
+game; the next looks package carries them.

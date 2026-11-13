@@ -517,6 +517,30 @@ def remap_uv(u, v, kind, layout):
 ANIM_CHUNKS = (b"AFM2", b"AFSA", b"AFSB")
 
 
+def shared_positions(positions, sections):
+    """{section: its vertices whose position (to 0.01 mm) a vertex of another section has too}: where sections join."""
+    import numpy as np
+    where = {}
+    for s, tris in sections.items():
+        for v in set(int(x) for x in np.asarray(tris).ravel()):
+            where.setdefault(tuple(np.round(positions[v], 5)), set()).add(s)
+    out = {}
+    for s, tris in sections.items():
+        out[s] = {v for v in set(int(x) for x in np.asarray(tris).ravel()) if len(where[tuple(np.round(positions[v], 5))]) > 1}
+    return out
+
+
+def outline(tris):
+    """The vertices on a mesh's open edges (an edge one triangle has)."""
+    import numpy as np
+    count = {}
+    for a, b, c in np.asarray(tris).reshape(-1, 3):
+        for e in ((a, b), (b, c), (c, a)):
+            k = frozenset((int(e[0]), int(e[1])))
+            count[k] = count.get(k, 0) + 1
+    return {v for e, n in count.items() if n == 1 for v in e}
+
+
 def anim_block(data):
     """A sequence's file of today as 3.3.5's, and where its parts start in it. Today's .anim has the
     skeleton's bone data (AFSB), its attachments' (AFSA) and the model's own (AFM2) in chunks, each
@@ -964,6 +988,17 @@ def convert(files, policy, out_dir, log=print):
         sizes[t] = sizes.get(t, 0) + len(source_tris[s]) * 3
     cut = dict(source_tris)
     tier_of_section = {s: tier_of(new_id) for new_id, s, b in plan}
+    # Where two sections meet (the neck under the head, a wrist under a hand, the body under a geoset's piece) their
+    # edges are at the same places: a vertex there stays where it is, or the section cut down alone slides its edge
+    # along and the other's doesn't, and the model opens there (the user's "lots of seam gaps", 13 November 2026).
+    joins = shared_positions(positions, source_tris)
+    # The bare body's sections keep their whole outline too: the body, and the variant 01 of a gear group (the bare
+    # hands, feet, wrists and legs drawn while nothing is worn there). A foot's top edge tucked inside the leg meets
+    # nothing at the same place, and slid along it showed as a sliver at the heel. (Every section's outline kept is
+    # more than 3.3.5's 65535 indices allow: the hair, the features and the worn gear still give way along theirs.)
+    bare = {s for new_id, s, b in plan if tier_of(new_id) == "body" or (tier_of(new_id) == "gear" and new_id % 100 == 1)}
+    for s in bare:
+        joins[s] = joins.get(s, set()) | outline(source_tris[s])
     # A pass takes what the floors allow; a mesh may not give all that was asked of it (its
     # outline and seams stay), so further passes ask for the rest, more from every tier.
     copies = {}
@@ -982,7 +1017,7 @@ def convert(files, policy, out_dir, log=print):
         for s, t in tier_of_section.items():
             fraction = keep[t]
             if fraction < 0.999 and len(cut[s]) > 2:
-                cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))))
+                cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))), locked=joins.get(s, ()))
         total = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section)
         if total >= before:
             raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, INDEX_BUDGET, total))
