@@ -541,6 +541,28 @@ object ForeverPlay {
     }
 
     /**
+     * The game's own program ended while the session went on (the Forever Launcher stays up): a report with its exit code,
+     * the game's crash file if it wrote one, and Wine's lines of the moment. Sent by itself, once per program that ended.
+     */
+    fun reportGameEnded(context: Context, program: String, code: String) {
+        val app = context.applicationContext
+        val wine = com.logie.blizz.game.GameLog.snapshot().takeLast(6000)
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                val layout = ForeverLayout.of(app)
+                val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
+                val crash = game?.let { ForeverCtl.clientStop(it, prefs(app).getLong(STOP_SEEN, 0L)) }
+                val body = listOfNotNull(crash?.text?.take(3000), "[wine/box64]\n$wine").joinToString("\n\n")
+                com.logie.blizz.reports.BugReports.report(
+                    app, "WoW Forever", "The game's program ended by itself: $program, code $code",
+                    listOf("Program" to program, "Exit code" to code, "Launcher" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
+                    log = body.takeLast(7000),
+                )
+            }
+        }
+    }
+
+    /**
      * Whether the session of the Play started at [since] is over: its game screen opened after that ([screenOpenedAt],
      * [com.logie.blizz.game.GameLog.startedAt]) and is no longer up ([screenAlive]). Before that the launcher's screen
      * coming back is no stop (Play is still preparing, or the game is only out of sight).

@@ -1,0 +1,1 @@
+World of Warcraft: Forever: when the game closes by itself while the Forever Launcher stays up, the app says so, sends a report, and your taps work on the launcher again.

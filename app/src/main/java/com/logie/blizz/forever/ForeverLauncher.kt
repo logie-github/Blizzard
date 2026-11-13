@@ -170,6 +170,20 @@ object ForeverLauncher {
         return true
     }
 
+    /** One of the game's programs that ended, from a line of the session keeper's ([gameEnded]). */
+    data class Ended(val program: String, val pid: Long, val code: String)
+
+    /**
+     * The session keeper's line for one of the game's own programs ([GAME_PROGRAMS]) ending
+     * (`program ended: Wow.exe (pid 1234, code 0xC0000005)`, tools/borderless), else null (another program, another line).
+     */
+    fun gameEnded(line: String): Ended? {
+        val m = Regex("program ended: (.+?) \\(pid (\\d+), code (0x[0-9A-Fa-f]{8}|unknown)\\)").find(line) ?: return null
+        val program = m.groupValues[1]
+        if (program.lowercase() !in GAME_PROGRAMS) return null
+        return Ended(program, m.groupValues[2].toLong(), m.groupValues[3])
+    }
+
     /** Deletes every placed launcher from a client folder (a repair re-asks the person to pick it). */
     fun removePlaced(clientDir: File) {
         NAMES.forEach { File(clientDir, it).delete() }

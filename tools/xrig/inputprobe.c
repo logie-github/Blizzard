@@ -8,7 +8,7 @@
  * sent, and each size its client area takes, to C:\windows\inputprobe.log, one a line, flushed as written. With
  * "game" it stands in for a modern World of Warcraft client instead: a window over the whole screen with the arrow,
  * and from its fourth second its own cursor (a cross, set on every tick as the game sets its cursor every frame),
- * which is how the app tells that the game's login screen is up. The
+ * which is how the app tells that the game's login screen is up; its log is C:\windows\inputprobe-game.log. The
  * test injects input into the X server and reads the log: what arrives here is what a game would have got on the phone.
  *
  * Built with Zig for x86_64 Windows, the Windows subsystem (no console).
@@ -89,7 +89,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     game = command && strstr(command, "game") != NULL;
     started = GetTickCount();
     if (game) style = WS_POPUP;
-    out = fopen("C:\\windows\\inputprobe.log", "w");
+    /* (the stand-in for a game writes its own log: a launcher's stand-in may be up beside it) */
+    out = fopen(command && strstr(command, "game") != NULL ? "C:\\windows\\inputprobe-game.log" : "C:\\windows\\inputprobe.log", "w");
     memset(&wc, 0, sizeof(wc));
     wc.style = CS_DBLCLKS;
     wc.lpfnWndProc = proc;

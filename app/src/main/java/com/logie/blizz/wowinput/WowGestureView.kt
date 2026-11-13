@@ -128,10 +128,42 @@ class WowGestureView(
     private val crashDir = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR)?.let { java.io.File(it) }
     private val openedAt = System.currentTimeMillis()
     private var crashSeen = false
+    /** Forever with its launcher: the session began in the launcher's phase, and goes back to it when the game's program ends. */
+    private val launcherSession = inLauncher
+    /** The session keeper's lines already read for programs that ended ([gameEnded]). */
+    private var keeperLinesRead = 0
+
+    /**
+     * The game's own program (Wow.exe) ended while the session goes on: the Forever Launcher started it and stays up (the
+     * phone, 13 November 2026: "IN GAME", then the launcher back on its PLAY NOW, the game never seen). Read from the
+     * session keeper's lines (`program ended: Wow.exe (pid N, code 0x...)`, [com.logie.blizz.forever.ForeverLauncher.gameEnded]).
+     * Said in the reports with the exit code and Wine's lines of the moment, and the touch controls go back to the
+     * launcher's (taps are clicks on its buttons, nothing typed), so PLAY NOW can be pressed again.
+     */
+    private fun gameEnded() {
+        val file = com.logie.blizz.game.GameLog.keeperLog ?: return
+        val lines = runCatching { file.readLines(Charsets.ISO_8859_1) }.getOrNull() ?: return
+        if (lines.size < keeperLinesRead) keeperLinesRead = 0
+        val fresh = lines.drop(keeperLinesRead)
+        keeperLinesRead = lines.size
+        val ended = fresh.mapNotNull { com.logie.blizz.forever.ForeverLauncher.gameEnded(it) }.lastOrNull() ?: return
+        com.logie.blizz.game.GameLog.note("forever: the game's program ended by itself: ${ended.program}, code ${ended.code}")
+        com.logie.blizz.forever.ForeverPlay.reportGameEnded(activity, ended.program, ended.code)
+        if (!launcherSession || inLauncher) return
+        inLauncher = true
+        loginShown = false
+        removeCallbacks(screenCheck)
+        prompt?.dismiss()
+        xServer.renderer.isCursorVisible = true
+        android.widget.Toast.makeText(activity, "The game closed by itself (${ended.code}). A report was sent. PLAY NOW starts it again.", android.widget.Toast.LENGTH_LONG).show()
+        watchForGameWindow()
+    }
+
     private val crashWatch = object : Runnable {
         override fun run() {
             val dir = crashDir ?: return
             if (crashSeen) return
+            runCatching { gameEnded() }
             val crash = runCatching { com.logie.blizz.forever.ForeverCtl.settledCrash(dir, openedAt, System.currentTimeMillis()) }.getOrNull()
             if (crash != null) {
                 crashSeen = true
