@@ -143,7 +143,8 @@ def build(read, out_dir, log=print):
     written = []
     for key, race in races.items():
         for sex, model in race["models"].items():
-            policy = dict(model, geosets=None)
+            # (no skin extra: the module's tables name none, build_data.py; Wrath++'s looks do, sl_looks.py)
+            policy = dict(model, geosets=None, skin_extra=False)
             written += m2.convert(read, policy, out_dir, log)
             # at its kin's height (tools/scale.py): blood elves', night elves', Draenei's, trolls'
             model_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2")

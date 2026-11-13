@@ -182,7 +182,7 @@ def table_rows(looks):
             sex = int(sex)
             for s in m["skins"]:
                 c = s["index"]
-                sections.append([race, sex, 0, names.skin(m, c), "", "", 17, 0, c])
+                sections.append([race, sex, 0, names.skin(m, c), names.skin_extra(m, c) if m.get("skin_extra") else "", "", 17, 0, c])
                 if s["pelvis"]:
                     sections.append([race, sex, 4, names.pelvis(m, c), names.torso(m, c) if s["torso"] else "", "", 17, 0, c])
             for fi, face in enumerate(m["faces"]):
@@ -253,6 +253,7 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             with open(layout_path) as f:
                 layout = json.load(f)
             os.remove(layout_path)
+            model["skin_extra"] = bool(layout.get("extra"))       # its skin rows name their extra (table_rows)
             written += textures.build(read, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
