@@ -121,8 +121,59 @@ object ForeverLauncher {
     fun isGameWindow(program: String, width: Int, height: Int, screenWidth: Int, screenHeight: Int): Boolean =
         program.lowercase() in GAME_PROGRAMS && width * 2 >= screenWidth && height * 2 >= screenHeight
 
+    /** The makers' newest release of Karrz's launcher (the WoW Forever Bots repack's releases on GitHub). */
+    const val LATEST_URL = "https://github.com/Karrz1/Karrz-playerbots-wow-forever/releases/latest/download/WoWForeverLauncher.exe"
+    /** Karrz's launcher, the one [LATEST_URL] is: the only one [refresh] replaces. */
+    const val KARRZ_NAME = "WoWForeverLauncher.exe"
+    /** How often [refresh] asks for a newer one. */
+    const val REFRESH_EVERY_MS = 12L * 60 * 60 * 1000
+    private const val CHECKED = ".blizz-launcher-checked"
+
+    /**
+     * Whether [bytes] are Karrz's launcher: a Windows program (`MZ`, a PE header) of a launcher's size that names itself
+     * "WoW Forever Bots" (its window title, UTF-16 as .NET keeps it). Anything else a download gives (an error page, a
+     * cut-off file) is not put in place.
+     */
+    fun isKarrzLauncher(bytes: ByteArray): Boolean {
+        if (bytes.size < 200_000 || bytes.size > 40_000_000) return false
+        if (bytes[0] != 'M'.code.toByte() || bytes[1] != 'Z'.code.toByte()) return false
+        val pe = (bytes[0x3c].toInt() and 0xff) or ((bytes[0x3d].toInt() and 0xff) shl 8) or
+            ((bytes[0x3e].toInt() and 0xff) shl 16) or ((bytes[0x3f].toInt() and 0xff) shl 24)
+        if (pe < 0 || pe + 4 > bytes.size || bytes[pe] != 'P'.code.toByte() || bytes[pe + 1] != 'E'.code.toByte()) return false
+        val title = "WoW Forever Bots".flatMap { listOf(it.code.toByte(), 0.toByte()) }.toByteArray()
+        outer@ for (i in 0..bytes.size - title.size) {
+            for (j in title.indices) if (bytes[i + j] != title[j]) continue@outer
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Puts the makers' newest launcher in place of the one in [clientDir], at most every [REFRESH_EVERY_MS] ([now]): an
+     * older one does not know the game's newest build and asks about it at every PLAY NOW (the phone, 13 November 2026:
+     * the file picked knew up to 70862, the game was 70888; release 0.1.35 knows it). Only Karrz's launcher (by its name),
+     * only a download that [isKarrzLauncher], and the file it replaces kept as `WoWForeverLauncher.exe.blizz-old`. [fetch]
+     * gives the download's bytes (null: no answer). Says whether the launcher changed; any failure leaves it as it was.
+     */
+    fun refresh(clientDir: File, now: Long, fetch: (String) -> ByteArray?): Boolean {
+        val placed = File(clientDir, KARRZ_NAME).takeIf { it.isFile } ?: return false
+        val checked = File(clientDir, CHECKED)
+        if (checked.isFile && now - checked.lastModified() in 0 until REFRESH_EVERY_MS) return false
+        val bytes = runCatching { fetch(LATEST_URL) }.getOrNull() ?: return false
+        runCatching { checked.writeText(""); checked.setLastModified(now) }
+        if (!isKarrzLauncher(bytes)) return false
+        if (bytes.contentEquals(placed.readBytes())) return false
+        val next = File(clientDir, "$KARRZ_NAME.blizz-new")
+        next.writeBytes(bytes)
+        placed.copyTo(File(clientDir, "$KARRZ_NAME.blizz-old"), overwrite = true)
+        if (!next.renameTo(placed)) { next.copyTo(placed, overwrite = true); next.delete() }
+        return true
+    }
+
     /** Deletes every placed launcher from a client folder (a repair re-asks the person to pick it). */
     fun removePlaced(clientDir: File) {
         NAMES.forEach { File(clientDir, it).delete() }
+        File(clientDir, "$KARRZ_NAME.blizz-old").delete()
+        File(clientDir, CHECKED).delete()
     }
 }

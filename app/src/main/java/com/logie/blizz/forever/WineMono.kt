@@ -152,6 +152,23 @@ object WineMono {
         connection.disconnect()
     }
 
+    /** [url]'s bytes (redirects followed, as GitHub's release downloads need), at most [max]; null on any failure. */
+    internal fun fetchBytes(url: String, max: Int = 40_000_000): ByteArray? = runCatching {
+        val c = connect(url)
+        try {
+            c.inputStream.use { input ->
+                val out = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(1 shl 16)
+                while (true) {
+                    val n = input.read(buffer); if (n < 0) break
+                    out.write(buffer, 0, n)
+                    if (out.size() > max) return@runCatching null
+                }
+                out.toByteArray()
+            }
+        } finally { c.disconnect() }
+    }.getOrNull()
+
     private fun fetchText(url: String): String = connect(url).let { c ->
         c.inputStream.bufferedReader().use { it.readText() }.also { c.disconnect() }
     }

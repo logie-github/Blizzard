@@ -132,6 +132,58 @@ class ForeverLauncherTest {
         assertFalse(ForeverLauncher.isGameWindow("", 1828, 1248, sw, sh))
     }
 
+    /** A stand-in for Karrz's launcher: `MZ`, a PE header, and its title as .NET keeps it. */
+    private fun launcherBytes(version: Int): ByteArray {
+        val b = ByteArray(300_000)
+        b[0] = 'M'.code.toByte(); b[1] = 'Z'.code.toByte(); b[0x3c] = 0x80.toByte()
+        b[0x80] = 'P'.code.toByte(); b[0x81] = 'E'.code.toByte()
+        "WoW Forever Bots".forEachIndexed { i, c -> b[0x1000 + 2 * i] = c.code.toByte() }
+        b[0x2000] = version.toByte()
+        return b
+    }
+
+    @Test
+    fun `a download is put in place only when it is Karrz's launcher`() {
+        assertTrue(ForeverLauncher.isKarrzLauncher(launcherBytes(1)))
+        assertFalse(ForeverLauncher.isKarrzLauncher("<html>Not Found</html>".toByteArray()))
+        assertFalse(ForeverLauncher.isKarrzLauncher(launcherBytes(1).copyOf(100_000)))
+        assertFalse(ForeverLauncher.isKarrzLauncher(launcherBytes(1).also { it[0x1000] = 'X'.code.toByte() }))
+        assertFalse(ForeverLauncher.isKarrzLauncher(launcherBytes(1).also { it[0x80] = 0 }))
+    }
+
+    @Test
+    fun `refresh puts the makers' newest launcher in place, at most twice a day, and never breaks the one there`() {
+        val client = Files.createTempDirectory("client").toFile()
+        val placed = File(client, "WoWForeverLauncher.exe")
+        var asked = 0
+        // No launcher, or another maker's: nothing is asked.
+        assertFalse(ForeverLauncher.refresh(client, 1_000_000_000) { asked++; launcherBytes(2) })
+        File(client, "ForeverLauncher.exe").writeBytes(launcherBytes(9))
+        assertFalse(ForeverLauncher.refresh(client, 1_000_000_000) { asked++; launcherBytes(2) })
+        assertEquals(0, asked)
+        // An older one: the newest is put in place, the old kept beside it.
+        placed.writeBytes(launcherBytes(1))
+        assertTrue(ForeverLauncher.refresh(client, 1_000_000_000) { url -> asked++; assertEquals(ForeverLauncher.LATEST_URL, url); launcherBytes(2) })
+        assertTrue(placed.readBytes().contentEquals(launcherBytes(2)))
+        assertTrue(File(client, "WoWForeverLauncher.exe.blizz-old").readBytes().contentEquals(launcherBytes(1)))
+        // Within the half day: not asked again.
+        assertFalse(ForeverLauncher.refresh(client, 1_000_000_000 + 3_600_000) { asked++; launcherBytes(3) })
+        assertEquals(1, asked)
+        // Later: the same file is no change; an error page, a cut-off file or no answer leaves the launcher as it is.
+        var t = 1_000_000_000L
+        for (answer in listOf(launcherBytes(2), "<html>".toByteArray(), launcherBytes(3).copyOf(1000), null)) {
+            t += ForeverLauncher.REFRESH_EVERY_MS
+            assertFalse(ForeverLauncher.refresh(client, t) { answer })
+            assertTrue(placed.readBytes().contentEquals(launcherBytes(2)))
+        }
+        assertFalse(ForeverLauncher.refresh(client, t + ForeverLauncher.REFRESH_EVERY_MS) { throw java.io.IOException("offline") })
+        assertTrue(placed.readBytes().contentEquals(launcherBytes(2)))
+        // Removed with the launcher (a repair asks for it again).
+        ForeverLauncher.removePlaced(client)
+        assertEquals(listOf("ForeverLauncher.exe").filter { File(client, it).exists() }, emptyList<String>())
+        assertFalse(File(client, "WoWForeverLauncher.exe.blizz-old").exists())
+    }
+
     @Test
     fun `removePlaced deletes every known launcher name from the client folder`() {
         val client = Files.createTempDirectory("client").toFile()
