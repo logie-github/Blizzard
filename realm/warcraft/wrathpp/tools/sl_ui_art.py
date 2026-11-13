@@ -164,7 +164,10 @@ def file_name(name):
     """A file's name for a piece: letters, digits, - and _ (a name may begin with _ or !, the game's marks for a piece
     that repeats along or down: h_ and v_ here)."""
     lead = {"_": "h_", "!": "v_"}.get(name[0], "")
-    return lead + re.sub(r"[^a-z0-9_.-]", "-", name[1:] if lead else name)
+    # (no dot: the client finds a texture's file by cutting its name at the last dot and adding .BLP
+    # (TexturePickAlternateFilename), so "raceicon128-human-female.race" was "raceicon128-human-female.blp", the
+    # untrimmed portrait, square on the phone in builds 241 to 246)
+    return lead + re.sub(r"[^a-z0-9_-]", "-", (name[1:] if lead else name).replace(".", "_"))
 
 
 def masked(piece, mask, width, height, inset):
