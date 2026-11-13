@@ -115,6 +115,29 @@ check(mw > R.E.screen.w * 1.2 and select(1, clean(R)), "nearer: the game's model
 R.tap("WrathppResetView"); R.frames(1.5)
 ml, mb, mw, mh = R.E.rect(CharacterCreate)
 check(math.abs(mw - R.E.screen.w) < 1 and math.abs(ml) < 1, "the first of the view's buttons puts the view back")
+-- the views a tap away, and the zoom's slider
+R.tap("WrathppViewRear"); R.frames(1.5)
+ml, mb, mw, mh = R.E.rect(CharacterCreate)
+local function deg(d) return math.abs(R.G.facing - math.rad(d)) < 1e-3 end
+check(deg(165) and mw > R.E.screen.w * 2 and math.abs(WrathppZoomSlider:GetValue() - 2.1) < 0.01 and select(1, clean(R)),
+	"Rear: the character turned away (165), the view near (the model frame "..math.floor(mw).." wide), the slider at 2.1"..select(2, clean(R)))
+R.tap("WrathppViewRear"); R.frames(0.2)
+local side = deg(75)
+R.tap("WrathppViewRear"); R.frames(0.2)
+check(side and deg(165), "  tapped again: side on (75); and again: the rear again")
+R.tap("WrathppViewFace"); R.frames(1.5)
+local fl, fb, fw, fh = R.E.rect(CharacterCreate)
+check(fw > mw and deg(165) and math.abs(WrathppZoomSlider:GetValue() - 3) < 0.01, "Face: nearer still, the character left as it was turned")
+R.tap("WrathppViewTorso"); R.frames(1.5)
+check(math.abs(WrathppZoomSlider:GetValue() - 1.9) < 0.01 and select(1, clean(R)), "Torso: between"..select(2, clean(R)))
+WrathppZoomSlider:SetValue(2.5); R.frames(1.5)
+ml, mb, mw, mh = R.E.rect(CharacterCreate)
+check(math.abs(mw / R.E.screen.w - 2.5) < 0.05, "the slider moved: the view goes with it ("..string.format("%.2f", mw / R.E.screen.w).." times the screen)")
+R.tap("WrathppZoomIn"); R.frames(0.1)
+check(math.abs(WrathppZoomSlider:GetValue() - 2.8) < 0.01, "  and the slider follows the zoom buttons ("..WrathppZoomSlider:GetValue()..")")
+R.tap("WrathppViewFull"); R.frames(1.5)
+ml, mb, mw, mh = R.E.rect(CharacterCreate)
+check(math.abs(mw - R.E.screen.w) < 1 and deg(-15) and WrathppZoomSlider:GetValue() == 1, "Full: the whole character, turned as at the start")
 
 -- a long list under a finger
 local list = WrathppOptionList
@@ -158,12 +181,20 @@ do
 	local first = R.G.screen
 	check(first == "creator 1 drag", "the app is told the creator is up, nothing to drag on the first screen ("..tostring(first)..")")
 	R.tap("WrathppCustomizeButton"); R.frames(0.2)
-	local listed = R.G.screen and R.G.screen:match("^creator 1 drag (%d+) (%d+) (%d+) (%d+)$")
 	local l, b, r, t = R.E.rect(WrathppOptionList)
 	local W2, H2 = R.E.screen.w, R.E.screen.h
-	local a1, a2, a3, a4 = (R.G.screen or ""):match("^creator 1 drag (%d+) (%d+) (%d+) (%d+)")
-	check(a1 and math.abs(tonumber(a1) - l / W2 * 1000) <= 1 and math.abs(tonumber(a4) - (b + t) / H2 * 1000) <= 1 or (listed == nil and WrathppOptionList.content <= WrathppOptionList.view),
+	local areas = {}
+	for a1, a2, a3, a4 in (R.G.screen or ""):gmatch("(%d+) (%d+) (%d+) (%d+)") do areas[#areas + 1] = { tonumber(a1), tonumber(a2), tonumber(a3), tonumber(a4) } end
+	local function listed(f)
+		local fl, fb, fw, fh = R.E.rect(f)
+		for _, a in ipairs(areas) do
+			if ( math.abs(a[1] - fl / W2 * 1000) <= 1 and math.abs(a[4] - (fb + fh) / H2 * 1000) <= 1 ) then return true end
+		end
+		return false
+	end
+	check(listed(WrathppOptionList) or WrathppOptionList.content <= WrathppOptionList.view,
 		"  on Customize, the option list's place where it scrolls ("..tostring(R.G.screen)..")")
+	check(listed(WrathppZoomSlider), "  and the zoom slider's, where a finger drags it ("..tostring(R.G.screen)..")")
 	local f
 	for _, row in ipairs(R.rows()) do if row.row.kind == "list" and not f then f = row end end
 	R.tap(f.choice, WrathppOptionList); R.frames(0.1)

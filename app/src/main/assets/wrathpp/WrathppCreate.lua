@@ -859,6 +859,7 @@ randomizeButton:SetPoint("RIGHT", categoryPanel, "LEFT", -u(9), 0)
 local function facing() return (type(GetCharacterCreateFacing) == "function" and GetCharacterCreateFacing()) or 0 end
 local function turn(degrees)
 	if ( type(SetCharacterCreateFacing) == "function" ) then SetCharacterCreateFacing(facing() + degrees) end
+	if ( W.view and W.PaintViews ) then W.view = nil; W.PaintViews() end      -- turned by hand: no preset's view now
 end
 
 -- The game's preview is the screen's model frame, whose camera no script moves: a model frame draws its scene to fit
@@ -876,9 +877,20 @@ function W.ApplyZoom()
 	model:SetPoint("TOPRIGHT", screen, "BOTTOMLEFT", fx + (w - fx) * W.zoom, fy + (h - fy) * W.zoom)
 end
 
+local ZOOM_MAX = 3.4
+-- The zoom slider shows where the view is going, whoever moved it (a button, the wheel, a category, a preset).
+function W.SyncZoomSlider()
+	local s = W.zoomSlider
+	if ( not s ) then return end
+	W.syncingZoom = true
+	s:SetValue(W.zoomTarget or W.zoom)
+	W.syncingZoom = false
+end
+
 function W.SetZoom(zoom, focusY)
-	W.zoomTarget = math.max(1, math.min(zoom, 2.6))
+	W.zoomTarget = math.max(1, math.min(zoom, ZOOM_MAX))
 	if ( focusY ) then W.focusTarget = focusY end
+	W.SyncZoomSlider()
 end
 
 -- The middle of the screen: a finger across it turns the character (and, while zoomed, up and down moves the view).
@@ -912,6 +924,74 @@ local turnLeft = holdButton("WrathppTurnLeft", "common-icon-rotateleft", functio
 turnLeft:SetPoint("LEFT", zoomIn, "RIGHT", u(30 - 5), 0)
 local turnRight = holdButton("WrathppTurnRight", "common-icon-rotateright", function(elapsed) turn(140 * elapsed) end)
 turnRight:SetPoint("LEFT", turnLeft, "RIGHT", -u(5), 0)
+
+-- The zoom as a slider beside the turning buttons, and views a tap away under them (the user: "camera zoom sliders next
+-- to the camera rotate that have presets for normal default zoom, face view, torso view, butt area view so I can see
+-- exactly what changes we're making"). Shadowlands has no slider here: the track and thumb are drawn with plain colours
+-- and the chosen ring's gold, files every client has. On the phone a finger dragged on it is a drag (tellScreen).
+local zoomSlider = make("Slider", "WrathppZoomSlider", viewPanel)
+zoomSlider:SetOrientation("HORIZONTAL")
+zoomSlider:SetWidth(u(150)); zoomSlider:SetHeight(u(30))
+zoomSlider:SetPoint("LEFT", turnRight, "RIGHT", u(14), 0)
+zoomSlider:SetMinMaxValues(1, ZOOM_MAX); zoomSlider:SetValueStep(0.01)
+zoomSlider:EnableMouse(true)
+zoomSlider.track = zoomSlider:CreateTexture(nil, "BACKGROUND")
+zoomSlider.track:SetHeight(u(8)); zoomSlider.track:SetPoint("LEFT", zoomSlider, "LEFT", 0, 0); zoomSlider.track:SetPoint("RIGHT", zoomSlider, "RIGHT", 0, 0)
+zoomSlider.track:SetTexture(0.06, 0.06, 0.08, 0.9)
+zoomSlider.edge = zoomSlider:CreateTexture(nil, "BORDER")
+zoomSlider.edge:SetHeight(u(2)); zoomSlider.edge:SetPoint("LEFT", zoomSlider.track, "LEFT", 0, 0); zoomSlider.edge:SetPoint("RIGHT", zoomSlider.track, "RIGHT", 0, 0)
+zoomSlider.edge:SetTexture(0.55, 0.45, 0.2, 0.9)
+zoomSlider.thumb = zoomSlider:CreateTexture(nil, "OVERLAY")
+zoomSlider.thumb:SetWidth(u(26)); zoomSlider.thumb:SetHeight(u(26))
+skin(function() atlas(zoomSlider.thumb, "charactercreate-ring-select") end)
+zoomSlider:SetThumbTexture(zoomSlider.thumb)
+zoomSlider:SetScript("OnValueChanged", function(self, value)
+	if ( W.syncingZoom ) then return end
+	value = tonumber(value) or tonumber(arg1) or self:GetValue()
+	W.view = nil
+	W.zoomTarget = math.max(1, math.min(value, ZOOM_MAX))
+end)
+W.zoomSlider = zoomSlider
+W.SyncZoomSlider()
+
+-- The views: how near, the height on the screen the view comes in on (as the categories' own zoom), and for the rear
+-- the character turned away (a little to the side, as the front view is: -15); a second tap on Rear turns it side on.
+local VIEWS = {
+	{ name = "Full", zoom = 1, focus = 0.6, facing = -15 },
+	{ name = "Face", zoom = 3.0, focus = 0.76 },
+	{ name = "Torso", zoom = 1.9, focus = 0.6 },
+	{ name = "Rear", zoom = 2.1, focus = 0.44, facing = 165, again = 75 },
+}
+function W.View(name)
+	for _, v in ipairs(VIEWS) do
+		if ( v.name == name ) then
+			-- (Rear tapped again: side on, and again: back to the rear)
+			if ( W.view == name and v.again ) then W.viewAgain = not W.viewAgain else W.viewAgain = false end
+			W.SetZoom(v.zoom, v.focus); W.spin = 0
+			local face = W.viewAgain and v.again or v.facing
+			if ( face and type(SetCharacterCreateFacing) == "function" ) then SetCharacterCreateFacing(face) end
+			W.view = name
+		end
+	end
+	if ( W.PaintViews ) then W.PaintViews() end
+end
+local viewButtons = {}
+for k, v in ipairs(VIEWS) do
+	local b = make("Button", "WrathppView"..v.name, viewPanel)
+	b:SetWidth(u(120)); b:SetHeight(u(38))
+	b:SetPoint("TOPLEFT", viewPanel, "BOTTOMLEFT", u(2), -u(12) - (k - 1) * u(46))
+	b.back = b:CreateTexture(nil, "BACKGROUND"); b.back:SetAllPoints(b)
+	b.glow = b:CreateTexture(nil, "HIGHLIGHT"); b.glow:SetAllPoints(b); b.glow:SetBlendMode("ADD"); b.glow:SetAlpha(0.3)
+	b.caption = label(b, 14, "gold"); b.caption:SetPoint("CENTER", b, "CENTER", 0, 0); b.caption:SetText(v.name)
+	function b:Paint()
+		atlas(self.back, "charactercreate-customize-dropdownbox"..(W.view == v.name and "-open" or ""))
+		atlas(self.glow, "charactercreate-customize-dropdownbox-hover")
+	end
+	b:SetScript("OnClick", guarded(function() W.View(v.name) end))
+	skin(function() b:Paint() end)
+	viewButtons[k] = b
+end
+function W.PaintViews() for _, b in ipairs(viewButtons) do b:Paint() end end
 
 -- The categories -------------------------------------------------------------------------------------------------------
 
@@ -1561,6 +1641,8 @@ end
 local opened = guarded(function()
 	W.category = nil
 	W.zoom, W.zoomTarget, W.focusY, W.focusTarget, W.spin = 1, 1, 0.6, 0.6, 0
+	W.view, W.viewAgain = nil, false
+	pcall(W.SyncZoomSlider); pcall(W.PaintViews)
 	W.fresh = 3
 	W.gear = true                                         -- the game dresses the character as the creator opens
 	log("opened: native "..tostring(type(WrathPP_NativeVersion) == "function" and WrathPP_NativeVersion() or "none")
@@ -1600,6 +1682,7 @@ local function tellScreen(up)
 		end
 		if ( W.step == 2 and optionList.content > optionList.view ) then add(optionList) end
 		if ( popout:IsShown() ) then add(popout) end
+		if ( W.step == 2 ) then add(W.zoomSlider) end
 		text = table.concat(parts, " ")
 	end
 	if ( text == lastScreen ) then return end

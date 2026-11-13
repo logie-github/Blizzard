@@ -48,7 +48,7 @@ What the engine keeps to, each because the stand-in did not:
 fetched from this repository's issues). `wrathpp-looks.yml` runs it with the looks it has just made and does not
 publish them if it fails. About two minutes:
 
-- `behaviour.lua`: the screen opened (in the client's order), the two screens, the game's own buttons in the creator's
+- `behaviour.lua`: the screen opened (in the client's order), the two screens, the views (Full, Face, Torso, Rear) and the zoom slider, the game's own buttons in the creator's
   panels doing the game's work, Undead, Gear, turning, nearer and back, a list under a finger, Finish, a death knight,
   no native mod.
 - `off.lua`: the creator turned off; every piece of the game's own screen is where and as it is without the creator,
