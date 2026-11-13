@@ -117,7 +117,7 @@ R.tap("WrathppCategory1"); R.frames(0.1)
 if list:Limit() > 0 then
 	local row = R.rows()[2]
 	R.E.cursor = { 900, 300 }; row.choice.__scripts.OnMouseDown(row.choice); R.E.cursor = { 900, 340 }; R.frames(0.04)
-	check(list.offset > 0 and list:GetVerticalScroll() == list.offset, "a finger dragged up a list moves it ("..list.offset..")")
+	check(list.offset > 0 and math.abs(list:GetVerticalScroll() - list.offset) <= R.E.screen.h / 1248, "a finger dragged up a list moves it ("..list.offset..")")
 	row.choice.__scripts.OnMouseUp(row.choice); row.choice.__scripts.OnClick(row.choice)
 	check(not R.visible("WrathppPopout"), "  and the row it began on isn't tapped")
 else print("ok   (this category's options fit their place: no list to drag)") end
@@ -169,6 +169,67 @@ do
 	check(R.G.screens == count, "  said once, not every frame")
 	R.close(); R.frames(0.1)
 	check(R.G.screen == "creator 0", "  and told it is gone when the screen closes")
+end
+
+-- the option list under a finger, frame by frame at 30 a second (the game on the phone): with the finger one for one,
+-- no jump as the drag begins, nothing read again meanwhile, a flick going on and slowing, on whole pixels
+do
+	local R = make({ race = 1, sex = 0, class = 1 })
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.5)
+	local list = WrathppOptionList
+	-- the category with the most rows
+	local best, most = nil, 0
+	for k = 1, 6 do local b = _G["WrathppCategory"..k]; if b and b:IsVisible() then R.tap(b); R.frames(0.6); if #R.rows() > most then most, best = #R.rows(), b end end end
+	R.tap(best); R.frames(1)
+	local limit = list.content - list.view
+	check(limit > 60, "  a list longer than its place to scroll ("..most.." rows, "..math.floor(limit).." units more than it shows)")
+	local row = R.rows()[2]
+	local _, rb, _, rh = R.E.rect(row)
+	local dt = 1 / 30
+	local function frame() R.E.update(dt, 1) end
+	R.E.cursor = { 900, rb + rh / 2 }
+	local down = row:GetScript("OnMouseDown"); down(row)
+	local refreshes = WrathppCreator.refreshes or 0
+	local duringDrag
+	local steps, jump, follows = {}, 0, true
+	local before = list.offset
+	for i = 1, 8 do
+		R.E.cursor[2] = R.E.cursor[2] + 7                -- the finger up 7 units a frame (210 a second)
+		frame()
+		local moved = list.offset - before; before = list.offset
+		steps[#steps + 1] = moved
+		if ( moved > 7.01 ) then jump = math.max(jump, moved) end
+		if ( i > 2 and list.offset < limit and math.abs(moved - 7) > 0.01 ) then follows = false end
+	end
+	check(jump == 0 and follows, "  dragged: the list goes with the finger, unit for unit, and does not jump as the drag begins (steps "..string.format("%.1f %.1f %.1f %.1f", steps[1], steps[2], steps[3], steps[4])..")")
+	duringDrag = (WrathppCreator.refreshes or 0) - refreshes
+	local up = row:GetScript("OnMouseUp"); up(row)
+	local flung, last, slowing, past, during = {}, list.offset, true, false, nil
+	local busyReads = 0
+	for i = 1, 60 do
+		local had = WrathppCreator.refreshes or 0
+		frame()
+		if ( list:Busy() and (WrathppCreator.refreshes or 0) > had ) then busyReads = busyReads + 1 end
+		local moved = list.offset - last; last = list.offset
+		if ( #flung > 0 and moved > flung[#flung] + 0.001 ) then slowing = false end
+		if ( list.offset > limit + 0.001 or list.offset < -0.001 ) then past = true end
+		flung[#flung + 1] = moved
+	end
+	during = busyReads + ((duringDrag or 0))
+	check(flung[1] > 3 and slowing and not past and flung[#flung] == 0, "  let go while moving: it goes on, slowing every frame, and stops, never past the end (first "..string.format("%.1f", flung[1])..", "..string.format("%.0f", list.offset - 56).." units on)")
+	check(during == 0, "  the rows not read again while the list moved ("..tostring(during).." times)")
+	R.frames(0.6)
+	check((WrathppCreator.refreshes or 0) > refreshes, "  and read again once it rests")
+	-- a finger that stops before it lifts throws nothing
+	R.E.cursor = { 900, rb + rh / 2 }; down(row)
+	for i = 1, 10 do R.E.cursor[2] = R.E.cursor[2] - 6; frame() end
+	for i = 1, 4 do frame() end
+	local at = list.offset; up(row); frame(); frame()
+	check(math.abs(list.offset - at) < 0.001, "  stopped, then lifted: it stays where it is")
+	-- where the content is set: whole pixels of the phone's 1248
+	local px = R.E.screen.h / 1248
+	local v = list.__vscroll or 0
+	check(math.abs(v / px - math.floor(v / px + 0.5)) < 1e-6, "  placed on whole pixels of the screen ("..string.format("%.3f", v / px)..")")
 end
 
 -- pictures for the app's report: only when the app asks, one of each screen a moment after it is first up and one of

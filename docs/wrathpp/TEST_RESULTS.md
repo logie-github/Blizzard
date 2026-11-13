@@ -363,3 +363,14 @@ the Human woman rendered from four sides with the old and new cut, the old one's
 the ankle and heel found by machine (background seen through the figure) and by eye, gone in the new; `test_tools.py`
 (two sections cut down pinned meet at every point of their join; not pinned they do not). Not run: the models in the
 game; the next looks package carries them.
+
+## 2026-11-13: the list of options under a finger
+
+The user: "the screen needs to be smooth when scrolling in the character creator on the right". Found in the creator:
+the rows read again four times a second while the list moved (every row's text and pictures set again), the list
+jumping the drag's first six units as it began, a flick that only aimed at one place and eased there, the content on
+fractions of a pixel, the word to the touch made every frame. Run here: `behaviour.lua`, a finger dragging the longest
+list of a Human man frame by frame at 30 a second: unit for unit with the finger and no jump as it begins (steps 0, 7,
+7, 7 for a finger moving 7 a frame); let go moving, on 45 units more, slowing every frame, stopping, never past the end;
+not read again while it moved, read again once at rest; stopped then lifted, it stays; placed on whole pixels of 1248;
+the whole rig with the art, 0 problems. Not run: the game; how many frames a second it draws on the phone.

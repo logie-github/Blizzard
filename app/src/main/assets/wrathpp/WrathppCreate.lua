@@ -50,6 +50,18 @@ local ALLIANCE = { HUMAN = true, DWARF = true, NIGHTELF = true, GNOME = true, DR
 local SIZE = 1.2
 local S = 768 / 1080 * SIZE
 local function u(n) return n * S end
+-- One pixel of the game's screen in the screen's units (gxResolution's height over the 768 units of the screen).
+local pixel
+function W.Pixel()
+	if ( pixel == nil ) then
+		pixel = 0
+		local res = type(GetCVar) == "function" and GetCVar("gxResolution")
+		local h = res and tonumber(string.match(res, "x(%d+)"))
+		local units = GlueParent and GlueParent:GetHeight()
+		if ( h and h > 0 and units and units > 0 ) then pixel = units / h end
+	end
+	return pixel
+end
 local POP = 1.4                                         -- the lists of choices larger again: a line is a finger's target
 local ROW_PITCH = u(38 + 32)                            -- an option's row and the space under it (the Options layout's spacing)
 local ROW_H = ROW_PITCH
@@ -612,8 +624,10 @@ local function scroller(name, parent, width, height)
 		self:Place()
 	end
 	function s:SetView(h) self.view = h; self:SetHeight(h); self:SetContentHeight(self.content) end
+	-- (the content placed on whole pixels of the phone's screen: between them its text and pictures shimmer as it moves)
 	function s:Place()
-		self:SetVerticalScroll(self.offset)
+		local px = W.Pixel and W.Pixel() or 0
+		self:SetVerticalScroll(px > 0 and math.floor(self.offset / px + 0.5) * px or self.offset)
 		local limit = self:Limit()
 		if ( limit <= 0 ) then self.bar:Hide(); return end
 		local length = math.max(24, self.view * self.view / self.content)
@@ -622,15 +636,38 @@ local function scroller(name, parent, width, height)
 		self.bar:SetPoint("TOPRIGHT", self, "TOPRIGHT", -1, -(self.view - length) * (self.offset / limit))
 		self.bar:Show()
 	end
-	function s:ScrollTo(offset) self.target = math.max(0, math.min(offset, self:Limit())); self.velocity = 0 end
+	function s:ScrollTo(offset) self.target = math.max(0, math.min(offset, self:Limit())); self.velocity = 0; self.flinging = false end
 	function s:Reveal(top, bottom)
 		if ( top < self.target ) then self:ScrollTo(top) elseif ( bottom > self.target + self.view ) then self:ScrollTo(bottom - self.view) end
 	end
+	-- Whether the list is moving (a finger on it, a fling, an ease): the creator does nothing heavy meanwhile.
+	function s:Busy() return self.dragging or self.flinging or math.abs(self.target - self.offset) >= 0.25 end
+	-- A drag: the content goes with the finger one for one, from where it was when the finger had moved past a few
+	-- units (a tap stays a tap); where it was over the last tenth of a second is kept, for how fast it goes on after.
+	local SLOP, KEEP = 6, 0.1
 	function s:Press()
 		local _, y = cursor()
-		self.dragging, self.pressY, self.pressOffset, self.lastY, self.moved, self.velocity = true, y, self.offset, y, false, 0
+		self.dragging, self.pressY, self.pressOffset, self.moved, self.velocity, self.flinging = true, y, self.offset, false, 0, false
+		self.target = self.offset
+		self.samples = {}
 	end
-	function s:Release() self.dragging = false; self.target = self.offset + self.velocity * 0.25; self.target = math.max(0, math.min(self.target, self:Limit())) end
+	function s:Release()
+		if ( not self.dragging ) then return end
+		self.dragging = false
+		self.velocity, self.flinging = 0, false
+		local samples, now = self.samples or {}, GetTime()
+		local last = samples[#samples]
+		-- (a finger that stopped before it lifted throws nothing)
+		if ( self.moved and last and now - last[1] < 0.06 ) then
+			local first = samples[1]
+			for _, p in ipairs(samples) do if ( now - p[1] <= KEEP ) then first = p; break end end
+			if ( first and last[1] - first[1] > 0.008 ) then
+				self.velocity = (last[2] - first[2]) / (last[1] - first[1])
+				self.flinging = math.abs(self.velocity) > 40
+			end
+		end
+		self.target = self.offset
+	end
 	-- A tap on something inside counts only if the finger didn't drag the list.
 	function s:Tapped() return not self.moved end
 	function s:Watch(frame)
@@ -639,23 +676,38 @@ local function scroller(name, parent, width, height)
 		frame:SetScript("OnMouseUp", function() list:Release() end)
 	end
 	function s:Update(elapsed)
+		if ( elapsed <= 0 ) then return end
+		local limit = self:Limit()
 		if ( self.dragging ) then
 			local _, y = cursor()
 			local scale = (self.GetEffectiveScale and self:GetEffectiveScale()) or 1
 			if ( scale <= 0 ) then scale = 1 end
-			local moved = (y - self.pressY) / scale
-			if ( math.abs(moved) > 6 ) then self.moved = true end
+			if ( not self.moved and math.abs(y - self.pressY) / scale > SLOP ) then
+				-- from here on with the finger, without the slop's jump
+				self.moved, self.pressY, self.pressOffset = true, y, self.offset
+			end
 			if ( self.moved ) then
-				local offset = math.max(0, math.min(self.pressOffset + moved, self:Limit()))
-				if ( elapsed > 0 ) then self.velocity = 0.6 * self.velocity + 0.4 * ((y - self.lastY) / scale) / elapsed end
+				local offset = math.max(0, math.min(self.pressOffset + (y - self.pressY) / scale, limit))
 				self.offset, self.target = offset, offset
+				local now = GetTime()
+				local samples = self.samples
+				samples[#samples + 1] = { now, offset }
+				while ( #samples > 2 and now - samples[1][1] > KEEP * 2 ) do table.remove(samples, 1) end
 				self:Place()
 			end
-			self.lastY = y
+		elseif ( self.flinging ) then
+			-- on with the speed it was let go at, slowing as a page on a phone does (a quarter second to lose two thirds),
+			-- stopping at the ends
+			self.offset = self.offset + self.velocity * elapsed
+			self.velocity = self.velocity * math.exp(-elapsed * 4)
+			if ( self.offset <= 0 or self.offset >= limit ) then self.offset = math.max(0, math.min(self.offset, limit)); self.velocity = 0 end
+			if ( math.abs(self.velocity) < 15 ) then self.flinging, self.velocity = false, 0 end
+			self.target = self.offset
+			self:Place()
 		elseif ( self.offset ~= self.target ) then
+			-- the wheel, a reveal: eased there, the same share of the way each moment whatever the frame rate
 			local gap = self.target - self.offset
-			local move = gap * math.min(1, elapsed * 12)
-			if ( math.abs(gap) < 0.5 ) then self.offset = self.target else self.offset = self.offset + move end
+			if ( math.abs(gap) < 0.25 ) then self.offset = self.target else self.offset = self.offset + gap * (1 - math.exp(-elapsed * 14)) end
 			self:Place()
 		end
 	end
@@ -1072,6 +1124,7 @@ function WrathppCreate_ClosePopout()
 	if ( popout.owner and popout.owner.choice ) then popout.owner.choice.open = nil; popout.owner.choice:Paint() end
 	popout:Hide(); catcher:Hide()
 	popout.row, popout.owner, popout.room = nil, nil, nil
+	if ( W.TellScreen and not W.off ) then W.TellScreen(true) end
 end
 
 -- How many columns, and how many lines in each (Shadowlands' getNumColumnsAndStride).
@@ -1143,6 +1196,7 @@ function WrathppCreate_TogglePopout(f)
 	if ( under ) then popout:SetPoint("TOPRIGHT", f.choice, "BOTTOMRIGHT", u(3), u(11)) else popout:SetPoint("BOTTOMRIGHT", f.choice, "TOPRIGHT", u(3), -u(11)) end
 	catcher:Show(); popout:Show()
 	if ( W.ShotDue ) then W.ShotDue("a list", 0.6) end
+	if ( W.TellScreen ) then W.TellScreen(true) end
 end
 
 -- The game's own pieces ---------------------------------------------------------------------------------------------------
@@ -1376,6 +1430,7 @@ end
 
 local function refresh()
 	if ( W.off or W.step ~= 2 ) then return end
+	W.refreshes = (W.refreshes or 0) + 1
 	local model = looks()
 	-- the categories of this race and sex, in a row that ends 20 from the screen's right edge
 	local n = 0
@@ -1437,6 +1492,7 @@ local function setStep(n)
 	spinArea:Show()
 	WrathppCreate_Refresh()
 	W.ShotDue(first and "race and class" or "customize", 1.5)
+	if ( W.TellScreen ) then W.TellScreen(true) end
 end
 
 WrathppCreate_SetStep = guarded(setStep)
@@ -1576,7 +1632,7 @@ end
 -- Every frame: the lists easing, the character turning, the view coming nearer; four times a second the rows again
 -- (what the game's own state is, however it changed).
 local driver = make("Frame", "WrathppDriver", root)
-local sinceRefresh = 0
+local sinceRefresh, sinceScreen = 0, 0
 -- The screen shown: the game's own OnShow may not have run yet (this frame's runs first), and until it has there is no
 -- character, so nothing is opened from here: the first frame drawn after it opens the creator (OnUpdate below).
 driver:SetScript("OnShow", function() if ( not W.off ) then W.pending = 1 end end)
@@ -1601,7 +1657,8 @@ driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	end
 	for _, s in ipairs(scrollers) do s:Update(elapsed) end
 	shoot(elapsed)
-	tellScreen(true)
+	sinceScreen = sinceScreen + elapsed
+	if ( sinceScreen >= 0.2 ) then sinceScreen = 0; tellScreen(true) end
 	if ( W.turning ) then
 		local x, y = cursor()
 		local dx, dy = x - W.lastX, y - W.lastY
@@ -1629,8 +1686,12 @@ driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 		if ( math.abs(target - W.zoom) <= 0.002 ) then W.zoom = target end
 		W.ApplyZoom()
 	end
+	-- the rows read again four times a second, but not while a list moves: reading them sets every row's text and
+	-- pictures again, and done under a finger it made the list stutter
 	sinceRefresh = sinceRefresh + elapsed
-	if ( sinceRefresh >= 0.25 ) then sinceRefresh = 0; WrathppCreate_Refresh() end
+	local moving = false
+	for _, s in ipairs(scrollers) do if ( s:Busy() ) then moving = true end end
+	if ( sinceRefresh >= 0.25 and not moving ) then sinceRefresh = 0; WrathppCreate_Refresh() end
 end, true))
 
 -- Nothing of this shows before the creator is opened (the game's own pieces are moved then, not now).

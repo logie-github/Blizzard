@@ -35,6 +35,9 @@ return function(opts)
 	CHARACTER_ROTATION_CONSTANT = 0.6
 	function GetCursorPosition() return E.cursor[1], E.cursor[2] end
 	function GetTime() return E.clock end
+	-- the phone's screen: 1828 x 1248 pixels (Config.wtf's gxResolution, as the phone's report has it)
+	local cvars = { gxResolution = opts.resolution or "1828x1248" }
+	function GetCVar(name) return cvars[name] end
 	function PlaySound() end
 	function Screenshot() R.notes[#R.notes + 1] = "screenshot" end
 	function message(text) R.notes[#R.notes + 1] = "message: "..tostring(text) end
