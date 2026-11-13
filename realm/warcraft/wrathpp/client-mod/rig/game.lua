@@ -625,8 +625,10 @@ function G.define()
 		if ( on ) then dress() else P.dressed = false end
 		return true
 	end
+	G.screen = nil
+	function WrathPP_SetScreen(text) if ( type(text) ~= "string" ) then error("WrathPP_SetScreen(text): text is a string", 2) end; G.screen = text; G.screens = (G.screens or 0) + 1; return true end
 	function WrathPP_Log(text) if ( type(text) ~= "string" ) then error("WrathPP_Log(text): text is a string", 2) end; G.log[#G.log + 1] = text end
-	function WrathPP_NativeVersion() return "0.3.0" end
+	function WrathPP_NativeVersion() return "0.4.0" end
 end
 
 return G

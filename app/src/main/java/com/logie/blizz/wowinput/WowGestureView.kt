@@ -85,6 +85,13 @@ class WowGestureView(
      * as each character comes into the world.
      */
     private val interfaceFile = java.io.File(runFolder, "interface")
+    /**
+     * Wrath++'s creator's word on whether it is up and where its lists drag ([CreatorScreen]); only what was written since
+     * this screen was made counts (a second's slack for the file system's clock).
+     */
+    private val creatorFile = java.io.File(com.logie.blizz.wow.WowLayout.of(activity).wrathppClient, "Logs/wrathpp-screen.txt")
+    private val startedAt = System.currentTimeMillis() - 1000
+    private fun creatorWord(): String? = CreatorScreen.read(creatorFile, startedAt)
     private var lastTapX = 0f
     private var lastTapY = 0f
 
@@ -535,7 +542,7 @@ class WowGestureView(
     }
 
     /** On a window whose icons drag, by what the app's add-on last said ([InterfaceNote]). */
-    override fun turnsModel() = characterCreation
+    override fun turnsModel() = CreatorScreen.up(creatorWord()) ?: characterCreation
 
     /**
      * A small picture of the game's window (Winlator draws it, at most 256 pixels high, on its
@@ -584,15 +591,19 @@ class WowGestureView(
         }
     }.getOrNull()
 
-    override fun dragsAt(x: Float, y: Float): Boolean = inAreas(x, y) { InterfaceNote.dragAreas(it) }
+    override fun dragsAt(x: Float, y: Float): Boolean =
+        inAreas(x, y) { InterfaceNote.dragAreas(it) } || inAreas(x, y, creatorWord()) { CreatorScreen.dragAreas(it) }
 
     /** On the bags, the bank, the character pane, the talents, the action bars or the spellbook. */
     override fun rightClicksAt(x: Float, y: Float): Boolean =
         inAreas(x, y) { InterfaceNote.holdAreas(it) + InterfaceNote.dragAreas(it) }
 
     /** Whether the screen's [x], [y] is in one of the areas the add-on's last note gives. */
-    private fun inAreas(x: Float, y: Float, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean {
-        val areas = areasOf(runCatching { interfaceFile.readText() }.getOrNull())
+    private fun inAreas(x: Float, y: Float, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean =
+        inAreas(x, y, runCatching { interfaceFile.readText() }.getOrNull(), areasOf)
+
+    private fun inAreas(x: Float, y: Float, note: String?, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean {
+        val areas = areasOf(note)
         if (areas.isEmpty()) return false
         val point = XForm.transformPoint(xform, x, y)
         val width = xServer.screenInfo.width.toFloat()

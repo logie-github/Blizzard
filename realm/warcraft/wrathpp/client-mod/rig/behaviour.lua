@@ -26,7 +26,7 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
-check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.3.0, looks' options in") and R.G.log[3] == "screen: race and class", "  the log: built, opened, the first screen ("..table.concat(R.G.log, " | ")..")")
+check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.4.0, looks' options in") and R.G.log[3] == "screen: race and class", "  the log: built, opened, the first screen ("..table.concat(R.G.log, " | ")..")")
 -- the game's own buttons, where the creator put them, do the game's own work
 R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))
@@ -145,6 +145,31 @@ for _, f in ipairs(R.rows()) do names[#names + 1] = f.row.name end
 local skin0 = R.G.character.skin
 if R.rows()[1] then R.tap(R.rows()[1].next); R.frames(0.1) end
 check(#names == 5 and R.G.character.skin ~= skin0 and select(1, clean(R)), "without the native mod: the game's own five ("..table.concat(names, ", ").."), stepped by the game"..select(2, clean(R)))
+
+-- the app's touch told: the creator up, where a finger drags a list, and down when it closes
+do
+	local R = make({ race = 1, sex = 0, class = 1 })
+	R.open(); R.frames(0.2)
+	local first = R.G.screen
+	check(first == "creator 1 drag", "the app is told the creator is up, nothing to drag on the first screen ("..tostring(first)..")")
+	R.tap("WrathppCustomizeButton"); R.frames(0.2)
+	local listed = R.G.screen and R.G.screen:match("^creator 1 drag (%d+) (%d+) (%d+) (%d+)$")
+	local l, b, r, t = R.E.rect(WrathppOptionList)
+	local W2, H2 = R.E.screen.w, R.E.screen.h
+	local a1, a2, a3, a4 = (R.G.screen or ""):match("^creator 1 drag (%d+) (%d+) (%d+) (%d+)")
+	check(a1 and math.abs(tonumber(a1) - l / W2 * 1000) <= 1 and math.abs(tonumber(a4) - (b + t) / H2 * 1000) <= 1 or (listed == nil and WrathppOptionList.content <= WrathppOptionList.view),
+		"  on Customize, the option list's place where it scrolls ("..tostring(R.G.screen)..")")
+	local f
+	for _, row in ipairs(R.rows()) do if row.row.kind == "list" and not f then f = row end end
+	R.tap(f.choice, WrathppOptionList); R.frames(0.1)
+	local n = 0; for _ in (R.G.screen or ""):gmatch("%d+ %d+ %d+ %d+") do n = n + 1 end
+	check(n >= 1 and R.visible("WrathppPopout"), "  a list of choices open: its place too ("..tostring(R.G.screen)..")")
+	local count = R.G.screens
+	R.frames(1)
+	check(R.G.screens == count, "  said once, not every frame")
+	R.close(); R.frames(0.1)
+	check(R.G.screen == "creator 0", "  and told it is gone when the screen closes")
+end
 
 -- pictures for the app's report: only when the app asks, one of each screen a moment after it is first up and one of
 -- the first list opened, by the game's own Screenshot

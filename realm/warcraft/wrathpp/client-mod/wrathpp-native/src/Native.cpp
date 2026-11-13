@@ -24,6 +24,11 @@
 //                                customization (the client's StartLoad). -> true, or nothing while no character is on it.
 //   WrathPP_Log(text)            a line of the creator's into the runtime's log, tagged wrathpp, "creator: text": what
 //                                the creator did (built, opened, which screen, why it went off), for the app's reports.
+//   WrathPP_SetScreen(text)      the creator's word to the app on what is on the screen: "creator 1 drag <left bottom
+//                                right top>..." while it is up (where a finger drags a list, in thousandths of the screen
+//                                from its bottom left), "creator 0" when it is not. Written whole (a file beside it, then
+//                                moved over it) to Logs\wrathpp-screen.txt beside the game; the app's touch reads it
+//                                (WowGestureView): on the creator a finger turns the character and walks nowhere.
 //   WrathPP_NativeVersion()      -> this mod's version, for the interface to know it is there.
 //
 // Addresses and layouts: WarcraftXL-Labs/core's offset tables and the decompiled client
@@ -40,7 +45,14 @@
 // The creator uses context 0 (COMPONENT_CONTEXT_0), as CCharacterCreation's own calls do.
 
 #include <cstdint>
+#include <string>
 #include <utility>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 #include "wxl/sdk.hpp"
 #include "wxl/services/script.hpp"
@@ -206,7 +218,46 @@ namespace
         wxl::Log(WXL_LOG_INFO, kTag, "creator: {}", text->substr(0, 400));
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.3.0"); }
+#if defined(_WIN32)
+    /// Logs\wrathpp-screen.txt beside the game's program, written whole: [text] into a file beside it, then moved over it.
+    bool WriteScreen(const std::string& text)
+    {
+        wchar_t exe[MAX_PATH];
+        const DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
+        if (n == 0 || n >= MAX_PATH) return false;
+        std::wstring dir(exe, n);
+        const auto slash = dir.find_last_of(L"\\/");
+        if (slash == std::wstring::npos) return false;
+        dir.resize(slash + 1);
+        dir += L"Logs";
+        CreateDirectoryW(dir.c_str(), nullptr);
+        const std::wstring target = dir + L"\\wrathpp-screen.txt";
+        const std::wstring part = target + L".part";
+        HANDLE file = CreateFileW(part.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (file == INVALID_HANDLE_VALUE) return false;
+        DWORD written = 0;
+        const bool ok = WriteFile(file, text.data(), static_cast<DWORD>(text.size()), &written, nullptr) && written == text.size();
+        FlushFileBuffers(file);
+        CloseHandle(file);
+        return ok && MoveFileExW(part.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+    }
+#else
+    bool WriteScreen(const std::string&) { return false; }
+#endif
+
+    void SetScreenCall(wxl::ScriptCall& call)
+    {
+        const auto text = call.String(0);
+        if (!text)
+        {
+            call.Fail("WrathPP_SetScreen(text): text is a string");
+            return;
+        }
+        if (!WriteScreen(std::string(text->substr(0, 2000)) + "\n")) return;
+        call.PushBool(true);
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.4.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -220,6 +271,7 @@ namespace
                                         std::pair{"WrathPP_GetCreating", script.RegisterFunction<&GetCreating>("WrathPP_GetCreating")},
                                         std::pair{"WrathPP_SetGear", script.RegisterFunction<&SetGearCall>("WrathPP_SetGear")},
                                         std::pair{"WrathPP_Log", script.RegisterFunction<&LogCall>("WrathPP_Log")},
+                                        std::pair{"WrathPP_SetScreen", script.RegisterFunction<&SetScreenCall>("WrathPP_SetScreen")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));

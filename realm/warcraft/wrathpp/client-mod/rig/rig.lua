@@ -102,7 +102,7 @@ return function(opts)
 
 	-- Wrath++'s files, last
 	if ( opts.native == false ) then
-		for _, n in ipairs({ "WrathPP_GetCustomization", "WrathPP_SetCustomization", "WrathPP_GetCreating", "WrathPP_SetGear", "WrathPP_Log", "WrathPP_NativeVersion" }) do _G[n] = nil end
+		for _, n in ipairs({ "WrathPP_GetCustomization", "WrathPP_SetCustomization", "WrathPP_GetCreating", "WrathPP_SetGear", "WrathPP_Log", "WrathPP_SetScreen", "WrathPP_NativeVersion" }) do _G[n] = nil end
 	end
 	-- (the art's table first, as the app's patch lists the files by name: WrathppAtlas, WrathppCreate, WrathppLooks, WrathppUndead;
 	-- RIG_ATLAS: the art package's WrathppAtlas.lua, "-" or unset for a phone without the art)

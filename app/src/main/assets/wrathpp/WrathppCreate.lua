@@ -1462,6 +1462,7 @@ end
 
 function WrathppCreate_Disable(reason)
 	W.off = true
+	pcall(tellScreen, false)
 	log("off: "..tostring(reason))
 	log("off with the character "..stateLine())
 	-- the game's own screen whole again: this script's pieces away (each by itself: one that fails doesn't keep the rest),
@@ -1518,6 +1519,33 @@ for _, name in ipairs({ "SetCharacterRace", "SetCharacterGender", "SetCharacterC
 	end))
 end
 
+-- What the app's touch is told (the native mod's WrathPP_SetScreen, a file it reads): the creator is up, and where a
+-- finger drags a list (the options, an open list of choices) in thousandths of the screen from its bottom left. On the
+-- creator a finger that moves elsewhere turns the character; without this word the app looked for the 3.3.5 creator's
+-- banners, which this screen has not, and a swipe walked (W, A, S, D: build 243).
+local lastScreen
+local function tellScreen(up)
+	if ( type(WrathPP_SetScreen) ~= "function" ) then return end
+	local text = "creator 0"
+	if ( up ) then
+		local w, h = (GlueParent and GlueParent:GetWidth()) or 0, (GlueParent and GlueParent:GetHeight()) or 0
+		local parts = { "creator 1 drag" }
+		local function add(f)
+			if ( not f or not f:IsVisible() or w <= 0 or h <= 0 ) then return end
+			local l, b, r, t = f:GetLeft(), f:GetBottom(), f:GetRight(), f:GetTop()
+			if ( not (l and b and r and t) ) then return end
+			parts[#parts + 1] = string.format("%d %d %d %d", math.floor(l / w * 1000), math.floor(b / h * 1000), math.ceil(r / w * 1000), math.ceil(t / h * 1000))
+		end
+		if ( W.step == 2 and optionList.content > optionList.view ) then add(optionList) end
+		if ( popout:IsShown() ) then add(popout) end
+		text = table.concat(parts, " ")
+	end
+	if ( text == lastScreen ) then return end
+	lastScreen = text
+	pcall(WrathPP_SetScreen, text)
+end
+W.TellScreen = tellScreen
+
 -- Pictures of the creator as the game draws it, for the app's report (WrathppShots: set by the app when it has no
 -- pictures of this build yet; the game's own Screenshot, as its Print Screen key takes one): each of the two screens a
 -- moment after it is first up, and the first list of choices opened. Three at most a launch; nothing without the
@@ -1553,7 +1581,7 @@ local sinceRefresh = 0
 -- character, so nothing is opened from here: the first frame drawn after it opens the creator (OnUpdate below).
 driver:SetScript("OnShow", function() if ( not W.off ) then W.pending = 1 end end)
 -- Closed (a character made, or Back): the next opening starts dressed, and the log says the creator was left.
-driver:SetScript("OnHide", function() W.gear = true; W.pending = nil; W.made = nil; log("closed") end)
+driver:SetScript("OnHide", function() W.gear = true; W.pending = nil; W.made = nil; log("closed"); tellScreen(false) end)
 driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	elapsed = elapsed or arg1 or 0
 	if ( W.pending ) then
@@ -1573,6 +1601,7 @@ driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	end
 	for _, s in ipairs(scrollers) do s:Update(elapsed) end
 	shoot(elapsed)
+	tellScreen(true)
 	if ( W.turning ) then
 		local x, y = cursor()
 		local dx, dy = x - W.lastX, y - W.lastY
