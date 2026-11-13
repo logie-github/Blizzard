@@ -35,9 +35,13 @@ What the engine keeps to, each because the stand-in did not:
   interface names, each with the file that names it (`tools/known_textures.py`). The first run of the check found one:
   the reset-view button's `Interface\Buttons\UI-RefreshButton` is of a later game.
 
+- **No two of the creator's buttons lie over one another** (each taken a little in from its edges: Shadowlands' round
+  buttons overlap by their rings). Found by eye in the rig's first painted picture, on the phone's shape of screen: the
+  classes' row over Back and Customize.
+
 ## Running it
 
-    sh run.sh WORK app/src/main/assets/wrathpp/WrathppCreate.lua WrathppLooks.lua CLIENT_DBC STOCK_DBC
+    sh run.sh WORK app/src/main/assets/wrathpp/WrathppCreate.lua WrathppLooks.lua CLIENT_DBC STOCK_DBC [ART]
 
 `CLIENT_DBC`: the looks' `DBFilesClient` folder; `STOCK_DBC`: `ChrRaces`, `ChrClasses`, `CharBaseInfo`,
 `FactionTemplate`, `FactionGroup`, `ItemDisplayInfo` and `SpellIcon` from `data.zip`. Needs `luajit`, `python3` and `gh` (the phone's files are
@@ -54,11 +58,18 @@ publish them if it fails. About two minutes:
   the screen closed and opened; after each tap no error, no crash, the creator on, the row showing what was chosen and
   the other rows as they were; at the end, every texture file the creator named is one the client is known to have.
   Then again without undead skins, without the native mod, on a 4:3 and a 16:9 screen.
-- `shot.lua` and `tools/draw.py`: the screen as a picture of where things are (not the game's art), to look at.
+- With `ART` (Shadowlands' creator art as `tools/sl_ui_art.py` makes it): everything above with the art in, then the
+  creator without it, and with it in and the game not setting its files (`RIG_ATLAS`, `RIG_ART=unreadable`): the same
+  screens with 3.3.5's own pictures.
+- `shot.lua` and `tools/draw.py`: the screen as a picture of where things are (outlines), to look at.
+- `shot.lua` and `tools/paint.py SHOT.json ART/client OUT.png`: **the screen painted with Shadowlands' own pieces**: each
+  piece's part of its file at its place and size, tinted, in its layer and strata, cut where a scroll frame cuts it.
+  3.3.5's own pictures (not on this machine) are faint boxes, the text a stand-in font at its size, the scene a
+  figure's outline.
 
 ## What it is not
 
-It is not the game. It has no art, no fonts and no 3D, and a frame's place is worked out, not drawn by the client
-(a texture's name is checked; how it looks at the size it is given is not). What
+It is not the game. It has no fonts and no 3D, a frame's place is worked out and not drawn by the client, and of art it
+has only Shadowlands' pieces (3.3.5's own are names checked against the client's list, not pictures). What
 it does not know about the real client it cannot show; when the phone shows something it missed, the rig is taught it
 (a rule in `engine.lua` or `game.lua`, from the client's source or the phone's report) before the creator is changed.

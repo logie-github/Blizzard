@@ -18,20 +18,22 @@ local R = make({ race = 1, sex = 1, class = 8 })
 local good, err = pcall(R.open)
 local ok, why = clean(R)
 check(good and ok and not R.G.crashed, "the screen opens: nothing of the game's is asked before the game has its character"..(good and why or (": "..tostring(err):sub(1, 200))))
-check(R.visible("WrathppAlliancePanel") and R.visible("WrathppHordePanel") and R.visible("WrathppClassPanel") and R.visible("WrathppSexPanel") and R.visible("WrathppCustomizeButton") and R.visible("CharCreateBackButton"),
+check(R.visible("WrathppAlliancePanel") and R.visible("WrathppHordePanel") and R.visible("WrathppClassPanel") and R.visible("WrathppSexPanel") and R.visible("WrathppCustomizeButton") and R.visible("WrathppLeaveButton") and not R.visible("CharCreateBackButton"),
 	"race and class: the two sides' races, the sexes, the classes, Back and Customize")
 check(not R.visible("CharacterCreateConfigurationFrame") and not R.visible("CharacterCreateWoWLogo") and not R.visible("CharacterCreateCharacterRace") and not R.visible("CharCreateOkayButton")
 	and not R.visible("CharacterCreateNameEdit") and not R.visible("CharacterCustomizationButtonFrame1"), "  the game's own panel, its logo, its two texts, its Accept and the name put away")
-check(CharacterCreateRaceButton1.__parent == WrathppAlliancePanel and CharacterCreateRaceButton6.__parent == WrathppHordePanel and CharacterCreateClassButton3.__parent == WrathppClassPanel
-	and CharacterCreateGenderButtonFemale.__parent == WrathppSexPanel, "  the game's own race, class and sex buttons in the creator's panels")
+check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCreateClassButton3") and not R.visible("CharacterCreateGenderButtonFemale")
+	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
+	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
+	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
 check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.3.0, looks' options in") and R.G.log[3] == "screen: race and class", "  the log: built, opened, the first screen ("..table.concat(R.G.log, " | ")..")")
 -- the game's own buttons, where the creator put them, do the game's own work
-R.tap("CharacterCreateRaceButton7"); R.frames(0.1)
+R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))
-R.tap("CharacterCreateGenderButtonMale"); R.frames(0.1)
+R.tap("WrathppSexMale"); R.frames(0.1)
 check(R.G.character.sex == 0 and select(1, clean(R)), "a sex tapped is the game's sex"..select(2, clean(R)))
 local before = R.G.selectedClassID
-for i = 1, 10 do local b = _G["CharacterCreateClassButton"..i]; if b:IsVisible() and b.__enabled and R.G.T.classes[i].id ~= before then R.tap(b); break end end
+for i = 1, 10 do local b = _G["WrathppClass"..i]; if b and b:IsVisible() and not b.off and R.G.T.classes[i].id ~= before then R.tap(b); break end end
 R.frames(0.1)
 check(R.G.selectedClassID ~= before and select(1, clean(R)), "a class tapped is the game's class"..select(2, clean(R)))
 
@@ -39,7 +41,7 @@ check(R.G.selectedClassID ~= before and select(1, clean(R)), "a class tapped is 
 R = make({ race = 4, sex = 1, class = 1 })
 R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
 check(R.visible("WrathppOptionPanel") and R.visible("WrathppCategory1") and R.visible("WrathppFinishButton") and R.visible("WrathppBackButton") and R.visible("CharacterCreateNameEdit")
-	and not R.visible("WrathppAlliancePanel") and not R.visible("WrathppSexPanel") and not R.visible("CharCreateBackButton") and select(1, clean(R)),
+	and not R.visible("WrathppAlliancePanel") and not R.visible("WrathppSexPanel") and not R.visible("WrathppLeaveButton") and not R.visible("WrathppRace1") and select(1, clean(R)),
 	"Customize: the categories, the options, the name, Back and Finish; the first screen's pieces away"..select(2, clean(R)))
 local l1 = R.E.rect(WrathppCategory1); local l2 = R.E.rect(WrathppCategory2)
 local _, nb = R.E.rect(CharacterCreateNameEdit); local vl, vb = R.E.rect(WrathppViewPanel)
@@ -85,7 +87,7 @@ if gear then
 	check(R.G.character.dressed == false and select(1, clean(R)), "  off: the outfit is off the game's character"..select(2, clean(R)))
 	R.tap("WrathppRandomize"); R.frames(0.1)
 	check(R.G.character.dressed == false, "  and stays off through Randomize (the game dresses the character again there)")
-	R.tap("WrathppBackButton"); R.frames(0.1); R.tap("CharacterCreateRaceButton2"); R.frames(0.1); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	R.tap("WrathppBackButton"); R.frames(0.1); R.tap("WrathppRace2"); R.frames(0.1); R.tap("WrathppCustomizeButton"); R.frames(0.1)
 	check(R.G.character.dressed == false and R.row("Gear") and R.row("Gear").check:GetChecked() == nil, "  and through another race")
 	R.tap(R.row("Gear").check, WrathppOptionList); R.frames(0.1)
 	check(R.G.character.dressed == true, "  on: dressed again")

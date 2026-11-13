@@ -26,6 +26,10 @@ object WrathppSetup {
         runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
             .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
+        // Shadowlands' creator's own art (WrathppArt): without it the creator draws with 3.3.5's pictures in the same places.
+        runCatching { WrathppArt.ensure(layout.wrathppClient, report::say) }
+            .onSuccess { notes.append("creator art: ${WrathppArt.installedSha(layout.wrathppClient) ?: "none"}\n") }
+            .onFailure { e -> notes.append("creator art FAILED: ${e.message}\n") }
         // Ralia's mod, when you imported it (WrathppRalia): its skins in place of the looks' they are named for.
         // Its zip is looked for by its name where downloads are (ImportFinder), and taken in by itself the first time.
         runCatching {
@@ -82,13 +86,15 @@ object WrathppSetup {
     """.trimIndent() + "\n"
 
     /**
-     * The creator's files for its patch: the script ([creator]), the looks' options from the looks in [client] when they
-     * are in (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
+     * The creator's files for its patch: the script ([creator]), Shadowlands' art's table when the art is in ([WrathppArt]),
+     * the looks' options from the looks in [client] when they are in
+     * (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
      * The script reads the other two when the creator opens, so the order they load in doesn't matter.
      */
     fun glue(creator: ByteArray, client: java.io.File, undead: String?): Map<String, ByteArray> {
         val files = LinkedHashMap<String, ByteArray>()
         files["WrathppCreate.lua"] = creator
+        WrathppArt.atlas(client)?.let { files[WrathppArt.ATLAS] = it.readBytes() }
         java.io.File(client, "Data/${WrathppLooks.PATCH}/Interface/GlueXML/$LOOKS_DATA").takeIf { it.isFile }?.let { files[LOOKS_DATA] = it.readBytes() }
         if (undead != null) files[WrathppUndead.LUA] = undead.toByteArray(Charsets.UTF_8)
         return files

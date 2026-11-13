@@ -2,8 +2,9 @@
 --   the screen:  the phone's own GlueXML files (CharacterCreate.xml and .lua, GlueButtons.xml, GlueParent.xml, GlueStrings.lua:
 --                sent by the app as issues #57 to #64), built by engine.lua;
 --   the game:    game.lua, the client's creation logic ported from its decompiled source, on the game's tables;
---   Wrath++:     the creator (WrathppCreate.lua), the looks' options (WrathppLooks.lua) and the undead skins' (WrathppUndead.lua),
---                loaded last, as the app's patch has them in GlueXML.toc.
+--   Wrath++:     Shadowlands' art's table (WrathppAtlas.lua), the creator (WrathppCreate.lua), the looks' options
+--                (WrathppLooks.lua) and the undead skins' (WrathppUndead.lua), loaded last, as the app's patch has them
+--                in GlueXML.toc.
 -- local R = dofile("rig.lua")(opts)      opts: dir (this folder), stock, data, creator, looks, undead, screen = { w, h }, native (false: none)
 return function(opts)
 	local dir = opts.dir
@@ -15,6 +16,11 @@ return function(opts)
 		elseif ( type(k) == "string" and (k:match("^Wrath") or k:match("^CharacterCreate") or k:match("^CharCreate") or k:match("^SetCharacter") or k:match("^CharacterC")) ) then _G[k] = nil end
 	end
 	local E = dofile(dir.."/engine.lua")
+	-- RIG_ART=unreadable: the art's files are in and the game cannot set them (what a phone whose client does not read
+	-- them would be); without the art's table at all its files are not there either
+	local atlasGiven = opts.atlas or os.getenv("RIG_ATLAS")
+	local unreadable = os.getenv("RIG_ART") == "unreadable" or not atlasGiven or atlasGiven == "-" or atlasGiven == ""
+	E.unreadable = function(name) return unreadable and name:lower():find("interface\\wrathpp\\", 1, false) ~= nil end
 	local G = dofile(dir.."/game.lua")
 	local R = { E = E, G = G, notes = {} }
 	E.screen = opts.screen or E.screen
@@ -98,7 +104,12 @@ return function(opts)
 	if ( opts.native == false ) then
 		for _, n in ipairs({ "WrathPP_GetCustomization", "WrathPP_SetCustomization", "WrathPP_GetCreating", "WrathPP_SetGear", "WrathPP_Log", "WrathPP_NativeVersion" }) do _G[n] = nil end
 	end
-	for _, file in ipairs({ opts.creator, opts.looks, opts.undead }) do
+	-- (the art's table first, as the app's patch lists the files by name: WrathppAtlas, WrathppCreate, WrathppLooks, WrathppUndead;
+	-- RIG_ATLAS: the art package's WrathppAtlas.lua, "-" or unset for a phone without the art)
+	local atlasFile = opts.atlas or os.getenv("RIG_ATLAS")
+	if ( atlasFile == "-" or atlasFile == "" or not opts.creator ) then atlasFile = nil end
+	WrathppAtlas = nil
+	for _, file in ipairs({ atlasFile or false, opts.creator or false, opts.looks or false, opts.undead or false }) do
 		if ( file ) then
 			local fn, err = loadfile(file)
 			if ( not fn ) then error("the game would not load "..file..": "..tostring(err)) end
@@ -155,8 +166,21 @@ return function(opts)
 			if ( f:IsVisible() and not f.__isScreen ) then
 				local l, b, w, h = E.rect(f)
 				if ( l and w > 0 and h > 0 ) then
+					-- (for a picture of the screen: what is drawn, how, and over what; alpha and strata are the frame's and its parents')
+					local alpha, strata, scripted, p = 1, nil, false, f
+					local clip
+					while ( p ) do
+						alpha = alpha * (p.__alpha or 1)
+						strata = strata or p.__strata
+						if ( p.__name and p.__name:match("^Wrathpp") ) then scripted = true end
+						-- inside a scroll frame only what the scroll frame shows is drawn
+						if ( p.__scrollOwner and not clip ) then local cl, cb, cw, ch = E.rect(p.__scrollOwner); if ( cl ) then clip = { cl, cb, cw, ch } end end
+						p = p.__parent
+					end
 					out[#out + 1] = { name = f.__name or "", kind = f.__kind, l = l, b = b, w = w, h = h, text = f.__text, enabled = f.__enabled, mouse = f.__mouse or (f.__scripts and (f.__scripts.OnClick or f.__scripts.OnMouseDown)) and true or false,
-						parent = f.__parent and f.__parent.__name or "", file = f.__file, checked = f.__checked, strata = f.GetFrameStrata and f:GetFrameStrata() or nil }
+						parent = f.__parent and f.__parent.__name or "", file = f.__file, checked = f.__checked, strata = strata or "MEDIUM",
+						coords = f.__coords, colour = f.__colour, vertex = f.__vertex, alpha = alpha, blend = f.__blend, layer = f.__layer, fontHeight = f.__fontHeight,
+						justify = f.__justify, mine = scripted, desaturated = f.__desaturated, clip = clip }
 				end
 			end
 		end

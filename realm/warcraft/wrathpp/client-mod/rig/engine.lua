@@ -394,11 +394,20 @@ function ModelFFX:AddPetLight() end
 -- Texture, FontString, Font -----------------------------------------------------------------------------------------------
 function Texture:SetTexture(a, b, c, d)
 	if ( type(a) == "number" ) then colour("SetTexture", a, b, c); self.__colour = { a, b, c, d or 1 }; self.__file = nil
-	elseif ( a == nil or type(a) == "string" ) then self.__file = a; self.__colour = nil; names(a)
+	elseif ( a == nil or type(a) == "string" ) then
+		self.__file = a; self.__colour = nil; names(a)
+		-- the client gives nothing for a file it cannot set (Script_SetTexture): E.unreadable(name) says which those are
+		if ( a and E.unreadable and E.unreadable(a) ) then self.__file = nil; return nil end
 	else fail("SetTexture: a file's name or r, g, b") end
 	return 1
 end
 function Texture:GetTexture() return self.__file end
+function Texture:GetTexCoord()
+	local c = self.__coords
+	if ( not c ) then return 0, 0, 0, 1, 1, 0, 1, 1 end
+	if ( #c == 8 ) then return unpack(c) end
+	return c[1], c[3], c[1], c[4], c[2], c[3], c[2], c[4]          -- (left, right, top, bottom) as the four corners
+end
 function Texture:SetTexCoord(...) local n = select("#", ...); if ( n ~= 4 and n ~= 8 ) then fail("SetTexCoord: 4 or 8 numbers, got %d", n) end
 	for i = 1, n do if ( type(select(i, ...)) ~= "number" ) then fail("SetTexCoord: numbers") end end; self.__coords = { ... } end
 function Texture:SetVertexColor(r, g, b, a) colour("SetVertexColor", r, g, b); self.__vertex = { r, g, b, a or 1 } end
@@ -420,8 +429,8 @@ function FontString:SetFont(file, height, flags) if ( type(file) ~= "string" or 
 function FontString:GetFont() return self.__fontFile, self.__fontHeight end
 function FontString:SetFontObject(f) if ( type(f) == "string" ) then f = _G[f] end; if ( type(f) ~= "table" ) then fail("SetFontObject: a font") end; self.__fontObject = f end
 function FontString:GetFontObject() return self.__fontObject end
-function FontString:GetStringWidth() return #tostring(self.__text or "") * 7 end
-function FontString:GetStringHeight() return 12 end
+function FontString:GetStringWidth() return #tostring(self.__text or "") * (self.__fontHeight or 12) * 0.55 end
+function FontString:GetStringHeight() return self.__fontHeight or 12 end
 function FontString:SetNonSpaceWrap() end
 function FontString:SetShadowColor() end
 function FontString:SetShadowOffset() end

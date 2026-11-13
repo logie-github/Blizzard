@@ -34,6 +34,27 @@ local function tap(R, f, what, list)
 	R.frames(0.06)
 	return ok(R, "after "..(what or tostring(type(f) == "string" and f or f.__name)))
 end
+-- No two of the creator's buttons on the screen lie over one another (each taken a little in from its edges: Shadowlands'
+-- own round buttons overlap by their rings, and their middles are what is tapped). A row of classes run into the foot's
+-- buttons on a screen narrower than Shadowlands' is the kind of fault this finds.
+local function apart(R, when)
+	local boxes = {}
+	for _, f in ipairs(R.E.frames) do
+		local name = f.__name
+		if name and name:match("^Wrathpp") and (f.__kind == "Button" or f.__kind == "CheckButton") and f:IsVisible() and f.__scripts and f.__scripts.OnClick
+				and name ~= "WrathppSpinArea" and name ~= "WrathppPopoutCatcher" and not R.E.clipped(f) then
+			local l, b, w, h = R.E.rect(f)
+			if l and w > 0 and h > 0 then boxes[#boxes + 1] = { name = name, l = l + w * 0.12, r = l + w * 0.88, b = b + h * 0.12, t = b + h * 0.88 } end
+		end
+	end
+	for i = 1, #boxes do
+		for j = i + 1, #boxes do
+			local a, c = boxes[i], boxes[j]
+			if a.l < c.r and c.l < a.r and a.b < c.t and c.b < a.t then fail(when..": "..a.name.." and "..c.name.." lie over one another") end
+		end
+	end
+	checks = checks + 1
+end
 -- every list on the screen shows what is on (a row with no current choice is a number the creator could not read back)
 local function current(R, when)
 	for _, f in ipairs(R.rows()) do
@@ -127,7 +148,9 @@ for _, pair in ipairs(T.baseInfo) do
 			R.open()
 			if not ok(R, "opened") then return end
 			if not R.visible("WrathppCustomizeButton") then fail("no Customize button on the screen") return end
+			apart(R, "race and class")
 			if not tap(R, "WrathppCustomizeButton", "Customize") then return end
+			apart(R, "customize")
 			customize(R, deep)
 			if R.visible("WrathppRandomize") then for i = 1, 3 do if not tap(R, "WrathppRandomize", "Randomize") then return end; current(R, "Randomize "..i) end end
 			if not tap(R, "WrathppBackButton", "Back") then return end
@@ -158,6 +181,12 @@ for file, by in pairs(named) do
 	end
 end
 if files == 0 then fail("no texture named by the creator was seen: the check is not looking") end
-print(("%d taps, %d checks, %d textures named, %.0f s; %d problems"):format(taps, checks, files, os.clock() - started, fails.n or 0))
+-- with Shadowlands' art in and read, the creator draws with it; without, with 3.3.5's own and plain colours
+local artUsed = 0
+for file, by in pairs(named) do if by:match("^Wrathpp") and file:lower():find("interface\\wrathpp\\", 1, false) then artUsed = artUsed + 1 end end
+local wantArt = (os.getenv("RIG_ATLAS") or "-") ~= "-" and os.getenv("RIG_ATLAS") ~= "" and os.getenv("RIG_ART") ~= "unreadable"
+if wantArt and (artUsed < 40 or not (WrathppCreator and WrathppCreator.art)) then fail("Shadowlands' art is in and the creator drew "..artUsed.." of its pieces") end
+if not wantArt and WrathppCreator and WrathppCreator.art then fail("the creator says it draws with Shadowlands' art, which is not readable here") end
+print(("%d taps, %d checks, %d textures named (%d of Shadowlands' art), %.0f s; %d problems"):format(taps, checks, files, artUsed, os.clock() - started, fails.n or 0))
 for _, f in ipairs(fails) do print("  "..f) end
 os.exit((fails.n or 0) == 0 and 0 or 1)

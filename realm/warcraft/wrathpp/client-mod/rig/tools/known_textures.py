@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """The texture files the 3.3.5 client is known to have, for the rig's check of what the creator names:
-    known_textures.py STOCK_DIR DBC_DIR LIST OUT.lua
+    known_textures.py STOCK_DIR DBC_DIR LIST OUT.lua [ART.txt]
 STOCK_DIR: the phone's own glue files (every Interface\\... file they name is one the game has);
 DBC_DIR:   the game's tables: an icon an item (ItemDisplayInfo.dbc) or a spell (SpellIcon.dbc) of 3.3.5 has is in the client;
-LIST:      textures335.txt, the files 3.3.5's own in-game interface names.
+LIST:      textures335.txt, the files 3.3.5's own in-game interface names;
+ART.txt:   the list of Shadowlands' art package's files (tools/sl_ui_art.py's art.txt), which the app puts into the game.
 OUT.lua returns a set of the names in small letters, with \\ between folders and without .blp."""
 import glob, os, re, struct, sys
 
 stock, dbc, listed, out = sys.argv[1:5]
+art = sys.argv[5] if len(sys.argv) > 5 else None
 known = set()
 
 def add(name):
@@ -51,6 +53,12 @@ for line in open(listed, encoding='utf-8'):
     line = line.split('#')[0].strip()
     if line:
         add(line.split('\t')[0])
+
+if art:
+    for line in open(art, encoding='utf-8'):
+        parts = line.rstrip('\n').split('\t')
+        if len(parts) > 1:
+            add(parts[1])
 
 with open(out, 'w', encoding='utf-8') as f:
     f.write('return {\n')

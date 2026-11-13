@@ -19,7 +19,13 @@
 -- Without the looks or the native mod the rows are the game's own five. WrathppUndead (written by the app when the
 -- undead skins are imported) adds the Undead switch under Accessories: its skins are new colours after the race's own.
 --
--- The game's own buttons do the work (races, classes, sexes, the name, creating): this moves them into its panels.
+-- It is drawn with Shadowlands' own art (WrathppAtlas: the pieces of its creation screens, cut out of the game's sheets
+-- by realm/warcraft/wrathpp/tools/sl_ui_art.py, in Data/patch-S.MPQ) at Shadowlands' own sizes and places
+-- (Blizzard_CharacterCreate and Blizzard_CharacterCustomize, build 9.2.7); without the art, with 3.3.5's own pictures
+-- in the same places.
+--
+-- The game's own buttons do the work (races, classes, sexes, the name, creating) out of sight: Shadowlands' round
+-- buttons here show what they say and, tapped, do what a tap on them does.
 -- Anything that fails here puts the game's own screen back (WrathppCreate_Disable), with the reason on the screen.
 -- Put in by the app into Wrath++'s copy of the game only (Data/patch-X.MPQ, last in GlueXML.toc).
 
@@ -37,15 +43,20 @@ local FIELD = { skin = 1, face = 2, hair = 3, haircolor = 4, feature = 5 }
 local RACE_ID = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUREN = 6, GNOME = 7, TROLL = 8, GOBLIN = 9, BLOODELF = 10, DRAENEI = 11 }
 local ALLIANCE = { HUMAN = true, DWARF = true, NIGHTELF = true, GNOME = true, DRAENEI = true, WORGEN = true, VOIDELF = true,
 	LIGHTFORGEDDRAENEI = true, HIGHORDER = true, PANDAREN = true, KULTIRAN = true, DARKIRONDWARF = true, MECHAGNOME = true }
-local ROW_H, LIST_W, NAME_W = 50, 356, 124
+-- Shadowlands lays its creator out for a screen 1080 units high (its CharacterCreateFrame is scaled by 768 over the
+-- display's height, 0.75 at most); 3.3.5's screen is 768 high on any display, so one of Shadowlands' units is
+-- 768/1080 of one here. SIZE draws all of it larger again: at a monitor's proportions a line of a list is 1.6 mm high
+-- on the phone this is played on. Every size and place of the creator is Shadowlands' own number through u().
+local SIZE = 1.2
+local S = 768 / 1080 * SIZE
+local function u(n) return n * S end
+local POP = 1.4                                         -- the lists of choices larger again: a line is a finger's target
+local ROW_PITCH = u(38 + 32)                            -- an option's row and the space under it (the Options layout's spacing)
+local ROW_H = ROW_PITCH
+local ROW_W = 223                                       -- SelectionPopoutWithButtonsTemplate: the box and its two arrows
+local NAME_W = 190                                      -- room for an option's name left of them
+local LIST_W = u(ROW_W + 34 + NAME_W)
 local GOLD = { 1, 0.82, 0 }
-
-local BACKDROP = {
-	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-	edgeFile = "Interface\\Glues\\Common\\Glue-Tooltip-Border",
-	tile = true, tileSize = 16, edgeSize = 16,
-	insets = { left = 4, right = 4, top = 4, bottom = 4 },
-}
 
 -- What the creator did, into WarcraftXL's log (the native mod's WrathPP_Log), which the app's reports carry: whether
 -- it was built, opened, which screen was up, why it went off. A line is written once, when it changes.
@@ -90,105 +101,213 @@ end
 
 -- Small pieces ---------------------------------------------------------------------------------------------------
 
-local function fontOf(wanted, fallback) return (type(_G[wanted]) == "table" and wanted) or fallback end
-local FONT_TITLE = fontOf("GlueFontNormalLarge", "GlueFontNormalLarge")
-local FONT_LABEL = fontOf("GlueFontNormal", "GlueFontNormalLarge")
-local FONT_TEXT = fontOf("GlueFontHighlight", "GlueFontHighlightSmall")
-local FONT_SMALL = fontOf("GlueFontHighlightSmall", "GlueFontHighlightSmall")
-
-local function panel(name, parent, width, height)
-	local f = make("Frame", name, parent or root)
-	f:SetWidth(width); f:SetHeight(height)
-	f:SetBackdrop(BACKDROP)
-	f:SetBackdropColor(0.03, 0.03, 0.05, 0.86)
-	f:SetBackdropBorderColor(0.55, 0.5, 0.4, 1)
-	return f
+-- Shadowlands' own art (WrathppAtlas: the pieces of its creation screens, cut out of the game's sheets by
+-- realm/warcraft/wrathpp/tools/sl_ui_art.py and put in by the app as Data/patch-S.MPQ). atlas(texture, name) is
+-- Shadowlands' SetAtlas: the piece's file and where it is in it; `sized` gives the texture the size Shadowlands draws
+-- the piece at. Whether the art is used is settled as the creator opens (W.art: the table is in and the game reads its
+-- files); until then, and without it, each piece is one of 3.3.5's own pictures or a plain colour, in the same places.
+local FALLBACK = {
+	["common-button-square-gray-up"] = { 0.09, 0.09, 0.11, 0.92 }, ["common-button-square-gray-down"] = { 0.17, 0.16, 0.12, 0.95 },
+	["common-icon-undo"] = "Interface\\PaperDollInfoFrame\\UI-GearManager-Undo",
+	["common-icon-zoomin"] = "Interface\\Minimap\\UI-Minimap-ZoomInButton-Up", ["common-icon-zoomout"] = "Interface\\Minimap\\UI-Minimap-ZoomOutButton-Up",
+	["common-icon-rotateleft"] = "Interface\\Buttons\\UI-RotationLeft-Button-Up", ["common-icon-rotateright"] = "Interface\\Buttons\\UI-RotationRight-Button-Up",
+	["charactercreate-icon-dice"] = "Interface\\Buttons\\UI-GroupLoot-Dice-Up",
+	["charactercreate-customize-nextbutton"] = "Interface\\Glues\\Common\\Glue-RightArrow-Button-Up",
+	["charactercreate-customize-nextbutton-down"] = "Interface\\Glues\\Common\\Glue-RightArrow-Button-Down",
+	["charactercreate-customize-nextbutton-disabled"] = "Interface\\Glues\\Common\\Glue-RightArrow-Button-Up",
+	["charactercreate-customize-backbutton"] = "Interface\\Glues\\Common\\Glue-LeftArrow-Button-Up",
+	["charactercreate-customize-backbutton-down"] = "Interface\\Glues\\Common\\Glue-LeftArrow-Button-Down",
+	["charactercreate-customize-backbutton-disabled"] = "Interface\\Glues\\Common\\Glue-LeftArrow-Button-Up",
+	["charactercreate-customize-dropdownbox"] = { 0.08, 0.08, 0.1, 0.95 }, ["charactercreate-customize-dropdownbox-open"] = { 0.17, 0.16, 0.12, 0.95 },
+	["charactercreatedropdown-nineslice-center"] = { 0.04, 0.04, 0.06, 0.96 },
+	["charactercreate-customize-palette"] = { 1, 1, 1, 1 }, ["charactercreate-customize-palette-half"] = { 1, 1, 1, 1 },
+}
+local function plain(name)
+	local f = FALLBACK[name]
+	if ( f ) then return f end
+	if ( string.find(name, "128-redbutton", 1, true) and not string.find(name, "highlight", 1, true) ) then
+		if ( string.find(name, "disabled", 1, true) ) then return { 0.25, 0.25, 0.25, 1 } end
+		if ( string.find(name, "pressed", 1, true) ) then return { 0.3, 0.03, 0.03, 1 } end
+		return { 0.45, 0.05, 0.05, 1 }
+	end
+end
+local function piece(name) return W.art and WrathppAtlas[name] or nil end
+local function atlas(tex, name, sized, flip)
+	local p = piece(name)
+	if ( p ) then
+		tex:SetTexture(p[1])
+		if ( flip ) then tex:SetTexCoord(p[5], p[4], p[6], p[7]) else tex:SetTexCoord(p[4], p[5], p[6], p[7]) end
+		if ( sized ) then tex:SetWidth(u(p[2])); tex:SetHeight(u(p[3])) end
+		return true
+	end
+	local f = plain(name)
+	tex:SetTexCoord(0, 1, 0, 1)
+	if ( type(f) == "string" ) then tex:SetTexture(f)
+	elseif ( type(f) == "table" ) then tex:SetTexture(f[1], f[2], f[3], f[4])
+	else tex:SetTexture(0, 0, 0, 0) end
+	return false
+end
+-- Everything drawn is drawn by a function kept here, so that it is drawn again once the art is known to be there.
+local skins = {}
+local function skin(fn) skins[#skins + 1] = fn; fn() end
+function W.Reskin() for _, fn in ipairs(skins) do fn() end end
+-- As the creator opens: is Shadowlands' art in, and does the game read it (SetTexture gives nothing for a file the
+-- game cannot set)? Said in the log, once.
+function W.DecideArt()
+	if ( W.art ~= nil ) then return end
+	W.art = false
+	local why = "not in"
+	if ( type(WrathppAtlas) == "table" and WrathppAtlas["charactercreate-ring-select"] ) then
+		local probe = root:CreateTexture(nil, "BACKGROUND")
+		probe:SetWidth(1); probe:SetHeight(1); probe:SetPoint("TOPLEFT", root, "TOPLEFT", 0, 0); probe:SetAlpha(0)
+		if ( probe:SetTexture(WrathppAtlas["charactercreate-ring-select"][1]) ) then W.art = true else why = "in, and the game does not read its files" end
+		probe:Hide()
+	end
+	log("art: "..(W.art and "Shadowlands' own" or ("3.3.5's own pictures (Shadowlands' art "..why..")")))
+	W.Reskin()
 end
 
-local function text(parent, font, layer)
-	local s = parent:CreateFontString(nil, layer or "OVERLAY", font or FONT_TEXT)
+-- Text: Shadowlands' fonts are Friz Quadrata (3.3.5's own file) at 12 (GameFontNormal), 14 (Med2), 18 (Large2) and 22
+-- outlined (the foot's buttons), gold or white, with a shadow one unit down and right.
+-- (the file is the game's own font's, which is another file in a game of another language)
+local FRIZ = "Fonts\\FRIZQT__.TTF"
+if ( type(GlueFontNormal) == "table" and GlueFontNormal.GetFont ) then
+	local ok, file = pcall(GlueFontNormal.GetFont, GlueFontNormal)
+	if ( ok and type(file) == "string" and file ~= "" ) then FRIZ = file end
+end
+local function label(parent, size, colour, outline, layer)
+	local s = parent:CreateFontString(nil, layer or "OVERLAY", "GlueFontHighlightSmall")
+	s:SetFont(FRIZ, u(size or 12), outline and "OUTLINE" or nil)
+	if ( colour == "gold" ) then s:SetTextColor(1, 0.82, 0) elseif ( colour == "grey" ) then s:SetTextColor(0.5, 0.5, 0.5) else s:SetTextColor(1, 1, 1) end
+	s:SetShadowColor(0, 0, 0, 1); s:SetShadowOffset(u(1), -u(1))
 	return s
 end
+local function text(parent) return label(parent, 12, "white") end
 
-local function glueButton(name, parent, label, width, onClick, template)
-	local b = make("Button", name, parent, template or "GlueButtonSmallTemplate")
-	b:SetWidth(width or 140); b:SetHeight(template and 36 or 30)
-	b:SetText(label)
+-- CharCustomizeSmallButtonTemplate: a grey square (48) with a gold picture (24 x 23) in its middle; pressed, the square
+-- is its pressed piece and the picture a unit down and right; under a pointer the picture glows.
+local function smallButton(name, parent, icon)
+	local b = make("Button", name, parent)
+	b:SetWidth(u(48)); b:SetHeight(u(48))
+	b.back = b:CreateTexture(nil, "BACKGROUND"); b.back:SetAllPoints(b)
+	b.icon = b:CreateTexture(nil, "OVERLAY"); b.icon:SetWidth(u(24)); b.icon:SetHeight(u(23)); b.icon:SetPoint("CENTER", b, "CENTER", 0, 0)
+	b.glow = b:CreateTexture(nil, "HIGHLIGHT"); b.glow:SetAllPoints(b.icon); b.glow:SetBlendMode("ADD"); b.glow:SetAlpha(0.4)
+	function b:Paint()
+		atlas(self.back, self.held and "common-button-square-gray-down" or "common-button-square-gray-up")
+		atlas(self.icon, icon); atlas(self.glow, icon)
+		self.icon:ClearAllPoints()
+		self.icon:SetPoint("CENTER", self, "CENTER", self.held and u(1) or 0, self.held and -u(1) or 0)
+	end
+	b:SetScript("OnMouseDown", function(self) self.held = true; self:Paint() end)
+	b:SetScript("OnMouseUp", function(self) self.held = false; self:Paint() end)
+	skin(function() b:Paint() end)
+	return b
+end
+
+-- CharCustomizeMaskedButtonTemplate: a round picture in a ring, a gold ring over it while it is the one chosen.
+-- Shadowlands trims the picture round with a mask, which 3.3.5 has not: the art has each picture already trimmed for
+-- its kind of button ("<name>.<kind>"). Without the art the picture is `plain` (one of 3.3.5's own, with its place in
+-- its file), bright while chosen and dim while not.
+local function maskedButton(name, parent, width, height, ring, ringWidth, ringHeight, chosenSize, kind)
+	local b = make("Button", name, parent)
+	b:SetWidth(u(width)); b:SetHeight(u(height))
+	b.kind, b.ringAtlas = kind, ring
+	b.icon = b:CreateTexture(nil, "BORDER"); b.icon:SetAllPoints(b)
+	b.ring = b:CreateTexture(nil, "ARTWORK"); b.ring:SetWidth(u(ringWidth)); b.ring:SetHeight(u(ringHeight)); b.ring:SetPoint("CENTER", b, "CENTER", 0, 0)
+	b.chosen = b:CreateTexture(nil, "OVERLAY"); b.chosen:SetWidth(u(chosenSize)); b.chosen:SetHeight(u(chosenSize)); b.chosen:SetPoint("CENTER", b, "CENTER", 0, 0)
+	b.glow = b:CreateTexture(nil, "HIGHLIGHT"); b.glow:SetAllPoints(b.ring); b.glow:SetBlendMode("ADD"); b.glow:SetAlpha(0.5)
+	function b:Paint()
+		local drawn = self.iconAtlas and atlas(self.icon, self.iconAtlas.."."..self.kind, false, self.flip)
+		if ( not drawn ) then
+			if ( self.plain ) then
+				self.icon:SetTexture(self.plain)
+				local c = self.plainCoords
+				if ( c ) then self.icon:SetTexCoord(c[1], c[2], c[3], c[4]) else self.icon:SetTexCoord(0, 1, 0, 1) end
+			else self.icon:SetTexture(0, 0, 0, 0) end
+		end
+		local dim = (self.off and 0.4) or ((drawn or self.on) and 1) or 0.55
+		self.icon:SetVertexColor(dim, dim, dim)
+		if ( self.icon.SetDesaturated ) then self.icon:SetDesaturated(self.off and 1 or nil) end
+		local ringName = self.ringAtlas
+		if ( self.off and piece(ringName.."-disabled") ) then ringName = ringName.."-disabled" end
+		atlas(self.ring, ringName)
+		atlas(self.chosen, "charactercreate-ring-select")
+		atlas(self.glow, ringName)
+		if ( self.on ) then self.chosen:Show() else self.chosen:Hide() end
+	end
+	-- Set(atlas name or nil, chosen, off, plain picture, its coords, flipped)
+	function b:Set(iconAtlas, on, off, plainFile, plainCoords, flip)
+		self.iconAtlas, self.on, self.off, self.plain, self.plainCoords, self.flip = iconAtlas, on and true or false, off and true or false, plainFile, plainCoords, flip
+		self:Paint()
+	end
+	skin(function() b:Paint() end)
+	return b
+end
+
+-- ThreeSliceButtonTemplate "128-RedButton" (the foot's buttons, 250 x 66): a left and a right piece at the button's
+-- height and the middle between them; pressed and disabled pieces; the text 22 high, outlined.
+local function redButton(name, parent, caption, width, height, onClick)
+	local b = make("Button", name, parent)
+	b:SetWidth(u(width)); b:SetHeight(u(height))
+	local scale = height / 128
+	b.left = b:CreateTexture(nil, "BACKGROUND"); b.left:SetWidth(u(114 * scale)); b.left:SetHeight(u(height)); b.left:SetPoint("LEFT", b, "LEFT", 0, 0)
+	b.right = b:CreateTexture(nil, "BACKGROUND"); b.right:SetWidth(u(292 * scale)); b.right:SetHeight(u(height)); b.right:SetPoint("RIGHT", b, "RIGHT", 0, 0)
+	b.middle = b:CreateTexture(nil, "BACKGROUND")
+	b.middle:SetPoint("TOPLEFT", b.left, "TOPRIGHT", 0, 0); b.middle:SetPoint("BOTTOMRIGHT", b.right, "BOTTOMLEFT", 0, 0)
+	b.glow = b:CreateTexture(nil, "HIGHLIGHT"); b.glow:SetAllPoints(b); b.glow:SetBlendMode("ADD")
+	b.caption = label(b, 22, "gold", true); b.caption:SetPoint("CENTER", b, "CENTER", 0, 0); b.caption:SetText(caption)
+	function b:Paint()
+		local state = (not self:IsEnabled() and "-disabled") or (self.held and "-pressed") or ""
+		atlas(self.left, "128-redbutton-left"..state); atlas(self.right, "128-redbutton-right"..state); atlas(self.middle, "_128-redbutton-center"..state)
+		atlas(self.glow, "128-redbutton-highlight")
+		self.caption:ClearAllPoints()
+		self.caption:SetPoint("CENTER", self, "CENTER", self.held and u(2) or 0, self.held and -u(2) or 0)
+	end
+	b:SetScript("OnMouseDown", function(self) self.held = true; self:Paint() end)
+	b:SetScript("OnMouseUp", function(self) self.held = false; self:Paint() end)
 	b:SetScript("OnClick", guarded(onClick))
+	skin(function() b:Paint() end)
 	return b
 end
 
--- A plain button made here: a dark box with a border that lights, and a label.
-local function box(name, parent, width, height)
-	local b = make("Button", name, parent)
-	b:SetWidth(width); b:SetHeight(height)
-	b:SetBackdrop(BACKDROP)
-	b:SetBackdropColor(0.08, 0.08, 0.1, 0.95)
-	b:SetBackdropBorderColor(0.5, 0.46, 0.38, 1)
-	b.label = text(b, FONT_TEXT)
-	b.label:SetPoint("CENTER", b, "CENTER", 0, 0)
-	b.Lit = function(self, on)
-		if ( on ) then self:SetBackdropBorderColor(GOLD[1], GOLD[2], GOLD[3], 1) else self:SetBackdropBorderColor(0.5, 0.46, 0.38, 1) end
-	end
-	return b
-end
-
--- A button that is a picture: the view's round buttons and the dice (the game's own art for each).
-local function pictureButton(name, parent, size, up, down, highlight)
-	local b = make("Button", name, parent)
-	b:SetWidth(size); b:SetHeight(size)
-	b:SetNormalTexture(up)
-	if ( down ) then b:SetPushedTexture(down) end
-	b:SetHighlightTexture(highlight or "Interface\\Buttons\\ButtonHilight-Round")
-	b.Lit = function() end
-	return b
-end
-
--- A category's button, as Shadowlands has them: a round picture in a ring, gold while it is the one chosen and grey
--- while not. `label` keeps the category's name (shown as the options' title, as Shadowlands shows it in a tooltip).
-local CATEGORY_ICON = {
-	Face = "Interface\\Icons\\INV_Misc_Head_Human_01", Hair = "Interface\\Icons\\INV_Misc_Comb_01",
-	Accessories = "Interface\\Icons\\INV_Jewelry_Necklace_07", Body = "Interface\\Icons\\INV_Chest_Cloth_21",
-	Markings = "Interface\\Icons\\INV_Inscription_Tradeskill01",
-}
-local function roundButton(name, parent, size)
-	local b = make("Button", name, parent)
-	b:SetWidth(size); b:SetHeight(size)
-	b.icon = b:CreateTexture(nil, "BACKGROUND")
-	b.icon:SetWidth(size - 14); b.icon:SetHeight(size - 14)
-	b.icon:SetPoint("CENTER", b, "CENTER", 0, 0)
-	b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-	b.ring = b:CreateTexture(nil, "OVERLAY")
-	b.ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
-	b.ring:SetWidth(size * 1.7); b.ring:SetHeight(size * 1.7)
-	b.ring:SetPoint("TOPLEFT", b, "TOPLEFT", -1, 1)
-	b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-	b.label = text(b, FONT_SMALL)
-	b.label:Hide()
-	b.Lit = function(self, on)
-		self.lit = on and true or false
-		if ( on ) then self.ring:SetVertexColor(1, 0.86, 0.3); self.icon:SetVertexColor(1, 1, 1)
-		else self.ring:SetVertexColor(0.55, 0.55, 0.55); self.icon:SetVertexColor(0.5, 0.5, 0.5) end
-	end
-	b.SetPicture = function(self, category)
-		self.icon:SetTexture(CATEGORY_ICON[category] or "Interface\\Icons\\INV_Misc_QuestionMark")
-	end
-	return b
-end
-
-local function swatch(parent, size)
+-- A colour's swatch: Shadowlands' brush stroke (charactercreate-customize-palette, 84 x 20) in the colour.
+local function swatch(parent)
 	local t = parent:CreateTexture(nil, "ARTWORK")
-	t:SetWidth(size); t:SetHeight(size)
+	t:SetWidth(u(84)); t:SetHeight(u(20))
 	return t
 end
-
-local function paint(tex, colour)
+local function paint(tex, colour, half)
 	if ( not colour ) then tex:Hide(); return end
-	local r = math.floor(colour / 65536) % 256
-	local g = math.floor(colour / 256) % 256
-	local b = colour % 256
-	tex:SetTexture(r / 255, g / 255, b / 255, 1)
+	atlas(tex, half and "charactercreate-customize-palette-half" or "charactercreate-customize-palette")
+	tex:SetVertexColor((math.floor(colour / 65536) % 256) / 255, (math.floor(colour / 256) % 256) / 255, (colour % 256) / 255)
 	tex:Show()
+end
+
+-- NineSlicePanelTemplate "CharacterCreateDropdown": the frame of a list of choices. Corners set out from the frame's
+-- own (30 sideways, 20 up or down), the edges between them, the middle inside.
+local function nineSlice(f)
+	local n = {}
+	local function part(key) n[key] = f:CreateTexture(nil, "BACKGROUND"); return n[key] end
+	part("tl"):SetPoint("TOPLEFT", f, "TOPLEFT", -u(30), u(20)); n.tl:SetWidth(u(62)); n.tl:SetHeight(u(52))
+	part("tr"):SetPoint("TOPRIGHT", f, "TOPRIGHT", u(30), u(20)); n.tr:SetWidth(u(62)); n.tr:SetHeight(u(52))
+	part("bl"):SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", -u(30), -u(20)); n.bl:SetWidth(u(62)); n.bl:SetHeight(u(72))
+	part("br"):SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", u(30), -u(20)); n.br:SetWidth(u(62)); n.br:SetHeight(u(72))
+	part("top"):SetPoint("TOPLEFT", n.tl, "TOPRIGHT", 0, 0); n.top:SetPoint("BOTTOMRIGHT", n.tr, "BOTTOMLEFT", 0, 0)
+	part("bottom"):SetPoint("TOPLEFT", n.bl, "TOPRIGHT", 0, 0); n.bottom:SetPoint("BOTTOMRIGHT", n.br, "BOTTOMLEFT", 0, 0)
+	part("left"):SetPoint("TOPLEFT", n.tl, "BOTTOMLEFT", 0, 0); n.left:SetPoint("BOTTOMRIGHT", n.bl, "TOPRIGHT", 0, 0)
+	part("right"):SetPoint("TOPLEFT", n.tr, "BOTTOMLEFT", 0, 0); n.right:SetPoint("BOTTOMRIGHT", n.br, "TOPRIGHT", 0, 0)
+	part("middle"):SetPoint("TOPLEFT", n.tl, "BOTTOMRIGHT", 0, 0); n.middle:SetPoint("BOTTOMRIGHT", n.br, "TOPLEFT", 0, 0)
+	skin(function()
+		local a = "charactercreatedropdown-nineslice-"
+		atlas(n.tl, a.."cornertopleft"); atlas(n.tr, a.."cornertopright"); atlas(n.bl, a.."cornerbottomleft"); atlas(n.br, a.."cornerbottomright")
+		atlas(n.top, "_"..a.."edgetop"); atlas(n.bottom, "_"..a.."edgebottom"); atlas(n.left, "!"..a.."edgeleft"); atlas(n.right, "!"..a.."edgeright")
+		atlas(n.middle, a.."center")
+		-- (without the art: a dark box over the whole list)
+		n.middle:ClearAllPoints()
+		if ( W.art ) then n.middle:SetPoint("TOPLEFT", n.tl, "BOTTOMRIGHT", 0, 0); n.middle:SetPoint("BOTTOMRIGHT", n.br, "TOPLEFT", 0, 0)
+		else n.middle:SetPoint("TOPLEFT", f, "TOPLEFT", -u(6), u(6)); n.middle:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", u(6), -u(6)) end
+	end)
+	return n
 end
 
 local function cursor()
@@ -534,53 +653,90 @@ local function scroller(name, parent, width, height)
 end
 
 -- The panels -----------------------------------------------------------------------------------------------------------
+-- Every number here is Shadowlands' own (Blizzard_CharacterCreate.xml, Blizzard_CharacterCustomize.xml and the shared
+-- templates they inherit, build 9.2.7), through u().
 
-local alliancePanel = panel("WrathppAlliancePanel", root, 236, 420)
-alliancePanel:SetPoint("TOPLEFT", root, "TOPLEFT", 14, -14)
-local allianceTitle = text(alliancePanel, FONT_TITLE); allianceTitle:SetPoint("TOP", alliancePanel, "TOP", 0, -12); allianceTitle:SetText(FACTION_ALLIANCE or "Alliance")
+-- Shadowlands darkens the screen's edges over the scene (charactercreate-vignette-*: 451 of 1080 down from the top, 577
+-- up from the foot, 703 of 1920 in from each side): the same shares of this screen, whatever its shape.
+local vignette = {}
+for _, v in ipairs({ { "top", "charactercreate-vignette-top" }, { "bottom", "charactercreate-vignette-bottom" },
+		{ "left", "charactercreate-vignette-sides" }, { "right", "charactercreate-vignette-sides", true } }) do
+	local t = root:CreateTexture(nil, "BACKGROUND")
+	vignette[#vignette + 1] = t
+	vignette[v[1]] = t
+	skin(function() atlas(t, v[2], false, v[3]) end)
+	t:Hide()
+end
+local function placeVignette()
+	local w = (GlueParent and GlueParent:GetWidth()) or 1024
+	vignette.top:ClearAllPoints(); vignette.top:SetPoint("TOPLEFT", root, "TOPLEFT", 0, 0); vignette.top:SetPoint("TOPRIGHT", root, "TOPRIGHT", 0, 0); vignette.top:SetHeight(768 * 451 / 1080)
+	vignette.bottom:ClearAllPoints(); vignette.bottom:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", 0, 0); vignette.bottom:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", 0, 0); vignette.bottom:SetHeight(768 * 577 / 1080)
+	vignette.left:ClearAllPoints(); vignette.left:SetPoint("TOPLEFT", root, "TOPLEFT", 0, 0); vignette.left:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", 0, 0); vignette.left:SetWidth(w * 703 / 1920)
+	vignette.right:ClearAllPoints(); vignette.right:SetPoint("TOPRIGHT", root, "TOPRIGHT", 0, 0); vignette.right:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", 0, 0); vignette.right:SetWidth(w * 703 / 1920)
+end
 
-local hordePanel = panel("WrathppHordePanel", root, 236, 420)
-hordePanel:SetPoint("TOPRIGHT", root, "TOPRIGHT", -14, -14)
-local hordeTitle = text(hordePanel, FONT_TITLE); hordeTitle:SetPoint("TOP", hordePanel, "TOP", 0, -12); hordeTitle:SetText(FACTION_HORDE or "Horde")
+-- Race and class. The factions' crests and names in the top corners (AllianceHeader, HordeHeader), the races down the
+-- sides under them (AllianceRaces at 68, -106; 79 across, 18 between), the sexes at the top (Sexes: 46 across, 22
+-- between, 27 down), the classes in a row at the foot (Classes: 67 across, 62 up).
+local function header(alliance)
+	local f = make("Frame", alliance and "WrathppAlliancePanel" or "WrathppHordePanel", root)
+	f:SetWidth(u(92)); f:SetHeight(u(100))
+	f:SetPoint(alliance and "TOPLEFT" or "TOPRIGHT", root, alliance and "TOPLEFT" or "TOPRIGHT", alliance and u(3) or -u(3), -u(10))
+	f.logo = f:CreateTexture(nil, "ARTWORK"); f.logo:SetAllPoints(f)
+	f.name = label(f, 18, "gold")
+	if ( alliance ) then f.name:SetPoint("LEFT", f, "RIGHT", -u(18), -u(2)) else f.name:SetPoint("RIGHT", f, "LEFT", u(18), -u(2)) end
+	f.name:SetText(alliance and (FACTION_ALLIANCE or "Alliance") or (FACTION_HORDE or "Horde"))
+	skin(function() atlas(f.logo, alliance and "charactercreate-icon-alliance" or "charactercreate-icon-horde") end)
+	-- the races' column under it
+	f.races = make("Frame", alliance and "WrathppAllianceRaces" or "WrathppHordeRaces", root)
+	f.races:SetWidth(u(79)); f.races:SetHeight(u(79))
+	f.races:SetPoint(alliance and "TOPLEFT" or "TOPRIGHT", root, alliance and "TOPLEFT" or "TOPRIGHT", alliance and u(68) or -u(68), -u(106))
+	return f
+end
+local alliancePanel, hordePanel = header(true), header(false)
 
-local sexPanel = panel("WrathppSexPanel", root, 150, 64)
-sexPanel:SetPoint("TOP", root, "TOP", 0, -14)
+local sexPanel = make("Frame", "WrathppSexPanel", root)
+sexPanel:SetWidth(u(46 * 2 + 22)); sexPanel:SetHeight(u(46))
+sexPanel:SetPoint("TOP", root, "TOP", 0, -u(27))
 
-local classPanel = panel("WrathppClassPanel", root, 560, 92)
-classPanel:SetPoint("BOTTOM", root, "BOTTOM", 0, 92)
-local className = text(classPanel, FONT_LABEL); className:SetPoint("TOP", classPanel, "TOP", 0, -8)
+local classPanel = make("Frame", "WrathppClassPanel", root)
+classPanel:SetWidth(u(969)); classPanel:SetHeight(u(67))
+classPanel:SetPoint("BOTTOM", root, "BOTTOM", 0, u(62))
 
--- Customize, as Shadowlands lays it out: at the top right the dice and the categories' round buttons in a row; under
--- them the chosen category's options, each a line (its name, then its choice between two arrows), with nothing drawn
--- behind them; the name's box at the top in the middle; the view's buttons at the top left; Back and Finish at the foot.
+-- Customize (CharCustomizeFrame): the categories' round buttons in a row at the top right (Categories at -20, -166: 104
+-- across, overlapping by 21), the dice left of them (9 away); the chosen category's options under them (Options at
+-- -33, -297, 32 between rows); the view's five buttons at the top left (SmallButtons at 40, -30: 48 across,
+-- overlapping by 5, 30 before the two that turn); Back and Finish at the foot (46 in, 28 up, 250 x 66).
 local categoryPanel = make("Frame", "WrathppCategoryPanel", root)
-categoryPanel:SetWidth(LIST_W); categoryPanel:SetHeight(52)
-categoryPanel:SetPoint("TOPRIGHT", root, "TOPRIGHT", -24, -128)
+categoryPanel:SetWidth(u(104)); categoryPanel:SetHeight(u(105))
+categoryPanel:SetPoint("TOPRIGHT", root, "TOPRIGHT", -u(20), -u(166))
 
 local optionPanel = make("Frame", "WrathppOptionPanel", root)
-optionPanel:SetWidth(LIST_W + 22); optionPanel:SetHeight(486)
-optionPanel:SetPoint("TOPRIGHT", root, "TOPRIGHT", -14, -184)
-local optionTitle = text(optionPanel, FONT_LABEL); optionTitle:SetPoint("TOPRIGHT", optionPanel, "TOPRIGHT", -14, -2)
-optionTitle:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-local optionList = scroller("WrathppOptionList", optionPanel, LIST_W, 456)
-optionList:SetPoint("TOPLEFT", optionPanel, "TOPLEFT", 11, -24)
-local notice = text(optionPanel, FONT_SMALL); notice:SetPoint("TOP", optionPanel, "BOTTOM", 0, -4)
+optionPanel:SetWidth(LIST_W); optionPanel:SetHeight(768 - u(297) - u(28 + 66 + 14))
+optionPanel:SetPoint("TOPRIGHT", root, "TOPRIGHT", -u(33), -u(297))
+local optionList = scroller("WrathppOptionList", optionPanel, LIST_W, 768 - u(297) - u(28 + 66 + 14))
+optionList:SetPoint("TOPRIGHT", optionPanel, "TOPRIGHT", 0, 0)
+local notice = label(optionPanel, 12, "grey"); notice:SetPoint("BOTTOMRIGHT", optionPanel, "TOPRIGHT", 0, u(6))
 
 local viewPanel = make("Frame", "WrathppViewPanel", root)
-viewPanel:SetWidth(230); viewPanel:SetHeight(40)
-viewPanel:SetPoint("TOPLEFT", root, "TOPLEFT", 24, -24)
--- (the game's own box for the name has "Name" over it, a part of the box: Customize puts the box at the top in the middle)
+viewPanel:SetWidth(u(48 * 5 - 5 * 4 + 30)); viewPanel:SetHeight(u(48))
+viewPanel:SetPoint("TOPLEFT", root, "TOPLEFT", u(40), -u(30))
 
--- The buttons at the foot.
-local customizeButton = glueButton("WrathppCustomizeButton", root, "Customize", 170, function() WrathppCreate_SetStep(2) end, "GlueButtonTemplate")
-customizeButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -24, 24)
-local backButton = glueButton("WrathppBackButton", root, BACK or "Back", 150, function() WrathppCreate_SetStep(1) end, "GlueButtonTemplate")
-backButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", 24, 24)
-local finishButton = glueButton("WrathppFinishButton", root, "Finish", 170, function()
+-- The buttons at the foot (CharacterCreateNavButtonTemplate: BackButton at 46, 28 from the bottom left, ForwardButton
+-- from the bottom right). On the first screen Back leaves for the list of characters, as the game's own Back does.
+local customizeButton = redButton("WrathppCustomizeButton", root, "Customize", 250, 66, function() WrathppCreate_SetStep(2) end)
+customizeButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -u(46), u(28))
+local leaveButton = redButton("WrathppLeaveButton", root, BACK or "Back", 250, 66, function()
+	if ( type(CharacterCreate_Back) == "function" ) then CharacterCreate_Back() elseif ( CharCreateBackButton ) then CharCreateBackButton:Click() end
+end)
+leaveButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
+local backButton = redButton("WrathppBackButton", root, BACK or "Back", 250, 66, function() WrathppCreate_SetStep(1) end)
+backButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
+local finishButton = redButton("WrathppFinishButton", root, "Finish", 250, 66, function()
 	if ( type(CharacterCreate_Okay) == "function" ) then CharacterCreate_Okay() else CreateCharacter(CharacterCreateNameEdit:GetText()) end
-end, "GlueButtonTemplate")
-finishButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -24, 24)
-local randomizeButton = pictureButton("WrathppRandomize", root, 36, "Interface\\Buttons\\UI-GroupLoot-Dice-Up", "Interface\\Buttons\\UI-GroupLoot-Dice-Down", "Interface\\Buttons\\UI-GroupLoot-Dice-Highlight")
+end)
+finishButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -u(46), u(28))
+local randomizeButton = smallButton("WrathppRandomize", root, "charactercreate-icon-dice")
 randomizeButton:SetScript("OnClick", guarded(function()
 	local model, undead = looks()
 	local wasUndead = undeadOn(model, undead)
@@ -590,7 +746,7 @@ randomizeButton:SetScript("OnClick", guarded(function()
 	W.Regear()
 	WrathppCreate_Refresh()
 end))
-randomizeButton:SetPoint("RIGHT", categoryPanel, "LEFT", -8, 0)
+randomizeButton:SetPoint("RIGHT", categoryPanel, "LEFT", -u(9), 0)
 
 -- Turning and zooming ------------------------------------------------------------------------------------------------
 
@@ -621,8 +777,8 @@ end
 
 -- The middle of the screen: a finger across it turns the character (and, while zoomed, up and down moves the view).
 local spinArea = make("Button", "WrathppSpinArea", root)
-spinArea:SetPoint("TOPLEFT", root, "TOPLEFT", 260, -90)
-spinArea:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -(LIST_W + 50), 196)
+spinArea:SetPoint("TOPLEFT", root, "TOPLEFT", u(68 + 79 + 40), -u(110))
+spinArea:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -(LIST_W + u(60)), u(62 + 67 + 60))
 spinArea:EnableMouseWheel(true)
 spinArea:SetScript("OnMouseDown", function()
 	local x, y = cursor()
@@ -631,41 +787,43 @@ end)
 spinArea:SetScript("OnMouseUp", function() W.turning = false end)
 spinArea:SetScript("OnMouseWheel", function(self, delta) W.SetZoom((W.zoomTarget or W.zoom) + (delta or arg1 or 0) * 0.2) end)
 
-local function holdButton(name, parent, up, down, held, tapped)
-	local b = pictureButton(name, parent, 36, up, down)
-	b:SetScript("OnMouseDown", function(self) self.held = true end)
-	b:SetScript("OnMouseUp", function(self) self.held = false end)
+local function holdButton(name, icon, held, tapped)
+	local b = smallButton(name, viewPanel, icon)
 	b:SetScript("OnClick", guarded(tapped or function() end))
 	b.whileHeld = held
 	return b
 end
--- (the turned arrow of 3.3.5's gear manager: Interface\\Buttons\\UI-RefreshButton, used here until build 237, is of a later game
--- and not among 3.3.5's files; the rig now checks every texture's name: rig/textures335.txt)
-local resetView = holdButton("WrathppResetView", viewPanel, "Interface\\PaperDollInfoFrame\\UI-GearManager-Undo", nil, nil, function()
+local resetView = holdButton("WrathppResetView", "common-icon-undo", nil, function()
 	W.SetZoom(1, 0.6); W.spin = 0
 	if ( type(SetCharacterCreateFacing) == "function" ) then SetCharacterCreateFacing(-15) end
 end)
 resetView:SetPoint("LEFT", viewPanel, "LEFT", 0, 0)
-local zoomOut = holdButton("WrathppZoomOut", viewPanel, "Interface\\Minimap\\UI-Minimap-ZoomOutButton-Up", "Interface\\Minimap\\UI-Minimap-ZoomOutButton-Down", nil,
-	function() W.SetZoom((W.zoomTarget or W.zoom) - 0.3) end)
-zoomOut:SetPoint("LEFT", resetView, "RIGHT", 4, 0)
-local zoomIn = holdButton("WrathppZoomIn", viewPanel, "Interface\\Minimap\\UI-Minimap-ZoomInButton-Up", "Interface\\Minimap\\UI-Minimap-ZoomInButton-Down", nil,
-	function() W.SetZoom((W.zoomTarget or W.zoom) + 0.3) end)
-zoomIn:SetPoint("LEFT", zoomOut, "RIGHT", 4, 0)
-local turnLeft = holdButton("WrathppTurnLeft", viewPanel, "Interface\\Buttons\\UI-RotationLeft-Button-Up", "Interface\\Buttons\\UI-RotationLeft-Button-Down",
-	function(elapsed) turn(-140 * elapsed) end)
-turnLeft:SetPoint("LEFT", zoomIn, "RIGHT", 22, 0)
-local turnRight = holdButton("WrathppTurnRight", viewPanel, "Interface\\Buttons\\UI-RotationRight-Button-Up", "Interface\\Buttons\\UI-RotationRight-Button-Down",
-	function(elapsed) turn(140 * elapsed) end)
-turnRight:SetPoint("LEFT", turnLeft, "RIGHT", 4, 0)
+local zoomOut = holdButton("WrathppZoomOut", "common-icon-zoomout", nil, function() W.SetZoom((W.zoomTarget or W.zoom) - 0.3) end)
+zoomOut:SetPoint("LEFT", resetView, "RIGHT", -u(5), 0)
+local zoomIn = holdButton("WrathppZoomIn", "common-icon-zoomin", nil, function() W.SetZoom((W.zoomTarget or W.zoom) + 0.3) end)
+zoomIn:SetPoint("LEFT", zoomOut, "RIGHT", -u(5), 0)
+local turnLeft = holdButton("WrathppTurnLeft", "common-icon-rotateleft", function(elapsed) turn(-140 * elapsed) end)
+turnLeft:SetPoint("LEFT", zoomIn, "RIGHT", u(30 - 5), 0)
+local turnRight = holdButton("WrathppTurnRight", "common-icon-rotateright", function(elapsed) turn(140 * elapsed) end)
+turnRight:SetPoint("LEFT", turnLeft, "RIGHT", -u(5), 0)
 
 -- The categories -------------------------------------------------------------------------------------------------------
 
+-- CharCustomizeCategoryButtonTemplate: 104 x 105, the ring (charactercreate-ring-metallight) 108 x 109, the gold ring
+-- of the one chosen 93. Which picture a category has is the game's own table's (ChrCustomizationCategory): the head
+-- for Face, the comb for Hair, the necklace for Accessories, the figure for Body and for Markings.
+local CATEGORY_ART = { Face = "head", Hair = "hair", Accessories = "accessories", Body = "body", Markings = "body" }
+local CATEGORY_PLAIN = {
+	Face = "Interface\\Icons\\INV_Misc_Head_Human_01", Hair = "Interface\\Icons\\INV_Misc_Comb_01",
+	Accessories = "Interface\\Icons\\INV_Jewelry_Necklace_07", Body = "Interface\\Icons\\INV_Chest_Cloth_21",
+	Markings = "Interface\\Icons\\INV_Inscription_Tradeskill01",
+}
 local categoryButtons = {}
 local function categoryButton(k)
 	local b = categoryButtons[k]
 	if ( not b ) then
-		b = roundButton("WrathppCategory"..k, categoryPanel, 46)
+		b = maskedButton("WrathppCategory"..k, categoryPanel, 104, 105, "charactercreate-ring-metallight", 108, 109, 93, "category")
+		b.label = label(b, 12, "white"); b.label:Hide()
 		b:SetScript("OnClick", guarded(function(self)
 			W.category = self.category
 			WrathppCreate_ClosePopout()
@@ -679,19 +837,30 @@ local function categoryButton(k)
 	end
 	return b
 end
+local function showCategory(b, name, chosen)
+	local word = string.match(name or "", "^(%a+)") or ""
+	local art = CATEGORY_ART[word] or "body"
+	b:Set("charactercreate-icon-customize-"..art..(chosen and "-selected" or ""), chosen, false, CATEGORY_PLAIN[word] or "Interface\\Icons\\INV_Misc_QuestionMark", { 0.08, 0.92, 0.08, 0.92 })
+end
 
 -- The option rows --------------------------------------------------------------------------------------------------------
 
+-- SelectionPopoutWithButtonsAndLabelTemplate: 223 x 38. The box (150 x 38, charactercreate-customize-dropdownbox) in
+-- its middle, the next arrow 4 right of the box and the previous 5 left of it (32 x 32 each), the option's name ending
+-- 34 left of the previous arrow (white, 14). In the box, in its middle: the choice's name (gold, 12), or its colour's
+-- swatch, or its number where it has neither. A switch (CharCustomizeOptionCheckButtonTemplate) is the game's own
+-- check box, 32 x 32, where the previous arrow would be.
 local rowFrames = {}
 local shown = {}
 
-local function arrow(parent, direction)
+local function arrow(parent, piece)
 	local b = make("Button", nil, parent)
-	b:SetWidth(32); b:SetHeight(32)
-	local side = direction < 0 and "Left" or "Right"
-	b:SetNormalTexture("Interface\\Glues\\Common\\Glue-"..side.."Arrow-Button-Up")
-	b:SetPushedTexture("Interface\\Glues\\Common\\Glue-"..side.."Arrow-Button-Down")
-	b:SetHighlightTexture("Interface\\Glues\\Common\\Glue-"..side.."Arrow-Button-Highlight")
+	b:SetWidth(u(32)); b:SetHeight(u(32))
+	b.back = b:CreateTexture(nil, "ARTWORK"); b.back:SetAllPoints(b)
+	function b:Paint() atlas(self.back, "charactercreate-customize-"..piece..((not self:IsEnabled() and "-disabled") or (self.held and "-down") or "")) end
+	b:SetScript("OnMouseDown", function(self) self.held = true; self:Paint() end)
+	b:SetScript("OnMouseUp", function(self) self.held = false; self:Paint() end)
+	skin(function() b:Paint() end)
 	return b
 end
 
@@ -699,38 +868,34 @@ local function rowFrame(k)
 	local f = rowFrames[k]
 	if ( f ) then return f end
 	f = make("Frame", "WrathppRow"..k, optionList.child)
-	f:SetWidth(LIST_W - 8); f:SetHeight(ROW_H)
-	f:SetPoint("TOPLEFT", optionList.child, "TOPLEFT", 0, -(k - 1) * ROW_H)
-	f.name = text(f, FONT_LABEL)
+	f:SetWidth(LIST_W); f:SetHeight(u(38))
+	f:SetPoint("TOPRIGHT", optionList.child, "TOPRIGHT", 0, -(k - 1) * ROW_PITCH - u(4))
+	f.choice = make("Button", "WrathppRow"..k.."Choice", f)
+	f.choice:SetWidth(u(150)); f.choice:SetHeight(u(38))
+	f.choice:SetPoint("RIGHT", f, "RIGHT", -u((ROW_W - 150) / 2), 0)
+	f.choice.back = f.choice:CreateTexture(nil, "BACKGROUND"); f.choice.back:SetAllPoints(f.choice)
+	function f.choice:Paint() atlas(self.back, "charactercreate-customize-dropdownbox"..(self.open and "-open" or "")) end
+	skin(function() f.choice:Paint() end)
+	f.next = arrow(f, "nextbutton"); f.next:SetPoint("LEFT", f.choice, "RIGHT", u(4), 0)
+	f.previous = arrow(f, "backbutton"); f.previous:SetPoint("RIGHT", f.choice, "LEFT", -u(5), 0)
+	f.name = label(f, 14, "white")
+	f.name:SetPoint("RIGHT", f.previous, "LEFT", -u(34), 0)
 	f.name:SetPoint("LEFT", f, "LEFT", 0, 0)
-	f.name:SetPoint("RIGHT", f, "LEFT", NAME_W, 0)
 	f.name:SetJustifyH("RIGHT")
-	f.name:SetHeight(14)
-	f.name:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
-	f.previous = arrow(f, -1)
-	f.previous:SetPoint("LEFT", f, "LEFT", NAME_W + 8, 0)
-	f.next = arrow(f, 1)
-	f.next:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-	f.choice = box("WrathppRow"..k.."Choice", f, LIST_W - 8 - NAME_W - 8 - 68, 34)
-	f.choice:SetPoint("LEFT", f.previous, "RIGHT", 2, 0)
-	f.choice.label:ClearAllPoints()
-	f.choice.label:SetPoint("LEFT", f.choice, "LEFT", 44, 0)
-	f.choice.label:SetPoint("RIGHT", f.choice, "RIGHT", -26, 0)
-	f.choice.label:SetJustifyH("LEFT")
-	f.choice.label:SetHeight(14)
-	f.choice.number = text(f.choice, FONT_TEXT)
-	f.choice.number:SetPoint("LEFT", f.choice, "LEFT", 10, 0)
-	f.choice.swatch = swatch(f.choice, 18); f.choice.swatch:SetPoint("LEFT", f.choice, "LEFT", 44, 0)
-	f.choice.swatch2 = swatch(f.choice, 18); f.choice.swatch2:SetPoint("LEFT", f.choice.swatch, "RIGHT", 2, 0)
-	f.choice.mark = text(f.choice, FONT_SMALL); f.choice.mark:SetPoint("RIGHT", f.choice, "RIGHT", -10, 0); f.choice.mark:SetText("v")
+	f.name:SetHeight(u(16))
+	f.choice.label = label(f.choice, 12, "gold")
+	f.choice.label:SetPoint("LEFT", f.choice, "LEFT", u(12), 0); f.choice.label:SetPoint("RIGHT", f.choice, "RIGHT", -u(12), 0)
+	f.choice.label:SetJustifyH("CENTER"); f.choice.label:SetHeight(u(14))
+	f.choice.swatch = swatch(f.choice); f.choice.swatch:SetPoint("CENTER", f.choice, "CENTER", 0, 0)
+	f.choice.swatch2 = swatch(f.choice); f.choice.swatch2:SetWidth(u(36)); f.choice.swatch2:SetHeight(u(8)); f.choice.swatch2:SetPoint("LEFT", f.choice.swatch, "LEFT", u(18), -u(2))
 	f.check = make("CheckButton", "WrathppRow"..k.."Check", f)
-	f.check:SetWidth(34); f.check:SetHeight(34)
-	f.check:SetPoint("LEFT", f, "LEFT", NAME_W + 8, 0)
+	f.check:SetWidth(u(32)); f.check:SetHeight(u(32))
+	f.check:SetPoint("LEFT", f, "RIGHT", -u(ROW_W), 0)
 	f.check:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
 	f.check:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
 	f.check:SetHighlightTexture("Interface\\Buttons\\UI-CheckBox-Highlight")
 	f.check:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
-	f.checkText = text(f, FONT_TEXT); f.checkText:SetPoint("LEFT", f.check, "RIGHT", 6, 0)
+	f.checkText = label(f, 12, "gold"); f.checkText:SetPoint("LEFT", f.check, "RIGHT", u(6), 0)
 	local function tapped(fn)
 		return guarded(function(self)
 			if ( not optionList:Tapped() ) then
@@ -750,9 +915,12 @@ local function rowFrame(k)
 		elseif ( f.row.gear ) then W.SetGear(self:GetChecked() and true or false)
 		else W.Choose(f.row, self:GetChecked() and 2 or 1) end
 	end))
+	-- a drag that starts on a row moves the list (an arrow keeps its own pressed look as well)
 	for _, piece in ipairs({ f, f.previous, f.next, f.choice, f.check }) do
 		if ( piece.EnableMouse ) then piece:EnableMouse(true) end
-		optionList:Watch(piece)
+		local down, up = piece:GetScript("OnMouseDown"), piece:GetScript("OnMouseUp")
+		piece:SetScript("OnMouseDown", function(self, ...) optionList:Press(); if ( down ) then down(self, ...) end end)
+		piece:SetScript("OnMouseUp", function(self, ...) optionList:Release(); if ( up ) then up(self, ...) end end)
 	end
 	rowFrames[k] = f
 	return f
@@ -780,26 +948,20 @@ local function showRow(f, row)
 		f.previous:Show(); f.next:Show(); f.choice:Show(); f.check:Hide(); f.checkText:Hide()
 		local c = row.choices and row.at and row.choices[row.at]
 		if ( row.kind == "plain" ) then
-			f.choice.number:SetText("")
 			f.choice.label:SetText(""); paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
-			f.choice.mark:Hide()
 		elseif ( row.kind == "later" ) then
-			f.choice.number:SetText("")
 			f.choice.label:SetText(row.none and "None for this character" or "Not drawn yet")
 			paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
-			f.choice.mark:Hide()
 		else
-			f.choice.number:SetText(row.at or "")
-			paint(f.choice.swatch, c and c.s); paint(f.choice.swatch2, c and c.s2)
-			f.choice.label:ClearAllPoints()
-			f.choice.label:SetPoint("LEFT", f.choice, "LEFT", 44 + ((c and c.s) and 22 or 0) + ((c and c.s2) and 20 or 0), 0)
-			f.choice.label:SetPoint("RIGHT", f.choice, "RIGHT", -26, 0)
-			f.choice.label:SetText(c and describe(c, row.at) or "")
-			f.choice.mark:Show()
+			-- as Shadowlands' box shows the choice on: its colour, or its name, or (having neither) its number
+			paint(f.choice.swatch, c and c.s, c and c.s2 and true); paint(f.choice.swatch2, c and c.s and c.s2)
+			local name = c and describe(c, row.at) or ""
+			f.choice.label:SetText((c and c.s and "") or (name ~= "" and name) or tostring(row.at or ""))
 		end
 		local dim = row.kind == "later"
 		f:SetAlpha(dim and 0.45 or 1)
 		if ( dim ) then f.previous:Disable(); f.next:Disable(); f.choice:Disable() else f.previous:Enable(); f.next:Enable(); f.choice:Enable() end
+		f.previous:Paint(); f.next:Paint()
 	else
 		f:SetAlpha(1)
 		f.previous:Hide(); f.next:Hide(); f.choice:Hide(); f.check:Show(); f.checkText:Show()
@@ -814,162 +976,185 @@ end
 
 -- The list of an option's choices -----------------------------------------------------------------------------------------
 
-local popout = panel("WrathppPopout", root, 300, 300)
+-- SelectionPopoutTemplate and its entries (SelectionPopoutButtonMixin:UpdatePopout): one column up to 10 choices, two
+-- up to 24, three up to 36, four beyond, filled downwards column by column, and more columns where the screen has not
+-- the height; an entry is a line 20 high: its number (gold, 25 wide), then its name or its colour's swatch, the one on
+-- in gold (a colour's with charactercreate-customize-palette-selected round it) and the others grey. The first entry is
+-- 6 in and 12 down, the list is 6 wider and 32 taller than its entries, and it hangs from the box's bottom right
+-- corner, 3 right and 11 up. POP draws all of it larger: a line is a finger's target here.
+local popout = make("Frame", "WrathppPopout", root)
+popout:SetWidth(100); popout:SetHeight(100)
 popout:SetFrameStrata("DIALOG")
 popout:Hide()
-local popoutList = scroller("WrathppPopoutList", popout, 280, 280)
-popoutList:SetPoint("TOPLEFT", popout, "TOPLEFT", 10, -10)
+popout.border = nineSlice(popout)
 local catcher = make("Button", "WrathppPopoutCatcher", root)
 catcher:SetAllPoints(root)
 catcher:SetFrameStrata("HIGH")
 catcher:Hide()
 catcher:SetScript("OnClick", function() WrathppCreate_ClosePopout() end)
 local cells = {}
+local function p(n) return u(n * POP) end
 
 local function cell(k)
 	local b = cells[k]
 	if ( b ) then return b end
-	b = box("WrathppChoice"..k, popoutList.child, 60, 34)
-	b.number = text(b, FONT_TEXT); b.number:SetPoint("LEFT", b, "LEFT", 8, 0)
-	b.swatch = swatch(b, 18)
-	b.swatch2 = swatch(b, 18)
-	b.label:ClearAllPoints(); b.label:SetJustifyH("LEFT"); b.label:SetHeight(14)
+	b = make("Button", "WrathppChoice"..k, popout)
+	b:SetHeight(p(20))
+	b.mark = b:CreateTexture(nil, "BACKGROUND"); b.mark:SetWidth(p(102)); b.mark:SetHeight(p(40))
+	b.number = label(b, 12 * POP, "grey"); b.number:SetPoint("LEFT", b, "LEFT", p(14), 0); b.number:SetWidth(p(25)); b.number:SetJustifyH("LEFT")
+	b.swatch = swatch(b); b.swatch:SetWidth(p(84)); b.swatch:SetHeight(p(20)); b.swatch:SetPoint("LEFT", b.number, "RIGHT", 0, 0)
+	b.swatch2 = swatch(b); b.swatch2:SetWidth(p(36)); b.swatch2:SetHeight(p(8)); b.swatch2:SetPoint("LEFT", b.number, "RIGHT", p(18), -p(2))
+	b.mark:SetPoint("LEFT", b.swatch, "LEFT", -p(4), 0)
+	b.label = label(b, 12 * POP, "grey"); b.label:SetPoint("LEFT", b.number, "RIGHT", 0, 0); b.label:SetJustifyH("LEFT"); b.label:SetHeight(p(14))
 	b:SetScript("OnClick", guarded(function(self)
-		if ( not popoutList:Tapped() ) then return end
 		W.Choose(popout.row, self.index)
 		WrathppCreate_Refresh()
 	end))
-	popoutList:Watch(b)
 	cells[k] = b
 	return b
 end
 
 function WrathppCreate_ClosePopout()
+	if ( popout.owner and popout.owner.choice ) then popout.owner.choice.open = nil; popout.owner.choice:Paint() end
 	popout:Hide(); catcher:Hide()
 	popout.row, popout.owner, popout.room = nil, nil, nil
+end
+
+-- How many columns, and how many lines in each (Shadowlands' getNumColumnsAndStride).
+local function columnsFor(n, most)
+	local columns = (n > 36 and 4) or (n > 24 and 3) or (n > 10 and 2) or 1
+	local stride = math.ceil(n / columns)
+	if ( most and most >= 1 and stride > most ) then
+		columns = math.ceil(n / most)
+		stride = math.ceil(n / columns)
+	end
+	return columns, stride
 end
 
 local function fillPopout(room)
 	local row = popout.row
 	if ( not row ) then return end
-	local named = false
-	for _, c in ipairs(row.choices) do if ( c.n and c.n ~= "" ) then named = true end end
-	local coloured = false
-	for _, c in ipairs(row.choices) do if ( c.s ) then coloured = true end end
-	local columns = (named and 1) or (coloured and 4) or 2
-	local cw = named and 276 or 66
+	room = room or popout.room
 	local n = #row.choices
-	local lines = math.ceil(n / columns)
+	local named, coloured = false, false
+	for _, c in ipairs(row.choices) do
+		if ( c.n and c.n ~= "" ) then named = true end
+		if ( c.s ) then coloured = true end
+	end
+	local columns, stride = columnsFor(n, room and math.floor((room - p(32)) / p(20)) or nil)
+	-- an entry's width: its number and what follows it (CharCustomizeSelectionPopoutDetailsMixin:AdjustWidth)
+	local details = 116
+	if ( columns > 1 ) then details = (coloured and (25 + 36 + 18)) or (named and 108) or 42 end
+	local width = p(14 + details + 14)
 	for k = 1, n do
 		local c, b = row.choices[k], cell(k)
 		b.index = k
-		b:SetWidth(cw); b:ClearAllPoints()
-		b:SetPoint("TOPLEFT", popoutList.child, "TOPLEFT", ((k - 1) % columns) * (cw + 4), -math.floor((k - 1) / columns) * 38)
+		b:SetWidth(width); b:ClearAllPoints()
+		b:SetPoint("TOPLEFT", popout, "TOPLEFT", p(6) + math.floor((k - 1) / stride) * width, -p(12) - ((k - 1) % stride) * p(20))
+		local on = k == row.at
 		b.number:SetText(k)
-		b.swatch:ClearAllPoints(); b.swatch:SetPoint("LEFT", b, "LEFT", named and 40 or 34, 0)
-		b.swatch2:ClearAllPoints(); b.swatch2:SetPoint("LEFT", b.swatch, "RIGHT", 2, 0)
-		paint(b.swatch, c.s); paint(b.swatch2, c.s2)
-		b.label:ClearAllPoints()
-		b.label:SetPoint("LEFT", b, "LEFT", 40 + (c.s and 22 or 0) + (c.s2 and 20 or 0), 0)
-		b.label:SetPoint("RIGHT", b, "RIGHT", -6, 0)
-		b.label:SetText(named and describe(c, k) or "")
-		b:Lit(k == row.at)
+		if ( on ) then b.number:SetTextColor(1, 0.82, 0); b.label:SetTextColor(1, 0.82, 0) else b.number:SetTextColor(0.5, 0.5, 0.5); b.label:SetTextColor(0.5, 0.5, 0.5) end
+		paint(b.swatch, c.s, c.s2 and true); paint(b.swatch2, c.s and c.s2)
+		b.label:SetWidth(p(details - 25))
+		b.label:SetText((not c.s and describe(c, k)) or "")
+		if ( on and c.s ) then atlas(b.mark, "charactercreate-customize-palette-selected"); b.mark:Show() else b.mark:Hide() end
 		b:Show()
 	end
 	for k = n + 1, #cells do cells[k]:Hide() end
-	local width = columns * (cw + 4) + 4
-	-- as tall as its lines, as the screen has room for (room), and no taller than eleven lines; never under two
-	local height = math.min(lines * 38, 418)
-	room = room or popout.room                       -- (filled again as the rows are read again: the room it was given stays)
-	if ( room ) then height = math.max(math.min(76, lines * 38), math.min(height, math.floor((room - 20) / 38) * 38)) end
-	popoutList:SetWidth(width); popoutList.child:SetWidth(width)
-	popoutList:SetView(height)
-	popoutList:SetContentHeight(lines * 38)
-	popout:SetWidth(width + 20); popout:SetHeight(height + 20)
-	return lines, columns
+	popout:SetWidth(columns * width + p(6) * 2); popout:SetHeight(stride * p(20) + p(32))
+	return stride, columns
 end
 
 function WrathppCreate_TogglePopout(f)
 	if ( popout.owner == f ) then WrathppCreate_ClosePopout(); return end
+	WrathppCreate_ClosePopout()
 	local row = f.row
 	if ( not row or row.kind ~= "list" ) then return end
 	popout.row, popout.owner = row, f
-	-- Under the row's box, as Shadowlands opens it, or over it where there is more room there; no taller than the room
-	-- it has, so that all of it is on the screen (the list scrolls under a finger).
+	f.choice.open = true; f.choice:Paint()
+	-- Under the box, as Shadowlands hangs it, or over it where there is more room there; as many columns as it takes
+	-- for all of it to be on the screen.
 	popout:ClearAllPoints()
 	popout.room = nil
-	local lines, columns = fillPopout()
 	local top, bottom = f.choice:GetTop(), f.choice:GetBottom()
 	local screen = (GlueParent and GlueParent:GetHeight()) or 768
+	local under = true
 	if ( type(top) == "number" and type(bottom) == "number" and screen > 0 ) then
-		local below, above = bottom - 10, screen - top - 10
-		local under = (lines * 38 + 20 <= below) or (below >= above)
+		local below, above = bottom + u(11) - u(24), screen - top + u(11) - u(24)
+		local _, stride = columnsFor(#row.choices)
+		under = (stride * p(20) + p(32) <= below) or (below >= above)
 		popout.room = under and below or above
-		lines, columns = fillPopout()
-		if ( under ) then popout:SetPoint("TOPRIGHT", f.choice, "BOTTOMRIGHT", 0, -2) else popout:SetPoint("BOTTOMRIGHT", f.choice, "TOPRIGHT", 0, 2) end
-	else
-		popout:SetPoint("TOPRIGHT", optionPanel, "TOPLEFT", -6, 0)
 	end
-	local at = row.at or 1
-	popoutList.offset, popoutList.target = 0, 0
-	local line = math.floor((at - 1) / columns)
-	popoutList:Reveal(line * 38, line * 38 + 38)
-	popoutList.offset = popoutList.target
-	popoutList:Place()
+	fillPopout()
+	if ( under ) then popout:SetPoint("TOPRIGHT", f.choice, "BOTTOMRIGHT", u(3), u(11)) else popout:SetPoint("BOTTOMRIGHT", f.choice, "TOPRIGHT", u(3), -u(11)) end
 	catcher:Show(); popout:Show()
 end
 
--- Moving the game's own pieces ---------------------------------------------------------------------------------------------
+-- The game's own pieces ---------------------------------------------------------------------------------------------------
+-- The game's race, class and sex buttons keep doing the work and are not seen: each has one of Shadowlands' round
+-- buttons here that shows what the game's button says (there or not, allowed or not, the one chosen) and, tapped,
+-- does what a tap on the game's button does.
 
-local function races()
-	local list = {}
-	local names = { GetAvailableRaces() }
-	local i = 1
-	while ( _G["CharacterCreateRaceButton"..i] ) do
-		local token = names[(i - 1) * 3 + 2]
-		list[i] = { button = _G["CharacterCreateRaceButton"..i], name = names[(i - 1) * 3 + 1], token = token and string.upper(token) or nil }
-		i = i + 1
+-- A place out of sight for the game's buttons: still shown or hidden, allowed or not, as the game sets them.
+local away = make("Frame", "WrathppAway", root)
+away:Hide()
+
+local RACE_ART = { scourge = "undead", highmountaintauren = "highmountain", lightforgeddraenei = "lightforged", zandalaritroll = "zandalari" }
+-- One of the game's buttons' own picture and its place in its file (the picture without Shadowlands' art).
+local function plainOf(stock)
+	local t = stock and stock.GetNormalTexture and stock:GetNormalTexture()
+	if ( not t or not t.GetTexture ) then return nil end
+	local coords
+	if ( t.GetTexCoord ) then
+		local ulx, uly, llx, lly, urx = t:GetTexCoord()
+		if ( ulx and urx and lly ) then coords = { ulx, urx, uly, lly } end
 	end
-	return list
+	return t:GetTexture(), coords
 end
 
-local raceLabels = {}
-local function placeRaces()
-	local sides = { {}, {} }
-	local list = races()
-	for i, r in ipairs(list) do
-		local alliance
-		if ( r.token ) then alliance = ALLIANCE[r.token] and true or false else alliance = i <= math.ceil(#list / 2) end
-		if ( r.button:IsShown() ) then table.insert(sides[alliance and 1 or 2], r) end
-	end
-	local tallest = 0
-	for s, side in ipairs(sides) do
-		local parent = s == 1 and alliancePanel or hordePanel
-		local columns = #side > 6 and 2 or 1
-		for k, r in ipairs(side) do
-			local b = r.button
-			b:SetParent(parent)
-			b:ClearAllPoints()
-			local column, line = (k - 1) % columns, math.floor((k - 1) / columns)
-			if ( columns == 1 ) then
-				b:SetPoint("TOPLEFT", parent, "TOPLEFT", 18, -44 - line * 62)
-			else
-				b:SetPoint("TOPLEFT", parent, "TOPLEFT", 30 + column * 106, -44 - line * 78)
-			end
-			local label = raceLabels[b]
-			if ( not label ) then label = text(parent, FONT_TEXT); raceLabels[b] = label end
-			label:ClearAllPoints()
-			if ( columns == 1 ) then label:SetPoint("LEFT", b, "RIGHT", 12, 0) else label:SetPoint("TOP", b, "BOTTOM", 0, -2) end
-			label:SetText(r.name or "")
-			label:Show()
-			-- (the game writes the chosen race's name on its button: every race has its name beside it here)
-			local own = b.GetName and b:GetName() and _G[b:GetName().."Text"]
-			if ( own ) then own:Hide() end
-		end
-		local lines = math.ceil(#side / columns)
-		tallest = math.max(tallest, 56 + lines * (columns == 1 and 62 or 78))
-	end
-	alliancePanel:SetHeight(tallest); hordePanel:SetHeight(tallest)
+local raceButtons, classButtons, sexButtons = {}, {}, {}
+local function raceButton(i, alliance)
+	local b = raceButtons[i]
+	if ( b ) then return b end
+	-- CharacterCreateRaceButtonTemplate: 79 x 79, its faction's ring 139 x 140, the gold ring of the one chosen 118; the
+	-- race's name under it (gold, 14, outlined)
+	b = maskedButton("WrathppRace"..i, alliance and alliancePanel.races or hordePanel.races, 79, 79,
+		alliance and "charactercreate-ring-alliance" or "charactercreate-ring-horde", 139, 140, 118, "race")
+	b.name = label(b, 14, "gold", true); b.name:SetPoint("TOP", b, "BOTTOM", u(2), u(7))
+	b:SetScript("OnClick", guarded(function(self)
+		local stock = _G["CharacterCreateRaceButton"..self.index]
+		if ( not stock or self.off ) then return end
+		stock:SetChecked(1)
+		CharacterRace_OnClick(stock, stock:GetID())
+	end))
+	raceButtons[i] = b
+	return b
+end
+local function classButton(i)
+	local b = classButtons[i]
+	if ( b ) then return b end
+	-- CharacterCreateClassButtonTemplate: 67 x 67, the dark ring 116 x 117, the gold ring 99; the class's name under it
+	b = maskedButton("WrathppClass"..i, classPanel, 67, 67, "charactercreate-ring-metaldark", 116, 117, 99, "class")
+	-- (ClassName: a box 85 x 50 whose top is 3 over the button's foot, the name in its middle, on two lines where it is long)
+	b.name = label(b, 14, "gold"); b.name:SetPoint("TOP", b, "BOTTOM", u(2), u(3)); b.name:SetWidth(u(85)); b.name:SetHeight(u(50))
+	b.name:SetJustifyH("CENTER"); b.name:SetJustifyV("MIDDLE")
+	b:SetScript("OnClick", guarded(function(self)
+		local stock = _G["CharacterCreateClassButton"..self.index]
+		if ( not stock or self.off ) then return end
+		CharacterClass_OnClick(stock:GetID())
+	end))
+	classButtons[i] = b
+	return b
+end
+local function sexButton(i)
+	local b = sexButtons[i]
+	if ( b ) then return b end
+	-- CharCustomizeSexButtonTemplate: 46 x 46, the dark ring 99 x 100, the gold ring 84
+	b = maskedButton(i == 1 and "WrathppSexMale" or "WrathppSexFemale", sexPanel, 46, 46, "charactercreate-ring-metaldark", 99, 100, 84, "sex")
+	b:SetPoint("LEFT", sexPanel, "LEFT", (i - 1) * u(46 + 22), 0)
+	b:SetScript("OnClick", guarded(function() SetCharacterGender(i == 1 and (SEX_MALE or 2) or (SEX_FEMALE or 3)) end))
+	sexButtons[i] = b
+	return b
 end
 
 -- The game's own pieces as they were (whose child, where, shown or not) before this script moved, hid or showed
@@ -1007,47 +1192,93 @@ end
 
 local function place()
 	keepAll()
-	for _, name in ipairs({ "CharacterCreateGenderButtonMale", "CharacterCreateGenderButtonFemale" }) do
-		local b = _G[name]
-		if ( b ) then
-			b:SetParent(sexPanel)
+	local female = GetSelectedSex and GetSelectedSex() == (SEX_FEMALE or 3)
+	-- the sexes
+	for i, name in ipairs({ "CharacterCreateGenderButtonMale", "CharacterCreateGenderButtonFemale" }) do
+		local stock = _G[name]
+		if ( stock ) then stock:SetParent(away) end
+		local chosen = (i == 2) == (female and true or false)
+		local file, coords = plainOf(stock)
+		sexButton(i):Set("charactercreate-gendericon-"..(i == 1 and "male" or "female")..(chosen and "-selected" or ""), chosen, false, file, coords)
+	end
+	-- the races: the Alliance's down the left, the Horde's down the right; a side's sixth and later in a second column
+	-- beside the first and 68 lower, as Shadowlands sets its allied races
+	local names = { GetAvailableRaces() }
+	local chosenRace = GetSelectedRace and GetSelectedRace()
+	local count = { 0, 0 }
+	local i, total = 1, 0
+	while ( _G["CharacterCreateRaceButton"..i] ) do total = i; i = i + 1 end
+	for index = 1, total do
+		local stock = _G["CharacterCreateRaceButton"..index]
+		stock:SetParent(away)
+		local own = stock.GetName and stock:GetName() and _G[stock:GetName().."Text"]
+		local token = names[(index - 1) * 3 + 2]
+		token = token and string.upper(token) or nil
+		local alliance
+		if ( token ) then alliance = ALLIANCE[token] and true or false else alliance = index <= math.ceil(total / 2) end
+		local b = raceButton(index, alliance)
+		b.index = index
+		if ( stock:IsShown() and token ) then
+			local side = alliance and 1 or 2
+			count[side] = count[side] + 1
+			local k = count[side]
+			local column, line = (k > 5) and 1 or 0, (k > 5) and (k - 6) or (k - 1)
 			b:ClearAllPoints()
-			b:SetPoint("CENTER", sexPanel, "CENTER", name == "CharacterCreateGenderButtonMale" and -30 or 30, 0)
+			local x = column * u(79 + 18) * (alliance and 1 or -1)
+			b:SetPoint(alliance and "TOPLEFT" or "TOPRIGHT", alliance and alliancePanel.races or hordePanel.races, alliance and "TOPLEFT" or "TOPRIGHT", x, -line * u(79 + 18) - column * u(68))
+			local art = string.lower(token)
+			local file, coords = plainOf(stock)
+			b:Set("raceicon128-"..(RACE_ART[art] or art).."-"..(female and "female" or "male"), index == chosenRace, not stock:IsEnabled(), file, coords, not alliance)
+			b.name:SetText(names[(index - 1) * 3 + 1] or "")
 			b:Show()
+		else
+			b:Hide()
 		end
+		if ( own ) then own:Hide() end
 	end
-	local i, n = 1, 0
-	while ( _G["CharacterCreateClassButton"..i] ) do
-		if ( _G["CharacterCreateClassButton"..i]:IsShown() ) then n = n + 1 end
-		i = i + 1
-	end
-	local at = 0
+	-- the classes, in a row in the middle of the foot (15 between them, as twelve of Shadowlands' fill its 969)
+	local classes = { GetAvailableClasses() }
+	local _, _, chosenClass = GetSelectedClass()
+	local n, shownClasses = 0, {}
 	i = 1
 	while ( _G["CharacterCreateClassButton"..i] ) do
-		local b = _G["CharacterCreateClassButton"..i]
-		b:SetParent(classPanel)
-		b:ClearAllPoints()
-		if ( b:IsShown() ) then
-			b:SetPoint("BOTTOMLEFT", classPanel, "BOTTOMLEFT", 16 + at * 50, 10)
-			at = at + 1
-		end
+		local stock = _G["CharacterCreateClassButton"..i]
+		stock:SetParent(away)
+		local b = classButton(i)
+		b.index = i
+		if ( stock:IsShown() ) then n = n + 1; shownClasses[n] = i else b:Hide() end
 		i = i + 1
 	end
-	classPanel:SetWidth(math.max(200, 32 + math.max(n, 1) * 50))
-	local name = GetSelectedClass and GetSelectedClass()
-	className:SetText(name or "")
-	placeRaces()
+	local pitch = u(67 + 15)
+	-- Shadowlands' row is beside the foot's two buttons on a screen 16:9 wide; on a narrower one it would run into them,
+	-- and stands over them instead (the buttons' 28 + 66, and the names' room)
+	local width = (GlueParent and GlueParent:GetWidth()) or 1024
+	local beside = (n * pitch - u(15)) / 2 + u(12) <= width / 2 - u(46 + 250)
+	classPanel:ClearAllPoints()
+	classPanel:SetPoint("BOTTOM", root, "BOTTOM", 0, beside and u(62) or u(28 + 66 + 50))
+	for k, index in ipairs(shownClasses) do
+		local stock, b = _G["CharacterCreateClassButton"..index], classButtons[index]
+		b:ClearAllPoints()
+		b:SetPoint("LEFT", classPanel, "CENTER", (k - 1) * pitch - (n * pitch - u(15)) / 2, 0)
+		local token = classes[(index - 1) * 3 + 2]
+		local file, coords = plainOf(stock)
+		b:Set(token and ("classicon-"..string.lower(token)) or nil, index == chosenClass, not stock:IsEnabled(), file, coords)
+		b.name:SetText(classes[(index - 1) * 3 + 1] or "")
+		b:Show()
+	end
 	if ( CharacterCreateConfigurationFrame ) then CharacterCreateConfigurationFrame:Hide() end
 	i = 1
 	while ( _G["CharacterCustomizationButtonFrame"..i] ) do _G["CharacterCustomizationButtonFrame"..i]:Hide(); i = i + 1 end
 	for _, name in ipairs({ "CharCreateRandomizeButton", "CharacterCreateCharacterClass", "CharacterCreateCharacterRace", "CharCreateOkayButton",
-			"CharacterCreateRotateLeft", "CharacterCreateRotateRight", "CharacterCreateWoWLogo" }) do
+			"CharacterCreateRotateLeft", "CharacterCreateRotateRight", "CharacterCreateWoWLogo", "CharCreateBackButton" }) do
 		if ( _G[name] ) then _G[name]:Hide() end
 	end
+	-- the name's box (the game's own, with its "Name" over it): at the top in the middle on Customize, where Shadowlands
+	-- has its own (NameChoiceFrame, 34 down)
 	local naming = W.step == 2
 	if ( CharacterCreateNameEdit ) then
 		CharacterCreateNameEdit:ClearAllPoints()
-		CharacterCreateNameEdit:SetPoint("TOP", root, "TOP", 0, -44)
+		CharacterCreateNameEdit:SetPoint("TOP", root, "TOP", 0, -u(34) - 22)
 		if ( naming ) then CharacterCreateNameEdit:Show() else CharacterCreateNameEdit:Hide() end
 	end
 	-- the game's button for a random name is the game's to show (it does where names may be drawn): beside the box
@@ -1057,10 +1288,6 @@ local function place()
 		CharacterCreateRandomName:SetPoint("RIGHT", CharacterCreateNameEdit or root, "LEFT", -6, 0)
 		if ( naming and (ALLOW_RANDOM_NAME_BUTTON or (kept[CharacterCreateRandomName] and kept[CharacterCreateRandomName].shown)) ) then CharacterCreateRandomName:Show() else CharacterCreateRandomName:Hide() end
 	end
-	if ( CharCreateBackButton ) then
-		CharCreateBackButton:ClearAllPoints()
-		CharCreateBackButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", 24, 24)
-	end
 end
 
 -- What is on the screen ---------------------------------------------------------------------------------------------------------
@@ -1068,7 +1295,7 @@ end
 local function refresh()
 	if ( W.off or W.step ~= 2 ) then return end
 	local model = looks()
-	-- the categories of this race and sex
+	-- the categories of this race and sex, in a row that ends 20 from the screen's right edge
 	local n = 0
 	if ( model and number(FIELD.skin) ) then
 		local found = false
@@ -1078,24 +1305,20 @@ local function refresh()
 			local b = categoryButton(k)
 			b.category, b.zoom = c.id, c.zoom
 			b.label:SetText(c.name)
-			b:SetPicture(c.name)
 			b:ClearAllPoints()
-			b:SetPoint("RIGHT", categoryPanel, "RIGHT", -(#model.categories - k) * 54, 0)
-			b:Lit(c.id == W.category)
+			b:SetPoint("RIGHT", categoryPanel, "RIGHT", -(#model.categories - k) * u(104 - 21), 0)
+			showCategory(b, c.name, c.id == W.category)
 			b:Show()
-			if ( c.id == W.category ) then optionTitle:SetText(c.name) end
 			n = k
 		end
-	else
-		optionTitle:SetText("Appearance")
 	end
 	for k = n + 1, #categoryButtons do categoryButtons[k]:Hide() end
-	if ( n > 1 ) then categoryPanel:SetWidth(n * 54); categoryPanel:Show() else categoryPanel:SetWidth(1); categoryPanel:Hide() end
+	if ( n > 1 ) then categoryPanel:SetWidth(u(104) + (n - 1) * u(104 - 21)); categoryPanel:Show() else categoryPanel:SetWidth(1); categoryPanel:Hide() end
 	local rows = W.Rows()
 	for k, row in ipairs(rows) do showRow(rowFrame(k), row) end
 	for k = #rows + 1, #rowFrames do rowFrames[k]:Hide(); rowFrames[k].row = nil end
 	shown = rows
-	optionList:SetContentHeight(#rows * ROW_H)
+	optionList:SetContentHeight(#rows * ROW_PITCH)
 	if ( popout.owner and popout.owner.row and popout:IsShown() ) then
 		popout.row = popout.owner.row
 		if ( popout.row.kind == "list" ) then fillPopout() else WrathppCreate_ClosePopout() end
@@ -1118,14 +1341,17 @@ local function setStep(n)
 	W.step = n
 	log(n == 1 and "screen: race and class" or "screen: customize")
 	local first = n == 1
+	W.DecideArt()
+	placeVignette()
+	for _, t in ipairs(vignette) do t:Show() end
 	place()
 	local function show(frame, on) if ( frame ) then if ( on ) then frame:Show() else frame:Hide() end end end
-	show(alliancePanel, first); show(hordePanel, first); show(classPanel, first)
-	show(customizeButton, first); show(CharCreateBackButton, first)
+	show(alliancePanel, first); show(hordePanel, first); show(alliancePanel.races, first); show(hordePanel.races, first)
+	show(classPanel, first); show(sexPanel, first)
+	show(customizeButton, first); show(leaveButton, first)
 	show(optionPanel, not first); show(randomizeButton, not first); show(viewPanel, not first)
 	show(backButton, not first); show(finishButton, not first)
 	if ( first ) then categoryPanel:Hide(); WrathppCreate_ClosePopout(); W.SetZoom(1, 0.6) end
-	show(sexPanel, first)
 	spinArea:Show()
 	WrathppCreate_Refresh()
 end
@@ -1157,14 +1383,14 @@ function WrathppCreate_Disable(reason)
 	log("off with the character "..stateLine())
 	-- the game's own screen whole again: this script's pieces away (each by itself: one that fails doesn't keep the rest),
 	-- the game's back where and as they were, the view as the game has it
-	for _, f in ipairs({ alliancePanel, hordePanel, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel, customizeButton, backButton,
-			finishButton, randomizeButton, spinArea, popout, catcher }) do pcall(f.Hide, f) end
-	for _, label in pairs(raceLabels) do pcall(label.Hide, label) end
+	for _, f in ipairs({ alliancePanel, hordePanel, alliancePanel.races, hordePanel.races, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel,
+			customizeButton, leaveButton, backButton, finishButton, randomizeButton, spinArea, popout, catcher }) do pcall(f.Hide, f) end
+	for _, t in ipairs(vignette) do pcall(t.Hide, t) end
 	pcall(putBack)
 	W.zoom, W.zoomTarget = 1, 1
 	pcall(W.ApplyZoom)
 	if ( not W.reason ) then
-		W.reason = text(root, FONT_SMALL)
+		W.reason = text(root)
 		W.reason:SetPoint("TOP", root, "TOP", 0, -4)
 	end
 	W.reason:SetText("Wrath++ creator off: "..tostring(reason))
@@ -1266,8 +1492,8 @@ driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 end, true))
 
 -- Nothing of this shows before the creator is opened (the game's own pieces are moved then, not now).
-for _, f in ipairs({ alliancePanel, hordePanel, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel, customizeButton, backButton,
-		finishButton, randomizeButton, spinArea }) do f:Hide() end
+for _, f in ipairs({ alliancePanel, hordePanel, alliancePanel.races, hordePanel.races, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel,
+		customizeButton, leaveButton, backButton, finishButton, randomizeButton, spinArea }) do f:Hide() end
 
 end -- build
 

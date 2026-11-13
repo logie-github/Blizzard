@@ -17,6 +17,7 @@ on:
       - realm/warcraft/wrathpp/tools/sl_skin_names.py
       - realm/warcraft/wrathpp/data/skin_names.json
       - realm/warcraft/wrathpp/tools/sl_inventory.py
+      - realm/warcraft/wrathpp/tools/sl_ui_art.py
       - realm/warcraft/wrathpp/client-mod/rig/**
       - app/src/main/assets/wrathpp/WrathppCreate.lua
       - realm/warcraft/modules/mod-allied-races/tools/m2.py
@@ -82,15 +83,24 @@ jobs:
           python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua | tee -a looks-report.txt
           echo 'Interface\GlueXML\WrathppLooks.lua' >> build/looks/looks.files
 
+      # Shadowlands' creator's own art (the pieces its creation screens are drawn from, cut out of the game's interface
+      # sheets at 9.2.7 by file id: wago.tools), each a file 3.3.5 reads, and the table that names them. A package of its
+      # own (some 8 MB), so that a change to the creator's art is not the looks' 400 MB again.
+      - name: Shadowlands' creator art
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_ui_art.py fetch build/ui-csv
+          python3 realm/warcraft/wrathpp/tools/sl_ui_art.py package build/ui-csv build/ui-cache build/art | tee -a looks-report.txt
+
       # The creator run on the rig (realm/warcraft/wrathpp/client-mod/rig): the game's own creation screen (the phone's
-      # files), the client's creation logic and these looks' tables; every race, sex and class opened, every option's
-      # every choice tapped, the creator turned off. The looks are not published if it fails.
+      # files), the client's creation logic, these looks' tables and that art; every race, sex and class opened, every
+      # option's every choice tapped, the creator turned off, with the art, without it and with it unreadable. Neither
+      # package is published if it fails.
       - name: The creator on the rig
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           sh realm/warcraft/wrathpp/client-mod/rig/run.sh build/rig app/src/main/assets/wrathpp/WrathppCreate.lua \
-            build/looks/client/Interface/GlueXML/WrathppLooks.lua build/looks/client/DBFilesClient rig-dbc/dbc 2>&1 | grep -v '^ok ' | tee -a looks-report.txt
+            build/looks/client/Interface/GlueXML/WrathppLooks.lua build/looks/client/DBFilesClient rig-dbc/dbc build/art 2>&1 | grep -v '^ok ' | tee -a looks-report.txt
           grep -q 'the rig: all passed' looks-report.txt
 
       # Which of today's files each skin was made from, by name: what the app's Ralia import matches a set of replacement
@@ -102,11 +112,23 @@ jobs:
 
       - name: The package
         run: |
-          ( cd build/looks && zip -q -r -6 ../../wrathpp-looks.zip client dbc looks.files )
+          # The same files make the same zip, byte for byte (one date on every file, the files in one order, no extra
+          # fields): the app downloads a package again when its checksum changes, and a zip made as it comes carries the
+          # hour it was made, which sent the looks' 400 MB to the phone again after every run of this workflow.
+          pack() {
+            ( cd "$1" && shift && out="$1" && shift && find "$@" -exec touch -h -d '2020-01-01 00:00:00 UTC' {} + \
+              && find "$@" -type f | LC_ALL=C sort | TZ=UTC zip -q -X -6 "$out" -@ )
+          }
+          pack build/looks "$PWD/wrathpp-looks.zip" client dbc looks.files
           size=$(stat -c %s wrathpp-looks.zip)
           sha=$(sha256sum wrathpp-looks.zip | cut -d' ' -f1)
           printf '{"size": %s, "sha256": "%s", "format": 1, "commit": "%s"}\n' "$size" "$sha" "${{ github.sha }}" > wrathpp-looks.json
           cat wrathpp-looks.json
+          pack build/art "$PWD/wrathpp-creator-art.zip" client art.txt
+          size=$(stat -c %s wrathpp-creator-art.zip)
+          sha=$(sha256sum wrathpp-creator-art.zip | cut -d' ' -f1)
+          printf '{"size": %s, "sha256": "%s", "format": 1, "commit": "%s"}\n' "$size" "$sha" "${{ github.sha }}" > wrathpp-creator-art.json
+          cat wrathpp-creator-art.json
           du -sh build/looks/client build/looks/dbc | tee -a looks-report.txt
           wc -l < build/looks/looks.files | tee -a looks-report.txt
 
@@ -120,6 +142,7 @@ jobs:
             looks-report.txt
             package.log
             build/looks/looks.files
+            build/art/art.txt
 
       # Only main publishes: the app downloads whatever is published.
       - name: Publish (release wrathpp-looks)
@@ -134,4 +157,18 @@ jobs:
               --title "Wrath++ looks: Shadowlands' ten races (experimental)" \
               --notes "Shadowlands' models, textures and character tables for the ten races of 3.3.5, for Wrath++'s copy of the game and its server. Downloaded by the app; not an app release."
           fi
-          gh release upload wrathpp-looks wrathpp-looks.zip wrathpp-looks.json -R "$repo" --clobber
+          # (a package whose checksum is the published one's is left as it is: nothing for the phone to download again)
+          same() { gh release download "$1" -R "$repo" -p "$1.json" -O "published-$1.json" --clobber > /dev/null 2>&1 \
+            && [ "$(sed -n 's/.*"sha256": "\([0-9a-f]*\)".*/\1/p' "published-$1.json")" = "$(sed -n 's/.*"sha256": "\([0-9a-f]*\)".*/\1/p' "$1.json")" ]; }
+          if same wrathpp-looks; then echo "the looks are the published ones: not uploaded"; else
+            gh release upload wrathpp-looks wrathpp-looks.zip wrathpp-looks.json -R "$repo" --clobber
+          fi
+          if ! gh release view wrathpp-creator-art -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/wrathpp-creator-art" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create wrathpp-creator-art -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Wrath++ creator art: Shadowlands' creation screens' pieces (experimental)" \
+              --notes "The pieces Shadowlands draws its character creation screens from, cut out of the game's interface sheets for Wrath++'s creator on the 3.3.5 screen. Downloaded by the app; not an app release."
+          fi
+          if same wrathpp-creator-art; then echo "the creator art is the published one: not uploaded"; else
+            gh release upload wrathpp-creator-art wrathpp-creator-art.zip wrathpp-creator-art.json -R "$repo" --clobber
+          fi

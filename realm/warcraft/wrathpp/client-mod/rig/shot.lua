@@ -12,8 +12,10 @@ for _, p in ipairs(R.problems()) do print("PROBLEM "..p) end
 local function q(s) return '"'..tostring(s):gsub('[\\"]', "\\%0"):gsub("\n", " ")..'"' end
 local parts = {}
 for _, f in ipairs(R.layout()) do
-	parts[#parts + 1] = ('{"name":%s,"kind":%s,"l":%.1f,"b":%.1f,"w":%.1f,"h":%.1f,"text":%s,"mouse":%s,"parent":%s,"file":%s,"enabled":%s}'):format(
-		q(f.name), q(f.kind), f.l, f.b, f.w, f.h, q(f.text or ""), tostring(f.mouse and true or false), q(f.parent), q(f.file or ""), tostring(f.enabled ~= false))
+	local function list(t) if ( type(t) ~= "table" ) then return "null" end; local o = {}; for i, v in ipairs(t) do o[i] = ("%.6f"):format(v) end; return "["..table.concat(o, ",").."]" end
+	parts[#parts + 1] = ('{"name":%s,"kind":%s,"l":%.2f,"b":%.2f,"w":%.2f,"h":%.2f,"text":%s,"mouse":%s,"parent":%s,"file":%s,"enabled":%s,"strata":%s,"coords":%s,"colour":%s,"vertex":%s,"alpha":%.3f,"blend":%s,"layer":%s,"font":%s,"justify":%s,"mine":%s,"grey":%s,"clip":%s}'):format(
+		q(f.name), q(f.kind), f.l, f.b, f.w, f.h, q(f.text or ""), tostring(f.mouse and true or false), q(f.parent), q(f.file or ""), tostring(f.enabled ~= false),
+		q(f.strata or "MEDIUM"), list(f.coords), list(f.colour), list(f.vertex), f.alpha or 1, q(f.blend or ""), q(f.layer or ""), tostring(f.fontHeight or 0), q(f.justify or ""), tostring(f.mine and true or false), tostring(f.desaturated and true or false), list(f.clip))
 end
 local h = io.open(out, "w"); h:write('{"w":'..R.E.screen.w..',"h":'..R.E.screen.h..',"frames":['..table.concat(parts, ",\n").."]}"); h:close()
 print(#parts.." frames on the screen")

@@ -257,3 +257,39 @@ wowgaming/3.3.5-interface-files). 31 files named by the creator; **one was not a
 names (`GlueFontNormal`, `GlueFontNormalLarge`, `GlueFontHighlight`, `GlueFontHighlightSmall`, `GlueButtonTemplate`,
 `GlueButtonSmallTemplate`) are each named by the phone's own files. Still not seen on the rig: how a texture looks at
 the size it is given, and a frame drawn under another.
+
+## 2026-11-13: Shadowlands' own art and layout
+
+The user: "Literally why not just use the EXACT ASSETS from wago tools". The creator's buttons had been 3.3.5 pictures
+standing in. What was done and run here:
+
+- **The art** (`tools/sl_ui_art.py`): the atlas tables and sheets at 9.2.7.45745 from wago.tools; 238 pieces from 9
+  sheets cut pixel for pixel, each a file of its own (a power-of-two canvas, the piece's edges carried outwards, plain
+  32-bit colour with smaller levels), 72 of them a round button's picture with Shadowlands' mask already on it; 45 MB
+  on disk, 8.2 MB zipped. A sheet of 30 of the pieces was looked at: the category pictures, the gold ring, the dice,
+  the grey square button and its gold pictures, the dropdown box and arrows, a race's and a class's portrait trimmed
+  round, the factions' rings and crests, the red button's three parts, the list's frame. The 3.3.5 client reading plain
+  32-bit BLPs is read from its source (`CBLPFile::Lock2`, `COLOR_RAW`; `Script_SetTexture` gives nil for a file it
+  cannot set), **not seen on the phone**.
+- **The layout**: Shadowlands' own numbers from `Blizzard_CharacterCreate.xml`, `Blizzard_CharacterCustomize.xml` and
+  `SharedUIPanelTemplates.xml`/`.lua` at 9.2.7 (Gethe/wow-ui-source), listed in README.
+- **The rig painted** (`tools/paint.py`): both screens and an open list of 17 colours, at the phone's shape. The first
+  picture showed the classes' row over Back and Customize (the phone's screen is narrower than 16:9) and "Death Knight"
+  over "Shaman" (the name's box was wider than Shadowlands'): both fixed, and the rig now checks that no two of the
+  creator's buttons lie over one another (with the first fault put back it finds 248, each named).
+- **`run.sh` with the art** (about four minutes): what the creator does, 33 checks; turned off, the game's own screen
+  whole; every race, sex and class with every option's every choice, 9,094 taps and 9,590 checks, 99 textures named, 86
+  of them Shadowlands' pieces; without undead skins 7,360 taps; without the native mod 2,108; on 4:3 and 16:9 screens
+  7,412 each; without the art 7,412 (21 textures, none of the art) and the off path again; with the art in and the game
+  not setting its files 7,412: 0 problems each.
+- **The app** (`WrathppArt`, 5 tests run here with kotlinc: the art put in as `Data/patch-S.MPQ`, a newer package
+  replacing the old whole, a package without its table or with a path out of it leaving what was there, a file of the
+  player's by that name replaced in the copy only, the creator's patch taking the table). The download and the whole
+  app build: CI.
+- **The packages**: two copies of the art made a second apart zip to the same checksum (`bda3d1e6...`); a zip made as it
+  came did not, which is why every run of the workflow sent the looks to the phone again. Whether the looks' own files
+  come out the same from one run to the next is seen from the next two runs' checksums.
+
+**Not tested**: the game and the phone. Whether the art's files draw there, how the screen looks at the phone's size,
+whether a tap lands where the rig says. Still 3.3.5's own: the name's box, the switches' check boxes. Still not drawn
+by the game: the options marked "Not drawn yet".
