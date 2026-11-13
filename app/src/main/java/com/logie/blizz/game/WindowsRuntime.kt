@@ -176,6 +176,11 @@ object WindowsRuntime {
                 // at C:\windows\mono by path, no installer and no first-run race), then seed the launcher's config so
                 // it opens straight on "This PC (own server)". Only when a launcher is set: the bare client needs neither.
                 if (layout.hasLauncher()) {
+                    // The makers' newest launcher, so it knows the game's build (an older one asks at every PLAY NOW).
+                    runCatching {
+                        if (com.logie.blizz.forever.ForeverLauncher.refresh(layout.client, System.currentTimeMillis()) { com.logie.blizz.forever.WineMono.fetchBytes(it) })
+                            GameLog.note("forever: the launcher was brought up to its makers' newest release")
+                    }
                     runCatching {
                         if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
                             _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
