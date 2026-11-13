@@ -354,6 +354,9 @@ function EditBox:GetNumLetters() return #(self.__text or "") end
 function EditBox:SetAutoFocus() end
 function EditBox:SetTextInsets() end
 function EditBox:SetFontObject(f) self.__font = f end
+function EditBox:SetFont(file, height, flags) if ( type(file) ~= "string" or type(height) ~= "number" ) then fail("SetFont(file, height[, flags])") end; self.__fontFile, self.__fontHeight, self.__fontFlags = file, height, flags; return 1 end
+function EditBox:GetFont() return self.__fontFile or "Fonts\\ARIALN.TTF", self.__fontHeight or 16, self.__fontFlags end
+function EditBox:SetJustifyH(j) if ( j ~= "LEFT" and j ~= "CENTER" and j ~= "RIGHT" ) then fail("SetJustifyH: LEFT, CENTER or RIGHT") end; self.__justify = j end
 function EditBox:SetTextColor() end
 function ScrollFrame:SetScrollChild(c)
 	if ( type(c) ~= "table" ) then fail("SetScrollChild: a frame") end

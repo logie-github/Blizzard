@@ -246,7 +246,7 @@ end
 
 -- ThreeSliceButtonTemplate "128-RedButton" (the foot's buttons, 250 x 66): a left and a right piece at the button's
 -- height and the middle between them; pressed and disabled pieces; the text 22 high, outlined.
-local function redButton(name, parent, caption, width, height, onClick)
+local function redButton(name, parent, caption, width, height, onClick, arrow)
 	local b = make("Button", name, parent)
 	b:SetWidth(u(width)); b:SetHeight(u(height))
 	local scale = height / 128
@@ -256,12 +256,26 @@ local function redButton(name, parent, caption, width, height, onClick)
 	b.middle:SetPoint("TOPLEFT", b.left, "TOPRIGHT", 0, 0); b.middle:SetPoint("BOTTOMRIGHT", b.right, "BOTTOMLEFT", 0, 0)
 	b.glow = b:CreateTexture(nil, "HIGHLIGHT"); b.glow:SetAllPoints(b); b.glow:SetBlendMode("ADD")
 	b.caption = label(b, 22, "gold", true); b.caption:SetPoint("CENTER", b, "CENTER", 0, 0); b.caption:SetText(caption)
+	-- CharacterCreateNavButtonMixin:UpdateText: an arrow 8 x 13 after the text of the button that goes on, before the
+	-- text of the one that goes back, two spaces between (common-icon-forwardarrow, -backarrow)
+	local gap = u(12)
+	if ( arrow ) then
+		b.arrow = b:CreateTexture(nil, "OVERLAY"); b.arrow:SetWidth(u(8)); b.arrow:SetHeight(u(13))
+		if ( arrow == "forward" ) then b.arrow:SetPoint("LEFT", b.caption, "RIGHT", gap, 0) else b.arrow:SetPoint("RIGHT", b.caption, "LEFT", -gap, 0) end
+	end
 	function b:Paint()
 		local state = (not self:IsEnabled() and "-disabled") or (self.held and "-pressed") or ""
 		atlas(self.left, "128-redbutton-left"..state); atlas(self.right, "128-redbutton-right"..state); atlas(self.middle, "_128-redbutton-center"..state)
 		atlas(self.glow, "128-redbutton-highlight")
+		-- the text and its arrow together in the button's middle (without the art there is no arrow)
+		local lean = 0
+		if ( self.arrow ) then
+			if ( atlas(self.arrow, "common-icon-"..arrow.."arrow"..(self:IsEnabled() and "" or "-disable")) ) then
+				self.arrow:Show(); lean = (u(8) + gap) / 2 * (arrow == "forward" and -1 or 1)
+			else self.arrow:Hide() end
+		end
 		self.caption:ClearAllPoints()
-		self.caption:SetPoint("CENTER", self, "CENTER", self.held and u(2) or 0, self.held and -u(2) or 0)
+		self.caption:SetPoint("CENTER", self, "CENTER", lean + (self.held and u(2) or 0), self.held and -u(2) or 0)
 	end
 	b:SetScript("OnMouseDown", function(self) self.held = true; self:Paint() end)
 	b:SetScript("OnMouseUp", function(self) self.held = false; self:Paint() end)
@@ -722,15 +736,54 @@ local viewPanel = make("Frame", "WrathppViewPanel", root)
 viewPanel:SetWidth(u(48 * 5 - 5 * 4 + 30)); viewPanel:SetHeight(u(48))
 viewPanel:SetPoint("TOPLEFT", root, "TOPLEFT", u(40), -u(30))
 
+-- The name (NameChoiceFrame: 34 down from the top; "Name" in white at 18, and 2 under it the box, 343 x 48 of the grey
+-- entry box's three pieces: SharedEditBoxTemplate, its left piece 13 wide, its right 314, the middle between; a dice
+-- left of it for a name drawn at random, where the game allows one). The box that takes the name is the game's own,
+-- laid over Shadowlands' pieces without its own border and "Name" (W.nameKept: as it was, for when the creator goes
+-- off). Only with Shadowlands' art; without it the game's own box as it is.
+local namePanel = make("Frame", "WrathppNamePanel", root)
+namePanel:SetWidth(u(343)); namePanel:SetHeight(u(20 + 2 + 48))
+namePanel:SetPoint("TOP", root, "TOP", 0, -u(34))
+namePanel.title = label(namePanel, 18, "white"); namePanel.title:SetPoint("TOP", namePanel, "TOP", 0, 0); namePanel.title:SetHeight(u(20))
+namePanel.title:SetText(NAME or "Name")
+local nameBox = make("Frame", "WrathppNameBox", namePanel)
+nameBox:SetWidth(u(343)); nameBox:SetHeight(u(48))
+nameBox:SetPoint("TOP", namePanel, "TOP", 0, -u(20 + 2))
+nameBox.left = nameBox:CreateTexture(nil, "BACKGROUND"); nameBox.left:SetWidth(u(13)); nameBox.left:SetHeight(u(48)); nameBox.left:SetPoint("LEFT", nameBox, "LEFT", 0, 0)
+nameBox.right = nameBox:CreateTexture(nil, "BACKGROUND"); nameBox.right:SetWidth(u(314)); nameBox.right:SetHeight(u(48)); nameBox.right:SetPoint("RIGHT", nameBox, "RIGHT", 0, 0)
+nameBox.middle = nameBox:CreateTexture(nil, "BACKGROUND")
+nameBox.middle:SetPoint("TOPLEFT", nameBox.left, "TOPRIGHT", 0, 0); nameBox.middle:SetPoint("BOTTOMRIGHT", nameBox.right, "BOTTOMLEFT", 0, 0)
+skin(function()
+	atlas(nameBox.left, "common-gray-button-entrybox-left"); atlas(nameBox.right, "common-gray-button-entrybox-right"); atlas(nameBox.middle, "common-gray-button-entrybox-center")
+end)
+local randomName = smallButton("WrathppRandomName", namePanel, "charactercreate-icon-dice")
+randomName:SetPoint("RIGHT", nameBox, "LEFT", 0, -u(1))
+randomName:SetScript("OnClick", guarded(function()
+	local stock = CharacterCreateRandomName
+	local run = stock and stock.GetScript and stock:GetScript("OnClick")
+	if ( run ) then run(stock) end
+end))
+namePanel:Hide()
+local function restoreName()
+	local k, edit = W.nameKept, CharacterCreateNameEdit
+	if ( not k or not edit or not k.changed ) then return end
+	k.changed = nil
+	if ( k.backdrop ) then edit:SetBackdrop(k.backdrop) end
+	edit:SetWidth(k.width); edit:SetHeight(k.height)
+	if ( k.font[1] and edit.SetFont ) then edit:SetFont(k.font[1], k.font[2], k.font[3]) end
+	if ( edit.SetJustifyH ) then edit:SetJustifyH("LEFT") end
+	for _, r in ipairs(k.labels) do r:Show() end
+end
+
 -- The buttons at the foot (CharacterCreateNavButtonTemplate: BackButton at 46, 28 from the bottom left, ForwardButton
 -- from the bottom right). On the first screen Back leaves for the list of characters, as the game's own Back does.
-local customizeButton = redButton("WrathppCustomizeButton", root, "Customize", 250, 66, function() WrathppCreate_SetStep(2) end)
+local customizeButton = redButton("WrathppCustomizeButton", root, "Customize", 250, 66, function() WrathppCreate_SetStep(2) end, "forward")
 customizeButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -u(46), u(28))
 local leaveButton = redButton("WrathppLeaveButton", root, BACK or "Back", 250, 66, function()
 	if ( type(CharacterCreate_Back) == "function" ) then CharacterCreate_Back() elseif ( CharCreateBackButton ) then CharCreateBackButton:Click() end
-end)
+end, "back")
 leaveButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
-local backButton = redButton("WrathppBackButton", root, BACK or "Back", 250, 66, function() WrathppCreate_SetStep(1) end)
+local backButton = redButton("WrathppBackButton", root, BACK or "Back", 250, 66, function() WrathppCreate_SetStep(1) end, "back")
 backButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
 local finishButton = redButton("WrathppFinishButton", root, "Finish", 250, 66, function()
 	if ( type(CharacterCreate_Okay) == "function" ) then CharacterCreate_Okay() else CreateCharacter(CharacterCreateNameEdit:GetText()) end
@@ -1276,17 +1329,44 @@ local function place()
 	-- the name's box (the game's own, with its "Name" over it): at the top in the middle on Customize, where Shadowlands
 	-- has its own (NameChoiceFrame, 34 down)
 	local naming = W.step == 2
-	if ( CharacterCreateNameEdit ) then
-		CharacterCreateNameEdit:ClearAllPoints()
-		CharacterCreateNameEdit:SetPoint("TOP", root, "TOP", 0, -u(34) - 22)
-		if ( naming ) then CharacterCreateNameEdit:Show() else CharacterCreateNameEdit:Hide() end
+	local edit = CharacterCreateNameEdit
+	-- the game's button for a random name is the game's to show (it does where names may be drawn)
+	local drawn = ALLOW_RANDOM_NAME_BUTTON or (kept[CharacterCreateRandomName] and kept[CharacterCreateRandomName].shown)
+	if ( edit ) then
+		if ( not W.nameKept ) then
+			local k = { backdrop = edit.GetBackdrop and edit:GetBackdrop(), width = edit:GetWidth(), height = edit:GetHeight(), font = {}, labels = {} }
+			if ( edit.GetFont ) then k.font = { edit:GetFont() } end
+			for _, r in ipairs({ edit:GetRegions() }) do
+				if ( r.GetObjectType and r:GetObjectType() == "FontString" and r:IsShown() ) then k.labels[#k.labels + 1] = r end
+			end
+			W.nameKept = k
+		end
+		edit:ClearAllPoints()
+		if ( W.art ) then
+			-- over Shadowlands' box: no border and no "Name" of its own, the box's size, its text 20 high in the middle
+			local k = W.nameKept
+			if ( not k.changed ) then
+				k.changed = true
+				edit:SetBackdrop(nil)
+				for _, r in ipairs(k.labels) do r:Hide() end
+				edit:SetWidth(u(343 - 30)); edit:SetHeight(u(48))
+				if ( edit.SetFont and k.font[1] ) then edit:SetFont(k.font[1], u(20), k.font[3]) end
+				if ( edit.SetJustifyH ) then edit:SetJustifyH("CENTER") end
+			end
+			edit:SetPoint("CENTER", nameBox, "CENTER", 0, 0)
+			if ( naming ) then namePanel:Show() else namePanel:Hide() end
+			if ( naming and drawn ) then randomName:Show() else randomName:Hide() end
+		else
+			restoreName()
+			edit:SetPoint("TOP", root, "TOP", 0, -u(34) - 22)
+			namePanel:Hide()
+		end
+		if ( naming ) then edit:Show() else edit:Hide() end
 	end
-	-- the game's button for a random name is the game's to show (it does where names may be drawn): beside the box
-	-- while the box is up and the game had it shown, away otherwise
 	if ( CharacterCreateRandomName ) then
 		CharacterCreateRandomName:ClearAllPoints()
-		CharacterCreateRandomName:SetPoint("RIGHT", CharacterCreateNameEdit or root, "LEFT", -6, 0)
-		if ( naming and (ALLOW_RANDOM_NAME_BUTTON or (kept[CharacterCreateRandomName] and kept[CharacterCreateRandomName].shown)) ) then CharacterCreateRandomName:Show() else CharacterCreateRandomName:Hide() end
+		CharacterCreateRandomName:SetPoint("RIGHT", edit or root, "LEFT", -6, 0)
+		if ( naming and drawn and not W.art ) then CharacterCreateRandomName:Show() else CharacterCreateRandomName:Hide() end
 	end
 end
 
@@ -1386,6 +1466,8 @@ function WrathppCreate_Disable(reason)
 	for _, f in ipairs({ alliancePanel, hordePanel, alliancePanel.races, hordePanel.races, sexPanel, classPanel, categoryPanel, optionPanel, viewPanel,
 			customizeButton, leaveButton, backButton, finishButton, randomizeButton, spinArea, popout, catcher }) do pcall(f.Hide, f) end
 	for _, t in ipairs(vignette) do pcall(t.Hide, t) end
+	pcall(namePanel.Hide, namePanel)
+	pcall(restoreName)
 	pcall(putBack)
 	W.zoom, W.zoomTarget = 1, 1
 	pcall(W.ApplyZoom)

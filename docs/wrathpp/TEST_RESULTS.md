@@ -291,5 +291,11 @@ standing in. What was done and run here:
   come out the same from one run to the next is seen from the next two runs' checksums.
 
 **Not tested**: the game and the phone. Whether the art's files draw there, how the screen looks at the phone's size,
-whether a tap lands where the rig says. Still 3.3.5's own: the name's box, the switches' check boxes. Still not drawn
-by the game: the options marked "Not drawn yet".
+whether a tap lands where the rig says. Still not drawn by the game: the options marked "Not drawn yet".
+
+**The name and the arrows, the same night** (build 241). The name's box is Shadowlands' (`NameChoiceFrame`,
+`SharedEditBoxTemplate`: "Name" at 18 in white, the entry box's left piece 13 wide, its right 314, the middle between;
+the game's own box laid over it without its border and its own "Name", as it was again when the creator goes off); the
+foot's buttons carry `common-icon-forwardarrow` and `-backarrow`, 8 x 13. Looked at in the rig's painted picture;
+`run.sh` with the art: the same nine passes, 0 problems, 104 textures named, 91 of them Shadowlands' pieces; the off
+path still leaves all of the game's own screen as it is without the creator.
