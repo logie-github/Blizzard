@@ -47,6 +47,7 @@ INDEX_BUDGET = 65535            # the game reads a section's triangle start as 1
 TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]
 TIER_FLOORS_MORE = [("gear", 0.3), ("features", 0.4), ("hair", 0.4), ("body", 0.6)]
 GEAR_GROUPS = {4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20}
+HEAD_GROUPS = (32, 33)          # today's head and eyeballs: never cut (below)
 GEAR_MAX_VARIANT = 6            # 3.3.5's items ask for a group's variants 1 to 6 (ItemDisplayInfo's geoset groups 0 to 5)
 
 
@@ -535,6 +536,12 @@ def glow_blp(data, box):
     out[:, :, :3] = out[:, :, :3] / 255.0 * colour
     out[:, :, 3] = out[:, :, 3] * strength
     return blp.write_dxt(np.clip(out, 0, 255).round().astype(np.uint8), alpha=True)
+
+
+def uncut(plan, sections):
+    """The sections of [plan] ((new id, section, batch)) that are never cut down: today's head and eyeballs (its
+    [sections]' own ids in HEAD_GROUPS), whatever new id they take."""
+    return {s for new_id, s, b in plan if sections[s][0] // 100 in HEAD_GROUPS}
 
 
 def shared_positions(positions, sections):
@@ -1061,17 +1068,25 @@ def convert(files, policy, out_dir, log=print):
     copies = {}
     for n, s, b in plan:
         copies[s] = copies.get(s, 0) + 1
+    # The head (today's group 32: the face, with the inside of the mouth: tongue, teeth and gums, which a cut takes
+    # first, being out of sight in a closed mouth; the user's "Where's the tongue for females") and the eyeballs (33)
+    # are never cut: the rest gives way for them.
+    whole = uncut(plan, skin.sections)
+    kept_whole = sum(len(cut[s]) * 3 * copies[s] for s in whole)
     for step in range(12):
         now = {}
         for s, t in tier_of_section.items():
-            now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
-        total = sum(now.values())
+            if s not in whole:
+                now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
+        total = sum(now.values()) + kept_whole
         if total <= INDEX_BUDGET:
             break
         floors = TIER_FLOORS if step == 0 else TIER_FLOORS_MORE if step == 1 else []
-        keep = decimate.plan(now, INDEX_BUDGET - 300, floors)
+        keep = decimate.plan(now, INDEX_BUDGET - 300 - kept_whole, floors)
         before = total
         for s, t in tier_of_section.items():
+            if s in whole:
+                continue
             fraction = keep[t]
             if fraction < 0.999 and len(cut[s]) > 2:
                 cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))), locked=joins.get(s, ()))

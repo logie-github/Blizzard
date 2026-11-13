@@ -219,5 +219,9 @@ check((inked[1, 1] == skin_px[1, 1]).all() and tuple(inked[0, 0, :3]) == (50, 75
 laid = textures.tattooed(skin_px, glowing)
 check((laid[1, 1] == skin_px[1, 1]).all() and tuple(laid[0, 0, :3]) == (0, 0, 255), "a transparent tattoo is laid over")
 
+# The head (today's group 32, the inside of the mouth with it) and the eyeballs (33) are never cut, whatever they become.
+check(m2.uncut([(0, 0, None), (0, 1, None), (702, 2, None), (1502, 3, None)], [(3201,), (3301,), (701,), (1502,)]) == {0, 1},
+      "the head's and the eyeballs' sections are kept whole")
+
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)

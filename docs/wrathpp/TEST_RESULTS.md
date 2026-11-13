@@ -424,3 +424,14 @@ body. One thin bright strip remains where a looks' own picture has a white gap (
 Tests: `WrathppRaliaTest` 9 of 9 with `BlpTest` and `WrathppUndeadTest` (23 of 23, kotlinc); the allied tools'
 `test_tools.py` PASSED (an opaque tattoo multiplied, a transparent one laid over). **Not run**: the looks rebuilt by
 CI (the next `wrathpp-looks` run), anything on a phone or in the game.
+
+## 2026-11-13 (later): the women's tongues (the head never cut)
+
+Found here: the Human woman's converted face kept 1266 of retail's 1780 triangles, and 248 of the 507 that draw the
+inside of the mouth (counted by the face texture's mouth picture: tongue, teeth, gums); retail has no separate tongue
+mesh, it is in the face (group 32). Rendered on the roar (sequence 55, the jaw open about 30 degrees, this machine's
+reading of the 3.3.5 model, `render_m2.py`), looking into the mouth: before, a flat cavity with slivers of teeth; after
+(`m2.uncut`: groups 32 and 33 never cut), the tongue with its groove and the teeth (Human, Orc and Dwarf women, before
+and after side by side). All nineteen models converted here from the cached retail files with the new rule: every one
+within 65535 indices; against the old rule, the hair and features keep 1 to 3 points less. `test_tools.py` PASSED.
+**Not run**: the looks rebuilt by CI, the game, a phone.
