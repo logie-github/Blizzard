@@ -414,7 +414,18 @@ end
 function Texture:SetTexCoord(...) local n = select("#", ...); if ( n ~= 4 and n ~= 8 ) then fail("SetTexCoord: 4 or 8 numbers, got %d", n) end
 	for i = 1, n do if ( type(select(i, ...)) ~= "number" ) then fail("SetTexCoord: numbers") end end; self.__coords = { ... } end
 function Texture:SetVertexColor(r, g, b, a) colour("SetVertexColor", r, g, b); self.__vertex = { r, g, b, a or 1 } end
-function Texture:SetDesaturated(d) self.__desaturated = d and true or false; return 1 end
+-- (the client puts a pixel shader on the texture for either value, "Desaturate" or "UI" (CSimpleTexture_Scripts.cpp):
+-- the phone drew the creator's round portraits through it as squares. E.shaded: who called it.)
+E.shaded = {}
+function Texture:SetDesaturated(d)
+	self.__desaturated = d and true or false
+	for level = 2, 8 do
+		local info = debug.getinfo(level, "Sl")
+		if ( not info ) then break end
+		if ( not info.short_src:match("engine%.lua$") and info.what ~= "C" ) then E.shaded[info.short_src:match("[^/\\]*$")..":"..info.currentline] = true; break end
+	end
+	return 1
+end
 function Texture:SetBlendMode(m) self.__blend = m end
 function Texture:SetDrawLayer(l) if ( not LAYERS[l] ) then fail("SetDrawLayer: unknown layer") end; self.__layer = l end
 function Texture:GetDrawLayer() return self.__layer end

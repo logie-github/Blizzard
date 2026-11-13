@@ -320,3 +320,24 @@ the game anywhere but on the phone. So the phone's game takes pictures of the cr
 
 **Not run**: Android's making a picture smaller (`shrink`: `BitmapFactory`, `Bitmap.compress`), the game's
 `Screenshot` under Wine on the phone, the sending. If the game writes no file there, the report says so.
+
+## 2026-11-13: build 241 on the phone, the first sight of the art in the game
+
+The user's screenshot of the race and class screen: **Shadowlands' art draws in the game** (the faction crests and
+rings, the race and class portraits, the sex pictures, the gold ring of the one chosen, the red Back and Customize with
+their arrows, the class names on two lines), so the 3.3.5 client reads the art's plain 32-bit BLPs on the phone. Two
+faults, each found in the client's source and each now a rule of the rig:
+
+- **The screen green but for a strip in the middle, where the character shows.** The screen-edge shading
+  (`charactercreate-vignette-*`) is pieces 1 unit thick; the client draws no texture smaller than 8 on a side ("Texture
+  size must be at least 8x8", `CreateBlpTexture` in `Texture.cpp`: a solid green texture instead), and the four
+  pieces cover all of the screen but that strip. `sl_ui_art.py` now makes every file at least 8 x 8 (the piece's edge
+  carried outwards, as for the rest); `full.lua` fails on an art file under 8 on a side (`RIG_ART_LIST`): on build
+  241's art it names five.
+- **The race and class portraits square, their clear corners drawn dark.** The creator called `SetDesaturated(nil)` on
+  each picture of a round button; the client puts its own pixel shader on a texture for either value ("UI" or
+  "Desaturate", `CSimpleTexture_Scripts.cpp`), where a texture left alone has none, and through it the portraits'
+  alpha did not show. The creator dims a button that cannot be chosen by its colour only now; the rig notes every
+  `SetDesaturated` and `full.lua` fails on one in a Wrath++ script: on build 241's script it finds it.
+
+Run here after: `run.sh` with the new art, nine passes, 0 problems. Not run: the game; the next pictures are the phone's.

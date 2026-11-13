@@ -136,6 +136,7 @@ end
 local started = os.clock()
 local done = {}
 local named = {}           -- every texture file a script named, and the line that named it
+local shaded = {}          -- where a Wrath++ script put a pixel shader on a texture (SetDesaturated)
 for _, pair in ipairs(T.baseInfo) do
 	for sex = 0, 1 do
 		local race, class = pair[1], pair[2]
@@ -165,6 +166,7 @@ for _, pair in ipairs(T.baseInfo) do
 		end)
 		if not good then fail("the rig stopped: "..tostring(err):sub(1, 300)) end
 		for file, by in pairs(R.E.files) do named[file] = named[file] or by end
+		for by in pairs(R.E.shaded) do shaded[by] = true end
 		if deep then done[key] = true; if class == 6 then done[key.."dk"] = true end end
 	end
 end
@@ -181,6 +183,18 @@ for file, by in pairs(named) do
 	end
 end
 if files == 0 then fail("no texture named by the creator was seen: the check is not looking") end
+for by in pairs(shaded) do
+	if by:match("^Wrathpp") then fail(by..": SetDesaturated puts the game's pixel shader on a texture (the phone drew build 241's portraits through it as squares)") end
+end
+-- every file of Shadowlands' art at least 8 on a side: the client draws a smaller one as a green square
+local artList = os.getenv("RIG_ART_LIST")
+if artList and artList ~= "" then
+	local small = 0
+	for line in io.lines(artList) do
+		local file, cw, ch = line:match("^[^\t]+\t([^\t]+)\t.* in (%d+) x (%d+)$")
+		if file and (tonumber(cw) < 8 or tonumber(ch) < 8) then small = small + 1; if small <= 5 then fail(file..": "..cw.." x "..ch..", smaller than the client draws (8 x 8): a green square") end end
+	end
+end
 -- with Shadowlands' art in and read, the creator draws with it; without, with 3.3.5's own and plain colours
 local artUsed = 0
 for file, by in pairs(named) do if by:match("^Wrathpp") and file:lower():find("interface\\wrathpp\\", 1, false) then artUsed = artUsed + 1 end end

@@ -23,7 +23,7 @@ python3 -I "$HERE/tools/build_data.py" "$STOCK" "$WORK/CharSections.undead.dbc" 
 python3 -I "$HERE/tools/build_data.py" "$STOCK" "$CLIENT/CharSections.dbc" "$CLIENT/CharacterFacialHairStyles.dbc" "$WORK/plain"
 if [ -n "$ART" ]; then
 	python3 -I "$HERE/tools/known_textures.py" "$WORK/stock" "$STOCK" "$HERE/textures335.txt" "$WORK/textures.lua" "$ART/art.txt"
-	export RIG_ATLAS="$ART/client/Interface/GlueXML/WrathppAtlas.lua"
+	export RIG_ATLAS="$ART/client/Interface/GlueXML/WrathppAtlas.lua" RIG_ART_LIST="$ART/art.txt"
 else
 	python3 -I "$HERE/tools/known_textures.py" "$WORK/stock" "$STOCK" "$HERE/textures335.txt" "$WORK/textures.lua"
 	export RIG_ATLAS=-

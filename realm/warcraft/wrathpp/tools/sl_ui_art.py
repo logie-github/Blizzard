@@ -142,12 +142,18 @@ def pow2(n):
     return p
 
 
+# The 3.3.5 client draws no texture smaller than 8 on a side: "Texture size must be at least 8x8", and a solid green
+# square in its place (Texture.cpp, CreateBlpTexture). Build 241's screen-edge shading (pieces 1 unit thick) covered
+# the phone's screen in green.
+MIN_SIDE = 8
+
+
 def canvas(piece):
-    """The piece in the middle of a canvas whose sides are powers of two, its edges carried outwards over the rest.
-    Returns the canvas and the piece's place in it (left, top)."""
+    """The piece in the middle of a canvas whose sides are powers of two and at least MIN_SIDE, its edges carried
+    outwards over the rest. Returns the canvas and the piece's place in it (left, top)."""
     import numpy as np
     h, w = piece.shape[:2]
-    cw, ch = pow2(w), pow2(h)
+    cw, ch = max(MIN_SIDE, pow2(w)), max(MIN_SIDE, pow2(h))
     left, top = (cw - w) // 2, (ch - h) // 2
     ys = np.clip(np.arange(ch) - top, 0, h - 1)
     xs = np.clip(np.arange(cw) - left, 0, w - 1)

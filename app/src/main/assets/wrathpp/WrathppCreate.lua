@@ -225,9 +225,10 @@ local function maskedButton(name, parent, width, height, ring, ringWidth, ringHe
 				if ( c ) then self.icon:SetTexCoord(c[1], c[2], c[3], c[4]) else self.icon:SetTexCoord(0, 1, 0, 1) end
 			else self.icon:SetTexture(0, 0, 0, 0) end
 		end
-		local dim = (self.off and 0.4) or ((drawn or self.on) and 1) or 0.55
+		-- (dimmed by its colour only: SetDesaturated, even SetDesaturated(nil), puts the game's own pixel shader on the
+		-- texture, which on the phone drew the portraits' clear corners as solid squares in build 241)
+		local dim = (self.off and 0.35) or ((drawn or self.on) and 1) or 0.55
 		self.icon:SetVertexColor(dim, dim, dim)
-		if ( self.icon.SetDesaturated ) then self.icon:SetDesaturated(self.off and 1 or nil) end
 		local ringName = self.ringAtlas
 		if ( self.off and piece(ringName.."-disabled") ) then ringName = ringName.."-disabled" end
 		atlas(self.ring, ringName)
