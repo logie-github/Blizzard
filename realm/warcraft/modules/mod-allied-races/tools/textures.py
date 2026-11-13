@@ -133,6 +133,16 @@ def build(read, model, layout, out_dir, log=print):
                 else:
                     w.write(path, b"")
 
+    # The skin extra (m2.py: the sections whose art lies where 3.3.5 composes the face): each skin's whole texture of
+    # today, for that skin's colour, palettized at its own size.
+    if layout.get("extra"):
+        for s in model["skins"]:
+            path = names.skin_extra(model, s["index"])
+            if not w.exists(path):
+                w.write(path, blp.write_palette(np.ascontiguousarray(texture(s["body"]))))
+            else:
+                w.write(path, b"")
+
     # Faces: FaceLower from the head, one a face texture (and a nightborne eye glow), FaceUpper
     # one an eye colour; the tables name them for every face number on every skin.
     for e in eyes:

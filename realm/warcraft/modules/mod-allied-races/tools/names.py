@@ -12,6 +12,11 @@ def skin(model, colour):
     return "%s\\%sSkin00_%02d.blp" % (model["folder"], model["name"], colour)
 
 
+def skin_extra(model, colour):
+    """the skin's second texture (3.3.5's skin extra: m2.py draws the parts the face's place can't hold on it)"""
+    return "%s\\%sSkin00_%02d_Extra.blp" % (model["folder"], model["name"], colour)
+
+
 def pelvis(model, colour):
     return "%s\\%sNakedPelvisSkin00_%02d.blp" % (model["folder"], model["name"], colour)
 

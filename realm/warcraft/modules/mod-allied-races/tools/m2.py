@@ -67,6 +67,8 @@ HEADER = 304
 BONE, SEQ, ATTACH, EVENT, CAMERA_IN, CAMERA_OUT, VERTEX, SECTION, BATCH = 88, 64, 40, 36, 116, 100, 48, 48, 24
 TRACK, TRACK_BASE = 20, 12
 BODY, CAPE, HAIR, EYES = 1, 2, 6, 19
+SKIN_EXTRA = 8                       # 3.3.5's skin extra: a skin row's second texture
+BONY_GROUPS = (19, 20, 29, 30)       # today's bony pieces (the Forsaken's spine, back, elbows, knees)
 KEPT_TYPES = {0, BODY, CAPE, HAIR}
 
 
@@ -866,6 +868,24 @@ def convert(files, policy, out_dir, log=print):
         ids = model.texture_ids
         return max(first, second) < len(ids) and ids[first] == ids[second] != 0
 
+    # The skin extra (3.3.5's texture type 8, a skin row's second texture, as its tauren's fur): a section drawn with
+    # the body texture whose coordinates lie mostly where 3.3.5 composes the face (the left half's bottom: FaceUpper and
+    # FaceLower) is today's art for parts the face never covers: the Forsaken's bony knees, elbows and spine, which drew
+    # the face's and the eyes' colours there (the user: "fix all the undead actual undead knees because they're weird
+    # colors now instead of bony"). Such a section draws on the skin extra with its own coordinates; the skin extra is
+    # today's whole skin, each colour's own (textures.py).
+    extra_sections = set()
+    for si, sec in enumerate(skin.sections if policy.get("skin_extra", True) else ()):
+        if not any(b[3] == si and model.textures[model.texture_lookup[b[9]]][0] == BODY for b in skin.batches if b[9] < len(model.texture_lookup)):
+            continue
+        uvs = np.array([struct.unpack_from("<ff", model.vertices[skin.vertices[k]], 32) for k in range(sec[2], sec[2] + sec[3])])
+        # (today's bony pieces: groups 19 and 20 the spine and back, 29 the elbows, 30 the knees; a face's own parts,
+        # the tauren's head and the draenei's tendrils, are where 3.3.5 composes the face on purpose)
+        if sec[0] // 100 in BONY_GROUPS and len(uvs) and ((uvs[:, 0] < 0.25) & (uvs[:, 1] > 0.625)).mean() > 0.02:
+            extra_sections.add(si)
+    if extra_sections:
+        log("%s: %d sections drawn on the skin extra (geosets %s)" % (name, len(extra_sections), sorted({skin.sections[s][0] for s in extra_sections})))
+
     # Textures: the ones kept, with names for the fixed ones; the lookup is one entry a texture.
     textures, texture_names, texture_index = [], {}, {}
     hard = policy.get("hardcoded", {})                  # texture type (as text) -> game path
@@ -885,6 +905,10 @@ def convert(files, policy, out_dir, log=print):
         elif str(kind) in hard:
             texture_index[i] = len(textures)
             textures.append((0, flags, hard[str(kind)]))
+    extra_texture = None
+    if extra_sections:
+        extra_texture = len(textures)
+        textures.append((SKIN_EXTRA, 0, ""))
     glows = {}
 
     def glow_texture(b, s):
@@ -985,7 +1009,7 @@ def convert(files, policy, out_dir, log=print):
     texture_types = [k for k, _ in model.textures]
     body_sections = [s for s in range(len(skin.sections)) if any(
         b[3] == s and texture_types[model.texture_lookup[b[9]]] == BODY for b in skin.batches)]
-    layout = head_layout(model, skin, body_sections)
+    layout = head_layout(model, skin, [s for s in body_sections if s not in extra_sections])
     out_vertices, out_props, out_indices, out_sections, out_batches, out_lookup = [], [], [], [], [], []
     new_vertex = {}
 
@@ -1102,6 +1126,8 @@ def convert(files, policy, out_dir, log=print):
         sec = skin.sections[s]
         kind = texture_types[model.texture_lookup[b[9]]]
         uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
+        if s in extra_sections and kind == BODY:
+            uv_kind = "same"
         if glyph_card(b) or eye_glow(b):
             uv_kind = "second"
         # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
@@ -1148,6 +1174,8 @@ def convert(files, policy, out_dir, log=print):
                                             index_start, len(triangles) * 3, len(palette), combo_index,
                                             max(1, influences), sec[9], *sec[10:17]))
             texture = texture_index[model.texture_lookup[b[9]]]
+            if s in extra_sections and kind == BODY:
+                texture = extra_texture
             if eye_glow(b):
                 texture = glow_texture(b, s)
             shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
@@ -1212,7 +1240,8 @@ def convert(files, policy, out_dir, log=print):
             out.write(data)
     with open(os.path.join(out_dir, folder.replace("\\", "/"), name + ".layout.json"), "w") as out:
         json.dump({"head": layout, "eyes": [0.0, 0.625, 0.5, 0.75], "sequences": merged.n, "vertices": len(out_vertices),
-                   "sections": len(out_sections), "textures": [(k, p) for k, _, p in textures]}, out, indent=1)
+                   "sections": len(out_sections), "textures": [(k, p) for k, _, p in textures],
+                   "extra": bool(extra_sections)}, out, indent=1)
     log("%s: %d sequences (%d in their own files), %d bones, %d vertices, %d sections, %d textures" % (
         name, merged.n, len(external), len(child.bones), len(out_vertices), len(out_sections), len(textures)))
     return sorted(written)

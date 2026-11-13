@@ -277,7 +277,7 @@ def look_at(eye, target, up=(0, 0, 1)):
     return view
 
 
-def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir):
+def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir, extra_tex=None):
     W, H = size
     fov, near, far, eye, target = camera
     view = look_at(eye, target)
@@ -341,6 +341,8 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             tx = hair_tex
         elif kind == 2:
             continue                                             # cape: none at creation
+        elif kind == 8:
+            tx = extra_tex                                       # the skin extra: the skin row's second texture
         elif kind == 0:
             tx = read_blp(files, name)
         else:
