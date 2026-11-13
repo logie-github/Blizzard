@@ -183,6 +183,16 @@ for file, by in pairs(named) do
 	end
 end
 if files == 0 then fail("no texture named by the creator was seen: the check is not looking") end
+-- a texture's name with a dot in its last part: the client cuts the name at its last dot to add .BLP and loads another
+-- file (TexturePickAlternateFilename; the round portraits were the square ones in builds 241 to 246)
+for file, by in pairs(named) do
+	if by:match("^Wrathpp") then
+		local base = file:match("[^\\/]*$")
+		if base:find(".", 1, true) and not base:lower():match("^[^.]+%.blp$") and not base:lower():match("^[^.]+%.tga$") then
+			fail(file.." ("..by.."): a dot in the file's name: the client loads "..base:gsub("%.[^.]*$", "")..".blp instead")
+		end
+	end
+end
 for by in pairs(shaded) do
 	if by:match("^Wrathpp") then fail(by..": SetDesaturated puts the game's pixel shader on a texture (the phone drew build 241's portraits through it as squares)") end
 end

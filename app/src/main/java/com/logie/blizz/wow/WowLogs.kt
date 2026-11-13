@@ -38,6 +38,25 @@ class LineWatch(private val pattern: Regex) {
 /** Reading the servers' log files. */
 object WowLogs {
     /** The last [lines] lines of a log without colour codes, or "" if there is none. */
+    /**
+     * A program's exit code in words, for a report: above 128 a shell's way of saying the program was ended by a signal
+     * (128 + its number), which comes from outside it (the system, another program), with no error of its own in its
+     * log. (Report #113: Wrath++'s world server, code 163, signal 35, its log ending in the bots' statistics.)
+     */
+    fun exitInWords(code: Int): String {
+        if (code in 129..192) {
+            val signal = code - 128
+            val name = when (signal) {
+                1 -> "SIGHUP"; 2 -> "SIGINT"; 3 -> "SIGQUIT"; 4 -> "SIGILL"; 6 -> "SIGABRT"; 7 -> "SIGBUS"; 8 -> "SIGFPE"
+                9 -> "SIGKILL, the system's (often for memory)"; 11 -> "SIGSEGV, a crash"; 13 -> "SIGPIPE"; 15 -> "SIGTERM"
+                35 -> "35, the one Android's debuggerd sends for a stack dump"
+                else -> "$signal"
+            }
+            return "code $code: ended by signal $name"
+        }
+        return "code $code"
+    }
+
     fun tail(file: File, lines: Int = 40): String {
         if (!file.isFile) return ""
         val start = (file.length() - 64 * 1024).coerceAtLeast(0)

@@ -517,6 +517,26 @@ def remap_uv(u, v, kind, layout):
 ANIM_CHUNKS = (b"AFM2", b"AFSA", b"AFSB")
 
 
+def glow_blp(data, box):
+    """The eyes' glow's texture (convert's eye_glow): the file with the colour of the part [box] (u0, v0, u1, v1) holds
+    (the mean of its colour, by its alpha, and its alpha's mean) laid over all of it, the file's own alpha kept: its
+    smoke, which the glow is drawn by, in the glow's colour. DXT5, as the game's own glows."""
+    import numpy as np
+    import blp
+    rgba = blp.read(data).astype(np.float32)
+    h, w = rgba.shape[:2]
+    x0, y0 = int(np.floor(box[0] * w)), int(np.floor(box[1] * h))
+    x1, y1 = max(x0 + 1, int(np.ceil(box[2] * w))), max(y0 + 1, int(np.ceil(box[3] * h)))
+    part = rgba[y0:y1, x0:x1].reshape(-1, 4)
+    weight = part[:, 3:4] / 255.0
+    colour = (part[:, :3] * weight).sum(0) / max(float(weight.sum()), 1e-6)
+    strength = float(weight.mean())
+    out = rgba.copy()
+    out[:, :, :3] = out[:, :, :3] / 255.0 * colour
+    out[:, :, 3] = out[:, :, 3] * strength
+    return blp.write_dxt(np.clip(out, 0, 255).round().astype(np.uint8), alpha=True)
+
+
 def shared_positions(positions, sections):
     """{section: its vertices whose position (to 0.01 mm) a vertex of another section has too}: where sections join."""
     import numpy as np
@@ -827,6 +847,18 @@ def convert(files, policy, out_dir, log=print):
     key_bones = (child.key_bones + [-1] * KEY_BONES)[:KEY_BONES]
     blob.array(52, len(key_bones), struct.pack("<%dh" % len(key_bones), *key_bones))
 
+    def eye_glow(b):
+        """The eyes' glow today: shader 0x4014 draws two layers of one file, additively: its colour, a small square the
+        first coordinates sample, times the smoke the second coordinates scroll across. 3.3.5 draws a batch's one
+        texture by the first coordinates: the square alone, a solid band of colour over the eyes (build 243, the
+        phone's own picture of a Night Elf). Drawn here by the second, from a copy of the file with its smoke in the
+        square's colour (glow_texture)."""
+        if b[2] != 0x4014 or b[8] != 2 or b[9] + 1 >= len(model.texture_lookup) or model.materials[b[6]][1] not in (3, 4, 7):
+            return False
+        first, second = model.texture_lookup[b[9]], model.texture_lookup[b[9] + 1]
+        ids = model.texture_ids
+        return max(first, second) < len(ids) and ids[first] == ids[second] != 0
+
     # Textures: the ones kept, with names for the fixed ones; the lookup is one entry a texture.
     textures, texture_names, texture_index = [], {}, {}
     hard = policy.get("hardcoded", {})                  # texture type (as text) -> game path
@@ -846,6 +878,30 @@ def convert(files, policy, out_dir, log=print):
         elif str(kind) in hard:
             texture_index[i] = len(textures)
             textures.append((0, flags, hard[str(kind)]))
+    glows = {}
+
+    def glow_texture(b, s):
+        """The index of the eyes' glow's own texture (eye_glow): the file's smoke, in the colour of the part of the file the
+        batch's first coordinates sample (the mean of its colour, by its alpha)."""
+        fid = model.texture_ids[model.texture_lookup[b[9]]]
+        sec = skin.sections[s]
+        first = sec[4] + sec[1] * 65536
+        vs = set(int(skin.vertices[v]) for v in skin.indices[first:first + sec[5]])
+        uv = np.array([struct.unpack_from("<ff", model.vertices[v], 32) for v in vs])
+        box = (float(uv[:, 0].min()), float(uv[:, 1].min()), float(uv[:, 0].max()), float(uv[:, 1].max()))
+        key = (fid, tuple(round(x, 3) for x in box))
+        if key not in glows:
+            path = "%s\\%s_%d_glow%d.blp" % (folder, name, fid, len(glows))
+            glow_files[path] = (fid, box)
+            glows[key] = len(textures)
+            textures.append((0, model.textures[model.texture_lookup[b[9]]][1], path))
+        return glows[key]
+
+    glow_files = {}
+    for b in skin.batches:
+        if eye_glow(b):
+            glow_texture(b, b[3])
+
     tex_blob = bytearray()
     paths = []
     for kind, flags, path in textures:
@@ -953,6 +1009,7 @@ def convert(files, policy, out_dir, log=print):
         ids = model.texture_ids
         return first == second or (max(first, second) < len(ids) and ids[first] == ids[second] != 0)
 
+
     sections_by_id = {}
     for s, sec in enumerate(skin.sections):
         sections_by_id.setdefault(sec[0], []).append(s)
@@ -1030,7 +1087,7 @@ def convert(files, policy, out_dir, log=print):
         sec = skin.sections[s]
         kind = texture_types[model.texture_lookup[b[9]]]
         uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
-        if glyph_card(b):
+        if glyph_card(b) or eye_glow(b):
             uv_kind = "second"
         # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
         # drawing with a section's combo, puts a vertex on the bone its slot names there: the
@@ -1076,6 +1133,8 @@ def convert(files, policy, out_dir, log=print):
                                             index_start, len(triangles) * 3, len(palette), combo_index,
                                             max(1, influences), sec[9], *sec[10:17]))
             texture = texture_index[model.texture_lookup[b[9]]]
+            if eye_glow(b):
+                texture = glow_texture(b, s)
             shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
             flags = b[0] & 0x1F
             # (a glyph card's texture moves as its glyph's stage does, the second: the band's scroll,
@@ -1129,6 +1188,8 @@ def convert(files, policy, out_dir, log=print):
             written[path] = anim_out[j]
     for fid, path in texture_names.items():
         written[path] = files(fid)
+    for path, (fid, box) in glow_files.items():
+        written[path] = glow_blp(files(fid), box)
     for path, data in written.items():
         full = os.path.join(out_dir, path.replace("\\", "/"))
         os.makedirs(os.path.dirname(full), exist_ok=True)
