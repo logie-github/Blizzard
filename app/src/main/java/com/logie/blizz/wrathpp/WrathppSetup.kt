@@ -19,6 +19,14 @@ object WrathppSetup {
         }
         // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.
         val notes = StringBuilder()
+        // Project Reforged's parts chosen on Wrath++'s settings page (Reforged): what finished downloading put in, what was
+        // turned off taken out (a shared archive of Wrath+'s it stood in for linked back), the glue screens kept the game's own.
+        // Before the creator's patch, whose table of contents is read from the game. Its downloads go on in the background.
+        runCatching {
+            notes.append(Reforged.prepare(layout.wrathppClient, java.io.File(layout.client, "Data"), Reforged.chosen(context.filesDir)))
+            WrathppClient.addMissing(layout.client, layout.wrathppClient)
+        }.onFailure { e -> notes.append("reforged FAILED: ${e.message}\n") }
+        runCatching { ReforgedDownloads.start(context) }
         runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
             .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
