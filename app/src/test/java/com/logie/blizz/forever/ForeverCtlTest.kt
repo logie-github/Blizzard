@@ -137,6 +137,31 @@ class ForeverCtlTest {
     }
 
     @Test
+    fun `the game opens on its login screen with the e-mail in place and nothing in front of it`() {
+        val fresh = ForeverCtl.withLoginReady(ForeverCtl.withLocalPortal(null), "forever@forever.local")
+        // What the desktop rig ran with (client 70888): no intro, no narrator question, the e-mail filled in.
+        assertEquals(
+            "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\nSET playIntroMovie \"1\"\n" +
+                "SET showScreenNarrationDialog \"0\"\nSET accessibilityScreenNarrationEnabled \"0\"\n" +
+                "SET showPhotosensitivityWarning \"0\"\nSET accountName \"forever@forever.local\"\n",
+            fresh,
+        )
+        // Once more: the same lines (nothing doubled; the portal's line moves to the end, as it always has).
+        assertEquals(fresh.lines().sorted(), ForeverCtl.withLoginReady(ForeverCtl.withLocalPortal(fresh), "forever@forever.local").lines().sorted())
+        // The game's own file after a session: its settings kept, its choices kept, the account the app's.
+        val played = "SET graphicsQuality \"2\"\nSET playIntroMovie \"70888\"\nset accessibilityScreenNarrationEnabled \"1\"\n" +
+            "SET accountName \"someone@else\"\nSET portal \"127.0.0.1\"\n"
+        val next = ForeverCtl.withLoginReady(played, "forever@forever.local")
+        assertTrue(next.contains("SET graphicsQuality \"2\""))
+        assertTrue(next.contains("SET playIntroMovie \"70888\""))
+        assertFalse(next.contains("SET playIntroMovie \"1\""))
+        assertTrue(next.contains("set accessibilityScreenNarrationEnabled \"1\""))
+        assertFalse(next.contains("someone@else"))
+        assertEquals(1, next.lines().count { it.contains("accountName") })
+        assertTrue(next.contains("SET accountName \"forever@forever.local\""))
+    }
+
+    @Test
     fun `a crash file that says Security Crash is the game's protection, another is not`() {
         val security = "=====\nException: 0xC00000E5 (EXCEPTION_INTERNAL_ERROR) at 00006fffffc1d127\nProcessID: 852\n\n" +
             "<Exception.IssueType> Exception\n<ExceptionType> Security Crash\n<Exception.Summary:>\n"

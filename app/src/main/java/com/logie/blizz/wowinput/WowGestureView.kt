@@ -289,14 +289,16 @@ class WowGestureView(
         val saved = activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD)?.let { pw -> account?.let { com.logie.blizz.wow.WowLogin.Login(it, pw) } }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         // A Legion client shows its window well before its login screen (it loads its data behind
-        // it): its own cursor (gxCursor), not the window's first, says the login screen is up.
-        val legion = legionClient
+        // it): its own cursor (gxCursor), not the window's first, says the login screen is up. World of Warcraft:
+        // Forever's client (a modern one, [crashDir] is set for it only) does the same: on the desktop rig its login
+        // screen took 35 s natively, longer than the classic wait (15 s), after which the password went nowhere.
+        val legion = legionClient || crashDir != null
         val wait = if (legion) LEGION_LOGIN_WAIT_MS else LOGIN_WAIT_MS
         val shownAt = SystemClock.uptimeMillis()
         // What the login did, for the report a game sends (never the password).
         com.logie.blizz.game.GameLog.note(
             "login: password ${if (activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD) != null) "given" else "not given"}, account " +
-                "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "Legion" else "classic"} wait ${wait / 1000} s",
+                "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "late login screen" else "classic"} wait ${wait / 1000} s",
         )
         if (login != null) {
             // (a Legion client not at its login screen when the wait ends: asked, not typed blind
@@ -513,6 +515,18 @@ class WowGestureView(
     }
 
     /** A fingerprint of the game's cursor where the pointer is, or null when there's none to see. */
+    private var nudged = false
+
+    /** The pointer a pixel aside and back on the next call (within the screen): motion for Wine, no place for the game. */
+    private fun nudgePointer() = runCatching {
+        val x = xServer.pointer.x.toInt()
+        val y = xServer.pointer.y.toInt()
+        val step = if (nudged) -1 else 1
+        val nx = (x + step).coerceIn(0, xServer.screenInfo.width - 1)
+        nudged = !nudged
+        xServer.injectPointerMove(nx, y)
+    }
+
     private fun cursorHere(): Long? = runCatching {
         xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER, XServer.Lockable.INPUT_DEVICE).use {
             var window = xServer.inputDeviceManager.pointWindow
@@ -698,6 +712,11 @@ class WowGestureView(
      */
     private fun whenLoginScreen(since: Long, seen: Int, legion: Boolean, baseline: Long?, wait: Long,
                                 timedOut: (() -> Unit)? = null, then: () -> Unit) {
+        // Wine gives the X server a program's new cursor only when the pointer moves (read on the X server rig, 13
+        // November 2026: the game's cursor set every tick, the server's unchanged until a move). On a touch screen the
+        // pointer stays still while the login screen loads, so the game's cursor was never seen: the pointer is moved by
+        // a pixel, one way then back, at each look.
+        if (legion) nudgePointer()
         val cursor = cursorHere()
         val base = if (legion && baseline == null) cursor else baseline
         val now = if (cursor != null && (!legion || cursor != base)) seen + 1 else 0

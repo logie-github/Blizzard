@@ -144,6 +144,34 @@ object ForeverCtl {
         return (kept + locale + line).joinToString("\n", postfix = "\n")
     }
 
+    /**
+     * [config] (the client's `WTF/Config.wtf`) set so the game opens on its login screen ready for the password: the
+     * account's e-mail filled in ([account], `accountName`: what *Remember Account* keeps), and none of the first-start
+     * screens in front of it (the intro movie, the Screen Narrator question, the photosensitivity notice). Seen on the
+     * desktop rig with client 70888 (13 November 2026): with these the login screen is up with the e-mail in its box and
+     * the cursor in the password's; without them the e-mail box is empty and has the cursor (the app types only the
+     * password), the intro plays, and the narrator's question takes the Enter. The game reads them from `Config.wtf`
+     * also when the Forever Launcher starts it with its own file (`-config ForeverLauncher.wtf`), which the account name
+     * in that file does not do. The rest of the settings kept; the first-start ones only where none is set.
+     */
+    fun withLoginReady(config: String?, account: String): String {
+        val forced = mapOf("accountName" to account)
+        val unlessSet = linkedMapOf(
+            "playIntroMovie" to "1",
+            "showScreenNarrationDialog" to "0",
+            "accessibilityScreenNarrationEnabled" to "0",
+            "showPhotosensitivityWarning" to "0",
+        )
+        fun name(line: String) = Regex("^\\s*SET\\s+(\\S+)\\s", RegexOption.IGNORE_CASE).find(line)?.groupValues?.get(1)?.lowercase()
+        val lines = config.orEmpty().lines().filter { it.isNotBlank() }
+        val forcedNames = forced.keys.map { it.lowercase() }.toSet()
+        val kept = lines.filterNot { name(it) in forcedNames }
+        val present = kept.mapNotNull { name(it) }.toSet()
+        val added = unlessSet.filterKeys { it.lowercase() !in present }.map { (k, v) -> "SET $k \"$v\"" }
+        val accountLine = forced.map { (k, v) -> "SET $k \"${v.replace("\"", "")}\"" }
+        return (kept + added + accountLine).joinToString("\n", postfix = "\n")
+    }
+
     /** The folders ctl.sh needs before its shell starts: its temporary folder (TMPDIR) and the logs. */
     fun prepare(layout: ForeverLayout) {
         File(layout.run, "tmp").mkdirs()
