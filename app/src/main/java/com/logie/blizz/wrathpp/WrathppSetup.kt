@@ -59,8 +59,11 @@ object WrathppSetup {
         runCatching { reportCrashes(context) }
         val creatorOff = WrathppLogs.creatorOff(java.io.File(layout.wrathppClient, "Logs"), com.logie.blizz.BuildConfig.VERSION_CODE)
         runCatching {
+            // (pictures of the creator as the game draws it are asked for until those of this build, art and looks went: WrathppPictures)
+            val shots = WrathppPictures.flag(java.io.File(layout.wrathppClient, "Logs"), WrathppPictures.state(com.logie.blizz.BuildConfig.VERSION_CODE,
+                WrathppArt.installedSha(layout.wrathppClient), WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer)))
             val files = if (creatorOff) mapOf(OFF_NOTE to offNote(com.logie.blizz.BuildConfig.VERSION_CODE).toByteArray(Charsets.UTF_8))
-            else glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead)
+            else glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead, shots)
             WrathppAddon.writeGluePatch(layout.wrathppClient, files)
             files
         }.onSuccess { files ->
@@ -86,14 +89,16 @@ object WrathppSetup {
     """.trimIndent() + "\n"
 
     /**
-     * The creator's files for its patch: the script ([creator]), Shadowlands' art's table when the art is in ([WrathppArt]),
+     * The creator's files for its patch: the script ([creator]), the asking for pictures of it ([shots], [WrathppPictures.flag]),
+     * Shadowlands' art's table when the art is in ([WrathppArt]),
      * the looks' options from the looks in [client] when they are in
      * (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
      * The script reads the other two when the creator opens, so the order they load in doesn't matter.
      */
-    fun glue(creator: ByteArray, client: java.io.File, undead: String?): Map<String, ByteArray> {
+    fun glue(creator: ByteArray, client: java.io.File, undead: String?, shots: String? = null): Map<String, ByteArray> {
         val files = LinkedHashMap<String, ByteArray>()
         files["WrathppCreate.lua"] = creator
+        if (shots != null) files[WrathppPictures.FLAG] = shots.toByteArray(Charsets.UTF_8)
         WrathppArt.atlas(client)?.let { files[WrathppArt.ATLAS] = it.readBytes() }
         java.io.File(client, "Data/${WrathppLooks.PATCH}/Interface/GlueXML/$LOOKS_DATA").takeIf { it.isFile }?.let { files[LOOKS_DATA] = it.readBytes() }
         if (undead != null) files[WrathppUndead.LUA] = undead.toByteArray(Charsets.UTF_8)
@@ -152,6 +157,8 @@ object WrathppSetup {
         val client = layout.wrathppClient
         val logs = java.io.File(client, "Logs")
         if (!logs.isDirectory) return
+        // (the creator's pictures of itself, taken since the app asked for them: sent now that the game was left)
+        runCatching { WrathppPictures.send(context) }
         val setup = runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log").readText() }.getOrDefault("no setup.log")
         for (crash in WrathppLogs.unreported(logs)) {
             if (crash.creatorUp) WrathppLogs.creatorCrashed(logs, com.logie.blizz.BuildConfig.VERSION_CODE)

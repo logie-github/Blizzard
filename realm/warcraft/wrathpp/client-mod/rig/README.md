@@ -67,6 +67,12 @@ publish them if it fails. About two minutes:
   3.3.5's own pictures (not on this machine) are faint boxes, the text a stand-in font at its size, the scene a
   figure's outline.
 
+## What the rig cannot show, the phone sends
+
+The creator takes the game's own screenshot of each of its screens on the phone when the app asks (`WrathppShots`,
+`WrathppPictures` in the app), and the app sends them as issues. `tools/fetch_pictures.py OUT` puts them together:
+the creator as the game drew it, to set beside `tools/paint.py`'s picture of the same screen.
+
 ## What it is not
 
 It is not the game. It has no fonts and no 3D, a frame's place is worked out and not drawn by the client, and of art it

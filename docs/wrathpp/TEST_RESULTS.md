@@ -299,3 +299,24 @@ the game's own box laid over it without its border and its own "Name", as it was
 foot's buttons carry `common-icon-forwardarrow` and `-backarrow`, 8 x 13. Looked at in the rig's painted picture;
 `run.sh` with the art: the same nine passes, 0 problems, 104 textures named, 91 of them Shadowlands' pieces; the off
 path still leaves all of the game's own screen as it is without the creator.
+
+## 2026-11-13: the phone as the place where the game is seen
+
+The 3.3.5 client the project builds from source in CI needs the game's own data to start (its shaders are the game's,
+translated; its interface art and fonts the game's), and no machine here has that data: the creator cannot be run in
+the game anywhere but on the phone. So the phone's game takes pictures of the creator and the app sends them
+(`WrathppPictures`, README). Run here:
+
+- the creator on the rig (`behaviour.lua`, 40 checks): no picture before a screen has been up a moment; one of the
+  first screen, one of Customize, one of the first list opened, each said in the log; three at most; none when the
+  app has not asked;
+- `WrathppPicturesTest`, 5 of 5 with kotlinc: pictures asked for until those of this build, art and looks went (the
+  first asking's hour kept); only the game's JPEGs taken since the asking go, the newest three; what each is of is
+  what the creator's log said; a picture goes whole in one issue or in parts, read back byte for byte; titles that
+  differ in more than digits (the reports' queue takes two titles alike but for their digits for one report: found
+  while reading the code back, before it ran anywhere);
+- `rig/tools/fetch_pictures.py` on issues made as the app makes them: a picture of 100,000 bytes in three parts and one
+  of 30,000 in one, read back whole.
+
+**Not run**: Android's making a picture smaller (`shrink`: `BitmapFactory`, `Bitmap.compress`), the game's
+`Screenshot` under Wine on the phone, the sending. If the game writes no file there, the report says so.

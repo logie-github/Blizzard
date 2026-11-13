@@ -36,7 +36,7 @@ return function(opts)
 	function GetCursorPosition() return E.cursor[1], E.cursor[2] end
 	function GetTime() return E.clock end
 	function PlaySound() end
-	function Screenshot() end
+	function Screenshot() R.notes[#R.notes + 1] = "screenshot" end
 	function message(text) R.notes[#R.notes + 1] = "message: "..tostring(text) end
 	function GlueDialog_Show(which) R.notes[#R.notes + 1] = "dialog: "..tostring(which) end
 	function SetBackgroundModel(frame, name) frame.__background = name end
@@ -109,6 +109,7 @@ return function(opts)
 	local atlasFile = opts.atlas or os.getenv("RIG_ATLAS")
 	if ( atlasFile == "-" or atlasFile == "" or not opts.creator ) then atlasFile = nil end
 	WrathppAtlas = nil
+	WrathppShots = opts.shots and "rig" or nil            -- the app asks for pictures of the creator (WrathppShots.lua in its patch)
 	for _, file in ipairs({ atlasFile or false, opts.creator or false, opts.looks or false, opts.undead or false }) do
 		if ( file ) then
 			local fn, err = loadfile(file)

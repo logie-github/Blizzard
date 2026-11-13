@@ -1141,6 +1141,7 @@ function WrathppCreate_TogglePopout(f)
 	fillPopout()
 	if ( under ) then popout:SetPoint("TOPRIGHT", f.choice, "BOTTOMRIGHT", u(3), u(11)) else popout:SetPoint("BOTTOMRIGHT", f.choice, "TOPRIGHT", u(3), -u(11)) end
 	catcher:Show(); popout:Show()
+	if ( W.ShotDue ) then W.ShotDue("a list", 0.6) end
 end
 
 -- The game's own pieces ---------------------------------------------------------------------------------------------------
@@ -1434,6 +1435,7 @@ local function setStep(n)
 	if ( first ) then categoryPanel:Hide(); WrathppCreate_ClosePopout(); W.SetZoom(1, 0.6) end
 	spinArea:Show()
 	WrathppCreate_Refresh()
+	W.ShotDue(first and "race and class" or "customize", 1.5)
 end
 
 WrathppCreate_SetStep = guarded(setStep)
@@ -1515,6 +1517,33 @@ for _, name in ipairs({ "SetCharacterRace", "SetCharacterGender", "SetCharacterC
 	end))
 end
 
+-- Pictures of the creator as the game draws it, for the app's report (WrathppShots: set by the app when it has no
+-- pictures of this build yet; the game's own Screenshot, as its Print Screen key takes one): each of the two screens a
+-- moment after it is first up, and the first list of choices opened. Three at most a launch; nothing without the
+-- app's asking. What the rig cannot show (the game's own drawing of the art, the fonts, the scene) is seen from these.
+local shots = { taken = {}, due = {}, count = 0 }
+function W.ShotDue(what, seconds)
+	if ( WrathppShots == nil or type(Screenshot) ~= "function" or shots.taken[what] or shots.count >= 3 ) then return end
+	shots.due[what] = shots.due[what] or seconds
+end
+local function shoot(elapsed)
+	for what, left in pairs(shots.due) do
+		left = left - elapsed
+		if ( left > 0 ) then shots.due[what] = left
+		else
+			shots.due[what] = nil
+			-- still the screen it was asked for (the list still open, the same step)
+			local still = (what == "a list" and popout:IsShown()) or (what == "race and class" and W.step == 1 and not popout:IsShown())
+				or (what == "customize" and W.step == 2 and not popout:IsShown())
+			if ( still and not shots.taken[what] and shots.count < 3 ) then
+				shots.taken[what] = true; shots.count = shots.count + 1
+				local ok = pcall(Screenshot)
+				log("shot "..shots.count..": "..what..(ok and "" or " (the game would not take it)"))
+			end
+		end
+	end
+end
+
 -- Every frame: the lists easing, the character turning, the view coming nearer; four times a second the rows again
 -- (what the game's own state is, however it changed).
 local driver = make("Frame", "WrathppDriver", root)
@@ -1542,6 +1571,7 @@ driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 		WrathppCreate_SetStep(W.step)
 	end
 	for _, s in ipairs(scrollers) do s:Update(elapsed) end
+	shoot(elapsed)
 	if ( W.turning ) then
 		local x, y = cursor()
 		local dx, dy = x - W.lastX, y - W.lastY

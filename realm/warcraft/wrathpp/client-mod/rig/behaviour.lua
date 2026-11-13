@@ -6,7 +6,7 @@ local fails = 0
 local function check(cond, what) if not cond then fails = fails + 1; print("FAIL "..what) else print("ok   "..what) end end
 local function make(first, opts)
 	opts = opts or {}
-	local R = dofile(dir.."/rig.lua")({ dir = dir, stock = work.."/stock", data = data, creator = creator, looks = looks, undead = opts.undead ~= false and undead ~= "-" and undead or nil, native = opts.native })
+	local R = dofile(dir.."/rig.lua")({ dir = dir, stock = work.."/stock", data = data, creator = creator, looks = looks, undead = opts.undead ~= false and undead ~= "-" and undead or nil, native = opts.native, shots = opts.shots })
 	R.G.forceFirst = first
 	return R
 end
@@ -145,6 +145,29 @@ for _, f in ipairs(R.rows()) do names[#names + 1] = f.row.name end
 local skin0 = R.G.character.skin
 if R.rows()[1] then R.tap(R.rows()[1].next); R.frames(0.1) end
 check(#names == 5 and R.G.character.skin ~= skin0 and select(1, clean(R)), "without the native mod: the game's own five ("..table.concat(names, ", ").."), stepped by the game"..select(2, clean(R)))
+
+-- pictures for the app's report: only when the app asks, one of each screen a moment after it is first up and one of
+-- the first list opened, by the game's own Screenshot
+local function shotsOf(R) local n = 0; for _, note in ipairs(R.notes) do if note == "screenshot" then n = n + 1 end end; return n end
+local function said(R, what) for _, line in ipairs(R.G.log) do if line:find(what, 1, true) then return true end end return false end
+R = make({ race = 1, sex = 0, class = 1 }, { shots = true })
+R.open(); R.frames(0.5)
+check(shotsOf(R) == 0, "pictures: none before the first screen has been up a moment")
+R.frames(1.6)
+check(shotsOf(R) == 1 and said(R, "shot 1: race and class"), "  one of the first screen, said in the log")
+R.frames(3)
+check(shotsOf(R) == 1, "  and no more of it")
+R.tap("WrathppCustomizeButton"); R.frames(2)
+check(shotsOf(R) == 2 and said(R, "shot 2: customize"), "  one of Customize")
+local listed
+for _, f in ipairs(R.rows()) do if f.row.kind == "list" and not listed then listed = f end end
+R.tap(listed.choice, WrathppOptionList); R.frames(1)
+check(shotsOf(R) == 3 and said(R, "shot 3: a list"), "  one of the first list opened")
+WrathppCreate_ClosePopout(); R.tap("WrathppBackButton"); R.frames(2); R.tap("WrathppCustomizeButton"); R.frames(2)
+check(shotsOf(R) == 3 and select(1, clean(R)), "  three at most"..select(2, clean(R)))
+R = make({ race = 1, sex = 0, class = 1 })
+R.open(); R.frames(2); R.tap("WrathppCustomizeButton"); R.frames(2)
+check(shotsOf(R) == 0, "  none when the app has not asked")
 
 print(fails == 0 and "all passed" or (fails.." failed"))
 os.exit(fails == 0 and 0 or 1)
