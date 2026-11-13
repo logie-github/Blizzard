@@ -391,3 +391,8 @@ an Undead woman, Customize with a Night Elf woman, the list of her faces open. T
   checked by `check_m2`, each with its glow texture; `test_tools.py` (the smoke in the square's colour, as strong).
 
 Not run: the game with the new looks and art.
+
+**Report #113** (build 242, Wrath++'s world server, "stopped (code 163)"): 163 is 128 + 35, the server ended by signal 35
+(Android's debuggerd's), from outside it; its log ends in the bots' statistics, with no error of its own. Not enough to
+say what sent it. The realm's reports now say a code in words (`WowLogs.exitInWords`: a crash, the system's kill, another
+signal); `WowLogsExitTest` 2 of 2 with kotlinc.
