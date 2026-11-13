@@ -396,3 +396,18 @@ Not run: the game with the new looks and art.
 (Android's debuggerd's), from outside it; its log ends in the bots' statistics, with no error of its own. Not enough to
 say what sent it. The realm's reports now say a code in words (`WowLogs.exitInWords`: a crash, the system's kill, another
 signal); `WowLogsExitTest` 2 of 2 with kotlinc.
+
+## 2026-11-13: an undead skin makes a Forsaken
+
+Read from AzerothCore at the pins (the playerbots fork's commit; `Unit.h` and `ReputationMgr.h` the same at ChromieCraft's):
+the quests', base reputations', items' and mail's race checks all go through `getRaceMask()`, the real race's;
+`SetFactionForRace` calls `OnPlayerUpdateFaction` after the skin is loaded and before the reputations are
+(`Player::LoadFromDB`); a new character's reputations are saved at creation with its race's standings
+(`ReputationMgr::Initialize`, private); `OnPlayerCreate` runs after the character is saved, `OnPlayerFirstLogin` once it is
+in the world. Hence the core patch 0002 (a world race for the race mask; `ReputationMgr::Reset`) and the module's two hooks.
+
+Run here: the module's reading of the skins compiled alone with g++ and run on the rig's table (now with the undead
+skins' names as the import writes them, `rig/tools/undead_rows.py`): 68 undead skins for 17 races and sexes, the first
+of each the creator's own file's first; found by a name of another case; none, without a crash, with no table. The rig:
+the creator says it while the switch is on and not after (`behaviour.lua`), the whole rig 0 problems. **Not run**: the
+module and the patch compiled (CI's server build is the first), the server, a character made and logged in.

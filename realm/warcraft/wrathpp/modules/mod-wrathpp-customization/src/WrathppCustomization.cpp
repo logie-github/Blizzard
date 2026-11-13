@@ -436,6 +436,12 @@ public:
     }
 };
 
+// Whether the module runs here (the Wrath++ realm, its databases, its registry): for its other scripts (WrathppUndeadStart).
+bool WrathppIsEnabled()
+{
+    return S().enabled;
+}
+
 void AddWrathppCustomizationScripts()
 {
     new WrathppWorldScript();

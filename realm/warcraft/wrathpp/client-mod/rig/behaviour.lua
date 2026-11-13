@@ -61,6 +61,9 @@ if undead ~= "-" then
 		R.tap(R.row("Undead").check, WrathppOptionList); R.frames(0.1)
 		local first = WrathppUndead.models["4_1"].first
 		check(R.G.character.skin >= first and select(1, clean(R)), "  on: the game's skin is an undead one ("..R.G.character.skin..", from "..first..")"..select(2, clean(R)))
+		local function said(text) for _, f in ipairs(R.layout()) do if f.text and f.text:find(text, 1, true) then return true end end return false end
+		R.frames(0.3)
+		check(said("starts in Deathknell as one of the Forsaken"), "  and the screen says the character starts in Deathknell, one of the Forsaken, for the Horde")
 		local skins, face
 		for k = 1, 6 do
 			if R.visible("WrathppCategory"..k) then
@@ -74,6 +77,8 @@ if undead ~= "-" then
 		check(R.G.character.skin >= first, "  Randomize keeps an undead skin")
 		R.tap("WrathppCategory"..found); R.frames(0.1); R.tap(R.row("Undead").check, WrathppOptionList); R.frames(0.1)
 		check(R.G.character.skin < first and select(1, clean(R)), "  off: a living skin again ("..R.G.character.skin..")"..select(2, clean(R)))
+		R.frames(0.3)
+		check(not said("starts in Deathknell"), "  and says it no longer")
 		for _ = 1, 4 do R.tap("WrathppRandomize"); R.frames(0.1) end
 		check(R.G.character.skin < first, "  Randomize while living never lands on an undead skin")
 	end
