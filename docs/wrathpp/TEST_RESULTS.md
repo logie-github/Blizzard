@@ -374,3 +374,20 @@ list of a Human man frame by frame at 30 a second: unit for unit with the finger
 7, 7 for a finger moving 7 a frame); let go moving, on 45 units more, slowing every frame, stopping, never past the end;
 not read again while it moved, read again once at rest; stopped then lifted, it stays; placed on whole pixels of 1248;
 the whole rig with the art, 0 problems. Not run: the game; how many frames a second it draws on the phone.
+
+## 2026-11-13: build 243 as the game drew it, and what it showed
+
+The phone's pictures (issues #114 to #120, put together by `rig/tools/fetch_pictures.py`): the race and class screen with
+an Undead woman, Customize with a Night Elf woman, the list of her faces open. The creator as designed. Two faults:
+
+- **The portraits square.** The trimmed pictures' file names had a dot (`…female.race.blp`); the client cuts a texture's
+  name at its last dot to add `.BLP` (`TexturePickAlternateFilename`, Texture.cpp) and loaded the untrimmed one. The
+  art's file names have no dot now; `full.lua` fails on a texture name with a dot in its last part: on build 243's art
+  it names 40. (Build 243's `SetDesaturated` change was not this.)
+- **The eyes' glow a solid band.** Read from the cached Night Elf, Blood Elf, Draenei and Human models: shader 0x4014,
+  two layers of one file, the first coordinates on a small square of colour, the second on smoke. `m2.py` draws it by
+  the second from a copy tinted with the square's colour (`glow_blp`). Rendered (the Night Elf woman's face): wisps of
+  cyan smoke round eyes that show, where the old conversion drew a band over both; all nineteen models converted and
+  checked by `check_m2`, each with its glow texture; `test_tools.py` (the smoke in the square's colour, as strong).
+
+Not run: the game with the new looks and art.

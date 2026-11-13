@@ -108,6 +108,17 @@ pa, pb = decimate.decimate(both, np.array(gtris), 200, locked=joins["a"]), decim
 check(on_join(pa) == on_join(pb) == on_join(np.array(gtris)), "pinned, the two sections cut down alone still meet at every point of the join")
 la, lb = decimate.decimate(both, np.array(gtris), 200), decimate.decimate(both, second, 120)
 check(on_join(la) != on_join(lb), "(not pinned they meet at different points: a crack, %d and %d points)" % (len(on_join(la)), len(on_join(lb))))
+# The eyes' glow's texture: the file's smoke (white, by its alpha) in the colour of the square the first coordinates
+# sample, its alpha scaled by the square's
+import blp as _blp  # noqa: E402
+sheet = np.zeros((64, 32, 4), dtype=np.uint8)
+sheet[0:8, 0:8] = (0, 200, 255, 128)                 # the square: cyan, half its alpha
+sheet[16:64, 16:32, :3] = 255; sheet[16:64, 16:32, 3] = np.linspace(0, 255, 48, dtype=np.uint8)[:, None]   # the smoke
+glow = _blp.read(m2.glow_blp(_blp.write_raw(sheet) if hasattr(_blp, "write_raw") else _blp.write_dxt(sheet, alpha=True, mips=False), (0.0, 0.0, 0.25, 0.125)))
+smoke = glow[40:64, 20:28].reshape(-1, 4).astype(int)
+check(abs(int(np.median(smoke[:, 0])) - 0) <= 16 and abs(int(np.median(smoke[:, 1])) - 200) <= 24 and abs(int(np.median(smoke[:, 2])) - 255) <= 16,
+      "the glow's smoke in the square's colour (%s)" % np.median(smoke[:, :3], axis=0).tolist())
+check(int(glow[63, 24, 3]) <= 140 and int(glow[63, 24, 3]) >= 110, "and as strong as the square: half (%d of 255)" % glow[63, 24, 3])
 keep = decimate.plan({"body": 100, "hair": 100, "gear": 100}, 250, [("gear", 0.5), ("hair", 0.6), ("body", 0.75)])
 check(keep["gear"] == 0.5 and keep["body"] == 1.0 and abs(keep["hair"] - 1.0) < 1e-9, "the planner takes from the gear first and only what's needed")
 keep = decimate.plan({"body": 100, "gear": 100}, 120, [("gear", 0.5)])
