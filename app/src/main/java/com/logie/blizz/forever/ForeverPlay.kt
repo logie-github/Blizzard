@@ -470,7 +470,8 @@ object ForeverPlay {
 
         _state.value = State.Preparing("Starting the game")
         val exe = layout.clientExe() ?: return NEEDS_CLIENT
-        // The client logs in at this phone's realm: its portal (WTF/Config.wtf) set to 127.0.0.1.
+        // The client logs in at this phone's realm: its portal (WTF/Config.wtf) set to 127.0.0.1, and it opens on its
+        // login screen with the account's e-mail in place and nothing in front of it, so the password typed lands.
         withContext(Dispatchers.IO) {
             runCatching {
                 val game = File(layout.client, "_forever_").takeIf { it.isDirectory }
@@ -478,7 +479,7 @@ object ForeverPlay {
                     ?: return@runCatching
                 val wtf = game.listFiles()?.firstOrNull { it.isDirectory && it.name.equals("WTF", ignoreCase = true) } ?: File(game, "WTF").apply { mkdirs() }
                 val config = wtf.listFiles()?.firstOrNull { it.name.equals("Config.wtf", ignoreCase = true) } ?: File(wtf, "Config.wtf")
-                config.writeText(ForeverCtl.withLocalPortal(config.takeIf { it.isFile }?.readText()))
+                config.writeText(ForeverCtl.withLoginReady(ForeverCtl.withLocalPortal(config.takeIf { it.isFile }?.readText()), account.name))
             }
         }
         started(context)

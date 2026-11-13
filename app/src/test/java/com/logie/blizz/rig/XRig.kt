@@ -212,7 +212,8 @@ class XRig(val width: Int = 800, val height: Int = 600, private val display: Int
         "pointer ${xServer.pointer.x},${xServer.pointer.y} buttons ${xServer.pointer.buttonMask.bits}\n" +
             "under   ${describe(xServer.inputDeviceManager.pointWindow)}\n" +
             "grab    ${describe(grab.window)}" + (if (grab.window != null) " ownerEvents=${grab.isOwnerEvents} releaseWithButtons=${grab.isReleaseWithButtons} mask=0x${Integer.toHexString(grab.eventListener.eventMask.bits)}" else "") + "\n" +
-            "focus   ${describe(xServer.windowManager.focusedWindow)}"
+            "focus   ${describe(xServer.windowManager.focusedWindow)}\n" +
+            "cursor  ${xServer.inputDeviceManager.pointWindow?.attributes?.cursor?.let { "${it.cursorImage?.width}x${it.cursorImage?.height} hot ${it.hotSpotX},${it.hotSpotY} id ${System.identityHashCode(it)}" } ?: "none"}"
     }
 
     /**

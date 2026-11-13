@@ -18,6 +18,8 @@ This is how "Warcraft III won't let me click" (the phone, 9 November 2026) was f
   and `HostShm`: real System V segments mapped for the server, which MIT-SHM (Wine's drawing) needs.
 - `inputprobe.c`: a Windows program that opens a 400x300 window (sizable, or of a fixed size with `fixed`), locks the cursor
   to it as games do (`clip`), and writes every button, key, character and size it is given to `C:\windows\inputprobe.log`.
+  With `game` it stands in for a modern World of Warcraft client: a window over the whole screen, the arrow, and its own
+  cursor (a cross) from its fourth second, as the app tells the game's login screen by.
 - `glread.c`, `glread.sh <frames dir>`: the phone's look at a game's frame on a real OpenGL ES (this machine's Mesa), call for
   call. On the phone Warcraft III's frame is in a texture only the drawing thread can read (`Wc3Watch`); the server here has
   no GPU, so the calls are made by this program instead: two contexts sharing their objects, the frame copied into a texture
@@ -57,7 +59,8 @@ Without `BLIZZ_XRIG=1` the tests are skipped: CI and an ordinary test run pass o
 
 `ForeverHandOverRigTest` (same switches) puts the app's real game screen for World of Warcraft: Forever (`WowGestureView`)
 on the rig: the Forever Launcher's phase, in which nothing is typed and a tap is a plain click, and the hand-over to the
-game's own window, told by its program (the probe copied as `Wow.exe`). It holds the phone's black screen of 12 November
+game's own window, told by its program (the probe copied as `Wow.exe`). Then the login: the password typed only once the game's own cursor is up, which the server learns of only after a
+pointer move (Wine's way), so the app moves the pointer a pixel while it waits. It holds the phone's black screen of 12 November
 2026: Wine's desktop, as big as the screen and focused at every start, was taken for the game.
 
 ## By hand

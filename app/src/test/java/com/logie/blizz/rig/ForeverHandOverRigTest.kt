@@ -63,6 +63,8 @@ class ForeverHandOverRigTest {
             .putExtra(GestureView.EXTRA_LAUNCHER, true)
             .putExtra(GestureView.EXTRA_LOGIN_NAME, "forever@forever.local")
             .putExtra(GestureView.EXTRA_LOGIN_PASSWORD, "forever")
+            // (as the app starts Forever's client: its crash folder watched, which also marks the client as Forever's)
+            .putExtra(GestureView.EXTRA_CRASH_DIR, java.nio.file.Files.createTempDirectory("errors").toFile().path)
         val activity = Robolectric.buildActivity(Host::class.java, intent).setup().get()
         val view = WowGestureView(activity, rig.xServer) {}
         activity.setContentView(view)
@@ -115,13 +117,17 @@ class ForeverHandOverRigTest {
             pump(30_000) { rig.window("inputprobe") != null && log.isFile && log.readText().contains("START") }
             pump(5_000)
             assertFalse(GameLog.snapshot().contains("game window up"))
-            // The launcher's PLAY NOW: the game's program (the probe under the game's name: its windows say wow.exe).
+            // The launcher's PLAY NOW: the game's program (the probe under the game's name: its windows say wow.exe),
+            // over the whole screen, its own cursor from its fourth second as the game's login screen shows it.
             File(XRig.programs, "inputprobe.exe").copyTo(File(XRig.windowsDir, "Wow.exe"), overwrite = true)
-            rig.run("C:\\windows\\Wow.exe")
+            rig.run("C:\\windows\\Wow.exe", "game")
             pump(30_000) { GameLog.snapshot().contains("game window up") }
             assertTrue("handed over:\n${GameLog.snapshot()}\n${rig.describe()}", GameLog.snapshot().contains("game window up"))
             assertEquals("wow.exe", rig.xServer.windowManager.focusedWindow?.className?.lowercase())
             assertEquals(emptyList<String>(), typed())
+            // Not before the game's own cursor (its login screen) is up: a modern client's login screen comes late.
+            pump(2_000)
+            assertEquals("typed before the login screen", emptyList<String>(), typed())
             pump(25_000) { GameLog.snapshot().contains("login: typed") }
             pump(3_000)
             val chars = typed().filter { it.contains("CHAR") }.mapNotNull { Regex("'(.)'").find(it)?.groupValues?.get(1) }.joinToString("")
