@@ -24,7 +24,11 @@ import java.util.zip.ZipInputStream
  *    keeps its place and loses its textures, which are noted to put back. A painted one (the set has the Forsaken men's
  *    and no bodies for them) goes over the looks' own, at its size, with its alpha.
  *
- * Every race and sex the set has files for, the Forsaken among them; a skin the set has no file for keeps the game's.
+ * Every race and sex the set has files for, the Forsaken among them, and every regular skin of theirs (the user: "regular
+ * skins need the ralias patch applied. Base skins"): a skin the set has no file for (a colour today's game has and the
+ * set not, a colour with war paint or a tattoo the looks made into the skin) is the set's skin nearest to it in colour,
+ * carried over to it ([carried]: the set's picture times the looks' own skin over the looks' own of that nearest one,
+ * pixel by pixel, which brings its colour and lays its paint on), with that skin's underwear.
  * The undead skins ([WrathppUndead]) are pictures of their own and are not changed by this (the women's were painted on
  * this set's bodies). Applied again when the looks or the zip change; taken out, the looks' own skins and underwear come
  * back. NOT run on a phone; unit-tested.
@@ -138,9 +142,37 @@ object WrathppRalia {
         fun has(name: String) = File(store, "files/$name").isFile
         fun pelvis(retail: String) = retail.replace("skin00_", "nakedpelvisskin00_")
         fun torso(retail: String) = retail.replace("skin00_", "nakedtorsoskin00_")
-        val named = names(patch).filter { has(it.retail) || has(pelvis(it.retail)) || has(torso(it.retail)) }
-        if (named.isEmpty()) return 0
+        val direct = names(patch).filter { has(it.retail) || has(pelvis(it.retail)) || has(torso(it.retail)) }
+        if (direct.isEmpty()) return 0
         val dbc = WrathppUndead.Dbc.read(table.readBytes(), WrathppUndead.KINDS)
+        // the looks' own picture of a skin (kept beside it once a set was put over it)
+        fun own(path: String): Blp.Image? {
+            val f = File(patch, path.replace('\\', '/'))
+            val file = File(f.path + ".orig").takeIf { it.isFile } ?: f.takeIf { it.isFile } ?: return null
+            return runCatching { Blp.read(file.readBytes()).resized(512, 512) }.getOrNull()
+        }
+        fun ralia(retail: String): Blp.Image? = if (has(retail)) runCatching { Blp.read(File(store, "files/$retail").readBytes()) }
+            .getOrNull()?.let { (if (it.width == 2 * it.height) it.leftHalf() else it).resized(512, 512) } else null
+        // every regular skin (a skin row's texture, not one of the undead skins) of a race and sex the set has a body for
+        val bodies = HashMap<Named, Blp.Image>()
+        for (skin in direct) ralia(skin.retail)?.let { bodies[skin] = it }
+        val carriedFrom = ArrayList<Pair<Named, Named>>()
+        for ((key, sources) in bodies.keys.groupBy { it.race to it.sex }) {
+            val known = direct.filter { (it.race to it.sex) == key }.map { it.index }.toSet()
+            val withLooks = sources.mapNotNull { src -> own(src.path)?.let { src to it } }
+            if (withLooks.isEmpty()) continue
+            val rows = dbc.rows.filter { it[1] == key.first && it[2] == key.second && it[3] == 0 && it[8] == 0 && (it[4] as String).isNotEmpty() &&
+                !(it[4] as String).contains("Undead", ignoreCase = true) && (it[9] as Int) !in known }
+            for (row in rows.distinctBy { it[4] as String }) {
+                val path = row[4] as String
+                val target = own(path) ?: continue
+                val (src, srcLooks) = withLooks.minByOrNull { distance(mean(it.second), mean(target)) } ?: continue
+                val named = Named(key.first, key.second, row[9] as Int, path, src.retail)
+                bodies[named] = carried(bodies.getValue(src), srcLooks, target)
+                carriedFrom.add(named to src)
+            }
+        }
+        val named = direct + carriedFrom.map { it.first }
         val changed = JSONArray()
         val added = JSONArray()
         var done = 0
@@ -148,8 +180,8 @@ object WrathppRalia {
             say("Putting in Ralia's skins: ${at + 1} of ${named.size}", at.toFloat() / named.size)
             // the body: the set's left half as the 512 x 512 skin 3.3.5 composes from, over the looks' own (kept beside it)
             val target = File(patch, skin.path.replace('\\', '/'))
-            val body = if (has(skin.retail) && target.isFile) runCatching { Blp.read(File(store, "files/${skin.retail}").readBytes()) }.getOrNull() else null
-            if (body != null) over(target, Blp.writePalette((if (body.width == 2 * body.height) body.leftHalf() else body).resized(512, 512)))
+            val body = if (target.isFile) bodies[skin] else null
+            if (body != null) over(target, Blp.writePalette(body))
             // its underwear (the row's two textures, pelvis and torso): the set's of the same number. An empty picture
             // (the women's: their bodies are drawn without) leaves the row without one; a painted one (the Forsaken
             // men's) goes over the looks' own, or beside the skin where the row had none. A body with neither: without.
@@ -182,6 +214,35 @@ object WrathppRalia {
         write(table, dbc.write())
         stamp.writeText("$want\n")
         return done
+    }
+
+    private fun mean(image: Blp.Image): DoubleArray {
+        val sum = DoubleArray(3)
+        val n = image.width * image.height
+        for (i in 0 until n) for (c in 0 until 3) sum[c] += (image.rgba[i * 4 + c].toInt() and 255).toDouble()
+        return DoubleArray(3) { sum[it] / maxOf(1, n) }
+    }
+
+    private fun distance(a: DoubleArray, b: DoubleArray) = (0 until 3).sumOf { (a[it] - b[it]) * (a[it] - b[it]) }
+
+    /**
+     * The set's picture of one skin ([set]) carried over to another: each pixel times the looks' own picture of the other
+     * ([to]) over the looks' own of the one ([from]), channel by channel (all three 512 x 512). Where the looks' two
+     * pictures are alike only their colour differs, and the set's shading and detail stay; where the other has paint or
+     * a tattoo the one has not, it is laid on.
+     */
+    internal fun carried(set: Blp.Image, from: Blp.Image, to: Blp.Image): Blp.Image {
+        require(set.width == from.width && set.width == to.width && set.height == from.height && set.height == to.height)
+        val out = ByteArray(set.rgba.size)
+        for (i in 0 until set.width * set.height) {
+            for (c in 0 until 3) {
+                val k = i * 4 + c
+                val ratio = ((to.rgba[k].toInt() and 255) + 8.0) / ((from.rgba[k].toInt() and 255) + 8.0)
+                out[k] = ((set.rgba[k].toInt() and 255) * ratio.coerceAtMost(4.0)).toInt().coerceIn(0, 255).toByte()
+            }
+            out[i * 4 + 3] = set.rgba[i * 4 + 3]
+        }
+        return Blp.Image(set.width, set.height, out)
     }
 
     /** [bytes] over the looks' [target], whose own is kept beside it (`.orig`) to put back. */

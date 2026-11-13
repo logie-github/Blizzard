@@ -130,6 +130,59 @@ class WrathppRaliaTest {
         assertFalse(patch.walkTopDown().any { it.name.endsWith(".orig") || it.name == WrathppRalia.STAMP })
     }
 
+    private fun solid(r: Int, g: Int, b: Int, w: Int = 64, h: Int = 64): ByteArray {
+        val rgba = ByteArray(w * h * 4)
+        for (i in 0 until w * h) { rgba[i * 4] = r.toByte(); rgba[i * 4 + 1] = g.toByte(); rgba[i * 4 + 2] = b.toByte(); rgba[i * 4 + 3] = 255.toByte() }
+        return Blp.writePalette(Blp.Image(w, h, rgba), mips = false)
+    }
+
+    private fun pixel(file: File, at: Int = 0) = Blp.read(file.readBytes()).let { i -> (0 until 3).map { i.rgba[at * 4 + it].toInt() and 255 } }
+
+    @Test fun aSkinTheSetHasNotTakesTheNearestOnesCarriedOver() {
+        val store = File(tmp.root, "store")
+        val client = game()
+        val patch = File(client, "Data/patch-Z.MPQ")
+        // the looks' own pictures: the human's second skin (the set's 03) grey, her first blue; an undead skin beside them
+        val first = File(patch, "Character/Human/Female/HumanFemaleSkin00_00.blp")
+        val undead = File(patch, "Character/Scourge/Female/ScourgeFemaleSkinUndead00_01.blp")
+        first.writeBytes(solid(50, 100, 200))
+        File(patch, "Character/Human/Female/HumanFemaleSkin00_01.blp").writeBytes(solid(100, 100, 100))
+        File(patch, "Character/Scourge/Female/ScourgeFemaleSkin00_00.blp").writeBytes(solid(90, 110, 100))
+        undead.writeBytes(solid(60, 70, 80))
+        val table = File(patch, "DBFilesClient/CharSections.dbc")
+        val dbc = WrathppUndead.Dbc.read(table.readBytes(), WrathppUndead.KINDS)
+        dbc.rows.add(row(10, 5, 1, 0, "Character\\Scourge\\Female\\ScourgeFemaleSkinUndead00_01.blp", "", 1))
+        table.writeBytes(dbc.write())
+        val before = table.readBytes()
+        val ownFirst = first.readBytes()
+        val ownUndead = undead.readBytes()
+        zip(set).inputStream().use { WrathppRalia.importZip(store, it) }
+        assertEquals(3, WrathppRalia.apply(store, client))
+        // the first skin: the set's 03 (200 150 120) times blue over grey, channel by channel ((c + 8) / (100 + 8))
+        assertEquals(listOf(107, 150, 231), pixel(first, 300 * 512 + 500))
+        // her underwear goes as the 03's does (the set's women: none)
+        assertEquals(listOf("", ""), rows(client).first { it[0] == 3 }.let { listOf(it[4], it[5]) })
+        // the undead skin stays the looks' own
+        assertArrayEquals(ownUndead, undead.readBytes())
+        // taken out: all back
+        WrathppRalia.remove(store)
+        assertEquals(0, WrathppRalia.apply(store, client))
+        assertArrayEquals(ownFirst, first.readBytes())
+        assertArrayEquals(before, table.readBytes())
+    }
+
+    @Test fun carriedKeepsTheSetsDetailAndTheOthersColourAndPaint() {
+        fun image(vararg px: Int) = Blp.Image(2, 1, ByteArray(8) { px[it].toByte() })
+        val set = image(200, 100, 50, 255, 40, 40, 40, 128)
+        val from = image(100, 100, 100, 255, 100, 100, 100, 255)
+        val to = image(100, 100, 100, 255, 46, 46, 46, 255)       // the other: the same, but for a dark stroke on the second pixel
+        val out = WrathppRalia.carried(set, from, to)
+        assertEquals(listOf(200, 100, 50, 255), (0 until 4).map { out.rgba[it].toInt() and 255 })     // alike: the set's own
+        assertEquals(listOf(20, 20, 20, 128), (4 until 8).map { out.rgba[it].toInt() and 255 })      // the stroke laid on, the set's alpha kept
+        val white = WrathppRalia.carried(image(200, 200, 200, 255, 0, 0, 0, 0), image(0, 0, 0, 255, 0, 0, 0, 0), image(255, 255, 255, 255, 0, 0, 0, 0))
+        assertEquals(255, white.rgba[0].toInt() and 255)                                           // capped, never past white
+    }
+
     @Test fun paintedUnderwearGoesOverTheLooksOwnAndBack() {
         // the set has no body for the Forsaken men, and their underwear painted: a pelvis the looks have a file for, a torso they don't
         val store = File(tmp.root, "store")

@@ -13,7 +13,8 @@ half is the 3.3.5 skin as it is) and the head in its right, drawn over by the fa
 the eyes are a texture of their own (256 x 128) on the eyeball mesh. Here the face becomes
 FaceLower (the head's used part, turned if that fits better, as the model's coordinates were
 remapped) and the eyes FaceUpper (the strip the eyeball mesh's coordinates were remapped to).
-Nightborne body tattoos are painted into the skin (a skin colour of their own each)."""
+Body tattoos are painted into the skin (a skin colour of their own each): a transparent one laid over it, an
+opaque one (the orcs' grey on white) multiplied into it."""
 import os
 
 import numpy as np
@@ -35,6 +36,19 @@ def over(base, layer):
     out = base.astype(np.float32)
     out[:, :, :3] = layer[:, :, :3] * a + out[:, :, :3] * (1 - a)
     return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def multiply(base, layer):
+    """[base] times [layer] (RGBA), both the same size: white leaves the base as it is."""
+    out = base.astype(np.float32)
+    out[:, :, :3] = out[:, :, :3] * (layer[:, :, :3].astype(np.float32) / 255.0)
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def tattooed(base, layer):
+    """A body tattoo on [base]: one with transparency (nightborne, lightforged, zandalari) laid over it; one opaque
+    everywhere (the orcs': grey strokes on white, a layer today's game multiplies) multiplied into it."""
+    return multiply(base, layer) if layer[:, :, 3].min() == 255 else over(base, layer)
 
 
 def add(base, layer):
@@ -96,7 +110,7 @@ def build(read, model, layout, out_dir, log=print):
             cache[fid] = blp.read(read(fid))
         return cache[fid]
 
-    # Skins: the body's left half; a tattoo painted over it.
+    # Skins: the body's left half; a tattoo painted on it (tattooed).
     for s in model["skins"]:
         path = n["skin"](s["index"])
         if not w.exists(path):
@@ -107,7 +121,7 @@ def build(read, model, layout, out_dir, log=print):
             for fid in s["tattoo"][:1]:
                 tattoo = texture(fid)
                 half = tattoo[:, :tattoo.shape[1] // 2] if tattoo.shape[1] == 2 * tattoo.shape[0] else tattoo
-                left = over(left, resized(np.ascontiguousarray(half), SKIN))
+                left = tattooed(left, resized(np.ascontiguousarray(half), SKIN))
             w.write(path, blp.write_palette(np.ascontiguousarray(left)))
         else:
             w.write(path, b"")

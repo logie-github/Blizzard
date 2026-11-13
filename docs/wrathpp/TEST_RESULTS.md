@@ -411,3 +411,16 @@ skins' names as the import writes them, `rig/tools/undead_rows.py`): 68 undead s
 of each the creator's own file's first; found by a name of another case; none, without a crash, with no table. The rig:
 the creator says it while the switch is on and not after (`behaviour.lua`), the whole rig 0 problems. **Not run**: the
 module and the patch compiled (CI's server build is the first), the server, a character made and logged in.
+
+## 2026-11-13 (later): Ralia's set on every regular skin; the orcs' tattooed skins
+
+Run here: the app's `WrathppRalia` (kotlinc) on the real looks and the real zip: 238 skins now the set's (133 before);
+contact sheets of the carried ones looked at (human, Forsaken, tauren, orc, each beside the looks' own): the skin's
+colour kept on the set's body. That showed the looks' 90 orc tattooed skins (numbers 15 to 59, men and women) white
+with grey strokes: today's orc tattoo is opaque grey on white (file 3685322: alpha 255 everywhere), a layer to multiply,
+and the texture tool laid it over. `textures.tattooed` multiplies an opaque one in; the 90 rebuilt with it here from
+the tattoo files and run through the import again: the skin colour with its tattoo, and the tattoo kept on the set's
+body. One thin bright strip remains where a looks' own picture has a white gap (orc woman 14's top of the leg piece).
+Tests: `WrathppRaliaTest` 9 of 9 with `BlpTest` and `WrathppUndeadTest` (23 of 23, kotlinc); the allied tools'
+`test_tools.py` PASSED (an opaque tattoo multiplied, a transparent one laid over). **Not run**: the looks rebuilt by
+CI (the next `wrathpp-looks` run), anything on a phone or in the game.

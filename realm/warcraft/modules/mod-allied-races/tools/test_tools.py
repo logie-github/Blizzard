@@ -209,5 +209,15 @@ check(names.skin(model, 0).replace("\\", "\\\\") in sections and names.face_uppe
 check(os.path.exists(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_world.sql")) and
       os.path.exists(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_quests.sql")), "the world SQL is there")
 
+# Body tattoos: an opaque one (the orcs': grey strokes on white) is multiplied in, a transparent one laid over.
+import textures  # noqa: E402
+skin_px = np.full((2, 2, 4), (100, 150, 50, 255), np.uint8)
+orcish = np.full((2, 2, 4), 255, np.uint8); orcish[0, 0, :3] = 128
+glowing = np.zeros((2, 2, 4), np.uint8); glowing[0, 0] = (0, 0, 255, 255)
+inked = textures.tattooed(skin_px, orcish)
+check((inked[1, 1] == skin_px[1, 1]).all() and tuple(inked[0, 0, :3]) == (50, 75, 25), "an opaque tattoo keeps the skin where white, darkens it under the strokes")
+laid = textures.tattooed(skin_px, glowing)
+check((laid[1, 1] == skin_px[1, 1]).all() and tuple(laid[0, 0, :3]) == (0, 0, 255), "a transparent tattoo is laid over")
+
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)
