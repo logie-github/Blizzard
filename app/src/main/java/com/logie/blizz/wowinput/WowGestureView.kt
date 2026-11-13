@@ -126,6 +126,13 @@ class WowGestureView(
      * one, stayed up with its last frame on the screen and took no input, so the phone would show a frozen picture.
      */
     private val crashDir = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR)?.let { java.io.File(it) }
+
+    /**
+     * Wrath++ run by WarcraftXL only ([com.logie.blizz.game.GestureView.EXTRA_READY_LOG]): its log, which says when the login
+     * screen's code is loaded; the password is typed then ([whenGameReady]). [readySince]: a log written before is another launch's.
+     */
+    private val readyLog = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_READY_LOG)?.let { java.io.File(it) }
+    private val readySince = System.currentTimeMillis() - READY_SLACK_MS
     private val openedAt = System.currentTimeMillis()
     private var crashSeen = false
     /** Forever with its launcher: the session began in the launcher's phase, and goes back to it when the game's program ends. */
@@ -332,7 +339,22 @@ class WowGestureView(
             "login: password ${if (activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD) != null) "given" else "not given"}, account " +
                 "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "late login screen" else "classic"} wait ${wait / 1000} s",
         )
-        if (login != null) {
+        if (readyLog != null && !legion) {
+            // Wrath++: when its runtime says the login screen is loaded, however long that takes (with Project Reforged's
+            // archives in it took 15.6 s on the phone, past the classic 15 s after which the password was typed into nothing).
+            // Not ready within [READY_WAIT_MS]: asked, never typed blind.
+            com.logie.blizz.game.GameLog.note("login: waiting for the runtime's \"stage ready\" (${readyLog.path})")
+            whenGameReady(SystemClock.uptimeMillis(), readyLog, timedOut = {
+                com.logie.blizz.game.GameLog.note("login: no \"stage ready\" after ${READY_WAIT_MS / 1000} s; asked")
+                ask(PromptKind.PASSWORD)
+            }) {
+                com.logie.blizz.game.GameLog.note("login: game ready after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
+                if (login != null) {
+                    type(login.password, enter = true)
+                    if (newAccount) postDelayed({ ask(PromptKind.NAME) }, NAME_PROMPT_DELAY_MS)
+                } else ask(PromptKind.PASSWORD)
+            }
+        } else if (login != null) {
             // (a Legion client not at its login screen when the wait ends: asked, not typed blind
             // into whatever is up, its loading screen or a dialog)
             whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait,
@@ -763,6 +785,20 @@ class WowGestureView(
         postDelayed({ whenLoginScreen(since, now, legion, base, wait, timedOut, then) }, LOGIN_POLL_MS)
     }
 
+    /** [then] a moment after [log] says the game's interface is up ([com.logie.blizz.wrathpp.WrathppLogs.ready]), [timedOut] after [READY_WAIT_MS]. */
+    private fun whenGameReady(since: Long, log: java.io.File, timedOut: () -> Unit, then: () -> Unit) {
+        Thread {
+            val ready = com.logie.blizz.wrathpp.WrathppLogs.ready(log, readySince)
+            post {
+                when {
+                    ready -> postDelayed(then, LOGIN_SETTLE_MS)
+                    SystemClock.uptimeMillis() - since >= READY_WAIT_MS -> timedOut()
+                    else -> postDelayed({ whenGameReady(since, log, timedOut, then) }, READY_POLL_MS)
+                }
+            }
+        }.start()
+    }
+
     private fun ask(kind: PromptKind) {
         if (prompt?.isShowing == true) return
         prompt = com.logie.blizz.game.GamePrompt.show(
@@ -881,6 +917,10 @@ class WowGestureView(
         /** A Legion client loads its 40 GB of data before its login screen: under Box64, minutes. */
         private const val LEGION_LOGIN_WAIT_MS = 180_000L
         private const val LOGIN_SETTLE_MS = 1500L
+        /** Wrath++: how often its runtime's log is read for "stage ready", how long at most, and the clock's leeway for its date. */
+        private const val READY_POLL_MS = 500L
+        private const val READY_WAIT_MS = 180_000L
+        private const val READY_SLACK_MS = 5_000L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
         /** Forever: how often, while the launcher is up, to look for the game's own window and hand over to WoW controls. */

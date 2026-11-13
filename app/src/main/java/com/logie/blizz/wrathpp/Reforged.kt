@@ -22,8 +22,8 @@ import java.net.URL
  *    (X) and looks (Z), which so win over anything of Reforged's. A shared archive of Wrath+'s on one of those letters is
  *    taken out of Wrath++'s copy only (Wrath+'s game is never touched) and comes back when the part is turned off.
  *  - **Character creation as it is**: every file Reforged has under `Interface\GlueXML` and `Interface\Glues` (the login,
- *    character select and creation screens, their textures and their 3D backdrops; not the loading screens and not the
- *    login screen's own backdrop) is put back as the game's own in a patch read after Reforged's, `patch-T.MPQ` ([mask]).
+ *    character select and creation screens, their textures and their 3D scenes, the login's Sindragosa among them; not the
+ *    loading screens) is put back as the game's own in a patch read after Reforged's, `patch-T.MPQ` ([mask]).
  *    A file only Reforged has is then named by nothing (the game's own screens don't know it).
  *  - **Downloads** ([sync], run by [ReforgedDownloads] in the background) end as `<slot>.ready` beside the game's archives;
  *    only Play ([prepare], in Wrath++'s setup) puts them in place, so the game's archives never change under a running game
@@ -39,6 +39,8 @@ object Reforged {
     const val STATE = "reforged.txt"
     const val MASK = "patch-T.MPQ"
     private const val MASK_STAMP = "reforged-mask.txt"
+    /** Which files [masked] puts back; a change to it makes the mask again. v2: the login screen's own scene too (Sindragosa). */
+    private const val MASK_RULES = "v2|"
 
     /** One MPQ of Reforged's: where it is, and the letter it takes in Wrath++'s copy (Reforged's own order kept). */
     enum class Part(val remote: String, val slot: Char, val megabytes: Int) {
@@ -183,13 +185,16 @@ object Reforged {
         return notes.toString()
     }
 
-    /** A game path of Reforged's that is put back as the game's own: the glue screens' code and art, not loading screens nor the login's backdrop. */
+    /**
+     * A game path of Reforged's that is put back as the game's own: the glue screens' code and art, the login screen's own
+     * scene among them (the user, 13 November 2026: "I want the original wrath login screen with sindragosa"; Reforged's
+     * draws a still picture in its place). Not the loading screens.
+     */
     fun masked(path: String): Boolean {
         val p = path.replace('/', '\\').lowercase()
         if (p.startsWith("interface\\gluexml\\")) return true
         if (!p.startsWith("interface\\glues\\")) return false
         if (p.startsWith("interface\\glues\\loadingscreens\\")) return false
-        if (p.startsWith("interface\\glues\\models\\ui_mainmenu")) return false
         return true
     }
 
@@ -200,14 +205,14 @@ object Reforged {
     fun mask(data: File): String {
         val state = installed(data)
         val ours = state.keys.map { "patch-$it.mpq".lowercase() }
-        val stamp = state.values.sortedBy { it.slot }.joinToString("|") { "${it.slot}:${it.remote}:${it.etag}:${it.size}" }
+        val stamp = MASK_RULES + state.values.sortedBy { it.slot }.joinToString("|") { "${it.slot}:${it.remote}:${it.etag}:${it.size}" }
         val place = File(data, MASK)
         val stampFile = File(data, MASK_STAMP)
-        if (stamp.isEmpty()) {
+        if (state.isEmpty()) {
             if (stampFile.isFile) { place.delete(); stampFile.delete() }
             return ""
         }
-        if (place.isFile && runCatching { stampFile.readText() }.getOrNull() == stamp) return "reforged: mask as it was\n"
+        if (runCatching { stampFile.readText() }.getOrNull() == stamp) return "reforged: mask as it was\n"
         val names = LinkedHashMap<String, String>()
         val unreadable = ArrayList<String>()
         for (slot in state.keys.sorted()) {

@@ -20,6 +20,17 @@ object WrathppLogs {
      */
     class Crash(val id: String, val what: String, val file: String, val creatorUp: Boolean, val text: String)
 
+    /**
+     * Whether the launch writing [log] has its interface up: WarcraftXL's `[core] stage ready`, which it writes once the game
+     * has loaded its login screen's code (the creator's `built` comes just before it). Only a log written since [since]
+     * (the launch's start, ms) counts: the one there before is the last launch's, which said it too. Auto-login waits for
+     * this rather than a time: with Project Reforged in, the game took 15.6 s to get there on the phone (issue #136), past
+     * the 15 s after which the password was typed into nothing.
+     */
+    fun ready(log: File, since: Long): Boolean = runCatching {
+        log.isFile && log.lastModified() >= since && log.useLines { lines -> lines.any { it.contains("[core] stage ready") } }
+    }.getOrDefault(false)
+
     private fun said(line: String, tag: String): String? = line.substringAfter("[$tag]", "").trim().takeIf { line.contains("[$tag]") }
 
     /** The crash in a launch's log ([lines], the file [name]), or null when it has none. */
