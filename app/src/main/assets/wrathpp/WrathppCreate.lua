@@ -1469,6 +1469,12 @@ local function refresh()
 	else
 		notice:SetText("")
 	end
+	-- an undead skin on a race not the Forsaken's own: the server makes the character one of them (mod-wrathpp-customization's
+	-- WrathppUndeadStart: Deathknell, the Forsaken's quests, the Horde)
+	local _, undead = looks()
+	if ( model and undeadOn(model, undead) and race ~= RACE_ID.SCOURGE ) then
+		notice:SetText("Undead: starts in Deathknell as one of the Forsaken, for the Horde")
+	end
 end
 
 WrathppCreate_Refresh = guarded(refresh)

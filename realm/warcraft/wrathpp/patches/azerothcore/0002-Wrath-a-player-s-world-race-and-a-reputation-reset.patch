@@ -1,0 +1,45 @@
+From 9ebd05bb1be95ef7b99af6430ab4babf810f7b0c Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 13 Nov 2026 14:58:40 +0000
+Subject: [PATCH] Wrath++: a player's world race (the race mask quests,
+ reputations, items and mail ask for) and a reputation reset
+
+---
+ src/server/game/Entities/Unit/Unit.h       | 7 ++++++-
+ src/server/game/Reputation/ReputationMgr.h | 2 ++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/server/game/Entities/Unit/Unit.h b/src/server/game/Entities/Unit/Unit.h
+index 3f9a0ff..3ed86e8 100644
+--- a/src/server/game/Entities/Unit/Unit.h
++++ b/src/server/game/Entities/Unit/Unit.h
+@@ -838,7 +838,12 @@ public:
+     // Race methods
+     [[nodiscard]] uint8 getRace(bool original = false) const;
+     void setRace(uint8 race);
+-    [[nodiscard]] uint32 getRaceMask() const { return 1 << (getRace(true) - 1); }
++    [[nodiscard]] uint32 getRaceMask() const { return 1 << ((m_worldRace ? m_worldRace : getRace(true)) - 1); }
++    // Wrath++: the race the world takes a player for where it asks for a race mask (quests, base reputations, items,
++    // mail), in place of the real one: a character made with an undead skin is the Forsaken's (mod-wrathpp-undead-start).
++    void SetWorldRace(uint8 race) { m_worldRace = race; }
++    [[nodiscard]] uint8 GetWorldRace() const { return m_worldRace ? m_worldRace : getRace(true); }
++    uint8 m_worldRace = 0;
+     [[nodiscard]] DisplayRace GetDisplayRaceFromModelId(uint32 modelId) const;
+     [[nodiscard]] DisplayRace GetDisplayRace() const { return GetDisplayRaceFromModelId(GetDisplayId()); };
+ 
+diff --git a/src/server/game/Reputation/ReputationMgr.h b/src/server/game/Reputation/ReputationMgr.h
+index 79d855e..99efbc5 100644
+--- a/src/server/game/Reputation/ReputationMgr.h
++++ b/src/server/game/Reputation/ReputationMgr.h
+@@ -119,6 +119,8 @@ public:                                                 // modifiers
+         return SetReputation(factionEntry, standing, true, noSpillOver, repMaxCap);
+     }
+ 
++    // Wrath++: every faction back at the base standing of the player's race as it is now (SetWorldRace), as at creation.
++    void Reset() { Initialize(); }
+     void SetVisible(FactionTemplateEntry const* factionTemplateEntry);
+     void SetVisible(FactionEntry const* factionEntry);
+     void SetAtWar(RepListID repListID, bool on);
+-- 
+2.43.0
+
