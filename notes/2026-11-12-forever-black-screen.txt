@@ -1,0 +1,1 @@
+World of Warcraft: Forever: the black screen is fixed: the app typed the password into the Forever Launcher, which hid it; now it waits for the game itself, and you press the launcher's PLAY NOW.

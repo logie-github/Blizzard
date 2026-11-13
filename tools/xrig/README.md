@@ -55,6 +55,11 @@ Without `BLIZZ_XRIG=1` the tests are skipped: CI and an ordinary test run pass o
 | `theSessionEndsWhenTheGameDoes` | The game's window closed: Wine exits within seconds (the app returns to the launcher). |
 | `theAppsKeyboardTypesWhatItsCapsShow` | The app's keyboard: letters, Shift, digits, Enter, Escape, F10 as the program reads them. |
 
+`ForeverHandOverRigTest` (same switches) puts the app's real game screen for World of Warcraft: Forever (`WowGestureView`)
+on the rig: the Forever Launcher's phase, in which nothing is typed and a tap is a plain click, and the hand-over to the
+game's own window, told by its program (the probe copied as `Wow.exe`). It holds the phone's black screen of 12 November
+2026: Wine's desktop, as big as the screen and focused at every start, was taken for the game.
+
 ## By hand
 
 `BLIZZ_XRIG_HOLD=<seconds>` (and `BLIZZ_XRIG_SIZE=WxH`) with `--tests 'com.logie.blizz.rig.XServerRigTest.hold'` keeps the

@@ -108,6 +108,19 @@ object ForeverLauncher {
         if (driveC != null) oldConfigDir(driveC).deleteRecursively()
     }
 
+    /** The game's own programs, as their windows name them (`WM_CLASS`, lower case): `_forever_\Wow.exe`, the beta's and test's. */
+    val GAME_PROGRAMS = setOf("wow.exe", "wowb.exe", "wowt.exe")
+
+    /**
+     * Whether a window is the game's own, started by the launcher's PLAY NOW: one of the game's programs ([program] is
+     * the window's `WM_CLASS`), at least half the screen each way. Not the launcher's windows, and not Wine's desktop
+     * (`explorer.exe`), which is as big as the screen and is the server's focused window for the first seconds of every
+     * session: taking that for the game typed the password into the launcher, which minimized itself (the phone's black
+     * screen, report 108 of 12 November 2026; `ForeverHandOverRigTest`).
+     */
+    fun isGameWindow(program: String, width: Int, height: Int, screenWidth: Int, screenHeight: Int): Boolean =
+        program.lowercase() in GAME_PROGRAMS && width * 2 >= screenWidth && height * 2 >= screenHeight
+
     /** Deletes every placed launcher from a client folder (a repair re-asks the person to pick it). */
     fun removePlaced(clientDir: File) {
         NAMES.forEach { File(clientDir, it).delete() }
