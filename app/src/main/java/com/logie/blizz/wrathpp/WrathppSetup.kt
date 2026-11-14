@@ -49,6 +49,17 @@ object WrathppSetup {
         }
             .onSuccess { notes.append("ralia: $it skins\n") }
             .onFailure { e -> notes.append("ralia FAILED: ${e.message}\n") }
+        // Body shapes, when you imported them (WrathppBody): the chosen preset's models in place of the looks' own.
+        // Their zip is looked for by its name too, and taken in by itself the first time.
+        runCatching {
+            val store = WrathppBody.store(context)
+            val found = runCatching { ImportFinder.find(*WrathppBody.NAMES) }.getOrNull()
+            val taken = runCatching { WrathppBody.lookFor(store, found) }.onFailure { e -> notes.append("body shapes zip not read: ${e.message}\n") }.getOrNull()
+            if (taken != null) notes.append("body shapes zip found (${found?.parent}): $taken models\n")
+            WrathppBody.apply(store, layout.wrathppClient, report::say)
+        }
+            .onSuccess { notes.append("body shapes: $it\n") }
+            .onFailure { e -> notes.append("body shapes FAILED: ${e.message}\n") }
         // The undead skins you imported (WrathppUndead): new colours after each race's own in the looks' tables, taken out
         // again when the import is removed. Without the looks there is nothing to add them to.
         val undead = runCatching { WrathppUndead.apply(WrathppUndead.store(context), layout.wrathppClient, layout.wrathppServer) }
