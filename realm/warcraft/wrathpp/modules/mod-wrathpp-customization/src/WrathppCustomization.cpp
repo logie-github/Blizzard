@@ -431,14 +431,7 @@ public:
 class WrathppPlayerScript : public PlayerScript
 {
 public:
-    WrathppPlayerScript() : PlayerScript("WrathppPlayerScript", {PLAYERHOOK_ON_CREATE, PLAYERHOOK_ON_DELETE, PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOAD_FROM_DB}) { }
-
-    // Loaded, before the world sees her: her body options' display in place of her race's (InitDisplayIds).
-    void OnPlayerLoadFromDB(Player* player) override
-    {
-        if (S().enabled)
-            ApplyBody(player);
-    }
+    WrathppPlayerScript() : PlayerScript("WrathppPlayerScript", {PLAYERHOOK_ON_CREATE, PLAYERHOOK_ON_DELETE, PLAYERHOOK_ON_LOGIN}) { }
 
     // The choices sent before CMSG_CHAR_CREATE, kept if the character is the one they were checked for.
     void OnPlayerCreate(Player* player) override
@@ -474,10 +467,17 @@ public:
         S().cache.erase(guid.GetCounter());
     }
 
+    // In the world: her body options' display in place of her race's, as a change the game sees after her first
+    // packet. Not when she is loaded: the client keeps the character screen's model for a player whose display at
+    // login is the one she logged out with (CGUnit_C::InitializeActivePlayerComponent: CGPlayer_C::s_displayId), which
+    // for the same character again would be the shape's display drawn with the character screen's own model; her
+    // race's display first never matches a body display, so the client makes her model anew.
     void OnPlayerLogin(Player* player) override
     {
-        if (S().enabled)
-            Broadcast(player);
+        if (!S().enabled)
+            return;
+        ApplyBody(player);
+        Broadcast(player);
     }
 };
 
