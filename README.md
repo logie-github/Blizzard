@@ -146,6 +146,8 @@ said "it goes out when the phone is online" (the phone always is). Now:
   979 times, then the process ended with code 1 about 2 s after the start (phone reports 143, 144; rig: Legion Box64 under qemu).
   With the patch the loop is gone on the rig and Wow.exe keeps running. Not run on a phone; the build after this one carries the patched Box64.
 
+- **Box64's own log for Forever's client** (`WindowsRuntime`: Winlator's `box64_logs` = 2 while the Forever client runs, off for the other games): handled faults, opcodes the recompiler lacks, library lookups, into the run log. Build 262's phone report showed Wow.exe running ~7 s (672 MB) and gone, with Wine saying only "Bad address".
+
 Tested: `SessionLogTest` (file, roll-over, prune, the last run's end, noise, limiter), `DiagnosticsTest` (the `/proc` readers on
 this machine's real files, the sample line, processes coming and going, exit reasons), `BugReportsLongTest` (a fake GitHub that
 fails halfway, size refusals, forced reports, chunks), `ReportAttachTest` (the real path with Robolectric: the run's log and the

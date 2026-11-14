@@ -207,7 +207,10 @@ object WindowsRuntime {
         }
         // Wine's errors, its exception trace (seh: what faulted, where, which handler ran) and the libraries it loads, kept for the reports ([GameLog]).
         android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
-            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll").apply()
+            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll")
+            // Box64's own word for Forever's client (the faults it handled, what it could not run; Winlator's "log level 2"): the game's
+            // program ended seven seconds after it began on the phone of 14 November 2026 with Wine saying only "Bad address".
+            .putInt("box64_logs", if (foreverClient) 2 else 0).apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
         com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion || foreverClient) LegionClientSetup.BOX64 else "default"}, launcher phase $foreverLauncher")
