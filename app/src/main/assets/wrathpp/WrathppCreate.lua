@@ -1025,7 +1025,7 @@ end
 local function showCategory(b, name, chosen, female)
 	local word = string.match(name or "", "^(%a+)") or ""
 	local art = CATEGORY_ART[word] or "body"
-	-- a woman's Body: her own picture (a torso: bust, belly, hips; body_icon.py), where the art has it
+	-- a woman's Body: her own picture (a figure; body_icon.py), where the art has it
 	if ( word == "Body" and female and piece("charactercreate-icon-customize-figure") ) then art = "figure" end
 	b:Set("charactercreate-icon-customize-"..art..(chosen and "-selected" or ""), chosen, false, CATEGORY_PLAIN[word] or "Interface\\Icons\\INV_Misc_QuestionMark", { 0.08, 0.92, 0.08, 0.92 })
 end
