@@ -535,6 +535,8 @@ class GestureView(
          * ends the session ([com.logie.blizz.forever.ForeverCtl.settledCrash]): the game stays on its last frame otherwise.
          */
         const val EXTRA_CRASH_DIR = "com.logie.blizz.CRASH_DIR"
+        /** World of Warcraft: Forever signed in by itself ([com.logie.blizz.forever.ForeverGo]): no login screen, nothing asked or typed. */
+        const val EXTRA_SIGNED_IN = "com.logie.blizz.SIGNED_IN"
 
         /**
          * Wrath++ with WarcraftXL's runtime only: its log (`Logs/WarcraftXL.log`), which says when the login screen is up

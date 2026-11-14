@@ -127,6 +127,20 @@ class PorterUiTest {
         rule.mainClock.autoAdvance = false
     }
 
+    /**
+     * Until [text] is shown, at most [timeoutMs] of real time: what an answer from off the UI thread brings (the realm's
+     * name check) comes in real time, which a loaded machine (CI, 14 November 2026) takes longer than [settle] allows.
+     */
+    private fun awaitText(text: String, timeoutMs: Long = 10_000) {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            rule.mainClock.advanceTimeBy(200)
+            rule.waitForIdle()
+            if (rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()) return
+            Thread.sleep(100)
+        }
+    }
+
     private fun settle(ms: Long = 2000) {
         rule.mainClock.advanceTimeBy(ms)
         rule.waitForIdle()
@@ -174,7 +188,7 @@ class PorterUiTest {
         settle(3000)
         rule.onNodeWithText("ChromieCraft").performSemanticsAction(SemanticsActions.OnClick)
         settle(3000)
-        settle(1000)
+        awaitText("Free on ChromieCraft.")
         rule.onNodeWithText("Free on ChromieCraft.").assertExists()
         rule.onNodeWithText("Level 19").assertExists()
         UiShots.saveAll("porter-port-options", rule)
@@ -202,12 +216,12 @@ class PorterUiTest {
         settle(3000)
         rule.onNodeWithText("ChromieCraft").performSemanticsAction(SemanticsActions.OnClick)
         settle(3000)
-        settle(1000)
+        awaitText("Free on ChromieCraft.")
         rule.onNodeWithText("Free on ChromieCraft.").assertExists()
         // A name the realm has: said at once, and the port can't be asked for.
         rule.onNode(hasSetTextAction() and hasText("Testhero")).performTextReplacement("Taken")
         settle(1000)
-        settle(1000)
+        awaitText("A character of this realm already has that name.")
         rule.onNodeWithText("A character of this realm already has that name.").assertExists()
         rule.onNodeWithText("See the port").performSemanticsAction(SemanticsActions.OnClick)
         settle(1000)

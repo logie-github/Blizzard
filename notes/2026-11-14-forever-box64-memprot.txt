@@ -1,0 +1,1 @@
+WoW Forever: fixed a Box64 bug that left the game stuck on a black screen on the phone.

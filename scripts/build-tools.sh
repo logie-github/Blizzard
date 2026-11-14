@@ -59,6 +59,11 @@ ASSETS="$ROOT/app/tools/assets"
 mkdir -p "$ASSETS"
 "$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/borderless/borderless.c" -luser32 -lkernel32 -o "$ASSETS/borderless.exe" 2> "$WORK/borderless.log" ||
 	{ tail -40 "$WORK/borderless.log"; exit 1; }
+# forevergo.exe (tools/forevergo/forevergo.c): World of Warcraft: Forever's silent sign-in, started in front of the keeper.
+# It trusts the realm's CA, writes the sign-in the app made where the game reads it (-launcherlogin) and puts the realm's
+# key into the game's table of realm keys while it runs (ForeverGo in the app).
+"$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/forevergo/forevergo.c" -lkernel32 -luser32 -ladvapi32 -lcrypt32 -liphlpapi -lws2_32 -o "$ASSETS/forevergo.exe" 2> "$WORK/forevergo.log" ||
+	{ tail -40 "$WORK/forevergo.log"; exit 1; }
 
 # innoextract ----------------------------------------------------------------------------------
 android() { # source build [cmake args...]

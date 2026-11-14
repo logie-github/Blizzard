@@ -1,0 +1,1 @@
+WoW Forever signs you in by itself and gets into the realm (no launcher needed); the game client moves to build 70707, so it downloads again once.

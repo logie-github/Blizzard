@@ -112,6 +112,20 @@ object GameLog {
      */
     @Volatile var keeperLog: java.io.File? = null
 
+    /**
+     * World of Warcraft: Forever's sign-in program's log (`C:\windows\forevergo.log`, [com.logie.blizz.forever.ForeverGo]):
+     * the CA, the sign-in, when the realm's key went into the game, each Reconnect pressed. Set at each start of Forever.
+     */
+    @Volatile var foreverGoLog: java.io.File? = null
+
+    /** The sign-in program's lines, each cut to 300 characters; "" when there is none. */
+    fun foreverGoLines(file: java.io.File? = foreverGoLog, max: Int = 60): String {
+        val f = file?.takeIf { it.isFile } ?: return ""
+        val lines = runCatching { f.readLines(Charsets.ISO_8859_1) }.getOrDefault(emptyList()).filter { it.isNotBlank() }
+        if (lines.isEmpty()) return ""
+        return "[Forever sign-in]\n" + lines.takeLast(max).joinToString("\n") { it.take(300) }
+    }
+
     /** The keeper's lines (the last [max]), each cut to 300 characters; "" when there is no log. */
     fun keeperLines(file: java.io.File? = keeperLog, max: Int = 80): String {
         val f = file?.takeIf { it.isFile } ?: return ""
@@ -130,6 +144,7 @@ object GameLog {
         synchronized(loaded) { if (loaded.isEmpty()) "" else "[last ${loaded.size} libraries loaded]\n" + loaded.joinToString("\n") },
         synchronized(lines) { lines.joinToString("\n") },
         keeperLines(),
+        foreverGoLines(),
         synchronized(notes) { notes.joinToString("\n") },
     ).filter { it.isNotEmpty() }.joinToString("\n\n")
 }
