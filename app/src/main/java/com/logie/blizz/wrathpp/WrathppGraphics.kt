@@ -12,12 +12,12 @@ import java.io.File
  * Every name and range is the 3.3.5a client's own (its Video options panels, `VideoOptionsPanels.lua`: farclip 177..1277,
  * BaseMip and TerrainMip 0..1, groundEffectDensity 16..64, groundEffectDist 70..140, environmentDetail 0.5..1.5,
  * particleDensity 0.1..1, extShadowQuality 0..4, textureFilteringMode 0..5, weatherDensity 0..3); `maxFPS` and `maxFPSBk`
- * are its console's. The frame rate itself is also held by DXVK's limiter (the launch options' frame limit, 30 for World
+ * are its console's. The frame rate itself is also held by DXVK's limiter (the launch options' frame limit, 60 for World
  * of Warcraft unless chosen otherwise), which paces each frame more evenly than the game's own wait.
  */
 object WrathppGraphics {
     enum class Profile(val title: String, val detail: String) {
-        STEADY("Steady (recommended)", "30 frames a second held: Reforged's HD textures at half their size (still sharper than the game's own), a shorter view, fewer ground details and particles, no shadows or full-screen glow. Your characters keep their full detail."),
+        STEADY("Steady (recommended)", "60 frames a second held: Reforged's HD textures at half their size (still sharper than the game's own), a shorter view, fewer ground details and particles, no shadows or full-screen glow. Your characters keep their full detail."),
         GAME("The game's own", "The app leaves the game's graphics settings as they are: what you set in the game's Video options stays."),
     }
 
@@ -36,7 +36,7 @@ object WrathppGraphics {
         Profile.STEADY -> linkedMapOf(
             // the pace: the game's own cap, and in the background slower still; no vertical sync wait or triple buffer
             // (DXVK's limiter paces the frames), and no forced CPU-GPU lock-step (gxFixLag costs a frame's overlap)
-            "maxFPS" to "30", "maxFPSBk" to "10", "gxVSync" to "0", "gxTripleBuffer" to "0", "gxFixLag" to "0",
+            "maxFPS" to "60", "maxFPSBk" to "10", "gxVSync" to "0", "gxTripleBuffer" to "0", "gxFixLag" to "0",
             // how far and how much is drawn: a third of the view distance's range, the ground clutter at its least
             "farclip" to "477", "groundEffectDensity" to "16", "groundEffectDist" to "70", "environmentDetail" to "0.75",
             // textures: Reforged's HD ones from their second level (half the size, a quarter of the memory and bandwidth),

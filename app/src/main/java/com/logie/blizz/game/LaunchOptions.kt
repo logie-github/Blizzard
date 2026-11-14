@@ -49,7 +49,7 @@ data class LaunchOptions(
 
     /**
      * How often the picture is drawn: cnc-ddraw's `maxfps` for the classic games, DXVK's frame limiter for the 3D ones
-     * ([Resolved.d3dFrameRate]; World of Warcraft's default is 30). The game's own speed is not changed.
+     * ([Resolved.d3dFrameRate]; World of Warcraft's default is 60). The game's own speed is not changed.
      */
     enum class Fps(val label: String, val value: Int?) {
         DEFAULT("Default", null),
@@ -160,13 +160,13 @@ data class LaunchOptions(
             // changes between starts and that their own checks count as supported, so they pick their best settings and
             // show no "hardware changed" or "unsupported driver" message. Safe mode reports the phone's own.
             customDevice = if (!s && hardware.adreno) DESKTOP_CARD else null,
-            // The 3D games' frames paced by DXVK: the choice made, else for World of Warcraft 30 (the user: "make the game
-            // hold a steady fps": with Project Reforged's HD parts a phone doesn't hold 60, and a rate that swings between
-            // them is worse than a steady 30), else none (the game's own). The classic games' limit is cnc-ddraw's.
+            // The 3D games' frames paced by DXVK: the choice made, else for World of Warcraft 60 (the user: "60fps non
+            // negotiable"; DXVK's limiter holds each frame to the same length), else none (the game's own). The classic
+            // games' limit is cnc-ddraw's.
             d3dFrameRate = when {
                 classic -> null
                 s -> 30
-                fps == Fps.DEFAULT -> if (key == "wow") 30 else null
+                fps == Fps.DEFAULT -> if (key == "wow") 60 else null
                 else -> fps.value?.takeIf { it > 0 }
             },
         )

@@ -36,7 +36,7 @@ class WowClientSetupTest {
         assertTrue(text.contains("SET farclip \"477\""))
         assertFalse(text.contains("1277"))
         assertTrue(text.contains("SET BaseMip \"1\""))
-        assertTrue(text.contains("SET maxFPS \"30\""))
+        assertTrue(text.contains("SET maxFPS \"60\""))
         assertTrue(text.contains("SET Sound_MusicVolume \"0.3\""))               // the person's own kept
         assertTrue(text.contains("SET gxResolution \"2400x1080\""))              // the screen is the app's
         // the game's own: nothing of the graphics written

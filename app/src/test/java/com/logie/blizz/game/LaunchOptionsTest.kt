@@ -20,12 +20,12 @@ import org.robolectric.annotation.Config
 class LaunchOptionsTest {
     private val context get() = ApplicationProvider.getApplicationContext<android.app.Application>()
 
-    @Test fun worldOfWarcraftsFramesArePacedByDxvkAt30UnlessChosen() {
+    @Test fun worldOfWarcraftsFramesArePacedByDxvkAt60UnlessChosen() {
         // both realms' 3.3.5 game is the library's "wow-client"
         val wow = LaunchOptions().resolve("wow-client")
-        assertEquals(30, wow.d3dFrameRate)
-        assertTrue(wow.dxwrapperConfig.split(",").contains("framerate=30"))
-        assertEquals(60, LaunchOptions(fps = Fps.FPS_60).resolve("wow-client").d3dFrameRate)
+        assertEquals(60, wow.d3dFrameRate)
+        assertTrue(wow.dxwrapperConfig.split(",").contains("framerate=60"))
+        assertEquals(30, LaunchOptions(fps = Fps.FPS_30).resolve("wow-client").d3dFrameRate)
         assertNull(LaunchOptions(fps = Fps.UNLIMITED).resolve("wow-client").d3dFrameRate)
         assertFalse(LaunchOptions(fps = Fps.UNLIMITED).resolve("wow-client").dxwrapperConfig.contains("framerate"))
         assertEquals(30, LaunchOptions(safeMode = true).resolve("wow-client").d3dFrameRate)
@@ -34,7 +34,7 @@ class LaunchOptionsTest {
         assertEquals(60, LaunchOptions(fps = Fps.FPS_60).resolve("warcraft3").d3dFrameRate)
         assertNull(LaunchOptions(fps = Fps.FPS_30).resolve("starcraft").d3dFrameRate)
         // a change of it is told from the last start (Winlator writes dxvk.conf again)
-        assertNotEquals(wow.cacheKey, LaunchOptions(fps = Fps.FPS_60).resolve("wow-client").cacheKey)
+        assertNotEquals(wow.cacheKey, LaunchOptions(fps = Fps.FPS_30).resolve("wow-client").cacheKey)
     }
 
     @Test fun classicGamesDefaultToCncDdrawOpenGlWithoutCpuPinning() {

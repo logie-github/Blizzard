@@ -1,0 +1,1 @@
+World of Warcraft and Wrath++'s Steady graphics now hold 60 frames a second, not 30.
