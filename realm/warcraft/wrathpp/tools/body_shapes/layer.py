@@ -2,7 +2,7 @@
 character's own hair texture times a design picked by its display (body options' Style and Density).
 
   count(m2_or_vertices, skin_bytes, race)            -> how many triangles the layer takes (for refine's reserve)
-  add(m2_bytes, skin_bytes, vertices, race, select)  -> (m2_bytes, skin_bytes, info)
+  add(m2_bytes, skin_bytes, vertices, race, select, folder) -> (m2_bytes, skin_bytes, info)
   patch(base_m2, made_m2)                            -> the package's patch for a model: the header and what follows the base
   unpatch(base_m2, patch)                            -> made_m2 again (what the app does: WrathppBody.withPatch)
 
@@ -16,7 +16,10 @@ How the game draws it (the 3.3.5a client at the pinned decompilation, docs in RE
   - one batch, two textures: the character's hair (texture type 6, which the character component puts in from its hair
     style and colour), a small patch of its strands (a hair texture is a sheet: strands, braids, clasps, jewellery; the
     patch is where the race's colours differ most, which is the strands), times the design (type 11: the display's TextureVariation_1, which
-    CCharacterComponent::ReplaceMonsterSkin puts in from the model's folder) over the layer's square; alpha blended
+    CCharacterComponent::ReplaceMonsterSkin puts in from the model's folder; until a display puts one in, the model's
+    own file, the empty design WppLayer_0.blp of its folder, so that a character without the body options' display (a
+    creature's, the character screens', the race's own display) draws the layer as nothing: a texture without a file is
+    solid white in this client, CM2Shared::Initialize) over the layer's square; alpha blended
     (material blend 2) with the texture combiner list (model flag 0x8, header 0x130) [1, 0, 1, 1]: every other batch's
     combiner index 0 (MOD, OPAQUE: as the game sets them without the list), the layer's 2 (MOD, MOD: Combiners_Mod_Mod,
     vertex shader Diffuse_T1_T2: the hair by the first texture coordinates, the design by the second);
@@ -41,6 +44,7 @@ LAYER_COMBINER = 2
 FLAG_COMBINERS = 0x8
 HEADER = 0x138
 MAX_BONES = 64
+EMPTY = "WppLayer_0"
 
 # the header's arrays this changes (offset: what)
 NAME, VERTICES, TEXTURES, REPLACEABLE, MATERIALS = 0x08, 0x3C, 0x50, 0x68, 0x70
@@ -99,11 +103,14 @@ def _put(blob, base_len, payload):
     return at
 
 
-def add(m2b, skb, vertices, race, select=None):
+def add(m2b, skb, vertices, race, select=None, folder=None):
     """[m2b] with [vertices] (48 bytes each: the model's own or a body shape's) and the layer's after them, its skin
     [skb] (the model's, with room for the layer's indices) with the layer's section and batch after its own. [select]:
     the vertices whose places choose the layer's triangles (default [vertices]): one shape's, so that every shape of a
-    model has the same triangles and one skin."""
+    model has the same triangles and one skin. [folder]: the model's folder in the game ("Character\\Human\\Female"),
+    where the empty design is."""
+    if not folder:
+        raise ValueError("the model's folder is needed (its empty design)")
     if m2b[:4] != b"MD20":
         raise ValueError("not a 3.3.5 model")
     flags = struct.unpack_from("<I", m2b, 0x10)[0]
@@ -161,7 +168,8 @@ def add(m2b, skb, vertices, race, select=None):
     bone_combos = [x[0] for x in old(BONE_COMBOS, "<H", 2)]
     replaceable = [x[0] for x in old(REPLACEABLE, "<h", 2)]
     hair_tex, design_tex = len(textures), len(textures) + 1
-    textures += [(HAIR, 0, 0, 0), (DESIGN, 0, 0, 0)]                 # both clamped
+    empty = (folder.replace("/", "\\").rstrip("\\") + "\\" + EMPTY + ".blp").encode() + b"\0"
+    textures += [(HAIR, 0, 0, 0), (DESIGN, 0, len(empty), _put(blob, base_len, empty))]    # both clamped
     while len(replaceable) <= DESIGN:
         replaceable.append(-1)
     if replaceable[DESIGN] < 0:

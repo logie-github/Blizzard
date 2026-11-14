@@ -14,6 +14,7 @@
 #include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "ObjectMgr.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -161,19 +162,27 @@ namespace
     {
         if (player->getGender() != GENDER_FEMALE)
             return;
-        uint32 display = BodyDisplay(S().registry, Resolve(S().registry, Stored(player->GetGUID().GetCounter()), player->getRace(), player->getGender(), player->getClass()), player->getRace());
+        uint8 race = player->getRace(true);                   // her own race's model, whatever race the world takes her for
+        uint32 display = BodyDisplay(S().registry, Resolve(S().registry, Stored(player->GetGUID().GetCounter()), race, player->getGender(), player->getClass()), race);
+        uint32 native = player->GetNativeDisplayId();
+        bool ours = native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260;
         if (!display)
         {
-            if (player->GetNativeDisplayId() >= kBodyDisplayBase && player->GetNativeDisplayId() < kBodyDisplayBase + 10 * 260)
-                player->InitDisplayIds();
-            return;
+            // none (any more): her race's own display, where one of these was hers
+            PlayerInfo const* info = sObjectMgr->GetPlayerInfo(race, player->getClass());
+            if (!ours || !info)
+                return;
+            display = info->displayId_f;
         }
-        if (!sCreatureDisplayInfoStore.LookupEntry(display))
+        else if (!sCreatureDisplayInfoStore.LookupEntry(display))
         {
             LOG_INFO("module", "Wrath++: {}'s body options are display {}, which the tables don't have (no body options package imported)", player->GetName(), display);
             return;
         }
-        bool same = player->GetDisplayId() == player->GetNativeDisplayId();
+        if (native == display)
+            return;
+        // kept as her native display; her display as well unless something (a shapeshift, a transform) shows another now
+        bool same = player->GetDisplayId() == native;
         player->SetNativeDisplayId(display);
         if (same)
             player->SetDisplayId(display);

@@ -26,7 +26,7 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
-check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.5.0, looks' options in") and R.G.log[3] == "screen: race and class", "  the log: built, opened, the first screen ("..table.concat(R.G.log, " | ")..")")
+check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.5.0, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
 -- the game's own buttons, where the creator put them, do the game's own work
 R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))

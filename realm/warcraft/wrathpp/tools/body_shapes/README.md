@@ -23,6 +23,9 @@ vertex data and a skin made from the looks' own model.
    own model with the layer, the body shapes' models where the format 1 zip has them (their three skins one), each a
    patch of the looks' model (its header and what follows its end, checked by both SHA-256s), and the designs.
    RACES.json: per race its scale, fold height, body sections and hair patch (`layer.py`).
+8. `check.py PACKAGE.zip LOOKS_CLIENT_DIR`: every model the package makes checked as the 3.3.5 client loads it (the
+   header's arrays and texture names in the file, the combiner list, the skin's arrays, each section's vertices, indices
+   and bones, each batch's references, the 16-bit section starts, the layer's batch and section).
 
 Body shapes done: Human (14 November 2026). The layer: all ten races. Each race is checked by rendering the very files the app makes with
 `modules/mod-allied-races/tools/render_m2.py` (standing and running) before it goes into the zip.

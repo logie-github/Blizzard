@@ -209,6 +209,27 @@ class WrathppBodyTest {
         assertNotNull(table(File(server, "share/dbc/CreatureDisplayInfo.dbc"), displayKinds)[WrathppBody.displayId(0, 0, 1)])
     }
 
+    @Test fun theGameTablesChangedTheCopyIsMadeAgainTheCreatorPatchChangedItIsNot() {
+        val store = File(tmp.root, "store")
+        val client = game()
+        bodyZip().inputStream().use { WrathppBody.importZip(store, it) }
+        WrathppBody.apply(store, client, server, data)
+        val copy = File(client, "Data/patch-Z.MPQ/DBFilesClient/CreatureDisplayInfo.dbc")
+        // the creator's patch written again (at every Play): nothing to do
+        File(client, "Data/patch-X.MPQ").writeText("creator")
+        val before = copy.lastModified()
+        Thread.sleep(20)
+        WrathppBody.apply(store, client, server, data)
+        assertEquals(before, copy.lastModified())
+        // a part that changes the game's table (a Reforged part, the realm modules' patch): made again from it
+        File(client, "Data/patch-M.MPQ/DBFilesClient/CreatureDisplayInfo.dbc").writeBytes(dbc(displayKinds, listOf(displayRow(49, 3), displayRow(50, 4), displayRow(52, 6), displayRow(99, 7))))
+        WrathppBody.apply(store, client, server, data)
+        val displays = table(copy, displayKinds)
+        assertEquals(7, displays[99]!![1])
+        assertEquals(WrathppBody.EMPTY, displays[50]!![6])
+        assertEquals(4 + 260, displays.size)
+    }
+
     @Test fun damagedForeignOrOlderPackagesAreRefusedAndTheStoreKept() {
         val store = File(tmp.root, "store")
         bodyZip().inputStream().use { WrathppBody.importZip(store, it) }

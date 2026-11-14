@@ -38,9 +38,9 @@
 //   - the component's model is loaded (CM2Model::m_fFlags +0x10, bit 1) and is one with the layer: its last texture
 //     (CM2Shared +0x150 m_data, M2Data +0x50 m_textures, 16 bytes each, its type first) is type 11, the display's
 //     design (CCharacterComponent::ReplaceMonsterSkin puts it in from the display's TextureVariation_1);
-//   - that texture is in (CM2Model +0xA4 m_textures[last] not null: a character of the race's own display without the
-//     body options has an empty design; one whose display has none, a creature's or the character screens', has none
-//     at all, and would be drawn black);
+//   - a display put that texture in (CM2Model +0xA4 m_textures[last] is not the model file's own, CM2Shared +0x174
+//     m_textures[last]: the empty design the layer names, which a creature's model or the character screens' keep; the
+//     race's own display puts in the empty design too, a body options display the style's);
 //   - and the component's legs slot is empty (CCharacterComponent +0x428 m_itemDisplayID[12], ITEMSLOT_PANTS 5).
 // Then CM2Model::SetGeometryVisible(1901, 1901, 1) (0x0082C7C0, thiscall) and OptimizeVisibleGeometry (0x0082C970,
 // thiscall), as GeosRenderPrep itself ends. Every read is guarded (structured exceptions): a client whose layout
@@ -193,8 +193,13 @@ namespace
             if (!count || count > 64) return 0;
             const uintptr_t textures = data + 0x50 + static_cast<uintptr_t>(static_cast<intptr_t>(*reinterpret_cast<const int32_t*>(data + 0x54)));
             if (*reinterpret_cast<const uint32_t*>(textures + (count - 1) * 16) != kDesignTexture) return 0;
-            const uintptr_t loaded = *reinterpret_cast<const uintptr_t*>(model + 0xA4);
-            if (!loaded || !*reinterpret_cast<const uintptr_t*>(loaded + (count - 1) * 4)) return 0;
+            // the model's design: the display's when one was put in, else the same texture as the model file's own
+            // (CM2Model::InitializeLoaded copies the shared one's handle: HandleDuplicate returns it as it is)
+            const uintptr_t mine = *reinterpret_cast<const uintptr_t*>(model + 0xA4);
+            const uintptr_t own = *reinterpret_cast<const uintptr_t*>(shared + 0x174);
+            if (!mine || !own) return 0;
+            const uintptr_t design = *reinterpret_cast<const uintptr_t*>(mine + (count - 1) * 4);
+            if (!design || design == *reinterpret_cast<const uintptr_t*>(own + (count - 1) * 4)) return 0;
             return model;
         }
         __except (EXCEPTION_EXECUTE_HANDLER)

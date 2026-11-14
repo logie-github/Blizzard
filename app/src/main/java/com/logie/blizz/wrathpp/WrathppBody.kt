@@ -156,7 +156,8 @@ object WrathppBody {
         val zipSha = if (installed(store)) sha(store) else null
         val serverDbc = File(server, "share/dbc")
         val stamps = listOf(File(patch, STAMP), File(serverDbc, STAMP))
-        val want = "$zipSha $looks"
+        // what the game's tables are made from: a Reforged part or a realm patch put in or out changes them
+        val want = "$zipSha $looks" + if (zipSha != null) " " + tableSources(File(client, "Data")) else ""
         if (stamps.all { it.isFile && it.readLines().firstOrNull()?.trim() == want }) {
             return stamps[0].readLines().drop(1).joinToString("; ").ifEmpty { "as before" }
         }
@@ -297,6 +298,33 @@ object WrathppBody {
                 }
             }
         }
+    }
+
+    private val TABLES = listOf("chrraces.dbc", "creaturedisplayinfo.dbc", "creaturemodeldata.dbc")
+
+    /** The app's own patches that hold none of the game's tables and are written often: the creator's, its art, the glue mask. */
+    private val NOT_TABLES = setOf("patch-x.mpq", "patch-s.mpq", "patch-t.mpq")
+
+    /**
+     * What the game's tables this changes are made from, without the looks' patch: the game's archives (each one's name,
+     * size and time; a folder's, its own tables'), so that the copy is made again when one is put in, out or changed (a
+     * Reforged part, the realm modules' patch). Without opening an archive: this runs at every Play.
+     */
+    internal fun tableSources(data: File): String {
+        val out = ArrayList<String>()
+        fun add(folder: File, prefix: String) {
+            for (f in folder.listFiles().orEmpty().sortedBy { it.name.lowercase() }) {
+                val name = f.name.lowercase()
+                if (!name.endsWith(".mpq") || name == WrathppLooks.PATCH.lowercase() || name in NOT_TABLES) continue
+                if (f.isDirectory) {
+                    File(f, "DBFilesClient").listFiles().orEmpty().filter { it.name.lowercase() in TABLES }.sortedBy { it.name.lowercase() }
+                        .forEach { out += "$prefix${f.name}/${it.name}:${it.length()}:${it.lastModified()}" }
+                } else out += "$prefix${f.name}:${f.length()}:${f.lastModified()}"
+            }
+        }
+        add(data, "")
+        data.listFiles().orEmpty().filter { it.isDirectory && it.name.length == 4 && !it.name.endsWith(".MPQ", ignoreCase = true) }.forEach { add(it, it.name + "/") }
+        return sha256(out.joinToString("\n").toByteArray()).take(16)
     }
 
     /** ChrRaces: each race's female display (its sixth column), from the table as the game has it. */

@@ -60,7 +60,8 @@ def main(out, looks, races_json, maps, v1=None):
             V = vertices_of(base)
             n = layer.count(V, skin, R)
             _, s0, info0 = refine.refine(base, skin, lambda *a: None, levels=0, reserve=3 * n + 30, log=lambda *a: None)
-            made, s1, li = layer.add(base, s0, V, R)
+            folder = "Character\\%s\\Female" % race
+            made, s1, li = layer.add(base, s0, V, R, folder=folder)
             entry = {"race": race, "shape": 0, "model": rel + ".m2", "skin": rel + "00.skin", "looks_sha256": sha(base),
                      "made_sha256": sha(made), "patch": put("%s/0.patch" % race, layer.patch(base, made)),
                      "skin_file": put("%s/0.skin" % race, s1)}
@@ -85,7 +86,7 @@ def main(out, looks, races_json, maps, v1=None):
             _, rs, _ = refine.refine(bytes(refined), vskin, lambda *a: None, levels=0, reserve=3 * n + 30, log=lambda *a: None)
             shared = None
             for k, shape in enumerate(SHAPES[1:], 1):
-                made, sk, li = layer.add(base, rs, blocks[shape], R, select=sel)
+                made, sk, li = layer.add(base, rs, blocks[shape], R, select=sel, folder=folder)
                 if shared is None:
                     shared = put("%s/shapes.skin" % race, sk)
                 elif sha(sk) != shared["sha256"]:

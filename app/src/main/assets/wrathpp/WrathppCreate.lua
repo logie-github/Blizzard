@@ -1607,7 +1607,8 @@ local function refresh()
 		if ( popout.row.kind == "list" ) then fillPopout() else WrathppCreate_ClosePopout() end
 	end
 	local race, sex, deathKnight = creating()
-	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five"))
+	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five")
+		..(sex == 1 and (", body options "..#bodyOptions()) or ""))
 	if ( type(WrathPP_GetCustomization) ~= "function" ) then
 		notice:SetText("Wrath++ add-on not running: the game's own five")
 	elseif ( not model ) then
@@ -1714,6 +1715,14 @@ local opened = guarded(function()
 	if ( type(WrathPP_ResetChoices) == "function" ) then pcall(WrathPP_ResetChoices) end   -- the body options from their defaults
 	log("opened: native "..tostring(type(WrathPP_NativeVersion) == "function" and WrathPP_NativeVersion() or "none")
 		..", looks' options "..(type(WrathppLooks) == "table" and "in" or "not in")..", undead skins "..(type(WrathppUndead) == "table" and "in" or "not in"))
+	-- whether the realm's extra choices are here (the appearance add-on, the realm's hello and registry): the Body tab's
+	-- options are there only when they are
+	if ( type(WrathPP_Status) == "function" ) then
+		local ok, state, reason, version = pcall(WrathPP_Status)
+		log("appearance add-on: "..tostring(ok and state or "error")..(reason and (" ("..tostring(reason)..")") or "")..", registry "..tostring(version))
+	else
+		log("appearance add-on: not running")
+	end
 	W.ApplyZoom()
 	WrathppCreate_SetStep(1)
 	W.Normalize()
