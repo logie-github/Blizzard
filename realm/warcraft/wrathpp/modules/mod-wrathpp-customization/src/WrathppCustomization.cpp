@@ -11,6 +11,7 @@
 
 #include "CharacterCache.h"
 #include "Config.h"
+#include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
@@ -153,6 +154,31 @@ namespace
         return Shown(player->GetGUID(), player->getRace(), player->getGender(), player->getClass());
     }
 
+    // A woman's body options (Shape, Style, Density: wrathpp_appearance.h's BodyDisplay) as her display, when the tables
+    // have that display (the app puts its rows in, with the game's, when the body options package is imported); her
+    // race's own otherwise. Kept as her native display too, so a shapeshift or a transform comes back to it.
+    void ApplyBody(Player* player)
+    {
+        if (player->getGender() != GENDER_FEMALE)
+            return;
+        uint32 display = BodyDisplay(S().registry, Resolve(S().registry, Stored(player->GetGUID().GetCounter()), player->getRace(), player->getGender(), player->getClass()), player->getRace());
+        if (!display)
+        {
+            if (player->GetNativeDisplayId() >= kBodyDisplayBase && player->GetNativeDisplayId() < kBodyDisplayBase + 10 * 260)
+                player->InitDisplayIds();
+            return;
+        }
+        if (!sCreatureDisplayInfoStore.LookupEntry(display))
+        {
+            LOG_INFO("module", "Wrath++: {}'s body options are display {}, which the tables don't have (no body options package imported)", player->GetName(), display);
+            return;
+        }
+        bool same = player->GetDisplayId() == player->GetNativeDisplayId();
+        player->SetNativeDisplayId(display);
+        if (same)
+            player->SetDisplayId(display);
+    }
+
     // The player's look to the Wrath++ clients that can see them (and to the player).
     void Broadcast(Player* player)
     {
@@ -256,7 +282,10 @@ namespace
         Store(guid.GetCounter(), set.appearance);
         SendResult(session, set.kind, set.guid, Result::Ok);
         if (Player* player = ObjectAccessor::FindConnectedPlayer(guid); player && player->IsInWorld())
+        {
+            ApplyBody(player);
             Broadcast(player);
+        }
         else
             Send(session, SMSG_WRATHPP_APPEARANCE, EncodeAppearances({Shown(guid, entry->Race, entry->Sex, entry->Class)}));
     }
@@ -393,7 +422,14 @@ public:
 class WrathppPlayerScript : public PlayerScript
 {
 public:
-    WrathppPlayerScript() : PlayerScript("WrathppPlayerScript", {PLAYERHOOK_ON_CREATE, PLAYERHOOK_ON_DELETE, PLAYERHOOK_ON_LOGIN}) { }
+    WrathppPlayerScript() : PlayerScript("WrathppPlayerScript", {PLAYERHOOK_ON_CREATE, PLAYERHOOK_ON_DELETE, PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOAD_FROM_DB}) { }
+
+    // Loaded, before the world sees her: her body options' display in place of her race's (InitDisplayIds).
+    void OnPlayerLoadFromDB(Player* player) override
+    {
+        if (S().enabled)
+            ApplyBody(player);
+    }
 
     // The choices sent before CMSG_CHAR_CREATE, kept if the character is the one they were checked for.
     void OnPlayerCreate(Player* player) override

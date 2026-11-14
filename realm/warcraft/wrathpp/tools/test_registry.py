@@ -33,10 +33,24 @@ class RegistryTest(unittest.TestCase):
         self.assertEqual(self.build(shuffled), self.build(self.doc))
 
     def test_shipped_registry_is_honest(self):
-        # Until the inventory has run, every category says it is unverified.
+        # Until the inventory has run, every Legion category says it is unverified; Wrath++'s own say what they are.
         for c in self.doc["categories"]:
+            if "origin" in c:
+                self.assertTrue(c["origin"].startswith("Wrath++'s own"))
+                continue
             self.assertIn("legion", c)
             self.assertIn("verified", c["legion"])
+
+    def test_body_options(self):
+        # Shape, Style and Density: every woman of the ten races, none of the men; the values the realm's module reads.
+        cats = {c["id"]: c for c in self.doc["categories"]}
+        races = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11}
+        for cid, values in ((1101, range(4)), (1102, range(17)), (1103, range(5))):
+            c = cats[cid]
+            self.assertEqual({e["race"] for e in c["eligibility"]}, races)
+            self.assertTrue(all(e["sexes"] == ["female"] for e in c["eligibility"]))
+            self.assertEqual(sorted(o["value"] for o in c["options"]), list(values))
+            self.assertEqual(next(o for o in c["options"] if o["id"] == c["default"])["value"], 4 if cid == 1103 else 0)
 
     def broken(self, mutate):
         doc = copy.deepcopy(self.doc)

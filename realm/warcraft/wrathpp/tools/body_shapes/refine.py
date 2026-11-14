@@ -1,7 +1,7 @@
 """A converted character model (3.3.5 .m2 and its 00.skin) with chosen triangles split, finer where the body options
 reshape it, paid for by the worn gear's pieces cut down a little more, so the skin stays within 3.3.5's 65535 indices.
 
-  refine(m2_bytes, skin_bytes, pick, levels) -> (m2_bytes, skin_bytes, info)
+  refine(m2_bytes, skin_bytes, pick, levels, reserve=0) -> (m2_bytes, skin_bytes, info)
 
 pick(positions, tris, section_ids) -> boolean per triangle: the ones to split (red-green: neighbours split along the
 shared edge only, so nothing opens). New vertices: Phong tessellation's edge midpoint (the midpoint pulled onto the two
@@ -57,7 +57,7 @@ def mix_bones(wa, ba, wb, bb):
     return q, bones
 
 
-def refine(m2b, skb, pick, levels=1, log=print):
+def refine(m2b, skb, pick, levels=1, log=print, reserve=0):
     d = bytearray(m2b)
     nv, ov = struct.unpack_from("<II", d, 60)
     V = [bytes(d[ov + i * VERT: ov + (i + 1) * VERT]) for i in range(nv)]
@@ -144,7 +144,7 @@ def refine(m2b, skb, pick, levels=1, log=print):
     total = sum(len(t) * 3 for t in tris)
     P = np.array([struct.unpack_from("<3f", v, 0) for v in V])
     gear = [si for si, s in enumerate(secs) if M2.tier_of(s[0]) == "gear" and s[0] % 100 != 1 and len(tris[si]) > 4]
-    budget = M2.INDEX_BUDGET - 40
+    budget = M2.INDEX_BUDGET - 40 - reserve        # (reserve: indices kept free for what is added after, the body layer)
     if total > budget:
         # where a piece meets what can be drawn with it (another group: the body, the bare pieces); a group's
         # variants are drawn one at a time and may part along their shared edges
@@ -183,7 +183,7 @@ def refine(m2b, skb, pick, levels=1, log=print):
                 tris[si] = decimate.decimate(P, tris[si], max(1, int(len(tris[si]) * frac)), locked=hjoins[si])
             log("hair cut to %.0f%% of what it had: %d indices" % (100.0 * sum(len(tris[si]) * 3 for si in hair) / h0, sum(len(t) * 3 for t in tris)))
     total = sum(len(t) * 3 for t in tris)
-    if total > M2.INDEX_BUDGET: raise ValueError("still %d indices" % total)
+    if total > M2.INDEX_BUDGET - reserve: raise ValueError("still %d indices" % total)
     # the skin again
     out_v, out_i, out_p = [], [], []
     for si, s in enumerate(secs):

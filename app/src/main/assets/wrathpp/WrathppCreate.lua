@@ -360,6 +360,50 @@ local function creating()
 	return race, sex, class == "DEATHKNIGHT"
 end
 
+-- Wrath++'s own body options (the realm's registry, through the appearance add-on: categories 1101 to 1103) on a
+-- woman's Body tab: chosen here, sent with the new character at Finish (WrathPP_SendCreateChoices) and kept by the realm,
+-- which shows them in the world (her display); this screen's character stays as drawn. A Body tab of its own where her
+-- looks have none. Nothing without the add-on, or before the realm has said hello.
+local BODY_TAB = 9001
+local BODY_FIRST, BODY_LAST = 1101, 1103
+local function bodyOptions()
+	local out = {}
+	if ( type(WrathPP_Status) ~= "function" or type(WrathPP_GetNumCategories) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return out end
+	local ok, state = pcall(WrathPP_Status)
+	if ( not ok or state ~= "ready" ) then return out end
+	local race, sex, class = WrathPP_GetCreating()
+	if ( not race or sex ~= 1 ) then return out end
+	for i = 1, (WrathPP_GetNumCategories(race, sex, class) or 0) do
+		local id, name, count = WrathPP_GetCategoryInfo(i, race, sex, class)
+		if ( id and id >= BODY_FIRST and id <= BODY_LAST ) then out[#out + 1] = { id = id, name = name, count = count or 0, class = class } end
+	end
+	return out
+end
+
+local function bodyRows(rows)
+	for _, c in ipairs(bodyOptions()) do
+		local row = { name = c.name, kind = "list", body = c.id, choices = {} }
+		local on = WrathPP_GetChoice(c.id)
+		for i = 1, c.count do
+			local id, name = WrathPP_GetOptionInfo(c.id, i, c.class)
+			if ( id ) then
+				row.choices[#row.choices + 1] = { v = id, n = name or "" }
+				if ( id == on ) then row.at = #row.choices end
+			end
+		end
+		if ( #row.choices > 1 ) then rows[#rows + 1] = row end
+	end
+end
+
+-- Sends the body options with the character about to be made (the realm keeps them for the character the game makes next).
+function W.SendBody()
+	if ( type(WrathPP_SendCreateChoices) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return end
+	local race, sex, class = WrathPP_GetCreating()
+	if ( not race ) then return end
+	local ok, sent, why = pcall(WrathPP_SendCreateChoices, race, sex, class)
+	log("body options: "..((ok and sent) and "sent" or ("not sent ("..tostring(why or sent)..")")))
+end
+
 local function looks()
 	local race, sex, dk = creating()
 	local key = race.."_"..sex
@@ -497,6 +541,10 @@ function W.Rows()
 	if ( undead and W.category == accessories ) then
 		rows[#rows + 1] = { name = "Undead", kind = "switch", undead = true, on = isUndead }
 	end
+	-- the Body tab: the body options after the looks' own
+	local bodyTab = W.category == BODY_TAB
+	for _, c in ipairs(model.categories) do if ( c.name == "Body" and c.id == W.category ) then bodyTab = true end end
+	if ( bodyTab ) then bodyRows(rows) end
 	-- Gear, last in every category: the starting outfit on or off (to see a skin)
 	if ( type(WrathPP_SetGear) == "function" ) then rows[#rows + 1] = { name = "Gear", kind = "switch", gear = true, on = W.gear ~= false } end
 	return rows, model
@@ -504,6 +552,11 @@ end
 
 -- Puts a row's choice on.
 function W.Choose(row, k)
+	if ( row.body ) then
+		local c = row.choices[k]
+		if ( c and type(WrathPP_SetChoice) == "function" ) then WrathPP_SetChoice(row.body, c.v) end
+		return
+	end
 	local model, undead = looks()
 	if ( row.index ) then
 		if ( k == "next" ) then step(row.index, 1) elseif ( k == "previous" ) then step(row.index, -1) else setNumber(row.index, k - 1) end
@@ -842,6 +895,7 @@ leaveButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
 local backButton = redButton("WrathppBackButton", root, BACK or "Back", 250, 66, function() WrathppCreate_SetStep(1) end, "back")
 backButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
 local finishButton = redButton("WrathppFinishButton", root, "Finish", 250, 66, function()
+	pcall(W.SendBody)
 	if ( type(CharacterCreate_Okay) == "function" ) then CharacterCreate_Okay() else CreateCharacter(CharacterCreateNameEdit:GetText()) end
 end)
 finishButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -u(46), u(28))
@@ -1526,6 +1580,7 @@ local function refresh()
 		local row = {}
 		for _, c in ipairs(model.categories) do if ( c.name ~= "Body" ) then row[#row + 1] = c end end
 		for _, c in ipairs(model.categories) do if ( c.name == "Body" ) then row[#row + 1] = c end end
+		if ( row[#row].name ~= "Body" and #bodyOptions() > 0 ) then row[#row + 1] = { id = BODY_TAB, name = "Body", zoom = 100 } end
 		local found = false
 		for _, c in ipairs(row) do if ( c.id == W.category ) then found = true end end
 		if ( not found ) then W.category = row[1].id end
@@ -1656,6 +1711,7 @@ local opened = guarded(function()
 	pcall(W.SyncZoomSlider); pcall(W.PaintViews)
 	W.fresh = 3
 	W.gear = true                                         -- the game dresses the character as the creator opens
+	if ( type(WrathPP_ResetChoices) == "function" ) then pcall(WrathPP_ResetChoices) end   -- the body options from their defaults
 	log("opened: native "..tostring(type(WrathPP_NativeVersion) == "function" and WrathPP_NativeVersion() or "none")
 		..", looks' options "..(type(WrathppLooks) == "table" and "in" or "not in")..", undead skins "..(type(WrathppUndead) == "table" and "in" or "not in"))
 	W.ApplyZoom()

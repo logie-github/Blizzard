@@ -31,6 +31,22 @@
 //                                (WowGestureView): on the creator a finger turns the character and walks nowhere.
 //   WrathPP_NativeVersion()      -> this mod's version, for the interface to know it is there.
 //
+// And, with no function to call: the body options' layer (realm/warcraft/wrathpp/tools/body_shapes/layer.py) shown on a
+// character with nothing on its legs. The layer is geoset 1901 of the looks' women's models, which the client's
+// CCharacterComponent::GeosRenderPrep (0x004ED900, thiscall, no arguments) hides with every geoset to 2000 and nothing
+// of the game's shows. A detour at its end (wxl.hook.raw) shows it when
+//   - the component's model is loaded (CM2Model::m_fFlags +0x10, bit 1) and is one with the layer: its last texture
+//     (CM2Shared +0x150 m_data, M2Data +0x50 m_textures, 16 bytes each, its type first) is type 11, the display's
+//     design (CCharacterComponent::ReplaceMonsterSkin puts it in from the display's TextureVariation_1);
+//   - that texture is in (CM2Model +0xA4 m_textures[last] not null: a character of the race's own display without the
+//     body options has an empty design; one whose display has none, a creature's or the character screens', has none
+//     at all, and would be drawn black);
+//   - and the component's legs slot is empty (CCharacterComponent +0x428 m_itemDisplayID[12], ITEMSLOT_PANTS 5).
+// Then CM2Model::SetGeometryVisible(1901, 1901, 1) (0x0082C7C0, thiscall) and OptimizeVisibleGeometry (0x0082C970,
+// thiscall), as GeosRenderPrep itself ends. Every read is guarded (structured exceptions): a client whose layout
+// differs shows no layer and keeps running. Addresses and layouts: the pinned decompilation (CharacterComponent.h,
+// ComponentData.h, M2Model.h, M2Shared.h, M2Data.h); NOT run in the game.
+//
 // Addresses and layouts: WarcraftXL-Labs/core's offset tables and the decompiled client
 // (docs/wrathpp/CLIENT_PROBE.md), both at the commits wrathpp.env pins:
 //   CCharacterCreation::m_character            0x00B6B1A0   CCharacterComponent*
@@ -55,6 +71,7 @@
 #endif
 
 #include "wxl/sdk.hpp"
+#include "wxl/services/hook.hpp"
 #include "wxl/services/script.hpp"
 
 namespace
@@ -151,11 +168,78 @@ namespace
         race = static_cast<int32_t>(p->race); sex = static_cast<int32_t>(p->sex); cls = static_cast<int32_t>(p->classId);
         return true;
     }
+
+    // --- the body options' layer -------------------------------------------------------------------------------------
+    constexpr uint32_t kLayerGeoset = 1901;
+    constexpr uint32_t kDesignTexture = 11;
+    using GeosRenderPrepFn = void(__thiscall*)(void*);
+    using SetGeometryVisibleFn = void(__thiscall*)(void*, uint32_t, uint32_t, int32_t);
+    using OptimizeFn = void(__thiscall*)(void*);
+    GeosRenderPrepFn g_geosRenderPrep = nullptr;
+    wxl::Hook g_layerHook;
+
+    /// The model to show the layer on, or null: loaded, the layer's, its design in, nothing on the legs.
+    uintptr_t LayerModel(uintptr_t component)
+    {
+        __try
+        {
+            const uintptr_t model = *reinterpret_cast<const uintptr_t*>(component + 0x18 + 0x20);
+            if (!model || !(*reinterpret_cast<const uint32_t*>(model + 0x10) & 1)) return 0;
+            if (*reinterpret_cast<const uint32_t*>(component + 0x428 + 5 * 4)) return 0;
+            const uintptr_t shared = *reinterpret_cast<const uintptr_t*>(model + 0x2C);
+            const uintptr_t data = shared ? *reinterpret_cast<const uintptr_t*>(shared + 0x150) : 0;
+            if (!data) return 0;
+            const uint32_t count = *reinterpret_cast<const uint32_t*>(data + 0x50);
+            if (!count || count > 64) return 0;
+            const uintptr_t textures = data + 0x50 + static_cast<uintptr_t>(static_cast<intptr_t>(*reinterpret_cast<const int32_t*>(data + 0x54)));
+            if (*reinterpret_cast<const uint32_t*>(textures + (count - 1) * 16) != kDesignTexture) return 0;
+            const uintptr_t loaded = *reinterpret_cast<const uintptr_t*>(model + 0xA4);
+            if (!loaded || !*reinterpret_cast<const uintptr_t*>(loaded + (count - 1) * 4)) return 0;
+            return model;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 0;
+        }
+    }
+
+    void ShowLayer(uintptr_t model)
+    {
+        __try
+        {
+            reinterpret_cast<SetGeometryVisibleFn>(0x0082C7C0)(reinterpret_cast<void*>(model), kLayerGeoset, kLayerGeoset, 1);
+            reinterpret_cast<OptimizeFn>(0x0082C970)(reinterpret_cast<void*>(model));
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
+    }
+
+    void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
+    {
+        g_geosRenderPrep(component);
+        if (const uintptr_t model = LayerModel(reinterpret_cast<uintptr_t>(component))) ShowLayer(model);
+    }
+
+    void AttachLayer()
+    {
+        const wxl::RawHookService raw;
+        if (!raw)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "no wxl.hook.raw: the body options' layer stays hidden");
+            return;
+        }
+        g_layerHook = raw.AttachAt("CCharacterComponent::GeosRenderPrep", 0x004ED900, reinterpret_cast<void*>(&GeosRenderPrepDetour),
+                                   reinterpret_cast<void**>(&g_geosRenderPrep));
+        if (g_layerHook) wxl::Log(WXL_LOG_INFO, kTag, "body options' layer: attached");
+        else wxl::Log(WXL_LOG_WARN, kTag, "body options' layer: not attached");
+    }
 #else
     bool Customization(int, int32_t&, int32_t&) { return false; }
     bool SetCustomization(int, int32_t) { return false; }
     bool CreatingWho(int32_t&, int32_t&, int32_t&) { return false; }
     bool SetGear(bool) { return false; }
+    void AttachLayer() {}
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -257,7 +341,7 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.4.0"); }
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.5.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -287,6 +371,7 @@ namespace
         wxl_result OnLoad() override
         {
             wxl::ScriptMgr::Add(&g_api);
+            AttachLayer();
             wxl::Log(WXL_LOG_INFO, kTag, "Wrath++ native loaded");
             return WXL_OK;
         }

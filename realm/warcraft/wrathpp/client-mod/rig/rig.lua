@@ -107,6 +107,22 @@ return function(opts)
 	if ( opts.native == false ) then
 		for _, n in ipairs({ "WrathPP_GetCustomization", "WrathPP_SetCustomization", "WrathPP_GetCreating", "WrathPP_SetGear", "WrathPP_Log", "WrathPP_SetScreen", "WrathPP_NativeVersion" }) do _G[n] = nil end
 	end
+	-- RIG_WPP: the appearance add-on (client-mod/wrathpp/init.lua) on the client-mod tests' stand-in for the runtime, the
+	-- realm's hello and registry (registry.json, as the realm sends it: the fixtures file run.sh makes) delivered to it:
+	-- its glue functions as the game's, the body options on the women's Body tab
+	local wppFixtures = os.getenv("RIG_WPP")
+	if ( wppFixtures and wppFixtures ~= "" ) then
+		local mock = dofile(dir.."/../tests/mock_wxl.lua")
+		_G.wxl, _G.Observe, _G.bit = mock.wxl, mock.observe, require("bit")
+		local WPP = dofile(dir.."/../wrathpp/init.lua")
+		local F = dofile(wppFixtures)
+		local function fromhex(h) return (h:gsub("..", function(x) return string.char(tonumber(x, 16)) end)) end
+		mock.deliver(0x521, fromhex(F.hello))
+		mock.deliver(0x523, fromhex(F.registry))
+		assert(WPP.state == "ready", "the appearance add-on isn't ready: "..tostring(WPP.reason))
+		for name, fn in pairs(mock.functions) do _G[name] = fn end
+		R.wpp, R.wppMock = WPP, mock
+	end
 	-- (the art's table first, as the app's patch lists the files by name: WrathppAtlas, WrathppCreate, WrathppLooks, WrathppUndead;
 	-- RIG_ATLAS: the art package's WrathppAtlas.lua, "-" or unset for a phone without the art)
 	local atlasFile = opts.atlas or os.getenv("RIG_ATLAS")
