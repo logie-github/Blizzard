@@ -140,6 +140,12 @@ said "it goes out when the phone is online" (the phone always is). Now:
   start the logs the servers append to (`DBErrors.log` had reached 150 MB, `Server.log`, `Bnet.log`, `GM.log`) are cut to their last
   1 MB when over 8 MB. A failed one-shot command reports its last line from the end of its log, not the whole file.
 
+- **Box64 patch 0002: Wow.exe no longer loops on its first page fault** (`patches/box64/0002-*.patch`). Wow.exe sets its code pages to
+  no access and handles the faults itself. Box64 reported an instruction that runs into such a page (its fetch of the last bytes
+  fails) as a plain read, not as an instruction fetch (page fault error 0x14), so the program did not recognise its own fault and took it
+  979 times, then the process ended with code 1 about 2 s after the start (phone reports 143, 144; rig: Legion Box64 under qemu).
+  With the patch the loop is gone on the rig and Wow.exe keeps running. Not run on a phone; the build after this one carries the patched Box64.
+
 Tested: `SessionLogTest` (file, roll-over, prune, the last run's end, noise, limiter), `DiagnosticsTest` (the `/proc` readers on
 this machine's real files, the sample line, processes coming and going, exit reasons), `BugReportsLongTest` (a fake GitHub that
 fails halfway, size refusals, forced reports, chunks), `ReportAttachTest` (the real path with Robolectric: the run's log and the

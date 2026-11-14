@@ -1,0 +1,43 @@
+From 4c010ee0cc800c51988539de4c1d67a96348f1f7 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 01:18:34 +0000
+Subject: [PATCH] [SIGNAL] An instruction running into an unreadable page
+ faults as an instruction fetch (error 0x14), not a read
+
+The emulator's own fetch of an instruction's last bytes failed in the next page and was reported to the program as a data read at
+that page. A program that guards its code pages and tells EXCEPTION_EXECUTE_FAULT from EXCEPTION_READ_FAULT never recognised its
+own fault and took it again, 979 times (WoW Forever's Wow.exe under Box64 0.4.4), until the process ended.
+---
+ src/libtools/signals.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/libtools/signals.c b/src/libtools/signals.c
+index ef2e1d1..0727ed5 100644
+--- a/src/libtools/signals.c
++++ b/src/libtools/signals.c
+@@ -455,6 +455,22 @@ int my_sigactionhandler_oldcode_64(x64emu_t* emu, int32_t sig, int simple, sigin
+                 sigcontext->uc_mcontext.gregs[X64_ERR] = 0x14|((sysmapped && !(real_prot&PROT_READ))?0:1);
+                 sigcontext->uc_mcontext.gregs[X64_TRAPNO] = 14;
+             }
++        } else if(!(prot&(PROT_READ|PROT_WRITE|PROT_EXEC)) && mmapped
++                && (uintptr_t)info->si_addr>sigcontext->uc_mcontext.gregs[X64_RIP]
++                && (uintptr_t)info->si_addr-sigcontext->uc_mcontext.gregs[X64_RIP]<=15
++                && ((uintptr_t)info->si_addr&~(uintptr_t)(box64_pagesize-1))!=(sigcontext->uc_mcontext.gregs[X64_RIP]&~(uintptr_t)(box64_pagesize-1))
++                && (!pc
++                #if defined(DYNAREC)
++                    || !db
++                #endif
++                )) {
++            // An instruction that runs into a page the program cannot touch: the emulator's own fetch of its
++            // last bytes fails (not the instruction's operand), where the processor reports an instruction fetch
++            // (page fault, error code 0x14) at the start of the unreadable page with RIP at the instruction.
++            // Reported as a plain read, a program that guards its code pages and tells the two apart (Windows'
++            // EXCEPTION_EXECUTE_FAULT against EXCEPTION_READ_FAULT) never recognises its own fault and loops.
++            sigcontext->uc_mcontext.gregs[X64_ERR] = 0x14|((sysmapped && !(real_prot&PROT_READ))?0:1);
++            sigcontext->uc_mcontext.gregs[X64_TRAPNO] = 14;
+         } else {
+             sigcontext->uc_mcontext.gregs[X64_TRAPNO] = 14;
+             sigcontext->uc_mcontext.gregs[X64_ERR] = 4|((sysmapped && !(real_prot&PROT_READ))?0:1);
+-- 
+2.43.0
+

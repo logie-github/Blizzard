@@ -1,0 +1,1 @@
+Wow.exe no longer ends two seconds after it starts: the emulator now reports the game's own page faults the way a real processor does.
