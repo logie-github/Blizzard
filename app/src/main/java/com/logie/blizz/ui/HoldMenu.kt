@@ -97,6 +97,12 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
                 HoldItem(Icons.Default.Face, "Ralia's mod (Wrath++)") { ralia = true }
             }
             if (ralia) RaliaDialog { ralia = false; onDismiss() }
+            // Wrath++: body shapes from your zip of them (BodyShapesDialog: looked for as wrathpp-body.zip, or picked).
+            var bodyShapes by remember { mutableStateOf(false) }
+            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+                HoldItem(Icons.Default.Face, "Body shapes (Wrath++)") { bodyShapes = true }
+            }
+            if (bodyShapes) BodyShapesDialog { bodyShapes = false; onDismiss() }
             // Warcraft III in Warsmash: Classic+, the remade models and textures (ClassicPlusDialog).
             var classicPlus by remember { mutableStateOf(false) }
             if (warsmash) HoldItem(Icons.Default.AutoAwesome, "Classic+ models") { classicPlus = true }
