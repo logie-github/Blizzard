@@ -30,18 +30,11 @@ class ForeverLayout(val root: File) {
     /** The client's build (from its `.build.info`), or null when it can't be read. */
     fun clientBuild(): Int? = runCatching { ForeverCtl.clientBuild(File(client, ".build.info").readText()) }.getOrNull()
 
-    /** The program to start: the Forever Launcher if the user placed one (it sets the server key), else the client exe. */
+    /** The game's program (the silent sign-in, [ForeverGo], starts it signed in with the realm's key). */
     fun clientExe(): File? {
-        launcher()?.let { return it }
         val names = listOf("_forever_/Wow.exe", "_forever_/WowB.exe", "Wow.exe", "WowB.exe", "World of Warcraft Launcher.exe")
         return names.map { File(client, it) }.firstOrNull { it.isFile }
     }
-
-    /** The Forever Launcher the person placed (it sets the realm's game-server key in the client), or null. */
-    fun launcher(): File? = ForeverLauncher.find(client)
-
-    /** Whether a launcher is in place (the client connects through it). */
-    fun hasLauncher() = launcher() != null
 
         /** A [WowLayout] view of the same folder, for the shared process runner's leftover cleanup. */
     val wowLayout get() = WowLayout(root, root)

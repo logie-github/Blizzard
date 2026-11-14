@@ -12,7 +12,11 @@ import java.net.URL
  * refuses plain HTTP to apps like this one). No account or Battle.net is involved: this is what Blizzard's own
  * installer reads.
  */
-class TactCdn(val product: String = "wowf", val region: String = "us") {
+class TactCdn(val product: String = "wowf", val region: String = "us", private val pin: Pin? = FOREVER_PIN) {
+    /** A build to install instead of the published one: its build and CDN config (Blizzard keeps serving older builds' files). */
+    data class Pin(val buildConfig: String, val cdnConfig: String, val buildId: Int, val name: String)
+
+
     data class Version(val buildConfig: String, val cdnConfig: String, val buildId: Int, val name: String, val productConfig: String)
     data class Servers(val path: String, val hosts: String, val servers: List<String>, val configPath: String, val listed: String = "")
 
@@ -21,6 +25,13 @@ class TactCdn(val product: String = "wowf", val region: String = "us") {
     private val service = "https://$region.version.battle.net/v2/products/$product"
 
     fun version(): Version {
+        val live = runCatching { published() }
+        val p = pin ?: return live.getOrThrow()
+        return Version(p.buildConfig, p.cdnConfig, p.buildId, p.name, live.getOrNull()?.productConfig.orEmpty())
+    }
+
+    /** The build Blizzard publishes now. */
+    fun published(): Version {
         val rows = Tact.parseTable(String(fetch(URL("$service/versions"), null), Charsets.UTF_8))
         val row = rows.firstOrNull { it["Region"] == region } ?: rows.firstOrNull() ?: throw IOException("No version of $product is published")
         return Version(
@@ -146,6 +157,13 @@ class TactCdn(val product: String = "wowf", val region: String = "us") {
     }
 
     companion object {
+        /**
+         * World of Warcraft: Forever 1.60.1.70707: the build ForeverNXT's local launcher and realm are made for, whose
+         * table of realm keys the sign-in ([com.logie.blizz.forever.ForeverGo]) can find in the running game. Later builds
+         * (70888 on the rig, 14 November 2026) keep no readable copy of those keys, so the realm's identity check fails
+         * when the game enters the world.
+         */
+        val FOREVER_PIN = Pin("7feb61f3c994bcb168526b8db521514a", "2a6e419be5b7d7d896f7bc40395256dd", 70707, "1.60.1.70707")
         const val RETRIES = 8
         fun backoff(attempt: Int): Long = minOf(30_000L, 1_000L shl minOf(attempt, 5))
     }

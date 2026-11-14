@@ -416,32 +416,6 @@ private fun RuntimeOverlay() {
                 }
             }
         }
-        is com.logie.blizz.forever.ForeverPlay.State.NeedsLauncher -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            // The Forever Launcher is the person's to supply: picked here once, kept in the client folder, run at every Play.
-            val pickLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-                if (uri != null) com.logie.blizz.forever.ForeverPlay.importLauncher(context, uri, thenPlay = true)
-            }
-            Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FrameTitle("The Forever Launcher is missing")
-                Text(
-                    "The realm and the game are ready: the game starts and logs in to the realm on this phone.\n\n" +
-                        "It can't enter the realm yet. The game checks the world server's identity against Blizzard's own key, " +
-                        "and disconnects from any other server (\"You have been disconnected\", BLZ51901023). The Forever Launcher " +
-                        "(WoWForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
-                        "make or download it: pick the file once and it is run at every Play. It is a .NET program, so the app " +
-                        "puts the .NET runtime (wine-mono) in place on the first run (a ~60 MB download).",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FrameButton("Cancel", primary = false) { com.logie.blizz.forever.ForeverPlay.dismiss() }
-                    FrameButton("Start anyway", primary = false) {
-                        com.logie.blizz.forever.ForeverPlay.dismiss()
-                        com.logie.blizz.forever.ForeverPlay.playWithoutLauncher(context)
-                    }
-                    FrameButton("Choose the launcher file") { pickLauncher.launch(arrayOf("*/*")) }
-                }
-            }
-        }
         else -> {}
     }
 }

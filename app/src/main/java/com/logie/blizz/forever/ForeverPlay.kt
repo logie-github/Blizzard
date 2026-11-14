@@ -29,8 +29,10 @@ import java.io.File
  * 4. the realm is started ([ForeverRealm]) at the client's own build, with the game account made, and waited for;
  * 5. the client is started on Blizzard's own Winlator ([WindowsRuntime.play]) with the `wow` touch controls.
  *
- * The client is pointed at the local server by the **Forever Launcher** ([ForeverLayout.clientExe]), which sets the
- * server's key in the client; it is a separate program the user supplies. Nothing talks to Blizzard's servers.
+ * The game signs in by itself ([ForeverGo]): Play signs in at the realm's HTTPS login service, and the game starts with
+ * the ticket (no login screen) through `forevergo.exe`, which also puts the realm's key into the game, so it accepts the
+ * realm. The client is build 1.60.1.70707 ([com.logie.blizz.forever.tact.TactCdn.FOREVER_PIN]); an installed client of
+ * another build is replaced at the next Play. Nothing talks to Blizzard's servers but the client download.
  *
  * NOT run on a phone. The state machine is the only logic here; the realm, the client and the connection need a phone.
  */
@@ -44,18 +46,10 @@ object ForeverPlay {
          * downloading ~47 GB, or lets the person pick a client folder already on the phone.
          */
         data object NeedsClient : State
-        /**
-         * The client is here but the Forever Launcher isn't. The game then starts and logs in to the realm, and is
-         * disconnected as it enters it: the client checks the world server's identity against a key of Blizzard's
-         * ("server identity check failed", seen on a desktop run of client 70862 against this realm on 10 November
-         * 2026: BLZ51901023 on screen). The launcher, which the person supplies, is what gets a client past that.
-         * The launcher asks: pick the file, or start the game as it is.
-         */
-        data object NeedsLauncher : State
         data class Failed(val message: String) : State
     }
 
-    /** About how big the client download is (build 70862: Windows, x86_64, English, text and speech). */
+    /** About how big the client download is (Windows, x86_64, English, text and speech). */
     const val CLIENT_SIZE_GB = 47
 
     @Volatile private var installer: com.logie.blizz.forever.tact.ForeverClientInstaller? = null
@@ -184,26 +178,22 @@ object ForeverPlay {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun dismiss() {
-        if (_state.value is State.Failed || _state.value is State.NeedsClient || _state.value is State.NeedsLauncher) _state.value = State.Idle
+        if (_state.value is State.Failed || _state.value is State.NeedsClient ) _state.value = State.Idle
     }
 
-    /** Play without the Forever Launcher (the person said so): the game starts and logs in, and can't enter the realm. */
-    fun playWithoutLauncher(context: Context) = play(context, withoutLauncher = true)
-
-    fun play(context: Context, allowMetered: Boolean = false, withoutLauncher: Boolean = false) {
+    fun play(context: Context, allowMetered: Boolean = false) {
         if (_state.value is State.Preparing) return
         val app = context.applicationContext
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
         _state.value = State.Preparing("Preparing")
-        com.logie.blizz.reports.SessionLog.event("forever", "Play pressed (${width}x$height, metered ok: $allowMetered, without launcher: $withoutLauncher)")
+        com.logie.blizz.reports.SessionLog.event("forever", "Play pressed (${width}x$height, metered ok: $allowMetered)")
         scope.launch {
             try {
-                val failure = run(app, width to height, allowMetered, withoutLauncher)
+                val failure = run(app, width to height, allowMetered)
                 com.logie.blizz.reports.SessionLog.event("forever", "Play ended: ${failure?.let { if (it.startsWith("\u0000")) it.drop(1) else it.lineSequence().first().take(200) } ?: "started"}")
                 _state.value = when (failure) {
                     null, PAUSED -> State.Idle
                     NEEDS_CLIENT -> State.NeedsClient
-                    NEEDS_LAUNCHER -> State.NeedsLauncher
                     else -> State.Failed(failure)
                 }
             } catch (e: CancellationException) {
@@ -230,36 +220,6 @@ object ForeverPlay {
         }
     }
 
-    /** Whether the client is here but no Forever Launcher is (so the client can't yet connect to the realm). */
-    fun needsLauncher(context: Context): Boolean = ForeverLayout.of(context).let { it.hasClient() && !it.hasLauncher() }
-
-    /**
-     * Copies the Forever Launcher the person picked (a .exe they supply) into the client folder, so the app runs it
-     * in place of Wow.exe at the next Play. The file keeps a launcher name the client start looks for.
-     */
-    fun importLauncher(context: Context, uri: Uri, thenPlay: Boolean = false) {
-        val app = context.applicationContext
-        _state.value = State.Preparing("Adding the Forever Launcher")
-        scope.launch {
-            try {
-                val failure = withContext(Dispatchers.IO) {
-                    val layout = ForeverLayout.of(app)
-                    if (!layout.client.isDirectory) return@withContext "Add the game client first, then the launcher."
-                    val picked = app.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
-                        ?.use { if (it.moveToFirst()) it.getString(0) else null }
-                    // Keep a known launcher name the client start looks for; anything else becomes WoWForeverLauncher.exe.
-                    val target = File(layout.client, ForeverLauncher.fileNameFor(picked))
-                    app.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
-                        ?: return@withContext "That file couldn't be read."
-                    null
-                }
-                _state.value = if (failure != null) State.Failed(failure) else State.Idle
-                if (failure == null && thenPlay) play(app)
-            } catch (e: CancellationException) { _state.value = State.Idle; throw e }
-            catch (e: Throwable) { _state.value = State.Failed("The launcher couldn't be added: ${e.message ?: e.javaClass.simpleName}") }
-        }
-    }
-
     /**
      * Copies the client from a folder the person picked (Android's folder picker: Downloads, an SD card, a USB drive)
      * into the app, then goes on with Play. The picked folder may be the client itself or the folder holding it.
@@ -282,7 +242,6 @@ object ForeverPlay {
     }
 
     private const val NEEDS_CLIENT = "\u0000needs-client"
-    private const val NEEDS_LAUNCHER = "\u0000needs-launcher"
     private const val PAUSED = "\u0000paused"
 
     /** Where the client is downloaded to; renamed to [ForeverLayout.client] once complete. */
@@ -406,7 +365,7 @@ object ForeverPlay {
         }
     }
 
-    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean, withoutLauncher: Boolean): String? {
+    private suspend fun run(context: Context, size: Pair<Int, Int>, allowMetered: Boolean): String? {
         val layout = ForeverLayout.of(context)
         val running = ForeverRealm.status.value.phase.let { it == ForeverRealm.Phase.RUNNING || it == ForeverRealm.Phase.STARTING }
 
@@ -425,14 +384,20 @@ object ForeverPlay {
             }
         }
 
+        // A client of another build than the one the sign-in is made for (70707) can't enter the realm (its key table
+        // isn't readable: the rig, 14 November 2026): it is removed, and the right one downloaded below.
+        val build = layout.clientBuild()
+        if (layout.hasClient() && build != null && build != com.logie.blizz.forever.tact.TactCdn.FOREVER_PIN.buildId) {
+            com.logie.blizz.reports.SessionLog.event("forever", "client $build is not ${com.logie.blizz.forever.tact.TactCdn.FOREVER_PIN.buildId}: removed, the right one is downloaded")
+            _state.value = State.Preparing("Replacing the game client with build ${com.logie.blizz.forever.tact.TactCdn.FOREVER_PIN.name}")
+            withContext(Dispatchers.IO) { layout.client.deleteRecursively() }
+        }
+
         // The client: downloaded from Blizzard's CDN as part of Play (on mobile data only once the person agrees).
         if (!layout.hasClient()) {
             if (!allowMetered && metered(context)) return NEEDS_CLIENT
             fetchClient(context, layout)?.let { return it }
         }
-
-        // Without the Forever Launcher the game is disconnected as it enters the realm: said before the wait, not after it.
-        if (!withoutLauncher && !layout.hasLauncher()) return NEEDS_LAUNCHER
 
         // The index files of a client downloaded by an earlier build lacked a part the game insists on ("Your World of
         // Warcraft installation is damaged"): given it here, in place, the 47 GB untouched.
@@ -447,7 +412,7 @@ object ForeverPlay {
 
         _state.value = State.Preparing("Starting the realm")
         val account = login(context)
-        com.logie.blizz.reports.SessionLog.event("forever", "client ${layout.clientBuild()}, launcher ${layout.launcher()?.let { "${it.name} ${it.length()} bytes" } ?: "none"}; starting the realm (account ${account.name})")
+        com.logie.blizz.reports.SessionLog.event("forever", "client ${layout.clientBuild()}; starting the realm (account ${account.name})")
         val realmStart = android.os.SystemClock.elapsedRealtime()
         withContext(Dispatchers.IO) { ForeverRealm.start(context, layout.clientBuild(), account.name to account.password) }
         // Each step of the start shows by its number, and under the long one (the world loading its database) the
@@ -478,6 +443,14 @@ object ForeverPlay {
             ForeverRealm.Phase.FAILED -> return status.error ?: "The realm didn't start (see logs in files/forever/logs)."
             else -> return "The realm stopped before it was ready."
         }
+
+        // The sign-in: the game starts with it, signed in, no login screen ([ForeverGo]). Without it the game starts at its login screen.
+        _state.value = State.Preparing("Signing in")
+        ForeverGo.pending = withContext(Dispatchers.IO) {
+            runCatching { ForeverGo.signIn(layout.caFile, account.name, account.password) }
+                .onFailure { com.logie.blizz.reports.SessionLog.event("forever", "sign-in failed: ${it.message}") }.getOrNull()
+        }
+        com.logie.blizz.reports.SessionLog.event("forever", "signed in: ${ForeverGo.pending?.first ?: "no"}")
 
         _state.value = State.Preparing("Starting the game")
         val exe = layout.clientExe() ?: return NEEDS_CLIENT
@@ -543,7 +516,7 @@ object ForeverPlay {
                 val early = since > 0 && System.currentTimeMillis() - since < EARLY_STOP_MS
                 // The game's own protection ended it: said in plain words whenever it happens (it comes about a minute
                 // after the game starts, which can be long after Play: the launcher waits for its PLAY NOW).
-                if (stop != null && ForeverCtl.isSecurityCrash(stop.text)) _state.value = State.Failed(securityCrashText(layout.hasLauncher(), stop.title))
+                if (stop != null && ForeverCtl.isSecurityCrash(stop.text)) _state.value = State.Failed(securityCrashText(false, stop.title))
                 else if (early) _state.value = State.Failed(
                     "World of Warcraft: Forever stopped (${layout.clientExe()?.name ?: "launcher"}).\n\n" +
                         "Tap Copy and send me this:\n\n$body",
