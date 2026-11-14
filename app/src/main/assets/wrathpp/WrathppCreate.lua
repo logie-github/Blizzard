@@ -41,6 +41,9 @@ end
 
 local FIELD = { skin = 1, face = 2, hair = 3, haircolor = 4, feature = 5 }
 local RACE_ID = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUREN = 6, GNOME = 7, TROLL = 8, GOBLIN = 9, BLOODELF = 10, DRAENEI = 11 }
+-- The other realms' own races (mod-murloc-naga: ChrRaces' file names Murloc and Naga_), whose buttons the shared game data
+-- brings: not Wrath++'s.
+local LEFT_OUT = { MURLOC = true, NAGA = true, NAGA_ = true }
 local ALLIANCE = { HUMAN = true, DWARF = true, NIGHTELF = true, GNOME = true, DRAENEI = true, WORGEN = true, VOIDELF = true,
 	LIGHTFORGEDDRAENEI = true, HIGHORDER = true, PANDAREN = true, KULTIRAN = true, DARKIRONDWARF = true, MECHAGNOME = true }
 -- Shadowlands lays its creator out for a screen 1080 units high (its CharacterCreateFrame is scaled by 768 over the
@@ -1404,6 +1407,9 @@ local function place()
 		local own = stock.GetName and stock:GetName() and _G[stock:GetName().."Text"]
 		local token = names[(index - 1) * 3 + 2]
 		token = token and string.upper(token) or nil
+		-- races of the other realms' data that Wrath++ doesn't have (the user: "Naga and murloc are not supposed to be
+		-- in this version"): their buttons are left out
+		if ( token and LEFT_OUT[token] ) then token = nil; stock:Hide() end
 		local alliance
 		if ( token ) then alliance = ALLIANCE[token] and true or false else alliance = index <= math.ceil(total / 2) end
 		local b = raceButton(index, alliance)
