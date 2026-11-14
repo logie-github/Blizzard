@@ -195,9 +195,11 @@ object ForeverPlay {
         val app = context.applicationContext
         val (width, height) = WindowsRuntime.gameSize(context, GAME_ID, LaunchProfile.WOW)
         _state.value = State.Preparing("Preparing")
+        com.logie.blizz.reports.SessionLog.event("forever", "Play pressed (${width}x$height, metered ok: $allowMetered, without launcher: $withoutLauncher)")
         scope.launch {
             try {
                 val failure = run(app, width to height, allowMetered, withoutLauncher)
+                com.logie.blizz.reports.SessionLog.event("forever", "Play ended: ${failure?.let { if (it.startsWith("\u0000")) it.drop(1) else it.lineSequence().first().take(200) } ?: "started"}")
                 _state.value = when (failure) {
                     null, PAUSED -> State.Idle
                     NEEDS_CLIENT -> State.NeedsClient
@@ -223,6 +225,7 @@ object ForeverPlay {
                 context, "WoW Forever", e.message ?: e.javaClass.simpleName,
                 listOf("Step" to step, "Error" to e.javaClass.name, "Cause" to e.cause?.let { "${it.javaClass.name}: ${it.message}" }),
                 log = e.stackTraceToString().take(7000),
+                attach = true,
             )
         }
     }
@@ -444,12 +447,20 @@ object ForeverPlay {
 
         _state.value = State.Preparing("Starting the realm")
         val account = login(context)
+        com.logie.blizz.reports.SessionLog.event("forever", "client ${layout.clientBuild()}, launcher ${layout.launcher()?.let { "${it.name} ${it.length()} bytes" } ?: "none"}; starting the realm (account ${account.name})")
+        val realmStart = android.os.SystemClock.elapsedRealtime()
         withContext(Dispatchers.IO) { ForeverRealm.start(context, layout.clientBuild(), account.name to account.password) }
         // Each step of the start shows by its number, and under the long one (the world loading its database) the
         // server's own latest line, so the wait is seen to move.
         val following = scope.launch {
+            var lastStep: Any? = null
             while (true) {
                 val now = ForeverRealm.status.value
+                val stepNow = now.phase to now.step
+                if (stepNow != lastStep) {
+                    lastStep = stepNow
+                    com.logie.blizz.reports.SessionLog.event("forever", "realm ${now.phase} ${now.step ?: ""} ${now.message ?: ""} after ${(android.os.SystemClock.elapsedRealtime() - realmStart) / 1000} s".replace("  ", " "))
+                }
                 if (now.phase == ForeverRealm.Phase.STARTING) {
                     val step = now.step ?: ForeverRealm.Step.CONFIGURING
                     val detail = if (step == ForeverRealm.Step.WORLD) withContext(Dispatchers.IO) { ForeverCtl.lastLine(layout.log("worldserver")) } else null
@@ -483,6 +494,7 @@ object ForeverPlay {
             }
         }
         started(context)
+        com.logie.blizz.reports.SessionLog.event("forever", "realm up after ${(android.os.SystemClock.elapsedRealtime() - realmStart) / 1000} s; starting ${exe.name} in the games' Windows")
         withContext(Dispatchers.Main) { WindowsRuntime.play(context, launchEntry(layout.client, exe), size) }
         return null
     }
@@ -524,6 +536,7 @@ object ForeverPlay {
                     app, "WoW Forever", "The game stopped: $title",
                     listOf("Program" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
                     log = body.take(7000),
+                    attach = true, force = true,
                 )
                 // The upload above can fail on a flaky network. When the launcher stopped early (a real crash, not a
                 // long play session), also show the log in the app with Copy, so it can be sent even then.
@@ -557,6 +570,7 @@ object ForeverPlay {
                     app, "WoW Forever", "The game's program ended by itself: $program, code $code",
                     listOf("Program" to program, "Exit code" to code, "Launcher" to layout.clientExe()?.name, "Client build" to layout.clientBuild()?.toString()),
                     log = body.takeLast(7000),
+                    attach = true, force = true,
                 )
             }
         }

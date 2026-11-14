@@ -231,6 +231,8 @@ private fun LauncherPage(onDismiss: () -> Unit) {
         }
     }
 
+    ReportsCard()
+
     SettingCard("Maintenance") {
         FrameButton("Run the launch test", primary = false, modifier = Modifier.fillMaxWidth()) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
     }

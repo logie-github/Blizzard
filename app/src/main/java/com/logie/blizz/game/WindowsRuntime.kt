@@ -115,6 +115,7 @@ object WindowsRuntime {
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
 
         _state.value = State.Preparing(Step.RUNTIME, 0f, WowPlay.splashIdOf(entry))
+        com.logie.blizz.reports.SessionLog.event("windows", "run: ${entry.gameId} ${entry.title} (${entry.clientVersion ?: "-"}), ${entry.executable}, window ${size.first}x${size.second}")
         val installed = withContext(Dispatchers.IO) {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
@@ -184,6 +185,7 @@ object WindowsRuntime {
                     runCatching {
                         if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
                             _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
+                            com.logie.blizz.reports.SessionLog.event("windows", ".NET runtime (wine-mono) not in place: downloading")
                             com.logie.blizz.forever.WineMono.ensure(driveC) { done, total ->
                                 _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
                             }
@@ -208,6 +210,7 @@ object WindowsRuntime {
             .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll").apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
+        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion || foreverClient) LegionClientSetup.BOX64 else "default"}, launcher phase $foreverLauncher")
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)

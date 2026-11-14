@@ -45,7 +45,18 @@ class GestureView(
     private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
-    init { GameLog.start(); com.logie.blizz.selftest.RunningGame.attach(activity) }
+    init {
+        GameLog.start(); com.logie.blizz.selftest.RunningGame.attach(activity)
+        // The game screen's own comings and goings, in the run's log: a window that went black after the person left the app is
+        // not one that went black by itself.
+        activity.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onStart(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: shown (onStart)") }
+            override fun onResume(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: in front (onResume)") }
+            override fun onPause(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: out of front (onPause)") }
+            override fun onStop(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: hidden (onStop: the app went to the background)") }
+            override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) { GameLog.finish() }
+        })
+    }
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
     /**
      * World of Warcraft's client has the World of Warcraft app's own controls ([WowGestureView]: its touch gestures, cursor reading,
@@ -389,13 +400,13 @@ class GestureView(
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { leave() },
         onReport = {
-            com.logie.blizz.reports.BugReports.report(
-                activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
+            com.logie.blizz.reports.BugReports.reportTelling(
+                activity,
+                "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
                 "Sent from the game menu",
                 listOf("Game" to gameId, "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
                 log = GameLog.snapshot().ifEmpty { null },
             )
-            android.widget.Toast.makeText(activity, "Report sent (it goes out when the phone is online).", android.widget.Toast.LENGTH_LONG).show()
         },
     )
 
