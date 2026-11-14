@@ -174,6 +174,7 @@ object WindowsRuntime {
                         .onFailure { GameLog.note("forever: sign-in not put in place: ${it.message}") }.getOrDefault(false)
                 } ?: false
                 com.logie.blizz.forever.ForeverGo.pending = null
+                GameLog.foreverGoLog = if (foreverGo) com.logie.blizz.forever.ForeverGo.logFile(container.rootDir) else null
             }
         }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
@@ -210,6 +211,7 @@ object WindowsRuntime {
             .putExtra("gestures", true)
             // Forever: the game's crash files, watched while it runs (a crashed game stays on its last frame).
             .apply { if (foreverClient) putExtra(GestureView.EXTRA_CRASH_DIR, File(folder, "_forever_/Errors").path) }
+            .apply { if (foreverGo) putExtra(GestureView.EXTRA_SIGNED_IN, true) }
             // Wrath++ run by WarcraftXL: its log says when the login screen is up, for auto-login (GestureView.EXTRA_READY_LOG).
             .apply { if (entry.executable.equals(com.logie.blizz.wrathpp.WrathppAddon.EXE, ignoreCase = true)) putExtra(GestureView.EXTRA_READY_LOG, File(folder, "Logs/WarcraftXL.log").path) }
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)

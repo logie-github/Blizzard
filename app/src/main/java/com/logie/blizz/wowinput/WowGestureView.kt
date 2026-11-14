@@ -325,6 +325,13 @@ class WowGestureView(
         if (loginShown) return
         loginShown = true
         postDelayed(screenCheck, SCREEN_CHECK_MS)
+        // Forever signed in by itself: the game opens on the character list, whose cursor is the login screen's, so a
+        // password asked for here would cover the game (the phone's report 174, 14 November 2026: "will ask").
+        if (activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_SIGNED_IN, false)) {
+            com.logie.blizz.game.GameLog.note("login: signed in by the game's start (Forever); nothing asked or typed")
+            for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
+            return
+        }
         val saved = activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD)?.let { pw -> account?.let { com.logie.blizz.wow.WowLogin.Login(it, pw) } }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         // A Legion client shows its window well before its login screen (it loads its data behind
