@@ -1,0 +1,162 @@
+From d6f29b0a7874618b9904cf14b4c82ac4e9f0fb8c Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 03:20:02 +0000
+Subject: [PATCH] Wrath++: standings kept as the game's client counts them, and
+ the world race's opening
+
+A stored standing is added by the client to its own (real) race's base: the bases are the real
+race's again (getRealRaceMask), and ReputationMgr::Reset sets each standing to the world race's
+starting one against that base, so a character made one of the Forsaken stands with Undercity as
+they do on both sides (Deathknell's people showed as enemies to an undead-skinned night elf). The
+default flags stay the world race's. The first login's cinematic is the world race's.
+---
+ src/server/game/Entities/Unit/Unit.h          |  2 +
+ src/server/game/Handlers/CharacterHandler.cpp |  3 +-
+ src/server/game/Reputation/ReputationMgr.cpp  | 60 +++++++++++++------
+ src/server/game/Reputation/ReputationMgr.h    |  7 ++-
+ 4 files changed, 50 insertions(+), 22 deletions(-)
+
+diff --git a/src/server/game/Entities/Unit/Unit.h b/src/server/game/Entities/Unit/Unit.h
+index 3ed86e814c..3657dc555e 100644
+--- a/src/server/game/Entities/Unit/Unit.h
++++ b/src/server/game/Entities/Unit/Unit.h
+@@ -843,6 +843,8 @@ public:
+     // mail), in place of the real one: a character made with an undead skin is the Forsaken's (mod-wrathpp-undead-start).
+     void SetWorldRace(uint8 race) { m_worldRace = race; }
+     [[nodiscard]] uint8 GetWorldRace() const { return m_worldRace ? m_worldRace : getRace(true); }
++    // Wrath++: the real race's mask, which the game's client adds a stored standing to (ReputationMgr's bases)
++    [[nodiscard]] uint32 getRealRaceMask() const { return 1 << (getRace(true) - 1); }
+     uint8 m_worldRace = 0;
+     [[nodiscard]] DisplayRace GetDisplayRaceFromModelId(uint32 modelId) const;
+     [[nodiscard]] DisplayRace GetDisplayRace() const { return GetDisplayRaceFromModelId(GetDisplayId()); };
+diff --git a/src/server/game/Handlers/CharacterHandler.cpp b/src/server/game/Handlers/CharacterHandler.cpp
+index d7123a9c50..451ad9dc19 100644
+--- a/src/server/game/Handlers/CharacterHandler.cpp
++++ b/src/server/game/Handlers/CharacterHandler.cpp
+@@ -889,7 +889,8 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
+         {
+             if (cEntry->CinematicSequence)
+                 pCurrChar->GetCinematicMgr().StartCinematic(cEntry->CinematicSequence);
+-            else if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(pCurrChar->getRace()))
++            // Wrath++: the world race's opening (SetWorldRace: a character made one of the Forsaken sees theirs)
++            else if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(pCurrChar->GetWorldRace()))
+                 pCurrChar->GetCinematicMgr().StartCinematic(rEntry->CinematicSequence);
+ 
+             // send new char string if not empty
+diff --git a/src/server/game/Reputation/ReputationMgr.cpp b/src/server/game/Reputation/ReputationMgr.cpp
+index 4c1c9eb659..f87e2a6862 100644
+--- a/src/server/game/Reputation/ReputationMgr.cpp
++++ b/src/server/game/Reputation/ReputationMgr.cpp
+@@ -88,13 +88,8 @@ int32 ReputationMgr::GetReputation(uint32 faction_id) const
+     return GetReputation(factionEntry);
+ }
+ 
+-int32 ReputationMgr::GetBaseReputation(FactionEntry const* factionEntry) const
++int ReputationMgr::GetBaseIndex(FactionEntry const* factionEntry, uint32 raceMask, uint32 classMask)
+ {
+-    if (!factionEntry)
+-        return 0;
+-
+-    uint32 raceMask = _player->getRaceMask();
+-    uint32 classMask = _player->getClassMask();
+     for (int i = 0; i < 4; i++)
+     {
+         if ((factionEntry->BaseRepRaceMask[i] & raceMask  ||
+@@ -102,9 +97,20 @@ int32 ReputationMgr::GetBaseReputation(FactionEntry const* factionEntry) const
+                  factionEntry->BaseRepClassMask[i] != 0)) &&
+                 (factionEntry->BaseRepClassMask[i] & classMask ||
+                  factionEntry->BaseRepClassMask[i] == 0))
+-
+-            return factionEntry->BaseRepValue[i];
++            return i;
+     }
++    return -1;
++}
++
++int32 ReputationMgr::GetBaseReputation(FactionEntry const* factionEntry) const
++{
++    if (!factionEntry)
++        return 0;
++
++    // Wrath++: the real race's base, as the game's client counts it (a stored standing is added to it there)
++    int i = GetBaseIndex(factionEntry, _player->getRealRaceMask(), _player->getClassMask());
++    if (i >= 0)
++        return factionEntry->BaseRepValue[i];
+ 
+     // in faction.dbc exist factions with (RepListId >=0, listed in character reputation list) with all BaseRepRaceMask[i] == 0
+     return 0;
+@@ -147,19 +153,35 @@ uint32 ReputationMgr::GetDefaultStateFlags(FactionEntry const* factionEntry) con
+     if (!factionEntry)
+         return 0;
+ 
+-    uint32 raceMask = _player->getRaceMask();
+-    uint32 classMask = _player->getClassMask();
+-    for (int i = 0; i < 4; i++)
+-    {
+-        if ((factionEntry->BaseRepRaceMask[i] & raceMask  ||
+-                (factionEntry->BaseRepRaceMask[i] == 0  &&
+-                 factionEntry->BaseRepClassMask[i] != 0)) &&
+-                (factionEntry->BaseRepClassMask[i] & classMask ||
+-                 factionEntry->BaseRepClassMask[i] == 0))
++    // Wrath++: the world race's (SetWorldRace): whom a character made one of another people knows and is at war with
++    int i = GetBaseIndex(factionEntry, _player->getRaceMask(), _player->getClassMask());
++    return i >= 0 ? factionEntry->ReputationFlags[i] : 0;
++}
+ 
+-            return factionEntry->ReputationFlags[i];
++void ReputationMgr::Reset()
++{
++    Initialize();
++    uint32 world = _player->getRaceMask();
++    if (world == _player->getRealRaceMask())
++        return;
++    // each standing set to the world race's starting one, stored against the real race's base
++    _visibleFactionCount = 0;
++    _honoredFactionCount = 0;
++    _reveredFactionCount = 0;
++    _exaltedFactionCount = 0;
++    for (auto& entry : _factions)
++    {
++        FactionState& state = entry.second;
++        FactionEntry const* factionEntry = sFactionStore.LookupEntry(state.ID);
++        if (!factionEntry)
++            continue;
++        int i = GetBaseIndex(factionEntry, world, _player->getClassMask());
++        int32 want = i >= 0 ? factionEntry->BaseRepValue[i] : 0;
++        state.Standing = want - GetBaseReputation(factionEntry);
++        if (state.Flags & FACTION_FLAG_VISIBLE)
++            ++_visibleFactionCount;
++        UpdateRankCounters(REP_HOSTILE, GetRank(factionEntry));
+     }
+-    return 0;
+ }
+ 
+ void ReputationMgr::SendForceReactions()
+diff --git a/src/server/game/Reputation/ReputationMgr.h b/src/server/game/Reputation/ReputationMgr.h
+index 99efbc5232..58edf399ee 100644
+--- a/src/server/game/Reputation/ReputationMgr.h
++++ b/src/server/game/Reputation/ReputationMgr.h
+@@ -119,8 +119,9 @@ public:                                                 // modifiers
+         return SetReputation(factionEntry, standing, true, noSpillOver, repMaxCap);
+     }
+ 
+-    // Wrath++: every faction back at the base standing of the player's race as it is now (SetWorldRace), as at creation.
+-    void Reset() { Initialize(); }
++    // Wrath++: every faction back at the standing the player's world race (SetWorldRace) starts with, as at creation.
++    // The stored standings stay counted from the real race's base, as the game's client counts them.
++    void Reset();
+     void SetVisible(FactionTemplateEntry const* factionTemplateEntry);
+     void SetVisible(FactionEntry const* factionEntry);
+     void SetAtWar(RepListID repListID, bool on);
+@@ -146,6 +147,8 @@ private:                                                // internal helper funct
+     void SetInactive(FactionState* faction, bool inactive) const;
+     void SendVisible(FactionState const* faction) const;
+     void UpdateRankCounters(ReputationRank old_rank, ReputationRank new_rank);
++    // Wrath++: a faction's base standing and flags for a race and class mask (the four rows of Faction.dbc)
++    static int GetBaseIndex(FactionEntry const* factionEntry, uint32 raceMask, uint32 classMask);
+ private:
+     Player* _player;
+     FactionStateList _factions;
+-- 
+2.43.0
+
