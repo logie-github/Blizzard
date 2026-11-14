@@ -10,7 +10,10 @@
 //     the Forsaken's line after them, Undercity's standing;
 //   * Deathknell: at its first login it is brought to the Forsaken's starting place and its hearthstone is set there
 //     (the Undead's playercreateinfo), its reputations are set again as the Forsaken's, and it learns Orcish and
-//     Gutterspeak, the Horde's and the Forsaken's tongues.
+//     Gutterspeak, the Horde's and the Forsaken's tongues; it sees the Forsaken's opening (the core patch 0003: the
+//     first login's cinematic by the world race);
+//   * its standings as its client counts them: the client adds a stored standing to its own race's base, so the
+//     standings are kept against the real race's base and set to the Forsaken's values (patch 0003's Reset).
 //
 // Which skins are undead: the server's own CharSections.dbc (DataDir/dbc, the looks' and the app's import), a skin row
 // whose texture's name says Undead (WrathppUndead.kt names them so). A race's own colours come first and the undead
@@ -20,6 +23,7 @@
 #include "Config.h"
 #include "Log.h"
 #include "Player.h"
+#include "DBCStores.h"
 #include "ReputationMgr.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
@@ -43,6 +47,7 @@ namespace
     constexpr uint32 kMap = 0, kZone = 85;
     constexpr float kX = 1676.71f, kY = 1678.31f, kZ = 121.67f, kO = 2.70526f;
     constexpr uint32 kUndercityFaction = 5;            // ChrRaces' faction template for the Undead
+    constexpr uint32 kUndercityRep = 68;               // Faction.dbc: Undercity
     constexpr uint32 kLanguageOrcish = 669, kLanguageGutterspeak = 17737;
 
     std::set<std::tuple<uint8, uint8, uint8>>& UndeadSkins()
@@ -119,7 +124,7 @@ public:
 class WrathppUndeadPlayerScript : public PlayerScript
 {
 public:
-    WrathppUndeadPlayerScript() : PlayerScript("WrathppUndeadPlayerScript", {PLAYERHOOK_ON_UPDATE_FACTION, PLAYERHOOK_ON_FIRST_LOGIN}) { }
+    WrathppUndeadPlayerScript() : PlayerScript("WrathppUndeadPlayerScript", {PLAYERHOOK_ON_UPDATE_FACTION, PLAYERHOOK_ON_FIRST_LOGIN, PLAYERHOOK_ON_LOGIN}) { }
 
     // Each time the character's faction is set from its race (as it is loaded): the Forsaken's.
     void OnPlayerUpdateFaction(Player* player) override
@@ -132,6 +137,23 @@ public:
             player->setTeamId(TEAM_HORDE);
             player->SetFaction(kUndercityFaction);
         }
+    }
+
+    // A character made before the standings were kept as the game's client counts them (patches/azerothcore/0003): its
+    // standings were stored against the Forsaken's base, its client added them to its own race's, and Undercity's and the
+    // Horde's people showed as enemies (the user's Deathknell, 14 November 2026). Set again as the Forsaken's, once: a
+    // character set right stands at least neutral with Undercity.
+    void OnPlayerLogin(Player* player) override
+    {
+        if (!WrathppIsEnabled() || !MadeUndead(player))
+            return;
+        FactionEntry const* undercity = sFactionStore.LookupEntry(kUndercityRep);
+        if (!undercity || player->GetReputationMgr().GetRank(undercity) > REP_HOSTILE)
+            return;
+        player->GetReputationMgr().Reset();
+        player->GetReputationMgr().SendInitialReputations();
+        LOG_INFO("module", "Wrath++: {} (an undead skin) had its standings counted from its race's own base: set again as the Forsaken's",
+            player->GetName());
     }
 
     // Brought to Deathknell, its hearthstone there, its standing the Forsaken's, the Horde's and the Forsaken's tongues.

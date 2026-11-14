@@ -868,12 +868,12 @@ def convert(files, policy, out_dir, log=print):
         ids = model.texture_ids
         return max(first, second) < len(ids) and ids[first] == ids[second] != 0
 
-    # The skin extra (3.3.5's texture type 8, a skin row's second texture, as its tauren's fur): a section drawn with
+    # The bony pieces (once on 3.3.5's skin extra, texture type 8; now a fixed file, below): a section drawn with
     # the body texture whose coordinates lie mostly where 3.3.5 composes the face (the left half's bottom: FaceUpper and
     # FaceLower) is today's art for parts the face never covers: the Forsaken's bony knees, elbows and spine, which drew
     # the face's and the eyes' colours there (the user: "fix all the undead actual undead knees because they're weird
-    # colors now instead of bony"). Such a section draws on the skin extra with its own coordinates; the skin extra is
-    # today's whole skin, each colour's own (textures.py).
+    # colors now instead of bony"). Such a section draws with its own coordinates on today's whole skin texture (the
+    # first colour's, textures.py), a texture of the model's own.
     extra_sections = set()
     for si, sec in enumerate(skin.sections if policy.get("skin_extra", True) else ()):
         if not any(b[3] == si and model.textures[model.texture_lookup[b[9]]][0] == BODY for b in skin.batches if b[9] < len(model.texture_lookup)):
@@ -905,10 +905,13 @@ def convert(files, policy, out_dir, log=print):
         elif str(kind) in hard:
             texture_index[i] = len(textures)
             textures.append((0, flags, hard[str(kind)]))
+    # The bony pieces' texture: the first skin colour's whole texture of today (textures.py writes it), a fixed file.
+    # It was the skin extra (texture type 8), which the game fills only for player characters: on every Forsaken
+    # creature it was empty and the bones drew bright green (the user's Deathknell pictures, 14 November 2026).
     extra_texture = None
     if extra_sections:
         extra_texture = len(textures)
-        textures.append((SKIN_EXTRA, 0, ""))
+        textures.append((0, 0, "%s\\%sSkin00_00_Extra.blp" % (folder, name)))
     glows = {}
 
     def glow_texture(b, s):
