@@ -230,6 +230,26 @@ class WrathppBodyTest {
         assertEquals(4 + 260, displays.size)
     }
 
+    @Test fun anOlderPackageOnThePhoneIsTakenOutAndCountsAsNone() {
+        val store = File(tmp.root, "store")
+        val client = game()
+        // what the held menu's body shapes left: their own store, a preset over the looks' model, the looks' own beside it
+        File(store, "files").mkdirs()
+        File(store, "files/wrathpp-body.json").writeText(JSONObject().put("format", 1).put("kind", "wrathpp-body").put("models", JSONArray()).toString())
+        File(store, WrathppBody.STAMP).writeText("abc\n")
+        val f = female(client)
+        File(f, "HumanFemale.m2").copyTo(File(f, "HumanFemale.m2.body-orig"))
+        File(f, "HumanFemale.m2").writeBytes(model(5, 9))
+        assertFalse(WrathppBody.installed(store))
+        assertTrue(WrathppBody.older(store))
+        assertTrue(WrathppBody.apply(store, client, server, data).startsWith("an older package"))
+        assertArrayEquals(looksModel, File(f, "HumanFemale.m2").readBytes())
+        assertFalse(File(f, "HumanFemale.m2.body-orig").exists())
+        // the new one found where downloads are is taken in by itself
+        assertEquals(2, WrathppBody.lookFor(store, bodyZip()))
+        assertTrue(WrathppBody.apply(store, client, server, data).startsWith("Human (1 shapes)"))
+    }
+
     @Test fun damagedForeignOrOlderPackagesAreRefusedAndTheStoreKept() {
         val store = File(tmp.root, "store")
         bodyZip().inputStream().use { WrathppBody.importZip(store, it) }

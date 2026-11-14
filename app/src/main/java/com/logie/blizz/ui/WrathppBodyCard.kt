@@ -64,6 +64,7 @@ internal fun WrathppBodyCard() {
             when {
                 working -> "Reading the package…"
                 installed -> "In: ${WrathppBody.races(store).joinToString(", ")}."
+                WrathppBody.older(store) -> "The package in is an older one (one shape for every woman): pick the new one. Until then every woman is as drawn."
                 found != null -> "Not in yet. Found ${found.name} in ${found.parentFile?.name ?: "storage"}."
                 ImportFinder.mayLook() -> "Not in yet, and no wrathpp-body.zip in Download, Documents or the top of the phone's storage: pick it."
                 else -> "Not in yet. Pick the package (the app may not look through the phone's files by itself)."
@@ -74,7 +75,7 @@ internal fun WrathppBodyCard() {
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (found != null && !installed) FrameButton("Use ${found.name}") { val file: File = found; take { file.inputStream() } }
                 FrameButton(if (installed) "Pick another" else "Pick the package", primary = found == null && !installed) { pick.launch(arrayOf("*/*")) }
-                if (installed) FrameButton("Remove", primary = false) { confirmRemove = true }
+                if (installed || WrathppBody.older(store)) FrameButton("Remove", primary = false) { confirmRemove = true }
             }
         }
     }

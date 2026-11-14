@@ -59,7 +59,11 @@ object WrathppBody {
 
     fun store(context: android.content.Context): File = File(context.applicationContext.filesDir, DIR)
     fun sha(store: File): String? = File(store, STAMP).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
-    fun installed(store: File): Boolean = sha(store) != null && File(store, "files/$LIST").isFile
+    /** A package of this format is in (an older one, the held menu's body shapes of before, counts as none: [older]). */
+    fun installed(store: File): Boolean = sha(store) != null && list(store)?.optInt("format") == 2
+
+    /** An older package (format 1: one preset for every woman) is what the phone has. */
+    fun older(store: File): Boolean = sha(store) != null && list(store)?.let { it.optInt("format") != 2 } == true
 
     /** The package's list, or null when nothing is imported. */
     fun list(store: File): JSONObject? = File(store, "files/$LIST").takeIf { it.isFile }?.let { runCatching { JSONObject(it.readText()) }.getOrNull() }
@@ -163,7 +167,7 @@ object WrathppBody {
         }
         takeOut(patch, serverDbc)
         stamps.forEach { it.delete() }
-        if (zipSha == null) return "none imported"
+        if (zipSha == null) return if (older(store)) "an older package (one shape for every woman): put the new one in (Settings, Wrath++, Body options)" else "none imported"
         val list = list(store) ?: return "none imported"
         val files = File(store, "files")
         val made = ArrayList<File>()
