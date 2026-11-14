@@ -146,7 +146,7 @@ said "it goes out when the phone is online" (the phone always is). Now:
   979 times, then the process ended with code 1 about 2 s after the start (phone reports 143, 144; rig: Legion Box64 under qemu).
   With the patch the loop is gone on the rig and Wow.exe keeps running. Not run on a phone; the build after this one carries the patched Box64.
 
-- **Box64's own log for Forever's client** (`WindowsRuntime`: Winlator's `box64_logs` = 2 while the Forever client runs, off for the other games): handled faults, opcodes the recompiler lacks, library lookups, into the run log. Build 262's phone report showed Wow.exe running ~7 s (672 MB) and gone, with Wine saying only "Bad address".
+- **Box64's own log for Forever's client is off again** (`WindowsRuntime`: `box64_logs` = 0 for every game). At level 2 it wrote a register dump for each of the thousands of faults the game's start-up protection makes and handles, and on the phone the game then drew no window in two and a half minutes (report 178, 14 November 2026: the same start as on the rig, about 25 times slower, then nothing). For the same start, Microsoft Edge's updater, left in the games' Windows by an earlier version's browser runtime and started by Wine's services two minutes in, is deleted at each Forever start, and `forevergo.exe` reads nothing of the game's memory until the game has a window (the realm-key table is made only later, as the game connects to the realm).
 
 - **Box64 patch 0003: the game's reads no longer fail with "Bad address"** (`patches/box64/0003-*.patch`). Build 264's report (#147, with Box64's
   own log) shows Wow.exe past the first fault loop, then Wine's `read: Bad address` on three threads and the program gone about two seconds

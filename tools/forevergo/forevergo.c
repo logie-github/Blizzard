@@ -337,6 +337,23 @@ static BOOL CALLBACK press_enter(HWND hwnd, LPARAM lparam)
     return FALSE;
 }
 
+/* Whether the game [pid] has a visible top-level window (its own, not a dialog's owner chain). */
+static BOOL CALLBACK has_window(HWND hwnd, LPARAM lparam)
+{
+    DWORD owner = 0;
+    GetWindowThreadProcessId(hwnd, &owner);
+    if (owner == ((DWORD *)lparam)[0] && IsWindowVisible(hwnd) && !GetWindow(hwnd, GW_OWNER)) { ((DWORD *)lparam)[1] = 1; return FALSE; }
+    return TRUE;
+}
+
+static int game_window(DWORD pid)
+{
+    DWORD args[2];
+    args[0] = pid; args[1] = 0;
+    EnumWindows(has_window, (LPARAM)args);
+    return args[1] != 0;
+}
+
 /* One run of the game: record 8 of its key table kept at the realm's key until it ends or [outer] does. */
 static void keep_key(HANDLE game, DWORD pid, HANDLE outer)
 {
@@ -344,8 +361,8 @@ static void keep_key(HANDLE game, DWORD pid, HANDLE outer)
     ULONG_PTR known = 0, found[8];
     DWORD regions, started = GetTickCount(), last_scan = 0, interval = 150, code = 0;
     SIZE_T bytes;
-    int scans = 0, reported_none = 0, ever = 0, presses = 0;
-    DWORD found_at = 0;
+    int scans = 0, ever = 0, presses = 0, windowed = 0;
+    DWORD found_at = 0, beat = GetTickCount();
 
     both[0] = game; both[1] = outer;
     while (WaitForMultipleObjects(2, both, FALSE, known ? 250 : 100) == WAIT_TIMEOUT) {
@@ -367,6 +384,17 @@ static void keep_key(HANDLE game, DWORD pid, HANDLE outer)
             note("key table at %p gone (state %d); looking again", (void *)known, state);
             known = 0;
         }
+        /* The table is made only as the game connects to the realm, after its window is up. Reading the game's memory
+           before then only costs it: on the phone (report 178, 14 November 2026) the game stopped growing and drew no
+           window while this program read its gigabyte, where Wine may stop a process to read it. */
+        if (!windowed) {
+            if (!game_window(pid)) {
+                if (GetTickCount() - beat >= 30000) { beat = GetTickCount(); note("waiting for the game's window (%lu s)", (GetTickCount() - started) / 1000); }
+                continue;
+            }
+            windowed = 1;
+            note("game window up after %lu s; looking for the key table", (GetTickCount() - started) / 1000);
+        }
         if (GetTickCount() - last_scan < interval) continue;
         {
             DWORD t0 = GetTickCount(), took;
@@ -384,9 +412,8 @@ static void keep_key(HANDLE game, DWORD pid, HANDLE outer)
                 } else note("table at %p could not be written (%lu)", (void *)found[0], GetLastError());
             } else if (count > 1) {
                 note("%d key tables found; none changed", count);
-            } else if (!reported_none || scans % 40 == 0) {
+            } else if (scans <= 5 || scans % 40 == 0) {
                 note("no key table yet (scan %d: %lu regions, %lu MB, %lu ms)", scans, regions, (DWORD)(bytes >> 20), took);
-                reported_none = 1;
             }
             /* A scan costs; while none is found, look less often as time goes on (at most every 2 s). */
             if (!known && interval < 2000) interval += 50;

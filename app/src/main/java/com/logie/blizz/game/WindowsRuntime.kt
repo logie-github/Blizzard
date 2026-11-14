@@ -169,6 +169,9 @@ object WindowsRuntime {
                 // The realm's name in Windows' hosts file (the game's portal), and the silent sign-in ([ForeverGo]):
                 // forevergo.exe, the CA and the ticket Play signed in with, so the game starts signed in with the realm's key.
                 runCatching { com.logie.blizz.forever.ForeverLauncher.seedHosts(driveC) }
+                // Microsoft Edge's updater, which an earlier version's browser runtime left: Wine's services start it some two
+                // minutes into the game and it competes with the game's start (report 178). Nothing uses it now.
+                runCatching { File(driveC, "Program Files (x86)/Microsoft/EdgeUpdate").deleteRecursively() }
                 foreverGo = com.logie.blizz.forever.ForeverGo.pending?.let { (account, ticket) ->
                     runCatching { com.logie.blizz.forever.ForeverGo.prepare(context, container.rootDir, layout.caFile, account, ticket) }
                         .onFailure { GameLog.note("forever: sign-in not put in place: ${it.message}") }.getOrDefault(false)
@@ -190,7 +193,10 @@ object WindowsRuntime {
             .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll")
             // Box64's own word for Forever's client (the faults it handled, what it could not run; Winlator's "log level 2"): the game's
             // program ended seven seconds after it began on the phone of 14 November 2026 with Wine saying only "Bad address".
-            .putInt("box64_logs", if (foreverClient) 2 else 0).apply()
+            // Box64's own log off again for Forever: at level 2 it wrote a register dump for each of the thousands of faults
+            // the game's start-up protection makes and handles, which slowed the start until the game drew no window in
+            // two and a half minutes (the phone's report 178, 14 November 2026).
+            .putInt("box64_logs", 0).apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
         com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion || foreverClient) LegionClientSetup.BOX64 else "default"}, silent sign-in $foreverGo")
