@@ -99,6 +99,61 @@ title (what Wrath++'s game was started with) went through once a day and said no
 a crash of Wrath++'s game read from its runtime's log, are sent each time they have something new to say (`submit`, not
 the once-a-day rule; the Wrath++ section says when).
 
+**The logs (14 November 2026).** A report used to carry the end of an in-memory log, which is gone when the system ends the app, and
+said "it goes out when the phone is online" (the phone always is). Now:
+
+- **A log file for each run** (`files/logs-app/run-<start>.log`, `reports/SessionLog.kt`): a line each, with its time (UTC, to the
+  millisecond) and kind: `app` (what the app decided), `forever`/`windows` (Play's steps, with seconds), `wine` (Wine's and Box64's
+  lines), `lib` (libraries loaded, shortened), `keeper` (the Windows session's keeper, copied in as it writes, its own file is made
+  anew at each start), `res` (below), `exit`, `report`, `log`. Written straight to the file, no buffer to lose; rolled over at
+  2 MB (two parts kept), the newest six runs kept; keys and tokens are taken out as lines are written.
+- **Less noise.** Wine's thread-naming traces (`code=406d1388`, every thread .NET starts), its module listings (`EnumProcessModulesEx`,
+  three a second) and any message repeated (a line's first three times pass, then it is counted: "the same kind of line 100
+  times so far", and the totals when the game screen closes) are left out; they were most of a report (`RepeatLimiter`, `GameLog.noise`).
+- **The phone's own word** (`reports/Diagnostics.kt`). While anything of the app's runs besides the app (Wine's programs, the
+  realm's servers) or a game is up, a `res` line every 5 s for the first three minutes and every 20 s after: free memory and
+  swap, low-memory flag, the app's size, the number and size of the app's processes with the five biggest by name, heat and
+  battery; programs appearing and ending are written as they are seen (`+ Wow.exe (pid, MB, threads)`, `- Wow.exe (last seen
+  MB)`), and the system's calls to give memory back (`onTrimMemory`) and heat changes as they come. Android lets an app see only
+  its own processes, which is exactly this set. A game that vanishes on the phone can be the system ending it for memory or heat,
+  and Wine's output says nothing of that (reports 95, 108, 122).
+- **Why the last run ended** (`ExitReasons`, API 30+): at each start the system's record of how the app's processes ended
+  (`ApplicationExitInfo`) is written to the log, and an end the system caused (low memory, a signal, a native crash, a hang,
+  too much resource use) is reported by itself, with the end of the log of the run that ended. Looked at once.
+- **A report that explains a run carries it all** (`attach`): the phone just now (the sample, free storage, the processes, the
+  last sends) in the issue, and, as comments in order, the run's log (the last 180 KB) and Android's own log of this app
+  (`logcat`, warnings and up: a native crash's "Fatal signal"). GitHub refuses text over 65,536 characters and the sender used to
+  drop such a report as if it had gone; long text now goes as comments, each labelled "part k of n", and where a send got to
+  (the issue opened, how many comments) is kept in its file, so a retry goes on and nothing is posted twice. A body GitHub
+  refuses for size is sent once more cut short. Used by Forever's reports (a failed Play, a stop, the game's program ending),
+  crashes (the run's log is written in as the app goes), the game menus' "Send report" and Settings' new **Reports** card.
+- **The reports tell the truth.** The game menus' "Send report" was dropped silently when the same report had gone that day and
+  still said "Report sent"; it is always sent now (`force`), says "Sending the report…", then "Report sent: issue #12", or why
+  not (no connection, GitHub's answer, no token). Settings' **Reports** card shows how many wait and the last five results
+  (`reports/history.log`: time, SENT/RETRY/REFUSED, issue, code, title, reason), and **Send the log now** sends the run's log
+  and the phone's state at any time, from the launcher.
+
+- **The realm's own logs no longer end the app** (`forever/LogScan.kt`). Waiting for the world server to say it is ready read its whole
+  log into memory every second; one start writes about 150 MB, and Android refused the 268 MB that needed (report #143: "Failed to
+  allocate a 268501002 byte allocation"). It now reads only what was added since the last look, in 1 MB pieces, keeping the last 512
+  bytes so a line cut between two reads still matches, and starts from the beginning when the log was started again. At each realm
+  start the logs the servers append to (`DBErrors.log` had reached 150 MB, `Server.log`, `Bnet.log`, `GM.log`) are cut to their last
+  1 MB when over 8 MB. A failed one-shot command reports its last line from the end of its log, not the whole file.
+
+- **Box64 patch 0002: Wow.exe no longer loops on its first page fault** (`patches/box64/0002-*.patch`). Wow.exe sets its code pages to
+  no access and handles the faults itself. Box64 reported an instruction that runs into such a page (its fetch of the last bytes
+  fails) as a plain read, not as an instruction fetch (page fault error 0x14), so the program did not recognise its own fault and took it
+  979 times, then the process ended with code 1 about 2 s after the start (phone reports 143, 144; rig: Legion Box64 under qemu).
+  With the patch the loop is gone on the rig and Wow.exe keeps running. Not run on a phone; the build after this one carries the patched Box64.
+
+- **Box64's own log for Forever's client** (`WindowsRuntime`: Winlator's `box64_logs` = 2 while the Forever client runs, off for the other games): handled faults, opcodes the recompiler lacks, library lookups, into the run log. Build 262's phone report showed Wow.exe running ~7 s (672 MB) and gone, with Wine saying only "Bad address".
+
+Tested: `SessionLogTest` (file, roll-over, prune, the last run's end, noise, limiter), `DiagnosticsTest` (the `/proc` readers on
+this machine's real files, the sample line, processes coming and going, exit reasons), `BugReportsLongTest` (a fake GitHub that
+fails halfway, size refusals, forced reports, chunks), `ReportAttachTest` (the real path with Robolectric: the run's log and the
+phone's state in a queued report, keys out, an exit reason read and reported once), `LogScanTest` (a match cut between two reads, a log started again, a 40 MB log read in pieces, trimming). Not run on a phone: what the phone's `/proc`,
+`logcat` and `ApplicationExitInfo` give there.
+
 **An app update's download carries on from where it stopped.** The update (about 260 MB) is fetched in the background
 when the app comes to the front; a connection that drops or times out is opened again for the rest of the file (an
 HTTP range request), as long as each try brings more, and what arrived is kept for the next check under the build's

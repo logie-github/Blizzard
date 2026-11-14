@@ -746,12 +746,12 @@ class WowGestureView(
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { onLeave.run() },
         onReport = {
-            com.logie.blizz.reports.BugReports.report(
-                activity.applicationContext, "World of Warcraft in-game report", "Sent from the game menu",
+            com.logie.blizz.reports.BugReports.reportTelling(
+                activity,
+                "World of Warcraft in-game report", "Sent from the game menu",
                 listOf("Game" to "wow-client", "Device" to Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
                 log = com.logie.blizz.game.GameLog.snapshot().ifEmpty { null },
             )
-            android.widget.Toast.makeText(activity, "Report sent (it goes out when the phone is online).", android.widget.Toast.LENGTH_LONG).show()
         },
     )
 

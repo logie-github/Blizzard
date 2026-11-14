@@ -1,0 +1,1 @@
+Reports now say whether they were sent and under which issue, and carry the whole run's log with the phone's memory and why the app last ended, so a game that closes by itself can be explained; Settings has a Reports card with a Send the log button.

@@ -24,7 +24,10 @@ object GameLog {
 
     private val callback = Callback<String> { line: String -> take(line) }
 
-    /** One line of the programs' output, into its place. */
+    /** What repeats, said a few times and then counted ([RepeatLimiter]). */
+    private val repeats = com.logie.blizz.reports.RepeatLimiter()
+
+    /** One line of the programs' output, into its place (and into the run's log file, [com.logie.blizz.reports.SessionLog]). */
     internal fun take(line: String) {
         if (fault == null && line.contains("Unhandled ") && line.contains("wine")) fault = line.trim().take(200)
         if (line.contains(":loaddll:")) {
@@ -32,10 +35,15 @@ object GameLog {
                 if (loaded.size >= MAX_LOADED) loaded.removeFirst()
                 loaded.addLast(line.take(300))
             }
+            com.logie.blizz.reports.SessionLog.event("lib", com.logie.blizz.reports.LibLines.compact(line))
         } else synchronized(lines) {
             if (!noise(line)) {
-                if (lines.size >= MAX) lines.removeFirst()
-                lines.addLast(line.take(300))
+                val admitted = repeats.admit(line)
+                if (admitted != null) {
+                    if (lines.size >= MAX) lines.removeFirst()
+                    lines.addLast(admitted.take(300))
+                    com.logie.blizz.reports.SessionLog.event("wine", admitted)
+                }
             }
         }
     }
@@ -51,8 +59,11 @@ object GameLog {
     internal fun noise(line: String): Boolean {
         val at = line.indexOf(":trace:seh:")
         if (at < 0) return false
+        // .NET asks for a process's modules over and over (three times a second in the phone's reports): never of use.
+        if (line.contains(":EnumProcessModulesEx ")) return true
         val thread = line.substring(0, at)
-        if (line.contains(" code=")) { if (line.contains("code=80000026")) unwinding += thread else unwinding -= thread }
+        // A longjmp's trace (Diablo II), and a thread being named (`code=406d1388`, every thread .NET starts): neither is a fault.
+        if (line.contains(" code=")) { if (line.contains("code=80000026") || line.contains("code=406d1388")) unwinding += thread else unwinding -= thread }
         return thread in unwinding
     }
 
@@ -64,12 +75,21 @@ object GameLog {
     fun start() {
         startedAt = System.currentTimeMillis()
         clear()
+        com.logie.blizz.reports.SessionLog.event("game", "game screen opened: a session starts")
         ProcessHelper.addDebugCallback(callback)
+    }
+
+    /** The game screen is gone: what repeated and how often, and Wine's word of a fault, go into the run's log. */
+    fun finish() {
+        val totals = synchronized(lines) { repeats.totals() }
+        if (totals.isNotEmpty()) com.logie.blizz.reports.SessionLog.event("wine", "repeated lines, counted instead of written:\n" + totals.joinToString("\n"))
+        fault?.let { com.logie.blizz.reports.SessionLog.event("wine", "first fault Wine reported: $it") }
+        com.logie.blizz.reports.SessionLog.event("game", "game screen closed")
     }
 
     /** A new session: nothing of the last one's. */
     internal fun clear() {
-        synchronized(lines) { lines.clear(); unwinding.clear() }
+        synchronized(lines) { lines.clear(); unwinding.clear(); repeats.clear() }
         synchronized(loaded) { loaded.clear() }
         synchronized(notes) { notes.clear() }
         fault = null
@@ -83,6 +103,7 @@ object GameLog {
             if (notes.size >= 120) notes.removeFirst()
             notes.addLast("[app] " + text.take(300))
         }
+        com.logie.blizz.reports.SessionLog.event("app", text)
     }
 
     /**

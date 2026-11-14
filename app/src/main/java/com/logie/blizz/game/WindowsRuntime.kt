@@ -115,6 +115,7 @@ object WindowsRuntime {
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
 
         _state.value = State.Preparing(Step.RUNTIME, 0f, WowPlay.splashIdOf(entry))
+        com.logie.blizz.reports.SessionLog.event("windows", "run: ${entry.gameId} ${entry.title} (${entry.clientVersion ?: "-"}), ${entry.executable}, window ${size.first}x${size.second}")
         val installed = withContext(Dispatchers.IO) {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
@@ -184,6 +185,7 @@ object WindowsRuntime {
                     runCatching {
                         if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
                             _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
+                            com.logie.blizz.reports.SessionLog.event("windows", ".NET runtime (wine-mono) not in place: downloading")
                             com.logie.blizz.forever.WineMono.ensure(driveC) { done, total ->
                                 _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
                             }
@@ -205,9 +207,13 @@ object WindowsRuntime {
         }
         // Wine's errors, its exception trace (seh: what faulted, where, which handler ran) and the libraries it loads, kept for the reports ([GameLog]).
         android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
-            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll").apply()
+            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll")
+            // Box64's own word for Forever's client (the faults it handled, what it could not run; Winlator's "log level 2"): the game's
+            // program ended seven seconds after it began on the phone of 14 November 2026 with Wine saying only "Bad address".
+            .putInt("box64_logs", if (foreverClient) 2 else 0).apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
+        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion || foreverClient) LegionClientSetup.BOX64 else "default"}, launcher phase $foreverLauncher")
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
