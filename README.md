@@ -148,6 +148,13 @@ said "it goes out when the phone is online" (the phone always is). Now:
 
 - **Box64's own log for Forever's client** (`WindowsRuntime`: Winlator's `box64_logs` = 2 while the Forever client runs, off for the other games): handled faults, opcodes the recompiler lacks, library lookups, into the run log. Build 262's phone report showed Wow.exe running ~7 s (672 MB) and gone, with Wine saying only "Bad address".
 
+- **Box64 patch 0003: the game's reads no longer fail with "Bad address"** (`patches/box64/0003-*.patch`). Build 264's report (#147, with Box64's
+  own log) shows Wow.exe past the first fault loop, then Wine's `read: Bad address` on three threads and the program gone about two seconds
+  after it began. Box64 write-protects pages that hold translated code; a `read()` into such a page cannot raise the signal that lifts the
+  protection and the kernel answers EFAULT. Box64's `read` now lifts the protection and reads again. The same "Bad address" shows on the
+  rig (the phone's Box64 under qemu, qemu's syscall trace: `write` of 16 bytes to the request pipe, then the reply read fails). With the patch the
+  rig run was too slow to reach that point again in 7 minutes, so the effect is not seen there; not run on a phone.
+
 Tested: `SessionLogTest` (file, roll-over, prune, the last run's end, noise, limiter), `DiagnosticsTest` (the `/proc` readers on
 this machine's real files, the sample line, processes coming and going, exit reasons), `BugReportsLongTest` (a fake GitHub that
 fails halfway, size refusals, forced reports, chunks), `ReportAttachTest` (the real path with Robolectric: the run's log and the
