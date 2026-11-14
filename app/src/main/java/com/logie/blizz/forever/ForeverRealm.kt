@@ -51,6 +51,8 @@ object ForeverRealm {
     /** Whether the server package is unpacked and ready to run. */
     fun installed(context: Context) = ForeverLayout.of(context).ctl.isFile
 
+    private val TRIMMED = listOf("DBErrors", "Server", "Bnet", "GM")
+
     /** The world server has reached "ready" (printed when the realm is up). */
     private val ready = Regex("""World initialized in|\(worldserver-daemon\) ready""")
 
@@ -67,6 +69,8 @@ object ForeverRealm {
             try {
                 runner.endLeftovers(layout.wowLayout, ForeverCtl.PID_FILES)
                 ForeverCtl.makeExecutable(layout)
+                // (the logs the servers add to grow with every start: DBErrors.log reached 150 MB)
+                for (name in TRIMMED) LogScan.trim(layout.log(name))
 
                 run(layout, "configure")
 
@@ -147,7 +151,7 @@ object ForeverRealm {
         val process = runner.start(ForeverCtl.command(layout, *args), log, false)
         if (!process.waitFor(20 * 60_000L)) { process.destroyForcibly(); throw IllegalStateException("'${args.first()}' timed out") }
         if (process.exitValue() != 0) {
-            val reason = runCatching { log.readLines().lastOrNull { it.isNotBlank() }?.trim() }.getOrNull()
+            val reason = ForeverCtl.lastLine(log, 300)
             throw IllegalStateException(reason ?: "'${args.first()}' failed (see logs/${args.first()}.log)")
         }
     }
@@ -163,11 +167,11 @@ object ForeverRealm {
     }
 
     private fun awaitWorld(layout: ForeverLayout) {
-        val log = layout.log("worldserver")
+        val scan = LogScan(layout.log("worldserver"), ready)
         val deadline = System.currentTimeMillis() + 20 * 60_000L
         while (System.currentTimeMillis() < deadline) {
             if (world?.isAlive != true) throw IllegalStateException("The world server stopped (see logs/worldserver.log)")
-            if (runCatching { log.readText() }.getOrDefault("").let(ready::containsMatchIn)) return
+            if (scan.found()) return
             Thread.sleep(1_000)
         }
         throw IllegalStateException("The world server didn't reach ready")

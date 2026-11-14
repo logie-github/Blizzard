@@ -133,10 +133,17 @@ said "it goes out when the phone is online" (the phone always is). Now:
   (`reports/history.log`: time, SENT/RETRY/REFUSED, issue, code, title, reason), and **Send the log now** sends the run's log
   and the phone's state at any time, from the launcher.
 
+- **The realm's own logs no longer end the app** (`forever/LogScan.kt`). Waiting for the world server to say it is ready read its whole
+  log into memory every second; one start writes about 150 MB, and Android refused the 268 MB that needed (report #143: "Failed to
+  allocate a 268501002 byte allocation"). It now reads only what was added since the last look, in 1 MB pieces, keeping the last 512
+  bytes so a line cut between two reads still matches, and starts from the beginning when the log was started again. At each realm
+  start the logs the servers append to (`DBErrors.log` had reached 150 MB, `Server.log`, `Bnet.log`, `GM.log`) are cut to their last
+  1 MB when over 8 MB. A failed one-shot command reports its last line from the end of its log, not the whole file.
+
 Tested: `SessionLogTest` (file, roll-over, prune, the last run's end, noise, limiter), `DiagnosticsTest` (the `/proc` readers on
 this machine's real files, the sample line, processes coming and going, exit reasons), `BugReportsLongTest` (a fake GitHub that
 fails halfway, size refusals, forced reports, chunks), `ReportAttachTest` (the real path with Robolectric: the run's log and the
-phone's state in a queued report, keys out, an exit reason read and reported once). Not run on a phone: what the phone's `/proc`,
+phone's state in a queued report, keys out, an exit reason read and reported once), `LogScanTest` (a match cut between two reads, a log started again, a 40 MB log read in pieces, trimming). Not run on a phone: what the phone's `/proc`,
 `logcat` and `ApplicationExitInfo` give there.
 
 **An app update's download carries on from where it stopped.** The update (about 260 MB) is fetched in the background
