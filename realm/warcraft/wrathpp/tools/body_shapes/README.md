@@ -1,6 +1,7 @@
 # Body shapes (Wrath++)
 
-Makes `wrathpp-body.zip`, the body presets the app imports (`WrathppBody`, the held menu's **Body shapes (Wrath++)**).
+Makes `wrathpp-body.zip`, the body options package the app imports (`WrathppBody`, Settings' Wrath++ page, **Body
+options**; the options themselves are each woman's, on the creator's Body tab: the main README, "Body options").
 The zip is the user's own; it is never in the app, the repository or a release. Nothing of Blizzard's is in it but
 vertex data and a skin made from the looks' own model.
 
@@ -13,9 +14,18 @@ vertex data and a skin made from the looks' own model.
    the shape's tip) and exports each preset's rest positions and texture coordinates.
 3. `presets.py`: those written into the refined model's vertices (other pieces at the same places moved with them,
    normals turned by how much the shape turned the surface).
-4. `pack.py`: the zip: `wrathpp-body.json`, the refined skin and one vertex block per preset, per race, named for the
-   SHA-256 of the looks' model they were made from. The app puts a block at the end of that model and points its header
-   at it; a model of other looks is left as drawn.
+4. `pack.py`: the format 1 zip (the refined skin and one vertex block per preset), which `pack2.py` reads.
+5. `layer.py`: the body layer over a model (a skin section of its own, geoset 1901, its vertices the body's own lifted
+   0.4 mm; one batch, the character's hair texture times the display's design: the module's docstring has how the game
+   draws it), the room for its indices made by `refine.py`'s `reserve`.
+6. `masks.py`: the designs, one texture a style and density, from the design maps (yours, never in the repository).
+7. `pack2.py OUT.zip LOOKS_CLIENT_DIR RACES.json MAPS_DIR [SHAPES_V1.zip]`: the package (format 2): per race the looks'
+   own model with the layer, the body shapes' models where the format 1 zip has them (their three skins one), each a
+   patch of the looks' model (its header and what follows its end, checked by both SHA-256s), and the designs.
+   RACES.json: per race its scale, fold height, body sections and hair patch (`layer.py`).
+8. `check.py PACKAGE.zip LOOKS_CLIENT_DIR`: every model the package makes checked as the 3.3.5 client loads it (the
+   header's arrays and texture names in the file, the combiner list, the skin's arrays, each section's vertices, indices
+   and bones, each batch's references, the 16-bit section starts, the layer's batch and section).
 
-Races done: Human (14 November 2026). Each race is checked by rendering the very files the app makes with
+Body shapes done: Human (14 November 2026). The layer: all ten races. Each race is checked by rendering the very files the app makes with
 `modules/mod-allied-races/tools/render_m2.py` (standing and running) before it goes into the zip.

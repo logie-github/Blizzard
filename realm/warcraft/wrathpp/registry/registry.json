@@ -1,8 +1,19 @@
 {
   "schema": 1,
-  "version": 1,
+  "version": 2,
   "comment": "Wrath++ customization registry. Engineering seed for the first vertical slice (docs/wrathpp/MILESTONES.md, phase 3): two geoset categories of Legion 7.3.5's demon hunter looks. Every geoset group and option count here is UNVERIFIED until tools/legion_inventory.py has read the user's own 7.3.5 tables and tools/probe_geosets.py the Wrath++ client's models (docs/wrathpp/LEGION_OPTIONS_735.md). Stable ids: never reuse a category or option id for another look.",
-  "classes": {"warrior": 1, "paladin": 2, "hunter": 3, "rogue": 4, "priest": 5, "death_knight": 6, "shaman": 7, "mage": 8, "warlock": 9, "druid": 11},
+  "classes": {
+    "warrior": 1,
+    "paladin": 2,
+    "hunter": 3,
+    "rogue": 4,
+    "priest": 5,
+    "death_knight": 6,
+    "shaman": 7,
+    "mage": 8,
+    "warlock": 9,
+    "druid": 11
+  },
   "categories": [
     {
       "id": 1002,
@@ -11,16 +22,51 @@
       "kind": "geoset",
       "geoset_group": 24,
       "default": 1,
-      "legion": {"classes": ["demon_hunter"], "races": ["blood_elf", "night_elf"], "verified": false},
+      "legion": {
+        "classes": [
+          "demon_hunter"
+        ],
+        "races": [
+          "blood_elf",
+          "night_elf"
+        ],
+        "verified": false
+      },
       "wrathpp_class_rule": "every class: Wrath++ has no demon hunter class (a separate project); the look alone is offered",
       "eligibility": [
-        {"race": 10, "sexes": ["male", "female"], "classes": []},
-        {"race": 4, "sexes": ["male", "female"], "classes": []}
+        {
+          "race": 10,
+          "sexes": [
+            "male",
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 4,
+          "sexes": [
+            "male",
+            "female"
+          ],
+          "classes": []
+        }
       ],
       "options": [
-        {"id": 1, "value": 1, "name": "None"},
-        {"id": 2, "value": 2, "name": "Horns 1"},
-        {"id": 3, "value": 3, "name": "Horns 2"}
+        {
+          "id": 1,
+          "value": 1,
+          "name": "None"
+        },
+        {
+          "id": 2,
+          "value": 2,
+          "name": "Horns 1"
+        },
+        {
+          "id": 3,
+          "value": 3,
+          "name": "Horns 2"
+        }
       ]
     },
     {
@@ -30,15 +76,422 @@
       "kind": "geoset",
       "geoset_group": 25,
       "default": 1,
-      "legion": {"classes": ["demon_hunter"], "races": ["blood_elf", "night_elf"], "verified": false},
+      "legion": {
+        "classes": [
+          "demon_hunter"
+        ],
+        "races": [
+          "blood_elf",
+          "night_elf"
+        ],
+        "verified": false
+      },
       "wrathpp_class_rule": "every class: Wrath++ has no demon hunter class (a separate project); the look alone is offered",
       "eligibility": [
-        {"race": 10, "sexes": ["male", "female"], "classes": []},
-        {"race": 4, "sexes": ["male", "female"], "classes": []}
+        {
+          "race": 10,
+          "sexes": [
+            "male",
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 4,
+          "sexes": [
+            "male",
+            "female"
+          ],
+          "classes": []
+        }
       ],
       "options": [
-        {"id": 1, "value": 1, "name": "None"},
-        {"id": 2, "value": 2, "name": "Blindfold 1"}
+        {
+          "id": 1,
+          "value": 1,
+          "name": "None"
+        },
+        {
+          "id": 2,
+          "value": 2,
+          "name": "Blindfold 1"
+        }
+      ]
+    },
+    {
+      "id": 1101,
+      "key": "BODY_SHAPE",
+      "name": "Shape",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own body options (README, Body options on Wrath++): the realm's module turns a character's three choices into its display (its model and the layer's design texture); nothing for the client's renderer to draw",
+      "eligibility": [
+        {
+          "race": 1,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 2,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 3,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 5,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 6,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 7,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 8,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 11,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "value": 0,
+          "name": "As drawn"
+        },
+        {
+          "id": 2,
+          "value": 1,
+          "name": "Petite"
+        },
+        {
+          "id": 3,
+          "value": 2,
+          "name": "Curvy"
+        },
+        {
+          "id": 4,
+          "value": 3,
+          "name": "Voluptuous"
+        }
+      ]
+    },
+    {
+      "id": 1102,
+      "key": "BODY_STYLE",
+      "name": "Style",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own body options (README, Body options on Wrath++): the realm's module turns a character's three choices into its display (its model and the layer's design texture); nothing for the client's renderer to draw",
+      "eligibility": [
+        {
+          "race": 1,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 2,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 3,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 5,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 6,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 7,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 8,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 11,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "value": 0,
+          "name": "None"
+        },
+        {
+          "id": 2,
+          "value": 1,
+          "name": "1"
+        },
+        {
+          "id": 3,
+          "value": 2,
+          "name": "2"
+        },
+        {
+          "id": 4,
+          "value": 3,
+          "name": "3"
+        },
+        {
+          "id": 5,
+          "value": 4,
+          "name": "4"
+        },
+        {
+          "id": 6,
+          "value": 5,
+          "name": "5"
+        },
+        {
+          "id": 7,
+          "value": 6,
+          "name": "6"
+        },
+        {
+          "id": 8,
+          "value": 7,
+          "name": "7"
+        },
+        {
+          "id": 9,
+          "value": 8,
+          "name": "8"
+        },
+        {
+          "id": 10,
+          "value": 9,
+          "name": "9"
+        },
+        {
+          "id": 11,
+          "value": 10,
+          "name": "10"
+        },
+        {
+          "id": 12,
+          "value": 11,
+          "name": "11"
+        },
+        {
+          "id": 13,
+          "value": 12,
+          "name": "12"
+        },
+        {
+          "id": 14,
+          "value": 13,
+          "name": "13"
+        },
+        {
+          "id": 15,
+          "value": 14,
+          "name": "14"
+        },
+        {
+          "id": 16,
+          "value": 15,
+          "name": "15"
+        },
+        {
+          "id": 17,
+          "value": 16,
+          "name": "16"
+        }
+      ]
+    },
+    {
+      "id": 1103,
+      "key": "BODY_DENSITY",
+      "name": "Density",
+      "kind": "texture_layer",
+      "default": 5,
+      "origin": "Wrath++'s own body options (README, Body options on Wrath++): the realm's module turns a character's three choices into its display (its model and the layer's design texture); nothing for the client's renderer to draw",
+      "eligibility": [
+        {
+          "race": 1,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 2,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 3,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 5,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 6,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 7,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 8,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 11,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "value": 0,
+          "name": "None"
+        },
+        {
+          "id": 2,
+          "value": 1,
+          "name": "25%"
+        },
+        {
+          "id": 3,
+          "value": 2,
+          "name": "50%"
+        },
+        {
+          "id": 4,
+          "value": 3,
+          "name": "75%"
+        },
+        {
+          "id": 5,
+          "value": 4,
+          "name": "100%"
+        }
       ]
     }
   ]

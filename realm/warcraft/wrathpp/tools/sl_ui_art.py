@@ -263,6 +263,18 @@ def package(csv_dir, cache, out_dir):
             if mine(name):
                 put(name + "." + kind, masked(piece, mask, bw, bh, inset), m["size"])
 
+    # the Body tab's own picture, a woman's torso on the Face picture's disc (body_icon.py), chosen and not
+    import body_icon
+    for state in ("", "-selected"):
+        head = "charactercreate-icon-customize-head" + state
+        if head in wanted:
+            m = wanted[head]
+            left, top, right, bottom = m["box"]
+            piece = body_icon.figure_piece(sheet(m["sheet"], m["sheet_size"])[top:bottom, left:right], state == "-selected")
+            name = "charactercreate-icon-customize-figure" + state
+            put(name, piece, m["size"])
+            put(name + ".category", masked(piece, mask, *MASKED["category"][:3]), m["size"])
+
     with open(os.path.join(glue, "WrathppAtlas.lua"), "w", encoding="utf-8", newline="\n") as f:
         f.write("-- Shadowlands' creation screens' art (build %s), cut out of the game's sheets by tools/sl_ui_art.py:\n" % BUILD)
         f.write("-- name = { file, the width and height Shadowlands draws the piece at where it asks for the atlas's own size (in\n")

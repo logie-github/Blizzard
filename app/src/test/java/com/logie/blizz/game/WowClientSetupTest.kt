@@ -26,6 +26,23 @@ class WowClientSetupTest {
         File(it, "Data/common.MPQ").writeText("x")
     }
 
+    @Test fun wrathppsSteadyGraphicsGoInWithTheAppsOwnLinesWinning() {
+        val c = client()
+        File(c, "WTF").mkdirs()
+        File(c, "WTF/Config.wtf").writeText("SET farclip \"1277\"\r\nSET Sound_MusicVolume \"0.3\"\r\n")
+        val steady = com.logie.blizz.wrathpp.WrathppGraphics.values(com.logie.blizz.wrathpp.WrathppGraphics.Profile.STEADY)
+        WowClientSetup.apply(c, c, 2400, 1080, "wrathpp", null, steady + ("gxResolution" to "640x480"))
+        val text = File(c, "WTF/Config.wtf").readText()
+        assertTrue(text.contains("SET farclip \"477\""))
+        assertFalse(text.contains("1277"))
+        assertTrue(text.contains("SET BaseMip \"1\""))
+        assertTrue(text.contains("SET maxFPS \"60\""))
+        assertTrue(text.contains("SET Sound_MusicVolume \"0.3\""))               // the person's own kept
+        assertTrue(text.contains("SET gxResolution \"2400x1080\""))              // the screen is the app's
+        // the game's own: nothing of the graphics written
+        assertTrue(com.logie.blizz.wrathpp.WrathppGraphics.values(com.logie.blizz.wrathpp.WrathppGraphics.Profile.GAME).isEmpty())
+    }
+
     @Test fun updateConfigChangesOnlyTheNamedLinesAndKeepsTheRest() {
         val old = "SET gxResolution \"800x600\"\r\nSET Sound_MusicVolume \"0.3\"\r\n-- note\r\nSET REALMLIST \"old\"\r\n"
         val out = WowClientSetup.updateConfig(old, mapOf("gxResolution" to "2400x1080", "realmList" to "127.0.0.1", "movie" to "0"))

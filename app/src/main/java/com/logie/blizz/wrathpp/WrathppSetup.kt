@@ -49,17 +49,18 @@ object WrathppSetup {
         }
             .onSuccess { notes.append("ralia: $it skins\n") }
             .onFailure { e -> notes.append("ralia FAILED: ${e.message}\n") }
-        // Body shapes, when you imported them (WrathppBody): the chosen preset's models in place of the looks' own.
-        // Their zip is looked for by its name too, and taken in by itself the first time.
+        // Body options, when you imported their package (WrathppBody): the women's models with the body layer, the body
+        // shapes' models, the designs, and the display rows the realm gives each woman by her creator's Body tab choices.
+        // The package is looked for by its name too, and taken in by itself the first time.
         runCatching {
             val store = WrathppBody.store(context)
             val found = runCatching { ImportFinder.find(*WrathppBody.NAMES) }.getOrNull()
-            val taken = runCatching { WrathppBody.lookFor(store, found) }.onFailure { e -> notes.append("body shapes zip not read: ${e.message}\n") }.getOrNull()
-            if (taken != null) notes.append("body shapes zip found (${found?.parent}): $taken models\n")
-            WrathppBody.apply(store, layout.wrathppClient, report::say)
+            val taken = runCatching { WrathppBody.lookFor(store, found) }.onFailure { e -> notes.append("body options package not read: ${e.message}\n") }.getOrNull()
+            if (taken != null) notes.append("body options package found (${found?.parent}): $taken models\n")
+            WrathppBody.apply(store, layout.wrathppClient, layout.wrathppServer, layout.data, report::say)
         }
-            .onSuccess { notes.append("body shapes: $it\n") }
-            .onFailure { e -> notes.append("body shapes FAILED: ${e.message}\n") }
+            .onSuccess { notes.append("body options: $it\n") }
+            .onFailure { e -> notes.append("body options FAILED: ${e.message}\n") }
         // The undead skins you imported (WrathppUndead): new colours after each race's own in the looks' tables, taken out
         // again when the import is removed. Without the looks there is nothing to add them to.
         val undead = runCatching { WrathppUndead.apply(WrathppUndead.store(context), layout.wrathppClient, layout.wrathppServer) }
@@ -141,6 +142,9 @@ object WrathppSetup {
         val lines = runCatching { wxl.readLines() }.getOrNull()
         val wxlLog = lines?.takeLast(120)?.joinToString("\n") ?: "no Logs/WarcraftXL.log (the runtime didn't start, or wrote elsewhere)"
         val creator = WrathppLogs.lastCreatorLines(logs)
+        // the realm's own lines about Wrath++ (its module: the registry it serves, the clients that said hello, the body
+        // options' displays), from the end of its Server.log
+        val realm = runCatching { realmLines(java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "Server.log")) }.getOrNull() ?: "no Server.log"
         val files = listOf(WrathppAddon.EXE, "WarcraftXL.dll", "Mods/wrathpp.native/bin/x86/wrathpp-native.dll", "Mods/wxl.lua/bin/x86/wxl-lua.dll",
             "Mods/wxl.glue-unlock/bin/x86/glue-unlock.dll", "Data/${WrathppAddon.PATCH}", "WowPatched.exe", "Wow.exe")
             .joinToString("\n") { name -> val f = java.io.File(client, name); "$name: ${if (f.exists()) "${f.length()} bytes" else "missing"}" }
@@ -157,11 +161,23 @@ object WrathppSetup {
                 "Wrath++ start: build ${com.logie.blizz.BuildConfig.VERSION_CODE}, add-on ${addon.take(8)}, looks ${looks.take(8)}",
                 com.logie.blizz.reports.BugReports.body("Wrath++ start", "What Wrath++'s game was started with",
                     listOf("Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
-                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- WarcraftXL.log ---\n$wxlLog"),
+                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- WarcraftXL.log ---\n$wxlLog"),
             ))
             last.parentFile?.mkdirs()
             last.writeText(state)
         }
+    }
+
+    /** The last lines of [file] (its last megabyte) that are the Wrath++ module's ("Wrath++"), or what there is instead. */
+    internal fun realmLines(file: java.io.File): String {
+        if (!file.isFile) return "no ${file.name}"
+        val tail = java.io.RandomAccessFile(file, "r").use { f ->
+            val from = maxOf(0L, f.length() - (1 shl 20))
+            f.seek(from)
+            ByteArray((f.length() - from).toInt()).also { f.readFully(it) }
+        }
+        val lines = String(tail, Charsets.UTF_8).lines().filter { "Wrath++" in it }.takeLast(40)
+        return if (lines.isEmpty()) "none (the module said nothing: off, or not this realm)" else lines.joinToString("\n")
     }
 
     /**

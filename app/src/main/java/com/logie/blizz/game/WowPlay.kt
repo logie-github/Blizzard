@@ -97,6 +97,7 @@ object WowPlay {
                     legion = entry.gameId == LEGION_ID,
                     wrathpp = wrathpp,
                     setUpWrathpp = { say -> com.logie.blizz.wrathpp.WrathppSetup.run(app, say) },
+                    wrathppGraphics = { com.logie.blizz.wrathpp.WrathppGraphics.values(com.logie.blizz.wrathpp.WrathppGraphics.chosen(app.filesDir)) },
                     afterWrathppLaunch = {
                         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                             kotlinx.coroutines.delay(90_000)
@@ -143,6 +144,8 @@ object WowPlay {
         val setUpWrathpp: ((say: (String, Float?) -> Unit) -> Unit) = {},
         /** Once Wrath++'s game has been started (its report, a while later). */
         val afterWrathppLaunch: () -> Unit = {},
+        /** Wrath++'s graphics settings for its Config.wtf ([com.logie.blizz.wrathpp.WrathppGraphics]): none to leave the game's. */
+        val wrathppGraphics: () -> Map<String, String> = { emptyMap() },
     )
 
     fun clientFolder(root: File) = File(root, "files/client")
@@ -230,7 +233,7 @@ object WowPlay {
         val account = env.ownAccount() ?: WowClientSetup.savedAccount(runCatching { File(prefs, "login.json").readText() }.getOrNull())
         val mods = runCatching { File(prefs, "mods.json").readText() }.getOrNull()
         // (its realm record in its own folder: Wrath+'s `files/client-realm` stays Wrath+'s)
-        withContext(Dispatchers.IO) { WowClientSetup.apply(own, own, env.size.first, env.size.second, "wrathpp", account) }
+        withContext(Dispatchers.IO) { WowClientSetup.apply(own, own, env.size.first, env.size.second, "wrathpp", account, env.wrathppGraphics()) }
         waitForRealm(env, "Wrath++")?.let { return it }
         env.report(State.Preparing("Starting the game"))
         // Its own program when the add-on is in (WarcraftXL's runtime loaded), else the WoW app's patched copy, which loads

@@ -41,6 +41,9 @@ end
 
 local FIELD = { skin = 1, face = 2, hair = 3, haircolor = 4, feature = 5 }
 local RACE_ID = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUREN = 6, GNOME = 7, TROLL = 8, GOBLIN = 9, BLOODELF = 10, DRAENEI = 11 }
+-- The other realms' own races (mod-murloc-naga: ChrRaces' file names Murloc and Naga_), whose buttons the shared game data
+-- brings: not Wrath++'s.
+local LEFT_OUT = { MURLOC = true, NAGA = true, NAGA_ = true }
 local ALLIANCE = { HUMAN = true, DWARF = true, NIGHTELF = true, GNOME = true, DRAENEI = true, WORGEN = true, VOIDELF = true,
 	LIGHTFORGEDDRAENEI = true, HIGHORDER = true, PANDAREN = true, KULTIRAN = true, DARKIRONDWARF = true, MECHAGNOME = true }
 -- Shadowlands lays its creator out for a screen 1080 units high (its CharacterCreateFrame is scaled by 768 over the
@@ -357,6 +360,59 @@ local function creating()
 	return race, sex, class == "DEATHKNIGHT"
 end
 
+-- Wrath++'s own body options (the realm's registry, through the appearance add-on: categories 1101 to 1103) on a
+-- woman's Body tab: chosen here, sent with the new character at Finish (WrathPP_SendCreateChoices) and kept by the realm,
+-- which shows them in the world (her display); this screen's character stays as drawn. A Body tab of its own where her
+-- looks have none. Nothing without the add-on, or before the realm has said hello.
+local BODY_TAB = 9001
+local BODY_FIRST, BODY_LAST = 1101, 1103
+local BODY_ROWS = { "Shape", "Style", "Density" }
+-- the body options of the woman being made, or nothing; and for a woman, why there are none (the realm not answering)
+local function bodyOptions()
+	local out = {}
+	if ( type(WrathPP_GetCreating) ~= "function" ) then return out end
+	local race, sex, class = WrathPP_GetCreating()
+	if ( not race or sex ~= 1 ) then return out end
+	if ( type(WrathPP_Status) ~= "function" or type(WrathPP_GetNumCategories) ~= "function" ) then return out, "The Wrath++ add-on isn't running" end
+	local ok, state = pcall(WrathPP_Status)
+	if ( not ok or state ~= "ready" ) then return out, (state == "refused") and "The realm's answer was refused" or "Waiting for the realm" end
+	for i = 1, (WrathPP_GetNumCategories(race, sex, class) or 0) do
+		local id, name, count = WrathPP_GetCategoryInfo(i, race, sex, class)
+		if ( id and id >= BODY_FIRST and id <= BODY_LAST ) then out[#out + 1] = { id = id, name = name, count = count or 0, class = class } end
+	end
+	return out
+end
+
+local function bodyRows(rows)
+	local list, why = bodyOptions()
+	if ( why ) then
+		-- shown, greyed, saying why (a woman's Body tab is there whatever the realm said)
+		for _, name in ipairs(BODY_ROWS) do rows[#rows + 1] = { name = name, kind = "later", why = why, choices = {} } end
+		return
+	end
+	for _, c in ipairs(list) do
+		local row = { name = c.name, kind = "list", body = c.id, choices = {} }
+		local on = WrathPP_GetChoice(c.id)
+		for i = 1, c.count do
+			local id, name = WrathPP_GetOptionInfo(c.id, i, c.class)
+			if ( id ) then
+				row.choices[#row.choices + 1] = { v = id, n = name or "" }
+				if ( id == on ) then row.at = #row.choices end
+			end
+		end
+		if ( #row.choices > 1 ) then rows[#rows + 1] = row end
+	end
+end
+
+-- Sends the body options with the character about to be made (the realm keeps them for the character the game makes next).
+function W.SendBody()
+	if ( type(WrathPP_SendCreateChoices) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return end
+	local race, sex, class = WrathPP_GetCreating()
+	if ( not race ) then return end
+	local ok, sent, why = pcall(WrathPP_SendCreateChoices, race, sex, class)
+	log("body options: "..((ok and sent) and "sent" or ("not sent ("..tostring(why or sent)..")")))
+end
+
 local function looks()
 	local race, sex, dk = creating()
 	local key = race.."_"..sex
@@ -494,6 +550,10 @@ function W.Rows()
 	if ( undead and W.category == accessories ) then
 		rows[#rows + 1] = { name = "Undead", kind = "switch", undead = true, on = isUndead }
 	end
+	-- the Body tab: the body options after the looks' own
+	local bodyTab = W.category == BODY_TAB
+	for _, c in ipairs(model.categories) do if ( c.name == "Body" and c.id == W.category ) then bodyTab = true end end
+	if ( bodyTab ) then bodyRows(rows) end
 	-- Gear, last in every category: the starting outfit on or off (to see a skin)
 	if ( type(WrathPP_SetGear) == "function" ) then rows[#rows + 1] = { name = "Gear", kind = "switch", gear = true, on = W.gear ~= false } end
 	return rows, model
@@ -501,6 +561,11 @@ end
 
 -- Puts a row's choice on.
 function W.Choose(row, k)
+	if ( row.body ) then
+		local c = row.choices[k]
+		if ( c and type(WrathPP_SetChoice) == "function" ) then WrathPP_SetChoice(row.body, c.v) end
+		return
+	end
 	local model, undead = looks()
 	if ( row.index ) then
 		if ( k == "next" ) then step(row.index, 1) elseif ( k == "previous" ) then step(row.index, -1) else setNumber(row.index, k - 1) end
@@ -839,6 +904,7 @@ leaveButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
 local backButton = redButton("WrathppBackButton", root, BACK or "Back", 250, 66, function() WrathppCreate_SetStep(1) end, "back")
 backButton:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", u(46), u(28))
 local finishButton = redButton("WrathppFinishButton", root, "Finish", 250, 66, function()
+	pcall(W.SendBody)
 	if ( type(CharacterCreate_Okay) == "function" ) then CharacterCreate_Okay() else CreateCharacter(CharacterCreateNameEdit:GetText()) end
 end)
 finishButton:SetPoint("BOTTOMRIGHT", root, "BOTTOMRIGHT", -u(46), u(28))
@@ -1022,9 +1088,11 @@ local function categoryButton(k)
 	end
 	return b
 end
-local function showCategory(b, name, chosen)
+local function showCategory(b, name, chosen, female)
 	local word = string.match(name or "", "^(%a+)") or ""
 	local art = CATEGORY_ART[word] or "body"
+	-- a woman's Body: her own picture (a figure; body_icon.py), where the art has it
+	if ( word == "Body" and female and piece("charactercreate-icon-customize-figure") ) then art = "figure" end
 	b:Set("charactercreate-icon-customize-"..art..(chosen and "-selected" or ""), chosen, false, CATEGORY_PLAIN[word] or "Interface\\Icons\\INV_Misc_QuestionMark", { 0.08, 0.92, 0.08, 0.92 })
 end
 
@@ -1135,7 +1203,7 @@ local function showRow(f, row)
 		if ( row.kind == "plain" ) then
 			f.choice.label:SetText(""); paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
 		elseif ( row.kind == "later" ) then
-			f.choice.label:SetText(row.none and "None for this character" or "Not drawn yet")
+			f.choice.label:SetText(row.why or (row.none and "None for this character") or "Not drawn yet")
 			paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
 		else
 			-- as Shadowlands' box shows the choice on: its colour, or its name, or (having neither) its number
@@ -1402,6 +1470,9 @@ local function place()
 		local own = stock.GetName and stock:GetName() and _G[stock:GetName().."Text"]
 		local token = names[(index - 1) * 3 + 2]
 		token = token and string.upper(token) or nil
+		-- races of the other realms' data that Wrath++ doesn't have (the user: "Naga and murloc are not supposed to be
+		-- in this version"): their buttons are left out
+		if ( token and LEFT_OUT[token] ) then token = nil; stock:Hide() end
 		local alliance
 		if ( token ) then alliance = ALLIANCE[token] and true or false else alliance = index <= math.ceil(total / 2) end
 		local b = raceButton(index, alliance)
@@ -1514,16 +1585,22 @@ local function refresh()
 	-- the categories of this race and sex, in a row that ends 20 from the screen's right edge
 	local n = 0
 	if ( model and number(FIELD.skin) ) then
+		-- the Body tab last in the row (the user: "the tab needs to be the last tab"), the others in their own order
+		local row = {}
+		for _, c in ipairs(model.categories) do if ( c.name ~= "Body" ) then row[#row + 1] = c end end
+		for _, c in ipairs(model.categories) do if ( c.name == "Body" ) then row[#row + 1] = c end end
+		local bodyList, bodyWhy = bodyOptions()
+		if ( row[#row].name ~= "Body" and (#bodyList > 0 or bodyWhy) ) then row[#row + 1] = { id = BODY_TAB, name = "Body", zoom = 100 } end
 		local found = false
-		for _, c in ipairs(model.categories) do if ( c.id == W.category ) then found = true end end
-		if ( not found ) then W.category = model.categories[1].id end
-		for k, c in ipairs(model.categories) do
+		for _, c in ipairs(row) do if ( c.id == W.category ) then found = true end end
+		if ( not found ) then W.category = row[1].id end
+		for k, c in ipairs(row) do
 			local b = categoryButton(k)
 			b.category, b.zoom = c.id, c.zoom
 			b.label:SetText(c.name)
 			b:ClearAllPoints()
-			b:SetPoint("RIGHT", categoryPanel, "RIGHT", -(#model.categories - k) * u(104 - 21), 0)
-			showCategory(b, c.name, c.id == W.category)
+			b:SetPoint("RIGHT", categoryPanel, "RIGHT", -(#row - k) * u(104 - 21), 0)
+			showCategory(b, c.name, c.id == W.category, model.sex == 1)
 			b:Show()
 			n = k
 		end
@@ -1540,7 +1617,8 @@ local function refresh()
 		if ( popout.row.kind == "list" ) then fillPopout() else WrathppCreate_ClosePopout() end
 	end
 	local race, sex, deathKnight = creating()
-	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five"))
+	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five")
+		..(sex == 1 and (", body options "..#(bodyOptions())..(select(2, bodyOptions()) and (" ("..select(2, bodyOptions())..")") or "")) or ""))
 	if ( type(WrathPP_GetCustomization) ~= "function" ) then
 		notice:SetText("Wrath++ add-on not running: the game's own five")
 	elseif ( not model ) then
@@ -1644,8 +1722,17 @@ local opened = guarded(function()
 	pcall(W.SyncZoomSlider); pcall(W.PaintViews)
 	W.fresh = 3
 	W.gear = true                                         -- the game dresses the character as the creator opens
+	if ( type(WrathPP_ResetChoices) == "function" ) then pcall(WrathPP_ResetChoices) end   -- the body options from their defaults
 	log("opened: native "..tostring(type(WrathPP_NativeVersion) == "function" and WrathPP_NativeVersion() or "none")
 		..", looks' options "..(type(WrathppLooks) == "table" and "in" or "not in")..", undead skins "..(type(WrathppUndead) == "table" and "in" or "not in"))
+	-- whether the realm's extra choices are here (the appearance add-on, the realm's hello and registry): the Body tab's
+	-- options are there only when they are
+	if ( type(WrathPP_Status) == "function" ) then
+		local ok, state, reason, version = pcall(WrathPP_Status)
+		log("appearance add-on: "..tostring(ok and state or "error")..(reason and (" ("..tostring(reason)..")") or "")..", registry "..tostring(version))
+	else
+		log("appearance add-on: not running")
+	end
 	W.ApplyZoom()
 	WrathppCreate_SetStep(1)
 	W.Normalize()

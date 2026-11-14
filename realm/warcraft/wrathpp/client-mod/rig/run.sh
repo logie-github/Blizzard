@@ -36,6 +36,18 @@ echo "== turned off: the game's own screen whole again"
 luajit "$HERE/off.lua" "$HERE" "$CREATOR" "$LOOKS" "$U"
 echo "== every race, sex and class, every option's every choice (the phone's screen, 1125 x 768)"
 luajit "$HERE/full.lua" "$HERE" "$CREATOR" "$LOOKS" "$U"
+echo "== with the appearance add-on and the realm's registry (the body options on the women's Body tab)"
+python3 -I - "$HERE/../.." "$WORK/wpp.lua" << 'PY'
+import sys, os, struct
+wpp, out = sys.argv[1], sys.argv[2]
+sys.path.insert(0, os.path.join(wpp, "tools"))
+import registry, wrathpp_protocol as wp
+version, blob, digest = registry.build(registry.DEFAULT)
+hello = struct.pack("<IHHHI", wp.MAGIC, 1, 1, version, digest)
+open(out, "w").write('return { hello = "%s", registry = "%s" }\n' % (hello.hex(), blob.hex()))
+PY
+RIG_WPP="$WORK/wpp.lua" luajit "$HERE/full.lua" "$HERE" "$CREATOR" "$LOOKS" "$U" quick
+RIG_WPP="$WORK/wpp.lua" luajit "$HERE/behaviour.lua" "$HERE" "$CREATOR" "$LOOKS" "$U"
 echo "== without undead skins"
 RIG_DATA="$WORK/plain" luajit "$HERE/full.lua" "$HERE" "$CREATOR" "$LOOKS" - quick
 echo "== without the native mod"

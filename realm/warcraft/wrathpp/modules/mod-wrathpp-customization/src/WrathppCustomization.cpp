@@ -11,8 +11,10 @@
 
 #include "CharacterCache.h"
 #include "Config.h"
+#include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "ObjectMgr.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -153,6 +155,39 @@ namespace
         return Shown(player->GetGUID(), player->getRace(), player->getGender(), player->getClass());
     }
 
+    // A woman's body options (Shape, Style, Density: wrathpp_appearance.h's BodyDisplay) as her display, when the tables
+    // have that display (the app puts its rows in, with the game's, when the body options package is imported); her
+    // race's own otherwise. Kept as her native display too, so a shapeshift or a transform comes back to it.
+    void ApplyBody(Player* player)
+    {
+        if (player->getGender() != GENDER_FEMALE)
+            return;
+        uint8 race = player->getRace(true);                   // her own race's model, whatever race the world takes her for
+        uint32 display = BodyDisplay(S().registry, Resolve(S().registry, Stored(player->GetGUID().GetCounter()), race, player->getGender(), player->getClass()), race);
+        uint32 native = player->GetNativeDisplayId();
+        bool ours = native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260;
+        if (!display)
+        {
+            // none (any more): her race's own display, where one of these was hers
+            PlayerInfo const* info = sObjectMgr->GetPlayerInfo(race, player->getClass());
+            if (!ours || !info)
+                return;
+            display = info->displayId_f;
+        }
+        else if (!sCreatureDisplayInfoStore.LookupEntry(display))
+        {
+            LOG_INFO("module", "Wrath++: {}'s body options are display {}, which the tables don't have (no body options package imported)", player->GetName(), display);
+            return;
+        }
+        if (native == display)
+            return;
+        // kept as her native display; her display as well unless something (a shapeshift, a transform) shows another now
+        bool same = player->GetDisplayId() == native;
+        player->SetNativeDisplayId(display);
+        if (same)
+            player->SetDisplayId(display);
+    }
+
     // The player's look to the Wrath++ clients that can see them (and to the player).
     void Broadcast(Player* player)
     {
@@ -256,7 +291,10 @@ namespace
         Store(guid.GetCounter(), set.appearance);
         SendResult(session, set.kind, set.guid, Result::Ok);
         if (Player* player = ObjectAccessor::FindConnectedPlayer(guid); player && player->IsInWorld())
+        {
+            ApplyBody(player);
             Broadcast(player);
+        }
         else
             Send(session, SMSG_WRATHPP_APPEARANCE, EncodeAppearances({Shown(guid, entry->Race, entry->Sex, entry->Class)}));
     }
@@ -429,10 +467,17 @@ public:
         S().cache.erase(guid.GetCounter());
     }
 
+    // In the world: her body options' display in place of her race's, as a change the game sees after her first
+    // packet. Not when she is loaded: the client keeps the character screen's model for a player whose display at
+    // login is the one she logged out with (CGUnit_C::InitializeActivePlayerComponent: CGPlayer_C::s_displayId), which
+    // for the same character again would be the shape's display drawn with the character screen's own model; her
+    // race's display first never matches a body display, so the client makes her model anew.
     void OnPlayerLogin(Player* player) override
     {
-        if (S().enabled)
-            Broadcast(player);
+        if (!S().enabled)
+            return;
+        ApplyBody(player);
+        Broadcast(player);
     }
 };
 

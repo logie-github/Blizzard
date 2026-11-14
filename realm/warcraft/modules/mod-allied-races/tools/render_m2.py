@@ -59,6 +59,7 @@ class Model:
         self.vbones = self.vertices[:, 16:20].astype(np.int32)
         self.normals = np.frombuffer(self.vertices[:, 20:32].tobytes(), dtype="<f4").reshape(n, 3)
         self.uv = np.frombuffer(self.vertices[:, 32:40].tobytes(), dtype="<f4").reshape(n, 2)
+        self.uv1 = np.frombuffer(self.vertices[:, 40:48].tobytes(), dtype="<f4").reshape(n, 2)
         n, o = arr(m, 80)
         self.textures = []
         for i in range(n):
@@ -277,7 +278,10 @@ def look_at(eye, target, up=(0, 0, 1)):
     return view
 
 
-def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir, extra_tex=None):
+def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir, extra_tex=None, design_tex=None):
+    """... design_tex: a display's texture variation (type 11), for a two-texture batch (the body layer: the first
+    texture by the first coordinates, repeated, times the second by the second, clamped; Combiners_Mod_Mod). A batch
+    whose type 11 texture is missing is left out, as Wrath++'s native mod leaves the layer hidden then."""
     W, H = size
     fov, near, far, eye, target = camera
     view = look_at(eye, target)
@@ -323,6 +327,7 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
     nl = normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-6)
     shade = 0.45 + 0.55 * np.clip(nl @ light_dir, 0, 1)
     uv = model.uv[skin.vertices]
+    uv1 = model.uv1[skin.vertices]
     drawn = 0
     def blend_of(b):
         return model.materials[b[6]][1] if b[6] < len(model.materials) else 0
@@ -335,6 +340,13 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
         unlit = bool(mflags & 0x1)
         tex = model.textures[model.tex_lookup[b[9]]] if b[9] < len(model.tex_lookup) else (1, "")
         kind, name = tex
+        second = None
+        if b[8] == 2 and b[9] + 1 < len(model.tex_lookup):
+            kind2 = model.textures[model.tex_lookup[b[9] + 1]][0]
+            second = design_tex if kind2 == 11 else None
+            if second is None:
+                continue
+            second = np.asarray(second)
         if kind == 1:
             tx = texture
         elif kind == 6:
@@ -386,6 +398,14 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             tj = np.clip((u % 1.0) * tw, 0, tw - 1).astype(int)
             texel = tx[ti, tj]
             alpha = texel[:, :, 3].astype(np.float32) / 255.0
+            if second is not None:
+                sh2, sw2 = second.shape[:2]
+                u1 = l0 * uv1[tri[0], 0] + l1 * uv1[tri[1], 0] + l2 * uv1[tri[2], 0]
+                v1 = l0 * uv1[tri[0], 1] + l1 * uv1[tri[1], 1] + l2 * uv1[tri[2], 1]
+                t2 = second[np.clip(v1 * sh2, 0, sh2 - 1).astype(int), np.clip(u1 * sw2, 0, sw2 - 1).astype(int)].astype(np.float32)
+                texel = np.concatenate([texel[:, :, :3].astype(np.float32) * t2[:, :, :3] / 255.0,
+                                        (texel[:, :, 3:4].astype(np.float32) * t2[:, :, 3:4] / 255.0)], axis=2)
+                alpha = texel[:, :, 3] / 255.0
             if blend == 1:                                       # alpha key: the game's test
                 hit &= texel[:, :, 3] >= 224
                 if not hit.any():

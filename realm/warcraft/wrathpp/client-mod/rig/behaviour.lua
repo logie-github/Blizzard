@@ -26,7 +26,7 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
-check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.4.0, looks' options in") and R.G.log[3] == "screen: race and class", "  the log: built, opened, the first screen ("..table.concat(R.G.log, " | ")..")")
+check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.5.0, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
 -- the game's own buttons, where the creator put them, do the game's own work
 R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))
@@ -266,6 +266,63 @@ do
 	local px = R.E.screen.h / 1248
 	local v = list.__vscroll or 0
 	check(math.abs(v / px - math.floor(v / px + 0.5)) < 1e-6, "  placed on whole pixels of the screen ("..string.format("%.3f", v / px)..")")
+end
+
+-- the body options (RIG_WPP: the appearance add-on with the realm's registry): a woman's Body tab, the last, with Shape,
+-- Style and Density after what her looks have there; a choice kept by the add-on and sent with the character at Finish,
+-- as the realm reads it; a man has none, and a new screen starts from the defaults
+if os.getenv("RIG_WPP") then
+	R = make({ race = 1, sex = 1, class = 1 })
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	local last
+	for k = 1, 8 do if R.visible("WrathppCategory"..k) then last = k end end
+	check(last and _G["WrathppCategory"..last].label:GetText() == "Body", "body options: the last category is Body ("..tostring(last and _G["WrathppCategory"..last].label:GetText())..")")
+	R.tap("WrathppCategory"..last); R.frames(0.1)
+	local shape, style, density = R.row("Shape"), R.row("Style"), R.row("Density")
+	check(shape and style and density and #shape.row.choices == 4 and #style.row.choices == 17 and #density.row.choices == 5,
+		"  Shape (4), Style (17) and Density (5) on it")
+	check(shape and shape.choice.label:GetText() == "As drawn" and style.choice.label:GetText() == "None" and density.choice.label:GetText() == "100%",
+		"  each showing its default: As drawn, None, 100%")
+	R.tap(shape.next, WrathppOptionList); R.frames(0.1)
+	shape = R.row("Shape")
+	check(shape.choice.label:GetText() == "Petite" and WrathPP_GetChoice(1101) == 2, "  next: Petite, kept by the add-on")
+	style = R.row("Style"); R.tap(style.next, WrathppOptionList); R.tap(R.row("Style").next, WrathppOptionList); R.frames(0.1)
+	check(R.row("Style").choice.label:GetText() == "2" and WrathPP_GetChoice(1102) == 3, "  Style twice next: 2")
+	local before = #R.wppMock.sent
+	R.tap("WrathppFinishButton"); R.frames(0.1)
+	local sent = R.wppMock.sent[before + 1]
+	local entries = {}
+	if sent then
+		local b = sent.body
+		local n = b:byte(15)
+		for i = 0, n - 1 do
+			local at = 16 + i * 4
+			entries[b:byte(at) + b:byte(at + 1) * 256] = b:byte(at + 2) + b:byte(at + 3) * 256
+		end
+	end
+	check(sent and sent.op == 0x524 and sent.body:byte(1) == 0 and sent.body:byte(10) == 1 and sent.body:byte(11) == 1 and entries[1101] == 2 and entries[1102] == 3 and entries[1103] == 5,
+		"  Finish: sent with the new character (a human woman: Petite, style 2, 100%)")
+	R = make({ race = 1, sex = 0, class = 1 })
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	local any = false
+	for k = 1, 8 do if R.visible("WrathppCategory"..k) and _G["WrathppCategory"..k].label:GetText() == "Body" then any = true end end
+	check(not any and not R.row("Shape"), "  a man: no Body tab of them")
+	check(WrathPP_GetChoice(1101) == 1, "  a new screen: the defaults again")
+end
+
+-- without the appearance add-on (or before the realm answers): a woman's Body tab all the same, its three rows greyed,
+-- saying why
+if not os.getenv("RIG_WPP") then
+	R = make({ race = 1, sex = 1, class = 1 })
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	local last
+	for k = 1, 8 do if R.visible("WrathppCategory"..k) then last = k end end
+	R.tap("WrathppCategory"..last); R.frames(0.1)
+	local shape = R.row("Shape")
+	check(_G["WrathppCategory"..last].label:GetText() == "Body" and shape and shape.row.kind == "later" and shape.choice.label:GetText() == "The Wrath++ add-on isn't running"
+		and R.row("Style") and R.row("Density") and select(1, clean(R)), "no add-on: a woman's Body tab, its rows greyed, saying why"..select(2, clean(R)))
+	R.tap(shape.next, WrathppOptionList); R.frames(0.1)
+	check(select(1, clean(R)), "  tapping one does nothing"..select(2, clean(R)))
 end
 
 -- pictures for the app's report: only when the app asks, one of each screen a moment after it is first up and one of
