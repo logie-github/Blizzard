@@ -366,13 +366,16 @@ end
 -- looks have none. Nothing without the add-on, or before the realm has said hello.
 local BODY_TAB = 9001
 local BODY_FIRST, BODY_LAST = 1101, 1103
+local BODY_ROWS = { "Shape", "Style", "Density" }
+-- the body options of the woman being made, or nothing; and for a woman, why there are none (the realm not answering)
 local function bodyOptions()
 	local out = {}
-	if ( type(WrathPP_Status) ~= "function" or type(WrathPP_GetNumCategories) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return out end
-	local ok, state = pcall(WrathPP_Status)
-	if ( not ok or state ~= "ready" ) then return out end
+	if ( type(WrathPP_GetCreating) ~= "function" ) then return out end
 	local race, sex, class = WrathPP_GetCreating()
 	if ( not race or sex ~= 1 ) then return out end
+	if ( type(WrathPP_Status) ~= "function" or type(WrathPP_GetNumCategories) ~= "function" ) then return out, "The Wrath++ add-on isn't running" end
+	local ok, state = pcall(WrathPP_Status)
+	if ( not ok or state ~= "ready" ) then return out, (state == "refused") and "The realm's answer was refused" or "Waiting for the realm" end
 	for i = 1, (WrathPP_GetNumCategories(race, sex, class) or 0) do
 		local id, name, count = WrathPP_GetCategoryInfo(i, race, sex, class)
 		if ( id and id >= BODY_FIRST and id <= BODY_LAST ) then out[#out + 1] = { id = id, name = name, count = count or 0, class = class } end
@@ -381,7 +384,13 @@ local function bodyOptions()
 end
 
 local function bodyRows(rows)
-	for _, c in ipairs(bodyOptions()) do
+	local list, why = bodyOptions()
+	if ( why ) then
+		-- shown, greyed, saying why (a woman's Body tab is there whatever the realm said)
+		for _, name in ipairs(BODY_ROWS) do rows[#rows + 1] = { name = name, kind = "later", why = why, choices = {} } end
+		return
+	end
+	for _, c in ipairs(list) do
 		local row = { name = c.name, kind = "list", body = c.id, choices = {} }
 		local on = WrathPP_GetChoice(c.id)
 		for i = 1, c.count do
@@ -1194,7 +1203,7 @@ local function showRow(f, row)
 		if ( row.kind == "plain" ) then
 			f.choice.label:SetText(""); paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
 		elseif ( row.kind == "later" ) then
-			f.choice.label:SetText(row.none and "None for this character" or "Not drawn yet")
+			f.choice.label:SetText(row.why or (row.none and "None for this character") or "Not drawn yet")
 			paint(f.choice.swatch, nil); paint(f.choice.swatch2, nil)
 		else
 			-- as Shadowlands' box shows the choice on: its colour, or its name, or (having neither) its number
@@ -1580,7 +1589,8 @@ local function refresh()
 		local row = {}
 		for _, c in ipairs(model.categories) do if ( c.name ~= "Body" ) then row[#row + 1] = c end end
 		for _, c in ipairs(model.categories) do if ( c.name == "Body" ) then row[#row + 1] = c end end
-		if ( row[#row].name ~= "Body" and #bodyOptions() > 0 ) then row[#row + 1] = { id = BODY_TAB, name = "Body", zoom = 100 } end
+		local bodyList, bodyWhy = bodyOptions()
+		if ( row[#row].name ~= "Body" and (#bodyList > 0 or bodyWhy) ) then row[#row + 1] = { id = BODY_TAB, name = "Body", zoom = 100 } end
 		local found = false
 		for _, c in ipairs(row) do if ( c.id == W.category ) then found = true end end
 		if ( not found ) then W.category = row[1].id end
@@ -1608,7 +1618,7 @@ local function refresh()
 	end
 	local race, sex, deathKnight = creating()
 	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five")
-		..(sex == 1 and (", body options "..#bodyOptions()) or ""))
+		..(sex == 1 and (", body options "..#(bodyOptions())..(select(2, bodyOptions()) and (" ("..select(2, bodyOptions())..")") or "")) or ""))
 	if ( type(WrathPP_GetCustomization) ~= "function" ) then
 		notice:SetText("Wrath++ add-on not running: the game's own five")
 	elseif ( not model ) then

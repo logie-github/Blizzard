@@ -250,6 +250,13 @@ class WrathppBodyTest {
         assertTrue(WrathppBody.apply(store, client, server, data).startsWith("Human (1 shapes)"))
     }
 
+    @Test fun theStartReportCarriesTheRealmsWrathppLines() {
+        val log = tmp.newFile("Server.log")
+        log.writeText((1..3000).joinToString("\n") { "line $it" } + "\nWrath++: registry version 2, 5 categories, hash be0f63ec\nother\nWrath++: account 1 client speaks protocol 1 (capabilities 0x1)\n")
+        assertEquals("Wrath++: registry version 2, 5 categories, hash be0f63ec\nWrath++: account 1 client speaks protocol 1 (capabilities 0x1)", WrathppSetup.realmLines(log))
+        assertEquals("no nothing.log", WrathppSetup.realmLines(File(tmp.root, "nothing.log")))
+    }
+
     @Test fun damagedForeignOrOlderPackagesAreRefusedAndTheStoreKept() {
         val store = File(tmp.root, "store")
         bodyZip().inputStream().use { WrathppBody.importZip(store, it) }

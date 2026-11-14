@@ -310,6 +310,21 @@ if os.getenv("RIG_WPP") then
 	check(WrathPP_GetChoice(1101) == 1, "  a new screen: the defaults again")
 end
 
+-- without the appearance add-on (or before the realm answers): a woman's Body tab all the same, its three rows greyed,
+-- saying why
+if not os.getenv("RIG_WPP") then
+	R = make({ race = 1, sex = 1, class = 1 })
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	local last
+	for k = 1, 8 do if R.visible("WrathppCategory"..k) then last = k end end
+	R.tap("WrathppCategory"..last); R.frames(0.1)
+	local shape = R.row("Shape")
+	check(_G["WrathppCategory"..last].label:GetText() == "Body" and shape and shape.row.kind == "later" and shape.choice.label:GetText() == "The Wrath++ add-on isn't running"
+		and R.row("Style") and R.row("Density") and select(1, clean(R)), "no add-on: a woman's Body tab, its rows greyed, saying why"..select(2, clean(R)))
+	R.tap(shape.next, WrathppOptionList); R.frames(0.1)
+	check(select(1, clean(R)), "  tapping one does nothing"..select(2, clean(R)))
+end
+
 -- pictures for the app's report: only when the app asks, one of each screen a moment after it is first up and one of
 -- the first list opened, by the game's own Screenshot
 local function shotsOf(R) local n = 0; for _, note in ipairs(R.notes) do if note == "screenshot" then n = n + 1 end end; return n end
