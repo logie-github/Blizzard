@@ -925,9 +925,8 @@ turnLeft:SetPoint("LEFT", zoomIn, "RIGHT", u(30 - 5), 0)
 local turnRight = holdButton("WrathppTurnRight", "common-icon-rotateright", function(elapsed) turn(140 * elapsed) end)
 turnRight:SetPoint("LEFT", turnLeft, "RIGHT", -u(5), 0)
 
--- The zoom as a slider beside the turning buttons, and views a tap away under them (the user: "camera zoom sliders next
--- to the camera rotate that have presets for normal default zoom, face view, torso view, butt area view so I can see
--- exactly what changes we're making"). Shadowlands has no slider here: the track and thumb are drawn with plain colours
+-- The zoom as a slider beside the turning buttons, and views a tap away under them (default, face, torso and rear, so a
+-- change can be seen where it is). Shadowlands has no slider here: the track and thumb are drawn with plain colours
 -- and the chosen ring's gold, files every client has. On the phone a finger dragged on it is a drag (tellScreen).
 local zoomSlider = make("Slider", "WrathppZoomSlider", viewPanel)
 zoomSlider:SetOrientation("HORIZONTAL")

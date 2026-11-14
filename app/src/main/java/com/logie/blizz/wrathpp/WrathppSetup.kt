@@ -55,10 +55,10 @@ object WrathppSetup {
             .onSuccess { notes.append("undead skins: ${if (it != null) "in" else "none"}\n") }
             .onFailure { e -> notes.append("undead skins FAILED: ${e.message}\n") }
             .getOrNull()
-        // The women are drawn without underwear (WrathppBare), whatever the three above put into the table.
+        // Body option: the women's underwear layer off (WrathppBare), whatever the three above put into the table.
         runCatching { WrathppBare.apply(layout.wrathppClient) }
-            .onSuccess { notes.append("women's underwear: $it rows cleared now\n") }
-            .onFailure { e -> notes.append("women's underwear FAILED: ${e.message}\n") }
+            .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }
+            .onFailure { e -> notes.append("body option (underwear layer) FAILED: ${e.message}\n") }
         // The creator (Shadowlands' two screens), from the app itself, whatever happened to the add-on; with it what it
         // shows: the looks' own list of options (made with them: sl_creator.py) and the undead skins' (written above).
         report.say("Putting in Wrath++'s character creator", null)
