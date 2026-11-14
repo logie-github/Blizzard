@@ -73,3 +73,28 @@ internal fun ReforgedCard() {
         }
     }
 }
+
+/**
+ * Wrath++'s graphics ([com.logie.blizz.wrathpp.WrathppGraphics]): Steady (the app's settings for a held 30 frames a second
+ * with Reforged's HD parts in, written at each Play) or the game's own. The frame rate is held by DXVK as well (the World of
+ * Warcraft launch options' frame limit, 30 unless chosen otherwise).
+ */
+@Composable
+internal fun WrathppGraphicsCard() {
+    val context = LocalContext.current
+    var chosen by remember { mutableStateOf(com.logie.blizz.wrathpp.WrathppGraphics.chosen(context.filesDir)) }
+    SettingCard("Graphics") {
+        for (profile in com.logie.blizz.wrathpp.WrathppGraphics.Profile.entries) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                ToggleRow(profile.title, profile == chosen) { now ->
+                    val next = if (now) profile else com.logie.blizz.wrathpp.WrathppGraphics.Profile.entries.first { it != profile }
+                    com.logie.blizz.wrathpp.WrathppGraphics.choose(context.filesDir, next)
+                    chosen = next
+                }
+                Text(profile.detail, style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+            }
+        }
+        Text("Set at the next Play. The frame limit itself is in World of Warcraft's Launch options (30 unless you choose otherwise).",
+            style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+    }
+}

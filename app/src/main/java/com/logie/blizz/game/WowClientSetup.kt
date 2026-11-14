@@ -101,9 +101,10 @@ object WowClientSetup {
     /**
      * Points [client] at the realm on this phone. [filesDir] is the imported `files/` folder (the
      * realm record is kept there, as the World of Warcraft app keeps it). Never deletes anything but the
-     * cache of the realm played on before, which the client rebuilds.
+     * cache of the realm played on before, which the client rebuilds. [graphics]: settings to set as well (Wrath++'s
+     * graphics profile, [com.logie.blizz.wrathpp.WrathppGraphics]).
      */
-    fun apply(client: File, filesDir: File, width: Int, height: Int, realmKey: String, account: String?): Applied {
+    fun apply(client: File, filesDir: File, width: Int, height: Int, realmKey: String, account: String?, graphics: Map<String, String> = emptyMap()): Applied {
         val record = File(filesDir, REALM_RECORD)
         val last = runCatching { record.takeIf { it.isFile }?.readText() }.getOrNull()
         val clear = mustClearCache(last, realmKey)
@@ -122,7 +123,8 @@ object WowClientSetup {
 
         val config = File(client, "WTF/Config.wtf")
         val old = if (config.isFile) config.readText() else ""
-        writeWhole(config, updateConfig(old, configValues(width, height, realmKey, account)))
+        // (the graphics settings first: the app's own lines win where a name is in both)
+        writeWhole(config, updateConfig(old, graphics + configValues(width, height, realmKey, account)))
         // The World of Warcraft app's own add-on for the touch controls, put in before each start as that app does:
         // where the spellbook and the game's windows are (drags, holds, double taps that mustn't jump), sticky targeting.
         runCatching {

@@ -47,7 +47,10 @@ data class LaunchOptions(
         }
     }
 
-    /** cnc-ddraw's `maxfps`: how often the picture is drawn (the game's own speed is not changed). */
+    /**
+     * How often the picture is drawn: cnc-ddraw's `maxfps` for the classic games, DXVK's frame limiter for the 3D ones
+     * ([Resolved.d3dFrameRate]; World of Warcraft's default is 30). The game's own speed is not changed.
+     */
     enum class Fps(val label: String, val value: Int?) {
         DEFAULT("Default", null),
         FPS_30("30", 30),
@@ -84,9 +87,16 @@ data class LaunchOptions(
         val redraw: Boolean,
         /** The graphics card DXVK tells the game it has ("device:vendor:name", Winlator's customDevice), or null for the phone's own. */
         val customDevice: String? = null,
+        /**
+         * DXVK's frame limiter for a Direct3D game (Winlator's `framerate`: dxvk.conf's `d3d9.maxFrameRate` and
+         * `dxgi.maxFrameRate`), or null for none: it paces every frame to the same length, which holds a rate more evenly
+         * than a game's own wait.
+         */
+        val d3dFrameRate: Int? = null,
     ) {
         /** The container's `dxwrapperConfig` (a Winlator KeyValueSet). */
-        val dxwrapperConfig: String get() = listOfNotNull(ddrawWrapper?.let { "ddrawWrapper=$it" }, customDevice?.let { "customDevice=$it" }).joinToString(",")
+        val dxwrapperConfig: String get() = listOfNotNull(ddrawWrapper?.let { "ddrawWrapper=$it" }, customDevice?.let { "customDevice=$it" },
+            d3dFrameRate?.let { "framerate=$it" }).joinToString(",")
 
         /** Everything Winlator caches per container, so a change can be told from the last start. */
         val cacheKey: String get() = "$dxwrapper|$dxwrapperConfig|$graphicsDriver|$box64Preset"
@@ -150,6 +160,15 @@ data class LaunchOptions(
             // changes between starts and that their own checks count as supported, so they pick their best settings and
             // show no "hardware changed" or "unsupported driver" message. Safe mode reports the phone's own.
             customDevice = if (!s && hardware.adreno) DESKTOP_CARD else null,
+            // The 3D games' frames paced by DXVK: the choice made, else for World of Warcraft 30 (the user: "make the game
+            // hold a steady fps": with Project Reforged's HD parts a phone doesn't hold 60, and a rate that swings between
+            // them is worse than a steady 30), else none (the game's own). The classic games' limit is cnc-ddraw's.
+            d3dFrameRate = when {
+                classic -> null
+                s -> 30
+                fps == Fps.DEFAULT -> if (key == "wow") 30 else null
+                else -> fps.value?.takeIf { it > 0 }
+            },
         )
     }
 
