@@ -1,0 +1,147 @@
+From e0dd000395f936ded617f0e4807519c4a06b18d0 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 03:10:33 +0000
+Subject: [PATCH] [LIBC] read(): lift the recompiler's write protection and
+ read again on EFAULT
+
+Wine's client reads the server's reply into buffers that can share a page with translated code. The page is write-protected, the kernel's
+write into it cannot raise the signal that lifts the protection, and read() fails with EFAULT ('wine client error: read: Bad address'),
+which ended WoW Forever's Wow.exe two seconds after it began on the phone.
+---
+ src/emu/x64printer.c                     |  2 ++
+ src/wrapped/generated/functions_list.txt |  3 +++
+ src/wrapped/generated/wrappedlibctypes.h |  2 ++
+ src/wrapped/generated/wrapper.c          |  2 ++
+ src/wrapped/generated/wrapper.h          |  1 +
+ src/wrapped/wrappedlibc.c                | 15 +++++++++++++++
+ src/wrapped/wrappedlibc_private.h        |  2 +-
+ 7 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/emu/x64printer.c b/src/emu/x64printer.c
+index e31f16f..3401f87 100644
+--- a/src/emu/x64printer.c
++++ b/src/emu/x64printer.c
+@@ -2681,6 +2681,8 @@ void x64Print(x64emu_t* emu, char* buff, size_t buffsz, const char* func, int ti
+         snprintf(buff, buffsz, "%04d|%p: Calling %s(%" PRIp ", %" PRIp ", %" PRIf ", %" PRIf ")", tid, *(void**)(R_RSP), func, (void*)R_RDI, (void*)R_RSI, emu->xmm[0].d[0], emu->xmm[1].d[0]);
+     } else if (w == dFpppp) {
+         snprintf(buff, buffsz, "%04d|%p: Calling %s(%" PRIp ", %" PRIp ", %" PRIp ", %" PRIp ")", tid, *(void**)(R_RSP), func, (void*)R_RDI, (void*)R_RSI, (void*)R_RDX, (void*)R_RCX);
++    } else if (w == lFEipL) {
++        snprintf(buff, buffsz, "%04d|%p: Calling %s(%" PRIi32 ", %" PRIp ", %" PRIu64 ")", tid, *(void**)(R_RSP), func, (int32_t)R_RDI, (void*)R_RSI, (uintptr_t)R_RDX);
+     } else if (w == lFEipV) {
+         snprintf(buff, buffsz, "%04d|%p: Calling %s(%" PRIi32 ", %" PRIp ", %" PRIp ")", tid, *(void**)(R_RSP), func, (int32_t)R_RDI, (void*)R_RSI, (void*)(R_RSP + 8));
+     } else if (w == lFEpip) {
+diff --git a/src/wrapped/generated/functions_list.txt b/src/wrapped/generated/functions_list.txt
+index 47f4c0d..2155e24 100644
+--- a/src/wrapped/generated/functions_list.txt
++++ b/src/wrapped/generated/functions_list.txt
+@@ -1512,6 +1512,7 @@
+ #() UFbuup
+ #() dFppdd
+ #() dFpppp
++#() lFEipL
+ #() lFEipV
+ #() lFEpip
+ #() lFEppL
+@@ -5702,6 +5703,8 @@ wrappedlibc:
+   - vfscanf
+   - vfwprintf
+   - vfwscanf
++- lFipL:
++  - read
+ - lFipV:
+   - __wprintf_chk
+ - lFppL:
+diff --git a/src/wrapped/generated/wrappedlibctypes.h b/src/wrapped/generated/wrappedlibctypes.h
+index d01566c..36b0d00 100644
+--- a/src/wrapped/generated/wrappedlibctypes.h
++++ b/src/wrapped/generated/wrappedlibctypes.h
+@@ -69,6 +69,7 @@ typedef int32_t (*iFppA_t)(void*, void*, va_list);
+ typedef int32_t (*iFpON_t)(void*, int32_t, ...);
+ typedef int32_t (*iFSpV_t)(void*, void*, ...);
+ typedef int32_t (*iFSpA_t)(void*, void*, va_list);
++typedef intptr_t (*lFipL_t)(int32_t, void*, uintptr_t);
+ typedef intptr_t (*lFipV_t)(int32_t, void*, ...);
+ typedef intptr_t (*lFppL_t)(void*, void*, uintptr_t);
+ typedef uintptr_t (*LFppL_t)(void*, void*, uintptr_t);
+@@ -303,6 +304,7 @@ typedef int32_t (*iFppipppp_t)(void*, void*, int32_t, void*, void*, void*, void*
+ 	GO(vfscanf, iFSpA_t) \
+ 	GO(vfwprintf, iFSpA_t) \
+ 	GO(vfwscanf, iFSpA_t) \
++	GO(read, lFipL_t) \
+ 	GO(__wprintf_chk, lFipV_t) \
+ 	GO(readlink, lFppL_t) \
+ 	GO(strlcat, LFppL_t) \
+diff --git a/src/wrapped/generated/wrapper.c b/src/wrapped/generated/wrapper.c
+index d1ac4cf..35fb454 100644
+--- a/src/wrapped/generated/wrapper.c
++++ b/src/wrapped/generated/wrapper.c
+@@ -1542,6 +1542,7 @@ typedef uint64_t (*UFbuuu_t)(void*, uint32_t, uint32_t, uint32_t);
+ typedef uint64_t (*UFbuup_t)(void*, uint32_t, uint32_t, void*);
+ typedef double (*dFppdd_t)(void*, void*, double, double);
+ typedef double (*dFpppp_t)(void*, void*, void*, void*);
++typedef intptr_t (*lFEipL_t)(x64emu_t*, int32_t, void*, uintptr_t);
+ typedef intptr_t (*lFEipV_t)(x64emu_t*, int32_t, void*, void*);
+ typedef intptr_t (*lFEpip_t)(x64emu_t*, void*, int32_t, void*);
+ typedef intptr_t (*lFEppL_t)(x64emu_t*, void*, void*, uintptr_t);
+@@ -5797,6 +5798,7 @@ void UFbuuu(x64emu_t *emu, uintptr_t fcn) { UFbuuu_t fn = (UFbuuu_t)fcn; void *a
+ void UFbuup(x64emu_t *emu, uintptr_t fcn) { UFbuup_t fn = (UFbuup_t)fcn; void *aligned_xcb = align_xcb_connection((void*)R_RDI); R_RAX=fn(aligned_xcb, (uint32_t)R_RSI, (uint32_t)R_RDX, (void*)R_RCX); unalign_xcb_connection(aligned_xcb, (void*)R_RDI); }
+ void dFppdd(x64emu_t *emu, uintptr_t fcn) { dFppdd_t fn = (dFppdd_t)fcn; emu->xmm[0].d[0]=fn((void*)R_RDI, (void*)R_RSI, emu->xmm[0].d[0], emu->xmm[1].d[0]); }
+ void dFpppp(x64emu_t *emu, uintptr_t fcn) { dFpppp_t fn = (dFpppp_t)fcn; emu->xmm[0].d[0]=fn((void*)R_RDI, (void*)R_RSI, (void*)R_RDX, (void*)R_RCX); }
++void lFEipL(x64emu_t *emu, uintptr_t fcn) { lFEipL_t fn = (lFEipL_t)fcn; R_RAX=(intptr_t)fn(emu, (int32_t)R_RDI, (void*)R_RSI, (uintptr_t)R_RDX); }
+ void lFEipV(x64emu_t *emu, uintptr_t fcn) { lFEipV_t fn = (lFEipV_t)fcn; R_RAX=(intptr_t)fn(emu, (int32_t)R_RDI, (void*)R_RSI, (void*)(R_RSP + 8)); }
+ void lFEpip(x64emu_t *emu, uintptr_t fcn) { lFEpip_t fn = (lFEpip_t)fcn; R_RAX=(intptr_t)fn(emu, (void*)R_RDI, (int32_t)R_RSI, (void*)R_RDX); }
+ void lFEppL(x64emu_t *emu, uintptr_t fcn) { lFEppL_t fn = (lFEppL_t)fcn; R_RAX=(intptr_t)fn(emu, (void*)R_RDI, (void*)R_RSI, (uintptr_t)R_RDX); }
+diff --git a/src/wrapped/generated/wrapper.h b/src/wrapped/generated/wrapper.h
+index bc01129..ed6bd5a 100644
+--- a/src/wrapped/generated/wrapper.h
++++ b/src/wrapped/generated/wrapper.h
+@@ -1549,6 +1549,7 @@ void UFbuuu(x64emu_t *emu, uintptr_t fnc);
+ void UFbuup(x64emu_t *emu, uintptr_t fnc);
+ void dFppdd(x64emu_t *emu, uintptr_t fnc);
+ void dFpppp(x64emu_t *emu, uintptr_t fnc);
++void lFEipL(x64emu_t *emu, uintptr_t fnc);
+ void lFEipV(x64emu_t *emu, uintptr_t fnc);
+ void lFEpip(x64emu_t *emu, uintptr_t fnc);
+ void lFEppL(x64emu_t *emu, uintptr_t fnc);
+diff --git a/src/wrapped/wrappedlibc.c b/src/wrapped/wrappedlibc.c
+index c995a0c..1dffd7e 100644
+--- a/src/wrapped/wrappedlibc.c
++++ b/src/wrapped/wrappedlibc.c
+@@ -2394,6 +2394,21 @@ EXPORT int32_t my___open(x64emu_t* emu, void* pathname, int32_t flags, uint32_t
+ //}
+ //#endif
+ 
++EXPORT ssize_t my_read(x64emu_t* emu, int fd, void* buf, size_t count)
++{
++    (void)emu;
++    ssize_t ret = read(fd, buf, count);
++    #ifdef DYNAREC
++    if(ret==-1 && errno==EFAULT && count) {
++        // The buffer is on a page the recompiler write-protected (translated code and data share the page): the kernel's
++        // write into it cannot raise the signal that lifts the protection, so it fails with EFAULT. Lift it and read again.
++        unprotectDB((uintptr_t)buf, count, 1);
++        ret = read(fd, buf, count);
++    }
++    #endif
++    return ret;
++}
++
+ //EXPORT int32_t my_read(int fd, void* buf, uint32_t count)
+ //{
+ //    int ret = read(fd, buf, count);
+diff --git a/src/wrapped/wrappedlibc_private.h b/src/wrapped/wrappedlibc_private.h
+index c147d76..1d5168a 100644
+--- a/src/wrapped/wrappedlibc_private.h
++++ b/src/wrapped/wrappedlibc_private.h
+@@ -1635,7 +1635,7 @@ GO(rcmd, iFpWpppp)
+ GO(rcmd_af, iFpWppppW)
+ //DATAB(__rcmd_errstr, 
+ GOW(__read, lFipL)
+-GO(read, lFipL)
++GOM(read, lFEipL)
+ GO(readahead, lFiIL)
+ GO(__read_chk, lFipLL)
+ GOW(readdir, pFp)
+-- 
+2.43.0
+

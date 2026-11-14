@@ -1,0 +1,1 @@
+The game's own reads of the server no longer fail with Bad address, which ended the game two seconds after it started.
