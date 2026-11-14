@@ -136,6 +136,13 @@ object WindowsRuntime {
             container.setBox64Preset(com.winlator.box64.Box64Preset.STABILITY)
             container.saveData()
         }
+        // Wine's esync for every game but Forever: there its waits failed ("esync: ppoll failed: Bad address" on three of
+        // the game's threads, the phone's report 181, 14 November 2026: no window), and Wine's own waits through its
+        // server don't use that call. The container is shared, so the setting is put back for the next game.
+        withContext(Dispatchers.IO) {
+            val env = EsyncSetting.apply(container.getEnvVars(), on = !foreverClient)
+            if (env != container.getEnvVars()) { container.setEnvVars(env); container.saveData() }
+        }
         if (legion) {
             withContext(Dispatchers.IO) {
                 val layout = com.logie.blizz.wow.WowLayout.legion(context)

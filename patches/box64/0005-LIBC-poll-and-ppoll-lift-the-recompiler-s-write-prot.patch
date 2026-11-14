@@ -1,0 +1,106 @@
+From 107df456394db24606d1fa1a9567d9920196307e Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 22:29:14 +0000
+Subject: [PATCH] LIBC: poll and ppoll lift the recompiler's write protection
+ on EFAULT, and say so
+
+poll and ppoll write each entry's revents back into the caller's array.
+Wine's esync waits with ppoll on an array on the thread's stack; on a
+page the recompiler write-protected, the kernel's write cannot raise
+the signal that lifts the protection, and the call fails with EFAULT.
+World of Warcraft: Forever under Winlator logged "esync: ppoll failed:
+Bad address" on three threads and drew no window (14 November 2026).
+Like read() (patch 0003), the protection is lifted and the call made
+again. The first 20 such calls are logged at any log level with the
+page, its recorded protection and the second call's result, so a case
+that lifting cannot fix (a page the program itself protected) shows.
+---
+ src/wrapped/wrappedlibc.c         | 47 +++++++++++++++++++++++++++++++
+ src/wrapped/wrappedlibc_private.h |  6 ++--
+ 2 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/src/wrapped/wrappedlibc.c b/src/wrapped/wrappedlibc.c
+index 1dffd7e..b11fa39 100644
+--- a/src/wrapped/wrappedlibc.c
++++ b/src/wrapped/wrappedlibc.c
+@@ -2394,6 +2394,53 @@ EXPORT int32_t my___open(x64emu_t* emu, void* pathname, int32_t flags, uint32_t
+ //}
+ //#endif
+ 
++// poll and ppoll write each entry's revents back into the caller's array. Wine's esync keeps that array on the thread's stack,
++// and when the recompiler has write-protected that page (translated code and data share it) the kernel's write cannot raise the
++// signal that lifts the protection, so the call fails with EFAULT: "esync: ppoll failed: Bad address" on three threads of
++// World of Warcraft: Forever under Winlator, whose waits then never worked (no window, 14 November 2026). Lift it and call again.
++#ifdef DYNAREC
++// The first few of these go into the log whatever its level: which page, what this program had it as, and whether the call
++// worked once the recompiler's protection was lifted (when it didn't, the page was not ours to lift).
++static void poll_efault_note(const char* what, struct pollfd* fds, nfds_t nfds, uint32_t prot, int ret)
++{
++    static int notes = 0;
++    if(notes>=20) return;
++    ++notes;
++    printf_log(LOG_NONE, "%s: EFAULT on %p (%lu entries), protection 0x%x%s; again: %s\n", what, fds, (unsigned long)nfds, prot,
++        (prot&PROT_DYNAREC)?" (recompiler)":"", (ret==-1)?strerror(errno):"worked");
++}
++#endif
++EXPORT int my_poll(x64emu_t* emu, struct pollfd* fds, nfds_t nfds, int timeout)
++{
++    (void)emu;
++    int ret = poll(fds, nfds, timeout);
++    #ifdef DYNAREC
++    if(ret==-1 && errno==EFAULT && fds && nfds) {
++        uint32_t prot = getProtection((uintptr_t)fds);
++        unprotectDB((uintptr_t)fds, nfds*sizeof(struct pollfd), 1);
++        ret = poll(fds, nfds, timeout);
++        poll_efault_note("poll", fds, nfds, prot, ret);
++    }
++    #endif
++    return ret;
++}
++EXPORT int my___poll(x64emu_t* emu, struct pollfd* fds, nfds_t nfds, int timeout) __attribute__((alias("my_poll")));
++
++EXPORT int my_ppoll(x64emu_t* emu, struct pollfd* fds, nfds_t nfds, const struct timespec* tmo, const sigset_t* sigmask)
++{
++    (void)emu;
++    int ret = ppoll(fds, nfds, tmo, sigmask);
++    #ifdef DYNAREC
++    if(ret==-1 && errno==EFAULT && fds && nfds) {
++        uint32_t prot = getProtection((uintptr_t)fds);
++        unprotectDB((uintptr_t)fds, nfds*sizeof(struct pollfd), 1);
++        ret = ppoll(fds, nfds, tmo, sigmask);
++        poll_efault_note("ppoll", fds, nfds, prot, ret);
++    }
++    #endif
++    return ret;
++}
++
+ EXPORT ssize_t my_read(x64emu_t* emu, int fd, void* buf, size_t count)
+ {
+     (void)emu;
+diff --git a/src/wrapped/wrappedlibc_private.h b/src/wrapped/wrappedlibc_private.h
+index 1d5168a..09d9b80 100644
+--- a/src/wrapped/wrappedlibc_private.h
++++ b/src/wrapped/wrappedlibc_private.h
+@@ -1503,8 +1503,8 @@ GO(pmap_getport, WFpLLu)
+ GO(pmap_set, iFLLii)
+ GO(pmap_unset, iFLL)
+ #endif
+-GO(__poll, iFpLi)
+-GO(poll, iFpLi)
++GOM(__poll, iFEpLi)
++GOM(poll, iFEpLi)
+ GO(__poll_chk, iFpuiL)
+ GO(popen, SFpp)
+ GO(posix_fadvise, iFilli)
+@@ -1539,7 +1539,7 @@ GOW(posix_spawn_file_actions_addopen, iFpipiu)
+ GOW(posix_spawn_file_actions_destroy, iFp)
+ GOW(posix_spawn_file_actions_init, iFp)
+ GOM(posix_spawnp, iFEpppppp)
+-GO(ppoll, iFpLpp)
++GOM(ppoll, iFEpLpp)
+ GO(__ppoll_chk, iFpuppL)
+ GOWM(prctl, iFEiLLLL)
+ GO(pread, lFipLl)
+-- 
+2.43.0
+
