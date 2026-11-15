@@ -96,19 +96,20 @@ jobs:
               client_builds: $builds, schema: 1, min_app_version: 1, url: $url}' > "$MANIFEST_ASSET"
           cat "$MANIFEST_ASSET" | jq 'del(.components)'
 
-      # Only main publishes: the app downloads whatever is published.
-      - name: Publish (release forever-android-server)
-        if: github.ref == 'refs/heads/main'
+      # main publishes the release the app downloads; any other branch publishes a "-dev" prerelease of its own (never the app's), so a build can be tried on a rig.
+      - name: Publish (release forever-android-server, or its -dev twin off main)
         working-directory: realm/build/forever-new-publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           . ../../warcraft/forever-new/forever-version.env
           repo="${{ github.repository }}"
-          if ! gh release view "$RELEASE_TAG" -R "$repo" > /dev/null 2>&1; then
-            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="${{ github.sha }}" > /dev/null || true
-            gh release create "$RELEASE_TAG" -R "$repo" --verify-tag --prerelease --latest=false \
-              --title "WoW Forever realm (server package, experimental)" \
-              --notes "Karrz's WoW Forever server (TrinityCore forever-bots + PlayerbotV2) for the phone, arm64 musl. Downloaded by the app's Forever page; not an app release. GPL-2.0, see the package's legal folder."
+          tag="$RELEASE_TAG"
+          [ "${{ github.ref }}" = "refs/heads/main" ] || tag="$RELEASE_TAG-dev"
+          if ! gh release view "$tag" -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/$tag" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create "$tag" -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "WoW Forever realm (server package, $tag)" \
+              --notes "Karrz's WoW Forever server (TrinityCore forever-bots + PlayerbotV2) for the phone, arm64 musl. Downloaded by the app's Forever page when this is the main release; not an app release. GPL-2.0, see the package's legal folder."
           fi
-          gh release upload "$RELEASE_TAG" "$PACKAGE_ASSET" "$MANIFEST_ASSET" -R "$repo" --clobber
+          gh release upload "$tag" "$PACKAGE_ASSET" "$MANIFEST_ASSET" -R "$repo" --clobber
