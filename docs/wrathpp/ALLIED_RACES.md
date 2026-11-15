@@ -22,13 +22,13 @@ new races take **22 to 31** (ten); the High Elf takes **9** (the Goblins' unused
 | Lightforged Draenei | Alliance | Draenei | `LEGACY` |
 | Kul Tiran | Alliance | Human (Northshire) | converted, renders right |
 | Dark Iron Dwarf | Alliance | Dwarf (Coldridge Valley) | converted, renders right |
-| Mechagnome | Alliance | Gnome (Coldridge Valley) | in the run |
+| Mechagnome | Alliance | Gnome (Coldridge Valley) | converted, **limbs missing**: head and torso only; the legs and arms are the "Modification" and "Upgrade" options' separate models (skinned models), which the converter doesn't add yet |
 | High Elf | Alliance | Night Elf (Shadowglen) | to be made (see below) |
 | Nightborne | Horde | Blood Elf (Sunstrider Isle) | `LEGACY` |
 | Highmountain Tauren | Horde | Tauren (Camp Narache) | converted, renders right |
 | Zandalari Troll | Horde | Troll (Valley of Trials) | `LEGACY` |
 | Mag'har Orc | Horde | Orc (Valley of Trials) | converted, renders right |
-| Vulpera | Horde | Orc (Valley of Trials; a desert race) | in the run |
+| Vulpera | Horde | Orc (Valley of Trials; a desert race) | converted, renders right (the male's edges slightly torn) |
 
 The two that `mod-allied-races` has with other starts (Nightborne: the Forsaken's, Zandalari: the Tauren's) take the kin's
 here, as asked.
@@ -38,7 +38,7 @@ here, as asked.
 - `tools/sl_looks.py allied`: each race and sex's skins, faces and eye colours, hair styles and colours and a feature slider
   of its facial options, the same as for the ten races (`SHADOWLANDS_OPTIONS.md`), from Shadowlands' tables.
 - The six races 3.3.5 never had converted by `tools/sl_looks.py package` (the allied races' converter): Dark Iron,
-  Highmountain, Kul Tiran render right in `tools/render_m2.py`; the Mag'har's two models too.
+  Highmountain, Kul Tiran, Mag'har and Vulpera render right in `tools/render_m2.py`; Mechagnome's limbs are missing (table).
 - Notes: the Mag'har woman's feature slider is 68 of 255 (earrings and nose rings) after the earrings; Vulpera have one hair
   style and no hair colour (their fur is their skin): their creator has to cope with an empty slider.
 
