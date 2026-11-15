@@ -181,6 +181,7 @@ object WindowsRuntime {
                 foreverGo = arm64!!.signedIn
                 GameLog.keeperLog = com.logie.blizz.forever.arm64.ForeverArm64.keeperLog(alayout)
                 Borderless.dialogFlag = com.logie.blizz.forever.arm64.ForeverArm64.dialogFile(alayout)
+                GameLog.foreverGxLog = com.logie.blizz.forever.arm64.ForeverArm64.gxLog(flayout.client)
                 GameLog.foreverGoLog = if (foreverGo) com.logie.blizz.forever.arm64.ForeverArm64.signInLog(alayout) else null
             }
         }

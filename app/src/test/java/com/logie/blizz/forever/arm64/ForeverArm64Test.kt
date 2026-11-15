@@ -41,12 +41,15 @@ class ForeverArm64Test {
     @Test fun `the environment and the command`() {
         val layout = ForeverArm64.Layout(File("/data/user/0/com.logie.blizz/files"))
         val env = ForeverArm64.environment(layout, "/data/data/com.logie.blizz/winrootfs", "com.logie.blizz",
-            File("/data/user/0/com.logie.blizz/files/forever-arm64/turnip/turnip-V32-RP6sched"), "libvulkan_freedreno.so", adreno8 = true, samsung = true)
+            File("/data/user/0/com.logie.blizz/files/forever-arm64/turnip/turnip-V32-RP6sched"), "libvulkan_freedreno.so", adreno8 = true, samsung = true, vkPatch = 284)
             .associate { it.substringBefore('=') to it.substringAfter('=') }
         assertEquals("/data/user/0/com.logie.blizz/files/imagefs/home/xuser/.wine", env["WINEPREFIX"])
         assertEquals("/data/data/com.logie.blizz/winrootfs/tmp/.sysvshm/SM0", env["ANDROID_SYSVSHM_SERVER"])
         assertEquals("com.logie.blizz", env["HOST_PKG"])
         assertEquals("0", env["WINEESYNC"])
+        // DXVK's Direct3D, not Wine's (report 183: "Your 3D accelerator card is not supported").
+        assertTrue(env.getValue("WINEDLLOVERRIDES").let { it.endsWith("=n,b") && "d3d11" in it.split('=')[0].split(',') && "dxgi" in it.split('=')[0].split(',') })
+        assertEquals("1.3.284", env["WRAPPER_VK_VERSION"])
         assertEquals("noconform,sysmem", env["TU_DEBUG"])
         assertEquals("libvulkan_freedreno.so", env["ADRENOTOOLS_DRIVER_NAME"])
         assertEquals("enable_tp_ubwc_flag_hint=1", env["FD_DEV_FEATURES"])

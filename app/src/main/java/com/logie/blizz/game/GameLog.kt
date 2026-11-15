@@ -118,6 +118,17 @@ object GameLog {
      */
     @Volatile var foreverGoLog: java.io.File? = null
 
+    /** World of Warcraft: Forever's own graphics log (`Logs/gx.log`), its last lines in the reports. Set at each start of Forever. */
+    @Volatile var foreverGxLog: java.io.File? = null
+
+    /** The game's graphics log's lines (the last [max]), each cut to 300 characters; "" when there is none. */
+    fun foreverGxLines(file: java.io.File? = foreverGxLog, max: Int = 60): String {
+        val f = file?.takeIf { it.isFile } ?: return ""
+        val lines = runCatching { f.readLines(Charsets.ISO_8859_1) }.getOrDefault(emptyList()).filter { it.isNotBlank() }
+        if (lines.isEmpty()) return ""
+        return "[Forever graphics: gx.log]\n" + lines.takeLast(max).joinToString("\n") { it.take(300) }
+    }
+
     /** The sign-in program's lines, each cut to 300 characters; "" when there is none. */
     fun foreverGoLines(file: java.io.File? = foreverGoLog, max: Int = 60): String {
         val f = file?.takeIf { it.isFile } ?: return ""
@@ -145,6 +156,7 @@ object GameLog {
         synchronized(lines) { lines.joinToString("\n") },
         keeperLines(),
         foreverGoLines(),
+        foreverGxLines(),
         synchronized(notes) { notes.joinToString("\n") },
     ).filter { it.isNotEmpty() }.joinToString("\n\n")
 }

@@ -311,7 +311,8 @@ object ForeverArm64 {
      * with real paths in place of the redirect library's guest ones. [winRoot] is the session's Winlator root, whose servers
      * (shared memory; the X server through `imagefs/tmp/.X11-unix`; sound by PULSE_SERVER, set by the game screen) the game uses.
      */
-    fun environment(layout: Layout, winRoot: String, packageName: String, turnip: File, turnipLibrary: String, adreno8: Boolean, samsung: Boolean): List<String> {
+    fun environment(layout: Layout, winRoot: String, packageName: String, turnip: File, turnipLibrary: String, adreno8: Boolean, samsung: Boolean,
+                    vkPatch: Int = 0): List<String> {
         val root = layout.imagefs.path
         val wine = layout.proton.path
         val env = linkedMapOf(
@@ -346,6 +347,9 @@ object ForeverArm64 {
             "ADRENOTOOLS_DRIVER_PATH" to turnip.path + "/",
             "ADRENOTOOLS_HOOKS_PATH" to "$root/usr/lib",
             "ADRENOTOOLS_DRIVER_NAME" to turnipLibrary,
+            // The Vulkan version the wrapper offers: 1.3 with the phone's own driver's patch level (GameNative's default,
+            // `vulkanVersion=1.3` + GPUHelper.vkVersionPatch()); DXVK 2.4 needs 1.3.
+            "WRAPPER_VK_VERSION" to "1.3.$vkPatch",
             "WRAPPER_MAX_IMAGE_COUNT" to "0",
             "WRAPPER_RESOURCE_TYPE" to "buffer",
             "WRAPPER_EMULATE_BCN" to "3",
@@ -360,7 +364,13 @@ object ForeverArm64 {
             "LIBGL_KOPPER_DISABLE" to "true",
             "MESA_VK_WSI_DEBUG" to "sw",
             "DXVK_STATE_CACHE_PATH" to "${layout.home.path}/.cache",
-            "DXVK_LOG_LEVEL" to "none",
+            // DXVK's d3d11 and dxgi (in system32) before Wine's own: without this Wine's builtin Direct3D answered, over OpenGL
+            // (zink), and the game said "Your 3D accelerator card is not supported" (report 183). GameNative sets the same in
+            // the prefix's DllOverrides (WineUtils: the Direct3D libraries native,builtin).
+            "WINEDLLOVERRIDES" to "d3d8,d3d9,d3d10,d3d10_1,d3d10core,d3d11,d3d12,d3d12core,ddraw,dxgi,wined3d=n,b",
+            // Warnings and errors to Wine's output, which goes into the reports.
+            "DXVK_LOG_LEVEL" to "warn",
+            "DXVK_LOG_PATH" to "none",
             "WINEESYNC" to "0",
         )
         if (samsung) env["FD_DEV_FEATURES"] = "enable_tp_ubwc_flag_hint=1"
@@ -419,10 +429,16 @@ object ForeverArm64 {
         val adreno8 = adreno8xx()
         val turnip = layout.turnip(turnipZip(adreno8))
         val env = environment(layout, winRoot, context.packageName, turnip, turnipLibrary(turnip), adreno8,
-            Build.MANUFACTURER.equals("samsung", ignoreCase = true))
+            Build.MANUFACTURER.equals("samsung", ignoreCase = true), vulkanPatch())
         val signedIn = login != null && File(layout.windows, "forevergo.login").isFile
         return Launch(command(layout, program(signedIn)), env.toTypedArray(), File(client, "_forever_"), signedIn)
     }
+
+    /** The phone's Vulkan driver's patch level (0 when it can't be read). */
+    private fun vulkanPatch(): Int = runCatching { com.winlator.core.GPUHelper.vkGetApiVersion() and 0xFFF }.getOrDefault(0)
+
+    /** The game's own log of its graphics start (`_forever_/Logs/gx.log`): which adapter, which API, why it refused one. */
+    fun gxLog(client: File) = File(client, "_forever_/Logs/gx.log")
 
     /** What the desktop starts: the keeper, then (signed in) the sign-in, then the game (Direct3D 11: DXVK). */
     fun program(signedIn: Boolean): String =
