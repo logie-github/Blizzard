@@ -21,7 +21,8 @@ def wdbc(kinds, rows):
 def model(name, folder):
     return {"name": name, "folder": folder, "skins": [{"index": 0, "base": 0, "pelvis": 9, "torso": 0}],
             "faces": [{"textures": {"0": 77}}], "eyes": [{"index": 0}, {"index": 1}],
-            "hair": [{"variation": 0, "geoset": 1}, {"variation": 1, "geoset": 2}], "hair_colors": [{"index": 0}],
+            "hair": [{"variation": 0, "geoset": 1, "scalp": {"0": 555}}, {"variation": 1, "geoset": 2, "scalp": {"*": 556}}],
+            "hair_colors": [{"index": 0}],
             "features": [{"variation": 0, "geosets": [1, 0, 0, 0, 2]}, {"variation": 1, "geosets": [2, 1, 0, 0, 2]}]}
 
 
@@ -50,6 +51,14 @@ class LooksTablesTest(unittest.TestCase):
         self.assertEqual(sl_looks.Dbc(data, "iiiisssiii").write(), data)
         self.assertEqual(data[:4], b"WDBC")
         self.assertEqual(struct.unpack_from("<4I", data, 4)[:3], (3, 10, 40))
+
+    def test_hair_rows_carry_the_scalp(self):
+        """a hair row's second texture is the style's scalp for its colour (or for any colour), a style with none has none"""
+        t = sl_looks.tables_for(LOOKS, self.dir.name)
+        hair = {r[8]: r for r in t["CharSections"].rows if r[1] == 4 and r[3] == 3}
+        self.assertEqual(hair[0][5], "Character\\NightElf\\Male\\NightElfMaleScalp555.blp")
+        self.assertEqual(hair[1][5], "Character\\NightElf\\Male\\NightElfMaleScalp556.blp")
+        self.assertEqual(hair[0][4], hair[1][4])                                           # the hair texture itself is the colour's
 
     def test_ten_races_replaced_others_kept(self):
         t = sl_looks.tables_for(LOOKS, self.dir.name)

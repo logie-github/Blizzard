@@ -21,6 +21,7 @@ import blp      # noqa: E402
 import m2       # noqa: E402
 import names    # noqa: E402
 import scale    # noqa: E402
+import textures  # noqa: E402
 
 MODULE = os.path.dirname(HERE)
 failures = 0
@@ -75,6 +76,15 @@ check(complete["2"] == [2, 21] and "202" not in complete and "3502" not in compl
 check(complete["401"] == [401] and complete["402"] == [402], "the tables' groups stay whole")
 check(complete["702"] == [702] and "703" not in complete, "other groups the game knows keep their lowest")
 check(complete["2001"] == [0] and "2002" not in complete and complete["2201"] == [0] and "2202" not in complete, "groups the game doesn't know: their lowest becomes the body")
+
+# the scalp: a hair style's cut-short parts in the hair's colour, laid over the face's place with its alpha kept
+scalp_src = np.zeros((512, 512, 4), np.uint8)
+scalp_src[:200, :, :3] = (200, 40, 40); scalp_src[:200, :, 3] = 255
+cut = textures.scalp_cut(scalp_src, {"box": (0.5, 0.0, 1.0, 1.0), "rotate": False})
+check(cut.shape == (128, 256, 4), "a scalp is cut to FaceLower's size")
+check(int(cut[10, 100, 3]) == 255 and int(cut[120, 100, 3]) == 0, "...its alpha kept (opaque where hair, clear elsewhere)")
+check(tuple(int(v) for v in cut[10, 100, :3]) == (200, 40, 40) and int(cut[120, 100, :3].max()) == 0, "...no colour bleeding in from the clear parts")
+check(names.scalp({"folder": "Character\\Dwarf\\Female", "name": "DwarfFemale"}, 7) == "Character\\Dwarf\\Female\\DwarfFemaleScalp7.blp", "a scalp is named by its file")
 check(complete["3301"] == [0], "the eyes go to the body as named")
 capped = m2.complete_policy({"geoset_policy": {"0": [0]}, "drop_groups": []}, [0, 501, 502, 506, 507, 510, 1502, 1507])
 check(all(k in capped for k in ("501", "502", "506", "1502")) and not any(k in capped for k in ("507", "510", "1507")), "gear variants no 3.3.5 item asks for go")
@@ -222,6 +232,38 @@ check((laid[1, 1] == skin_px[1, 1]).all() and tuple(laid[0, 0, :3]) == (0, 0, 25
 # The head (today's group 32, the inside of the mouth with it) and the eyeballs (33) are never cut, whatever they become.
 check(m2.uncut([(0, 0, None), (0, 1, None), (702, 2, None), (1502, 3, None)], [(3201,), (3301,), (701,), (1502,)]) == {0, 1},
       "the head's and the eyeballs' sections are kept whole")
+
+# a shell cut down no longer sinks into what it lies over: the vertices kept are lifted out along their normals
+import math
+ring = [[math.sin(math.pi * i / 24) * math.cos(2 * math.pi * j / 24), math.sin(math.pi * i / 24) * math.sin(2 * math.pi * j / 24), math.cos(math.pi * i / 24)]
+        for i in range(25) for j in range(24)]
+ring = np.array(ring)
+tri_list = []
+for i in range(24):
+    for j in range(24):
+        a, b, c_, d_ = i * 24 + j, i * 24 + (j + 1) % 24, (i + 1) * 24 + j, (i + 1) * 24 + (j + 1) % 24
+        tri_list += [[a, c_, b], [b, c_, d_]]
+tri_list = np.array(tri_list)
+cut_tris = decimate.decimate(ring, tri_list, len(tri_list) // 4)
+lifts = decimate.sink_lifts(ring, ring, tri_list, cut_tris, cap=1.0)
+lifted = ring.copy()
+for v, h in lifts.items():
+    lifted[v] = ring[v] * (1 + h)
+def worst_sink(P):
+    kept = set(int(v) for v in cut_tris.ravel())
+    A, B, C = P[cut_tris[:, 0]], P[cut_tris[:, 1]], P[cut_tris[:, 2]]
+    w = 0.0
+    for r in range(len(ring)):
+        if r in kept:
+            continue
+        hit = decimate._closest_on_triangles(ring[r], A, B, C)
+        k = int(np.argmin(((hit - ring[r]) ** 2).sum(1)))
+        w = max(w, float(np.dot(ring[r] - hit[k], ring[r])))
+    return w
+check(worst_sink(lifted) < 0.2 * worst_sink(ring), "a cut shell's vertices are lifted until the removed ones are under it again (worst sink %.4f -> %.4f)" % (worst_sink(ring), worst_sink(lifted)))
+check(not decimate.sink_lifts(ring, ring, tri_list, tri_list), "nothing is lifted where nothing was cut")
+locked_lifts = decimate.sink_lifts(ring, ring, tri_list, cut_tris, locked=set(lifts), cap=1.0)
+check(not locked_lifts, "a vertex that is locked is never lifted")
 
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)
