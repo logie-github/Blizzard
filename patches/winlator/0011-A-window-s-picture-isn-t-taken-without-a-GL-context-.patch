@@ -1,0 +1,48 @@
+From ed98e8f361c725a8a8918ef9380c2cf050b10bff Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 15 Nov 2026 01:04:45 +0000
+Subject: [PATCH] A window's picture isn't taken without a GL context (reports
+ 68, 137, 184)
+
+---
+ .../java/com/winlator/renderer/GLRenderer.java | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/renderer/GLRenderer.java b/app/src/main/java/com/winlator/renderer/GLRenderer.java
+index 48a8344..74943b9 100644
+--- a/app/src/main/java/com/winlator/renderer/GLRenderer.java
++++ b/app/src/main/java/com/winlator/renderer/GLRenderer.java
+@@ -428,6 +428,21 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
+ 
+     public void takeWindowScreenshot(final Drawable drawable, final Callback<Bitmap> callback) {
+         xServerView.queueEvent(() -> {
++            // GLSurfaceView runs queued events also while it has no EGL context (the activity paused or going away): every
++            // GL call then fails, and the shader's compile with an empty log crashed the app (reports 68, 137, 184). No
++            // picture then; the callback isn't called.
++            if (android.opengl.EGL14.eglGetCurrentContext().equals(android.opengl.EGL14.EGL_NO_CONTEXT)) return;
++            try {
++                takeWindowScreenshotNow(drawable, callback);
++            } catch (RuntimeException e) {
++                android.util.Log.w("GLRenderer", "No window picture: " + e.getMessage());
++            }
++        });
++        xServerView.requestRender();
++    }
++
++    private void takeWindowScreenshotNow(final Drawable drawable, final Callback<Bitmap> callback) {
++        {
+             synchronized (drawable.renderLock) {
+                 Texture texture = drawable.getTexture();
+                 texture.updateFromDrawable();
+@@ -463,7 +478,6 @@ public class GLRenderer implements GLSurfaceView.Renderer, WindowManager.OnWindo
+ 
+                 callback.call(bitmap);
+             }
+-        });
+-        xServerView.requestRender();
++        }
+     }
+ }
+-- 
+2.43.0
+
