@@ -99,6 +99,7 @@ class Tables:
         for e in r("ChrCustomizationElement"):
             self.elements[e["ChrCustomizationChoiceID"]].append(e)
         self.materials = {m["ID"]: m for m in r("ChrCustomizationMaterial")}
+        self.layers = r("ChrModelTextureLayer") if os.path.exists(os.path.join(csv_dir, "ChrModelTextureLayer.csv")) else []
         self.geosets = {g["ID"]: g for g in r("ChrCustomizationGeoset")}
         self.skinned = {g["ID"]: g for g in r("ChrCustomizationSkinnedModel")}
         self.reqs = {q["ID"]: q for q in r("ChrCustomizationReq")}
@@ -229,7 +230,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         files = [f for _, fs in tables.choice_materials(c, TARGET_HAIR) for f in fs]
         if files:
             colour_of_choice[c["ID"]] = len(hair_colors)
-            hair_colors.append({"index": len(hair_colors), "file": files[0]})
+            hair_colors.append({"index": len(hair_colors), "file": files[0], "choice": c["ID"]})
 
     # The scalp (3.3.5's ScalpLower, a layer of a hair row over the face): a hair style cut short or shaved shows the hair's
     # colour on the skin where the mesh has none. Today's game hangs it on a style (a picture for each colour it is related

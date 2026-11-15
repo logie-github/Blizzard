@@ -235,16 +235,17 @@ def _closest_on_triangles(p, a, b, c):
         elif d3[k] >= 0 and d4[k] <= d3[k]:
             out[k] = b[k]
         elif vc[k] <= 0 and d1[k] >= 0 and d3[k] <= 0:
-            out[k] = a[k] + ab[k] * (d1[k] / (d1[k] - d3[k]))
+            out[k] = a[k] + ab[k] * (d1[k] / (d1[k] - d3[k]) if d1[k] != d3[k] else 0.0)
         elif d6[k] >= 0 and d5[k] <= d6[k]:
             out[k] = c[k]
         elif vb[k] <= 0 and d2[k] >= 0 and d6[k] <= 0:
-            out[k] = a[k] + ac[k] * (d2[k] / (d2[k] - d6[k]))
+            out[k] = a[k] + ac[k] * (d2[k] / (d2[k] - d6[k]) if d2[k] != d6[k] else 0.0)
         elif va[k] <= 0 and (d4[k] - d3[k]) >= 0 and (d5[k] - d6[k]) >= 0:
-            w = (d4[k] - d3[k]) / ((d4[k] - d3[k]) + (d5[k] - d6[k]))
+            w = (d4[k] - d3[k]) / ((d4[k] - d3[k]) + (d5[k] - d6[k])) if ((d4[k] - d3[k]) + (d5[k] - d6[k])) != 0 else 0.0
             out[k] = b[k] + (c[k] - b[k]) * w
         else:
-            den = 1.0 / (va[k] + vb[k] + vc[k])
+            total = va[k] + vb[k] + vc[k]
+            den = 1.0 / total if total != 0 else 0.0
             out[k] = a[k] + ab[k] * (vb[k] * den) + ac[k] * (vc[k] * den)
     return out
 
@@ -282,7 +283,7 @@ def sink_lifts(positions, normals, before, after, locked=(), cap=0.025):
         if ln < 1e-9:
             continue
         height = round(float(np.dot(p - hits[k], n / ln)), 5)       # (to a hundredth of a millimetre: no last-bit drift)
-        if height <= 1e-5:
+        if not np.isfinite(height) or height <= 1e-5:
             continue
         for v in after[near[k]]:
             v = int(v)

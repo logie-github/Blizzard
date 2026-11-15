@@ -448,6 +448,38 @@ local function number(i)
 	return current - 1, count
 end
 
+-- The pictures over the head (eyebrows, makeup, scars...): which choice of each, kept for the race and sex being made, and what the
+-- native mod is told: for each such option a slot, the head shell (a model of its own the mod hangs on the character) and the
+-- picture the shell draws (the choice's own, or the one of the hair colour on: eyebrows follow the hair).
+W.ovPicks = {}
+function W.ovPick()
+	local race, sex = creating()
+	local key = tostring(race).."_"..tostring(sex)
+	if ( W.ovKey ~= key ) then W.ovKey, W.ovPicks = key, {} end
+	return W.ovPicks
+end
+
+function W.Look()
+	if ( type(WrathPP_SetOverlay) ~= "function" ) then return end
+	local model = looks()
+	local slot = 0
+	if ( model and number(FIELD.skin) ) then
+		local colour = number(FIELD.haircolor)
+		local picks = W.ovPick()
+		for _, option in ipairs(model.options) do
+			if ( option.overlay and not option.field ) then
+				slot = slot + 1
+				if ( slot > 3 ) then break end
+				local choice = option.choices[math.min(picks[option.name] or 1, #option.choices)]
+				local picture = choice and choice.ov and (choice.ov["*"] or choice.ov[tostring(colour)])
+				pcall(WrathPP_SetOverlay, slot, picture and option.overlay or "", picture or "")
+			end
+		end
+	end
+	for k = slot + 1, 3 do pcall(WrathPP_SetOverlay, k, "", "") end
+end
+
+
 local function step(i, delta)
 	CycleCharCustomization(i, delta)
 end
@@ -534,7 +566,12 @@ function W.Rows()
 		if ( option.category == W.category ) then
 			local row = { name = option.name, option = option, kind = option.type == 1 and "switch" or "list", choices = {} }
 			local skinColour = option.field == "skin" and option.part == #model.fields.skin
-			if ( not option.field ) then
+			if ( not option.field and option.overlay ) then
+				-- a picture laid over the head (eyebrows, makeup, scars): chosen here, drawn by the native mod on the head shell
+				row.ovname = option.name
+				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end
+				row.at = math.min(W.ovPick()[option.name] or 1, #row.choices)
+			elseif ( not option.field ) then
 				row.kind = "later"
 				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end
 			elseif ( isUndead and option.field == "skin" and not skinColour ) then
@@ -580,6 +617,11 @@ end
 
 -- Puts a row's choice on.
 function W.Choose(row, k)
+	if ( row.ovname ) then
+		if ( type(k) == "number" ) then W.ovPick()[row.ovname] = k end
+		W.Look()
+		return
+	end
 	if ( row.body ) then
 		local c = row.choices[k]
 		if ( c and type(WrathPP_SetChoice) == "function" ) then WrathPP_SetChoice(row.body, c.v) end
@@ -1103,6 +1145,7 @@ local function categoryButton(k)
 				if ( W.gear ~= false ) then W.bodyUndressed = true; W.SetGear(false) end
 			elseif ( W.bodyUndressed ) then
 				W.bodyUndressed = nil
+	W.ovPicks, W.ovKey = {}, nil
 				W.SetGear(true)
 			end
 			WrathppCreate_ClosePopout()
@@ -1636,6 +1679,7 @@ local function refresh()
 	for k = n + 1, #categoryButtons do categoryButtons[k]:Hide() end
 	if ( n > 1 ) then categoryPanel:SetWidth(u(104) + (n - 1) * u(104 - 21)); categoryPanel:Show() else categoryPanel:SetWidth(1); categoryPanel:Hide() end
 	W.BodyPreview()
+	W.Look()
 	local rows = W.Rows()
 	for k, row in ipairs(rows) do showRow(rowFrame(k), row) end
 	for k = #rows + 1, #rowFrames do rowFrames[k]:Hide(); rowFrames[k].row = nil end
@@ -1842,7 +1886,11 @@ local sinceRefresh, sinceScreen = 0, 0
 -- character, so nothing is opened from here: the first frame drawn after it opens the creator (OnUpdate below).
 driver:SetScript("OnShow", function() if ( not W.off ) then W.pending = 1 end end)
 -- Closed (a character made, or Back): the next opening starts dressed, and the log says the creator was left.
-driver:SetScript("OnHide", function() W.gear = true; W.pending = nil; W.made = nil; log("closed"); tellScreen(false) end)
+driver:SetScript("OnHide", function()
+	W.gear = true; W.pending = nil; W.made = nil; W.ovPicks, W.ovKey = {}, nil
+	if ( type(WrathPP_SetOverlay) == "function" ) then for k = 1, 3 do pcall(WrathPP_SetOverlay, k, "", "") end end
+	log("closed"); tellScreen(false)
+end)
 driver:SetScript("OnUpdate", guarded(function(self, elapsed)
 	elapsed = elapsed or arg1 or 0
 	if ( W.pending ) then

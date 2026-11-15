@@ -60,6 +60,39 @@ class LooksTablesTest(unittest.TestCase):
         self.assertEqual(hair[1][5], "Character\\NightElf\\Male\\NightElfMaleScalp556.blp")
         self.assertEqual(hair[0][4], hair[1][4])                                           # the hair texture itself is the colour's
 
+    def test_overlays_of_takes_the_head_pictures_of_an_option(self):
+        """an option whose pictures hang on its choices (for any colour, or for a hair colour's index) and lie over the head is an
+        overlay; one whose layer is the body's, or that a slider carries, is not"""
+        class Stub:
+            layers = [{"CharComponentTextureLayoutsID": "7", "ChrModelTextureTargetID_0": "29", "TextureSectionTypeBitMask": "512"},
+                      {"CharComponentTextureLayoutsID": "7", "ChrModelTextureTargetID_0": "8", "TextureSectionTypeBitMask": "512"},
+                      {"CharComponentTextureLayoutsID": "7", "ChrModelTextureTargetID_0": "13", "TextureSectionTypeBitMask": "32"}]
+            chr_models = {"2": {"CharComponentTextureLayoutID": "7"}}
+            options = {"1": {"ID": "1", "ChrModelID": "2", "Name_lang": "Makeup", "OrderIndex": "1"},
+                       "2": {"ID": "2", "ChrModelID": "2", "Name_lang": "Eyebrows", "OrderIndex": "2"},
+                       "3": {"ID": "3", "ChrModelID": "2", "Name_lang": "Underwear", "OrderIndex": "3"},
+                       "4": {"ID": "4", "ChrModelID": "2", "Name_lang": "Hair Style", "OrderIndex": "4"}}
+            choice = {"1": [{"ID": "10", "Name_lang": "None"}, {"ID": "11", "Name_lang": "Smokey"}],
+                      "2": [{"ID": "20", "Name_lang": "Soft"}], "3": [{"ID": "30", "Name_lang": "Lace"}]}
+            elements = {"11": [{"ChrCustomizationMaterialID": "m1", "RelatedChrCustomizationChoiceID": "0"}],
+                        "20": [{"ChrCustomizationMaterialID": "m2", "RelatedChrCustomizationChoiceID": "c5"}],
+                        "30": [{"ChrCustomizationMaterialID": "m3", "RelatedChrCustomizationChoiceID": "0"}]}
+            materials = {"m1": ("29", [111]), "m2": ("8", [222]), "m3": ("13", [333])}
+
+            def option_choices(self, chr_model, name, only_available=True):
+                key = {"Makeup": "1", "Eyebrows": "2", "Underwear": "3"}.get(name)
+                return self.choice.get(key, [])
+
+            def material_files(self, element):
+                return self.materials[element["ChrCustomizationMaterialID"]]
+        Stub.elements = type("E", (dict,), {"__missing__": lambda self, k: []})(Stub.elements)
+        model = {"hair_colors": [{"index": 3, "choice": "c5"}], "feature_options": []}
+        out = sl_looks.overlays_of(Stub(), 2, model)
+        self.assertEqual([o["name"] for o in out], ["Makeup", "Eyebrows"])                   # the body's (mask 32) is not one
+        self.assertEqual(out[0]["choices"][1]["files"], {"*": 111})
+        self.assertEqual(out[1]["choices"][0]["files"], {"3": 222})                           # the hair colour's index
+        self.assertEqual(out[0]["target"], "29")
+
     def test_ten_races_replaced_others_kept(self):
         t = sl_looks.tables_for(LOOKS, self.dir.name)
         sections = t["CharSections"].rows

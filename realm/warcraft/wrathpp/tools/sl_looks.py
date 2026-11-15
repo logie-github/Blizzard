@@ -38,7 +38,7 @@ import races as allied                         # noqa: E402
 
 BUILD = "9.2.7.45745"
 TABLES_MORE = ("TextureFileData", "CreatureModelData", "CreatureDisplayInfo", "VocalUISounds", "EmotesTextSound",
-               "SoundKitEntry", "NameGen")
+               "SoundKitEntry", "NameGen", "ChrModelTextureLayer", "CharComponentTextureSections")
 # race id: (folder name, ChrModel ids by sex)
 RACES = {1: ("Human", {0: 1, 1: 2}), 2: ("Orc", {0: 3, 1: 4}), 3: ("Dwarf", {0: 5, 1: 6}), 4: ("NightElf", {0: 7, 1: 8}),
          5: ("Scourge", {0: 9, 1: 10}), 6: ("Tauren", {0: 11, 1: 12}), 7: ("Gnome", {0: 13, 1: 14}),
@@ -111,6 +111,49 @@ class Tables(allied.Tables):
         return super().option_choices(model_id, name, only_available)
 
 
+# Today's options that are a picture laid over the head or the body (the layers of its skin after the face: eyebrows, makeup,
+# scars, paints, tattoos), apart from what the five sliders and the feature slider carry.
+SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
+HEAD_MASKS = (512, 1024)                    # the sections of the head in today's layouts
+
+
+def overlays_of(tables, chr_model, model):
+    """The options of [chr_model] that are pictures over the head: [{"name", "target", "choices": [{"name", "files":
+    {"*": file id, or a hair colour's index: file id}}]}]. A choice with no picture (None) has no files. Only the options
+    whose pictures hang on the choice itself or on a hair colour; the paints and tattoos whose picture depends on another
+    option's choice (a style and a colour) are the next of them."""
+    layout = tables.chr_models[str(chr_model)]["CharComponentTextureLayoutID"]
+    masks = {}
+    for row in tables.layers:
+        if row["CharComponentTextureLayoutsID"] == layout:
+            masks[row["ChrModelTextureTargetID_0"]] = int(row["TextureSectionTypeBitMask"])
+    colour_of = {c["choice"]: c["index"] for c in model["hair_colors"] if "choice" in c}
+    out = []
+    skip = set(SLIDERS) | set(model.get("feature_options", []))
+    for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
+        if o["Name_lang"] in skip:
+            continue
+        choices, targets = [], set()
+        for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False):
+            files = {}
+            for e in tables.elements[c["ID"]]:
+                if e["ChrCustomizationMaterialID"] == "0":
+                    continue
+                target, fids = tables.material_files(e)
+                if not fids or masks.get(target) not in HEAD_MASKS:
+                    continue
+                targets.add(target)
+                related = e["RelatedChrCustomizationChoiceID"]
+                if related == "0":
+                    files["*"] = fids[0]
+                elif related in colour_of:
+                    files[str(colour_of[related])] = fids[0]
+            choices.append({"name": c["Name_lang"], "id": c["ID"], "files": files})
+        if targets and any(c["files"] for c in choices) and len(targets) == 1:
+            out.append({"name": o["Name_lang"], "target": next(iter(targets)), "choices": choices})
+    return out
+
+
 def build_races(csv_dir):
     tables = Tables(csv_dir)
     out = {"build": BUILD, "races": {}}
@@ -133,6 +176,7 @@ def build_races(csv_dir):
             if len(model["features"]) > 255:
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
             model["chr_model"] = chr_model
+            model["overlays"] = overlays_of(tables, chr_model, model)
             entry["models"][str(sex)] = model
         out["races"][str(race_id)] = entry
     return out
@@ -259,6 +303,10 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             os.remove(layout_path)
             model["skin_extra"] = bool(layout.get("extra"))       # its skin rows name their extra (table_rows)
             written += textures.build(read, model, layout, client, log)
+            if model.get("overlays"):
+                import sl_parts
+                written += sl_parts.head_shell(read, model, client, log)
+                written += sl_parts.write_overlays(read, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
                 os.makedirs(os.path.dirname(full), exist_ok=True)

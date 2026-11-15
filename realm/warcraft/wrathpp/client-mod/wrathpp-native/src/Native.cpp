@@ -314,8 +314,55 @@ namespace
                  hung == WXL_OK ? "can be hung" : "can not be hung", wxl::ResultName(hung));
     }
 
+    // The pictures laid over the head (eyebrows, makeup, scars: realm/warcraft/wrathpp/tools/sl_parts.py): for each, a head
+    // shell, a model of the mod's own hung on the creation component's model so that the character's bones pose it every frame
+    // (wxl.m2, WXL_M2_ATTACH_FOLLOW_BONES), with the picture put on it as texture type 11 (the runtime knows the models it made:
+    // it answers for this one). The Lua says which (WrathPP_SetOverlay); they are made again whenever the character's model is.
+    struct OverlayPart
+    {
+        std::string wantShell, wantPicture;     // what the Lua asked for ("" for none)
+        std::string shell, picture;             // what is on
+        uintptr_t parent = 0;
+        wxl::M2Model model;
+    };
+    OverlayPart g_overlays[3];
+
+    void SyncOverlays(uintptr_t component)
+    {
+        if (component != CreationComponent()) return;
+        const uintptr_t parent = ComponentModel(component);
+        for (int i = 0; i < 3; ++i)
+        {
+            OverlayPart& part = g_overlays[i];
+            if (part.wantShell.empty())
+            {
+                if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+                continue;
+            }
+            if (!parent || !ModelLoaded(parent)) continue;
+            if (!part.model || part.parent != parent || part.shell != part.wantShell || !part.model.Parent())
+            {
+                part.model.Reset();
+                part.model = wxl::M2Model(reinterpret_cast<void*>(parent), part.wantShell);
+                part.parent = parent;
+                part.shell = part.wantShell;
+                part.picture.clear();
+                if (!part.model) { wxl::Log(WXL_LOG_WARN, kTag, "overlay {}: wxl.m2 made no model of {}", i + 1, part.wantShell); continue; }
+                const wxl_result hung = part.model.Attach(reinterpret_cast<void*>(parent), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
+                wxl::Log(WXL_LOG_INFO, kTag, "overlay {}: {} hung on the character ({})", i + 1, part.shell, wxl::ResultName(hung));
+            }
+            if (part.picture != part.wantPicture && part.model)
+            {
+                const wxl_result put = part.model.ReplaceTexture(11, part.wantPicture);
+                part.picture = part.wantPicture;
+                if (put != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "overlay {}: {} not put on ({})", i + 1, part.wantPicture, wxl::ResultName(put));
+            }
+        }
+    }
+
     void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
     {
+        SyncOverlays(reinterpret_cast<uintptr_t>(component));
         ProbeBones(reinterpret_cast<uintptr_t>(component));
         ApplyPreview(reinterpret_cast<uintptr_t>(component));
         g_geosRenderPrep(component);
@@ -351,6 +398,9 @@ namespace
     void AttachLayer() {}
     std::string g_previewDesign;
     void PreviewNow() {}
+    struct OverlayPart { std::string wantShell, wantPicture; };
+    OverlayPart g_overlays[3];
+    void SyncOverlays(uintptr_t) {}
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -469,7 +519,28 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.6.1"); }
+    /// An overlay on the creator's character: slot 1 to 3, the head shell's path and the picture's, both "" for none.
+    void SetOverlayCall(wxl::ScriptCall& call)
+    {
+        const auto slot = call.Number(0);
+        const auto shell = call.String(1);
+        const auto picture = call.String(2);
+        if (!slot || *slot < 1 || *slot > 3 || !shell || !picture)
+        {
+            call.Fail("WrathPP_SetOverlay(slot, shell, picture): slot is 1 to 3, shell and picture are paths, empty for none");
+            return;
+        }
+        OverlayPart& part = g_overlays[static_cast<int>(*slot) - 1];
+        part.wantShell = std::string(shell->substr(0, 260));
+        part.wantPicture = std::string(picture->substr(0, 260));
+#if defined(_M_IX86)
+        const uintptr_t component = CreationComponent();
+        if (component) SyncOverlays(component);
+#endif
+        call.PushBool(true);
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.7.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -485,6 +556,7 @@ namespace
                                         std::pair{"WrathPP_Log", script.RegisterFunction<&LogCall>("WrathPP_Log")},
                                         std::pair{"WrathPP_SetScreen", script.RegisterFunction<&SetScreenCall>("WrathPP_SetScreen")},
                                         std::pair{"WrathPP_SetBodyPreview", script.RegisterFunction<&SetBodyPreviewCall>("WrathPP_SetBodyPreview")},
+                                        std::pair{"WrathPP_SetOverlay", script.RegisterFunction<&SetOverlayCall>("WrathPP_SetOverlay")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));

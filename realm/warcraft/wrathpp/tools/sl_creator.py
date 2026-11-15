@@ -29,7 +29,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import sl_looks                                 # noqa: E402
+import sl_looks
+import names                                 # noqa: E402
 from sl_looks import allied                     # noqa: E402
 
 DK, DH = 1 << 5, 1 << 11
@@ -148,6 +149,16 @@ def build_model(tables, categories, race_id, sex, model):
             option["choices"] = [entry(tables, c, digits[c["ID"]]) for c in choices if c["ID"] in digits]
         else:
             option["choices"] = [entry(tables, c, i) for i, c in enumerate(c for c in choices if tables.available(c))]
+        # A picture laid over the head (eyebrows, makeup, scars...): its choices name their picture (a path of the game's, for any
+        # hair colour or for each hair colour's index), drawn by the native mod on the head shell (sl_parts)
+        overlay = next((x for x in model.get("overlays", []) if x["name"] == o["Name_lang"]), None)
+        if overlay is not None and "field" not in option:
+            files = {c["id"]: c["files"] for c in overlay["choices"]}
+            for e, c in zip(option["choices"], (c for c in choices if tables.available(c))):
+                pictures = {k: names.overlay(model, fid) for k, fid in files.get(c["ID"], {}).items()}
+                if pictures:
+                    e["ov"] = pictures
+            option["overlay"] = names.shell(model)
         if len(option["choices"]) < 2:
             continue
         options.append(option)

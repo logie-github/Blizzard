@@ -683,6 +683,16 @@ def convert(files, policy, out_dir, log=print):
     child = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0])) if "SKID" in chunks else OwnSkeleton(m2_data)
     parent = Skeleton(files(child.parent)) if child.parent else None
     merged = Merged(child, parent)
+    if policy.get("stand_only"):
+        # A part a mod hangs on a character (wxl.m2's WXL_M2_ATTACH_FOLLOW_BONES) is posed by the character's own bones every
+        # frame: its model has the bones and the one sequence, Stand, and no animation of its own.
+        stand_keys = [struct.unpack_from("<HH", merged.seq(j), 0) for j in range(merged.n)]
+        j0 = stand_keys.index((0, 0)) if (0, 0) in stand_keys else 0
+        which0, i0 = merged.sources[j0]
+        merged.sources = [(which0, i0)]
+        merged.n = 1
+        merged.child_index = {i0: 0} if which0 else {}
+        merged.parent_index = {i0: 0} if not which0 else {}
     model = Model(m2_data, child)
     parent_model = Model(files(policy["parent_model"]), parent) if parent and policy.get("parent_model") else None
     parent_map = {i: parent_model.index_of.get(parent.key(i), -1) for i in range(len(parent.seqs))} if parent_model else None

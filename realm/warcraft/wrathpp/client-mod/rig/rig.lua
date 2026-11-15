@@ -105,7 +105,7 @@ return function(opts)
 
 	-- Wrath++'s files, last
 	if ( opts.native == false ) then
-		for _, n in ipairs({ "WrathPP_GetCustomization", "WrathPP_SetCustomization", "WrathPP_GetCreating", "WrathPP_SetGear", "WrathPP_Log", "WrathPP_SetScreen", "WrathPP_SetBodyPreview", "WrathPP_NativeVersion" }) do _G[n] = nil end
+		for _, n in ipairs({ "WrathPP_GetCustomization", "WrathPP_SetCustomization", "WrathPP_GetCreating", "WrathPP_SetGear", "WrathPP_Log", "WrathPP_SetScreen", "WrathPP_SetOverlay", "WrathPP_SetBodyPreview", "WrathPP_NativeVersion" }) do _G[n] = nil end
 	end
 	-- RIG_WPP: the appearance add-on (client-mod/wrathpp/init.lua) on the client-mod tests' stand-in for the runtime, the
 	-- realm's hello and registry (registry.json, as the realm sends it: the fixtures file run.sh makes) delivered to it:

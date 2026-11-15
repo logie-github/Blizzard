@@ -26,7 +26,7 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
-check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.6.1, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
+check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.7.0, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
 -- the game's own buttons, where the creator put them, do the game's own work
 R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))
@@ -266,6 +266,38 @@ do
 	local px = R.E.screen.h / 1248
 	local v = list.__vscroll or 0
 	check(math.abs(v / px - math.floor(v / px + 0.5)) < 1e-6, "  placed on whole pixels of the screen ("..string.format("%.3f", v / px)..")")
+end
+
+
+-- the pictures over the head (a looks file that has them: eyebrows and makeup of the Human woman): rows of their own, the
+-- native mod told their shell and picture, the eyebrows' picture following the hair colour, nothing for a man's makeup
+if R.G and WrathppLooks and WrathppLooks.models["1_1"] then
+	local human = WrathppLooks.models["1_1"]
+	local has = false
+	for _, o in ipairs(human.options) do if o.overlay then has = true end end
+	if has then
+		R = make({ race = 1, sex = 1, class = 1 })
+		R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+		local function find(name)
+			for k = 1, 8 do
+				if R.visible("WrathppCategory"..k) then
+					R.tap("WrathppCategory"..k); R.frames(0.1)
+					if R.row(name) then return R.row(name) end
+				end
+			end
+		end
+		local brows = find("Eyebrows")
+		local browsKind = brows and brows.row.kind
+		local makeup = find("Makeup")
+		check(makeup and browsKind == "list" and makeup.row.kind == "list", "overlay options: Eyebrows and Makeup are rows that can be chosen")
+		check(R.G.overlays[1] and R.G.overlays[2] and R.G.overlays[1].picture ~= "" and R.G.overlays[2].picture == "", "  the native mod is told: eyebrows' picture, no makeup")
+		R.tap(makeup.next, WrathppOptionList); R.frames(0.1)
+		check(R.G.overlays[2] and R.G.overlays[2].shell:match("HumanFemaleFace%.m2$") and R.G.overlays[2].picture:match("^Character\\Human\\Female\\HumanFemaleOv%d+%.blp$"), "  Makeup next: its picture on the head shell ("..tostring(R.G.overlays[2] and R.G.overlays[2].picture)..")")
+		local before = R.G.overlays[1].picture
+		R.G.character.hairColor = (R.G.character.hairColor + 5) % 40
+		R.frames(0.1); WrathppCreate_Refresh(); R.frames(0.1)
+		check(R.G.overlays[1].picture ~= before, "  the hair colour changed: the eyebrows' picture follows it")
+	end
 end
 
 -- the body options (RIG_WPP: the appearance add-on with the realm's registry): a woman's Body tab, the last, with Shape,

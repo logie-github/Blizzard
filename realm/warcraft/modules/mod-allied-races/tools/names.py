@@ -29,6 +29,16 @@ def hair(model, colour):
     return "%s\\%sHair00_%02d.blp" % (race_folder(model), model["name"], colour)
 
 
+def overlay(model, file_id):
+    """a picture laid over the head by a part (sl_parts: eyebrows, makeup, scars...), named by today's file"""
+    return "%s\\%sOv%d.blp" % (model["folder"], model["name"], file_id)
+
+
+def shell(model):
+    """the head shell a part's pictures are drawn on (sl_parts.head_shell)"""
+    return "%s\\%sFace.m2" % (model["folder"], model["name"])
+
+
 def scalp(model, file_id):
     """a hair style's scalp for one hair colour (ScalpLower, a layer over FaceLower): named by today's file"""
     return "%s\\%sScalp%d.blp" % (model["folder"], model["name"], file_id)

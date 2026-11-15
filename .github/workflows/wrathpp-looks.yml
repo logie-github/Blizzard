@@ -17,6 +17,7 @@ on:
       - realm/warcraft/wrathpp/tools/sl_skin_names.py
       - realm/warcraft/wrathpp/data/skin_names.json
       - realm/warcraft/wrathpp/tools/sl_inventory.py
+      - realm/warcraft/wrathpp/tools/sl_parts.py
       - realm/warcraft/wrathpp/tools/sl_ui_art.py
       - realm/warcraft/wrathpp/tools/body_icon.py
       - realm/warcraft/wrathpp/client-mod/rig/**

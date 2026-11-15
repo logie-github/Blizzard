@@ -628,6 +628,12 @@ function G.define()
 	G.screen = nil
 	function WrathPP_SetScreen(text) if ( type(text) ~= "string" ) then error("WrathPP_SetScreen(text): text is a string", 2) end; G.screen = text; G.screens = (G.screens or 0) + 1; return true end
 	function WrathPP_Log(text) if ( type(text) ~= "string" ) then error("WrathPP_Log(text): text is a string", 2) end; G.log[#G.log + 1] = text end
+	G.overlays = {}
+	function WrathPP_SetOverlay(slot, shell, picture)
+		if ( type(slot) ~= "number" or type(shell) ~= "string" or type(picture) ~= "string" ) then error("WrathPP_SetOverlay(slot, shell, picture): a number and two strings, empty for none", 2) end
+		G.overlays[slot] = { shell = shell, picture = picture }
+		return true
+	end
 	G.bodyPreview, G.bodyPreviews = "", 0
 	function WrathPP_SetBodyPreview(path)
 		if ( type(path) ~= "string" ) then error("WrathPP_SetBodyPreview(path): path is a string, empty for none", 2) end
@@ -635,7 +641,7 @@ function G.define()
 		G.bodyPreview = path
 		return true
 	end
-	function WrathPP_NativeVersion() return "0.6.1" end
+	function WrathPP_NativeVersion() return "0.7.0" end
 end
 
 return G
