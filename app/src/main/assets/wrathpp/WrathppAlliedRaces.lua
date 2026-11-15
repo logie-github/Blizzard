@@ -15,6 +15,19 @@ local ICON_PATH = "Interface\\Glues\\CharacterCreate\\WrathppRaces\\"
 local ICONS = { }
 for token in pairs(BACKGROUNDS) do ICONS[token] = ICON_PATH..token end
 
+-- The screen takes each race's icon's place on its sheet by its file string and sex (RACE_ICON_TCOORDS), and stops on one it hasn't:
+-- the allied races take their start race's (their own pictures are put on the buttons below, whole).
+if ( type(RACE_ICON_TCOORDS) == "table" ) then
+	for token, background in pairs(BACKGROUNDS) do
+		for _, sex in ipairs({ "MALE", "FEMALE" }) do
+			local key = token.."_"..sex;
+			if ( not RACE_ICON_TCOORDS[key] ) then
+				RACE_ICON_TCOORDS[key] = RACE_ICON_TCOORDS[strupper(background).."_"..sex] or { 0, 1, 0, 1 };
+			end
+		end
+	end
+end
+
 local highest = 0;
 for i = 1, 32 do
 	local name = "CharacterCreateRaceButton"..i;
