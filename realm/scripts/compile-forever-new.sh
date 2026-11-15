@@ -58,13 +58,9 @@ grep -q "AddSC_playerbot_v2" "$BUILD.cmake.log" || { echo "Modules: AddSC_player
 grep -E "Playerbot V2|Modules:" "$BUILD.cmake.log" || true
 
 ccache -z > /dev/null
-# -k 0: every failing file is reported in one run, not only the first.
-if ! ninja -C "$BUILD" -k 0 -j "$JOBS" bnetserver worldserver mapextractor vmap4extractor vmap4assembler mmaps_generator > "$BUILD.ninja.log" 2>&1; then
-	echo "=== compile errors ==="
-	grep -E "^FAILED:|error:|undefined reference|cannot find" "$BUILD.ninja.log" | cut -c1-400 | head -80
-	exit 1
-fi
-tail -3 "$BUILD.ninja.log"
+# -k 0: every failing file is reported in one run (ninja prints each one's compiler errors as it happens, so a run in progress
+# already shows them), not only the first.
+ninja -C "$BUILD" -k 0 -j "$JOBS" bnetserver worldserver mapextractor vmap4extractor vmap4assembler mmaps_generator
 ccache -s
 
 rm -rf "$DIST"
