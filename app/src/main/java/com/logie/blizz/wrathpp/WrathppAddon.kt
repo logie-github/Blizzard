@@ -93,7 +93,7 @@ object WrathppAddon {
         val game = Mpq.Game(data, skip = listOf(PATCH.lowercase()))
         try {
             val original = game.read(TOC)?.toString(Charsets.UTF_8) ?: throw IOException("The game's GlueXML.toc couldn't be read")
-            val text = toc(original, glue.keys.sorted()) { game.has(it) }
+            val text = toc(original, loadOrder(glue.keys)) { game.has(it) }
             val tmp = File(data, "$PATCH.tmp")
             val writer = Mpq.Writer(tmp)
             writer.add(TOC, text.toByteArray(Charsets.UTF_8))
@@ -105,6 +105,9 @@ object WrathppAddon {
             game.close()
         }
     }
+
+    /** The order the interface loads [names]: by name, a frame file (.xml) before the script (.lua) of the same name, so the creator's scripts find their frames. */
+    fun loadOrder(names: Collection<String>): List<String> = names.sortedWith(compareBy({ it.substringBeforeLast('.') }, { !it.endsWith(".xml") }, { it }))
 
     /** The zip's files by path (`wrathpp-client-addon/` taken off), refusing any path that would leave it. */
     fun unzip(zip: ByteArray): Map<String, ByteArray> {

@@ -115,3 +115,18 @@ Not run: anything in the game; nothing drawn yet.
 | `ctl.sh` isolation test | pass, 61/61 |
 
 Not run: anything in the game; the package on a phone.
+
+## 2026-11-15, the allied races
+
+| Test | Result |
+|---|---|
+| `mod-allied-races/tools/build_data.py` after the profile hooks (racials, narration, ids, outputs) | the ChromieCraft output regenerated is **byte for byte the committed one** (`git status` clean); `test_tools.py`, `test_safety.py` pass |
+| `build_data.py` with `races_profile.py` on the stock tables and the core's base SQL | 11 races: 36620 looks, 19 table changes, 37 spells (13 new), 1694 voice sounds, 1070 emotes, the SQL |
+| `tools/test_apply_client.py` (stock tables, with `WRATHPP_TEST_DBC`/`WRATHPP_TEST_CHANGES`) | pass: 6 tests; ChrRaces gets ids 22 to 31 and 12 (the Fel Orcs' row moved to 32), no id twice |
+| `tools/test_sl_looks.py` | pass: the ten races' rows replaced a race and sex, the others' kept; change files merged |
+| `DbcChangesTest` (the app), `WrathppLooksTest` | pass: the Kotlin applier makes the **same bytes** as `apply_client.py` (one golden); the package installs the game's own table with the changes put in |
+| `client-mod/tests/test_allied_races.lua` | pass, 16 checks on a mock of the creation screen: buttons, columns (11 and 10), pictures, scenes, texts |
+| Narrations, voices, icons | the user's MP3s copied, wago.tools' Highmountain flythrough music made the game's MP3 format (44.1 kHz stereo), the High Elf's 579 voice files, eleven 64 x 64 icons |
+| Models | Dark Iron, Highmountain, Kul Tiran, Mag'har, Vulpera render right (3.3.5's format, `render_m2.py`); the Mechagnome's limbs are missing |
+
+Not run: the whole package (CI), anything in the game or on a phone.

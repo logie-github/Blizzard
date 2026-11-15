@@ -1,0 +1,15 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<!-- Wrath++'s allied races' race buttons for the character creation screen: the game has ten; WrathppAlliedRaces.lua gives these
+	     the names the screen looks for. -->
+	<CheckButton name="AlliedRaceButton11" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="11" hidden="true"/>
+	<CheckButton name="AlliedRaceButton12" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="12" hidden="true"/>
+	<CheckButton name="AlliedRaceButton13" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="13" hidden="true"/>
+	<CheckButton name="AlliedRaceButton14" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="14" hidden="true"/>
+	<CheckButton name="AlliedRaceButton15" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="15" hidden="true"/>
+	<CheckButton name="AlliedRaceButton16" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="16" hidden="true"/>
+	<CheckButton name="AlliedRaceButton17" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="17" hidden="true"/>
+	<CheckButton name="AlliedRaceButton18" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="18" hidden="true"/>
+	<CheckButton name="AlliedRaceButton19" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="19" hidden="true"/>
+	<CheckButton name="AlliedRaceButton20" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="20" hidden="true"/>
+	<CheckButton name="AlliedRaceButton21" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="21" hidden="true"/>
+</Ui>

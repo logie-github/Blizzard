@@ -127,6 +127,12 @@ class WrathppAddonTest {
         } finally { client.deleteRecursively() }
     }
 
+    @Test fun theCreatorsFilesLoadFramesBeforeScriptsAndTheRacesBeforeTheCreator() {
+        assertEquals(listOf("WrathppAlliedRaces.xml", "WrathppAlliedRaces.lua", "WrathppCreate.lua"),
+            WrathppAddon.loadOrder(listOf("WrathppCreate.lua", "WrathppAlliedRaces.lua", "WrathppAlliedRaces.xml")))
+        assertEquals(WrathppSetup.GLUE_FILES, WrathppAddon.loadOrder(WrathppSetup.GLUE_FILES.reversed()))
+    }
+
     @Test fun wrathppStartsItsOwnProgramElseThePatchedOne() {
         val client = java.nio.file.Files.createTempDirectory("wrathpp").toFile()
         try {

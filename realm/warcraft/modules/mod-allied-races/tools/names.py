@@ -8,15 +8,24 @@ def race_folder(model):
     return model["folder"].rsplit("\\", 1)[0]
 
 
+def files_of(model, colour):
+    """The colour's number in the files' names: a look made of another model's skins (Wrath++'s High Elf is the Void Elf's
+    high elf skins, renumbered from 0) names its file by [model]'s "file_index"; else the colour itself."""
+    return model.get("file_index", {}).get(str(colour), colour)
+
+
 def skin(model, colour):
+    colour = files_of(model, colour)
     return "%s\\%sSkin00_%02d.blp" % (model["folder"], model["name"], colour)
 
 
 def pelvis(model, colour):
+    colour = files_of(model, colour)
     return "%s\\%sNakedPelvisSkin00_%02d.blp" % (model["folder"], model["name"], colour)
 
 
 def torso(model, colour):
+    colour = files_of(model, colour)
     return "%s\\%sNakedTorsoSkin00_%02d.blp" % (model["folder"], model["name"], colour)
 
 

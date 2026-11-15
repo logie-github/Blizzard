@@ -54,3 +54,4 @@ print("decoded as the server does:", "all passed" if not fails else f"{fails} fa
 sys.exit(1 if fails else 0)
 PY
 luajit "$HERE/test_creator.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppCreate.lua"
+luajit "$HERE/test_allied_races.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppAlliedRaces.lua"

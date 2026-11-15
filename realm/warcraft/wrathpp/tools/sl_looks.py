@@ -9,13 +9,15 @@ and its server's data.
 
     python3 tools/sl_looks.py fetch CSV_DIR                    the tables (wago.tools' CSVs at 9.2.7.45745)
     python3 tools/sl_looks.py races CSV_DIR LOOKS.json         what each race and sex is made of (from the tables)
-    python3 tools/sl_looks.py verify LOOKS.json DBC OUT        the files the tables name are all in OUT
-    python3 tools/sl_looks.py package LOOKS.json CACHE DBC OUT  fetches into CACHE (files by id) and writes OUT:
-                                                               OUT/client  the game's patch (game paths), the tables
-                                                                           in DBFilesClient
-                                                               OUT/dbc     the same tables for the world server
-                                                               DBC: the server's dbc folder (server-data.env's data.zip),
-                                                               the rows of everything but the ten races
+    python3 tools/sl_looks.py data CSV_DIR RACES.json          the allied races' data (the High Elf too)
+    python3 tools/sl_looks.py allied CSV_DIR LOOKS.json        the same as races, for the allied races
+    python3 tools/sl_looks.py verify LOOKS.json OUT            the files the tables name are all in OUT
+    python3 tools/sl_looks.py package LOOKS.json CACHE DBC OUT fetches into CACHE (files by id) and writes OUT:
+                                                               OUT/client   the game's patch (game paths)
+                                                               OUT/changes  the ten races' rows as change files
+                                                               DBC: the server's dbc folder (server-data.env's data.zip)
+    python3 tools/sl_looks.py assemble STOCK_DBC OUT CHANGES...  OUT/changes: the change files merged; OUT/dbc: the
+                                                               server's tables with them applied
 
 CSV_DIR: wago.tools' CSVs at 9.2.7.45745 (sl_inventory.py fetch, and the TABLES_MORE here).
 
@@ -32,8 +34,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-ALLIED = os.path.join(HERE, "..", "..", "modules", "mod-allied-races", "tools")
-sys.path.insert(0, os.path.abspath(ALLIED))
+ALLIED_TOOLS = os.path.abspath(os.path.join(HERE, "..", "..", "modules", "mod-allied-races", "tools"))
+sys.path.insert(0, ALLIED_TOOLS)
 import races as allied                         # noqa: E402
 
 BUILD = "9.2.7.45745"
@@ -138,42 +140,15 @@ def build_races(csv_dir, races=None):
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
             model["chr_model"] = chr_model
             entry["models"][str(sex)] = model
+        entry["replace_rows"] = races is None             # the ten of 3.3.5: their rows in the tables are replaced
         out["races"][str(race_id)] = entry
     return out
 
 
-# --- the game's tables (WDBC) ---------------------------------------------------------------------------------------
-
-class Dbc:
-    def __init__(self, data, kinds):
-        magic, count, fields, size, text_size = struct.unpack_from("<4s4I", data)
-        if magic != b"WDBC" or fields != len(kinds) or size != fields * 4:
-            raise ValueError("not the table expected (%d fields)" % fields)
-        text = data[20 + count * size:]
-        self.kinds = kinds
-        self.rows = []
-        for i in range(count):
-            raw = struct.unpack_from("<%dI" % fields, data, 20 + i * size)
-            self.rows.append([text[v:text.index(b"\0", v)].decode("utf-8") if k == "s" else v for k, v in zip(kinds, raw)])
-
-    def write(self):
-        strings = bytearray(b"\0")
-        where = {"": 0}
-        body = bytearray()
-        for row in self.rows:
-            for k, v in zip(self.kinds, row):
-                if k == "s":
-                    if v not in where:
-                        where[v] = len(strings)
-                        strings += v.encode("utf-8") + b"\0"
-                    body += struct.pack("<I", where[v])
-                else:
-                    body += struct.pack("<I", v & 0xFFFFFFFF)
-        n = len(self.kinds)
-        return struct.pack("<4s4I", b"WDBC", len(self.rows), n, n * 4, len(strings)) + bytes(body) + bytes(strings)
-
+# --- the game's tables: change files (tools/apply_client.py) ----------------------------------------------------------------
 
 TABLE_KINDS = {"CharSections": "iiiisssiii", "CharHairGeosets": "iiiiii", "CharacterFacialHairStyles": "iiiiiiii"}
+ID_LOOKS = 3000000      # the ten races' new rows' ids in CharSections and CharHairGeosets: clear of every table the client has
 
 
 def table_rows(looks):
@@ -204,34 +179,124 @@ def table_rows(looks):
     return sections, hair, facial
 
 
-def tables_for(looks, dbc_dir):
-    """The three tables: the server's own with every row of the ten races replaced by theirs. The glow column of the
-    facial table (geoset group 17: night elves' eyes) as the race had it."""
-    mine = {(entry["race"], int(sex)) for entry in looks["races"].values() for sex in entry["models"]}
-    out = {}
-    read = lambda name: Dbc(open(os.path.join(dbc_dir, name + ".dbc"), "rb").read(), TABLE_KINDS[name])
-    sections, hair, facial = table_rows(looks)
-    t = read("CharSections")
-    kept = [r for r in t.rows if (r[1], r[2]) not in mine]
-    next_id = max([r[0] for r in t.rows] + [0]) + 1
-    t.rows = kept + [[next_id + i] + r for i, r in enumerate(sections)]
-    out["CharSections"] = t
-    t = read("CharHairGeosets")
-    kept = [r for r in t.rows if (r[1], r[2]) not in mine]
-    next_id = max([r[0] for r in t.rows] + [0]) + 1
-    t.rows = kept + [[next_id + i] + r for i, r in enumerate(hair)]
-    out["CharHairGeosets"] = t
-    t = read("CharacterFacialHairStyles")
+def looks_changes(looks, stock_dbc_dir):
+    """The ten races' rows of the three tables as change files (tools/apply_client.py): every row of their race and sex
+    dropped, theirs put. Applied to the client's own tables (an HD look's included) by the app, and to the server's by
+    assemble. The facial table's glow column (geoset group 17: the night elves' eye glow) is the race's own, from
+    [stock_dbc_dir]'s table."""
+    import apply_client
+    mine = sorted((entry["race"], int(sex)) for entry in looks["races"].values() if entry.get("replace_rows") for sex in entry["models"])
+    if not mine:
+        return {}
+    only = {"races": {k: v for k, v in looks["races"].items() if v.get("replace_rows")}}
+    sections, hair, facial = table_rows(only)
+    with open(os.path.join(stock_dbc_dir, "CharacterFacialHairStyles.dbc"), "rb") as f:
+        t = apply_client.Table(f.read())
     glow = {}
-    for r in t.rows:
-        glow.setdefault((r[0], r[1]), r[7])
-    kept = [r for r in t.rows if (r[0], r[1]) not in mine]
-    t.rows = kept + [r[:7] + [glow.get((r[0], r[1]), 0)] for r in facial]
-    out["CharacterFacialHairStyles"] = t
+    for i in range(len(t.records)):
+        glow.setdefault((t.get(i, 0), t.get(i, 1)), t.get(i, 7))
+
+    def esc(v):
+        return str(v).replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+
+    out = {}
+    lines = ["types\t" + TABLE_KINDS["CharSections"]]
+    lines += ["drop\t1\t%d\t2\t%d" % rs for rs in mine]
+    lines += ["put\t" + "\t".join(esc(v) for v in [ID_LOOKS + i] + r) for i, r in enumerate(sections)]
+    out["CharSections"] = "\n".join(lines) + "\n"
+    lines = ["types\t" + TABLE_KINDS["CharHairGeosets"]]
+    lines += ["drop\t1\t%d\t2\t%d" % rs for rs in mine]
+    lines += ["put\t" + "\t".join(esc(v) for v in [ID_LOOKS + i] + r) for i, r in enumerate(hair)]
+    out["CharHairGeosets"] = "\n".join(lines) + "\n"
+    lines = ["types\t" + TABLE_KINDS["CharacterFacialHairStyles"]]
+    lines += ["drop\t0\t%d\t1\t%d" % rs for rs in mine]
+    lines += ["appendraw\t" + struct.pack("<8I", *(r[:7] + [glow.get((r[0], r[1]), 0)])).hex() for r in facial]
+    out["CharacterFacialHairStyles"] = "\n".join(lines) + "\n"
     return out
 
 
+def merge_changes(out_dir, *dirs):
+    """The change files of [dirs] (a table's, in the order of the dirs) one file a table in [out_dir]."""
+    os.makedirs(out_dir, exist_ok=True)
+    merged = {}
+    for d in dirs:
+        if not os.path.isdir(d):
+            continue
+        for name in sorted(os.listdir(d)):
+            if name.endswith(".txt"):
+                with open(os.path.join(d, name), encoding="utf-8") as f:
+                    merged.setdefault(name, []).append(f.read().rstrip("\n"))
+    for name, parts in merged.items():
+        with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="\n") as f:
+            f.write("\n".join(parts) + "\n")
+    return sorted(merged)
+
+
+NARRATIONS = {"voidelf": ("voidelf_intro.mp3", "VoidElfNarration.mp3"), "nightborne": ("nightborne_intro.mp3", "NightborneNarration.mp3"),
+              "lightforged": ("lightforged_intro.mp3", "LightforgedDraeneiNarration.mp3"),
+              "zandalari": ("zandalari_intro.mp3", "ZandalariTrollNarration.mp3")}
+# wago.tools' music of the Highmountain's flythrough (file id), for the race that has no narration of the user's.
+NARRATION_FILES = {"highmountain": (1862320, "HighmountainTaurenNarration.mp3")}
+
+
+def narrations(keys, read, client, log=print):
+    """The intros' narrations into OUT/client/Sound/CinematicVoices: the allied races module's own MP3s (the user's) where it has
+    them, else wago.tools' file by its id made the game's MP3 format (44.1 kHz, no tags)."""
+    import subprocess
+    folder = os.path.join(client, "Sound", "CinematicVoices")
+    os.makedirs(folder, exist_ok=True)
+    written = []
+    for key in keys:
+        if key in NARRATIONS:
+            src = os.path.join(os.path.dirname(ALLIED_TOOLS), "data", "client", NARRATIONS[key][0])
+            with open(src, "rb") as f, open(os.path.join(folder, NARRATIONS[key][1]), "wb") as out:
+                out.write(f.read())
+            written.append("Sound\\CinematicVoices\\" + NARRATIONS[key][1])
+        elif key in NARRATION_FILES:
+            fid, name = NARRATION_FILES[key]
+            raw, part = os.path.join(folder, "%d.src" % fid), os.path.join(folder, name + ".part")
+            with open(raw, "wb") as out:
+                out.write(read(fid))
+            try:
+                r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", raw, "-ar", "44100", "-ac", "2", "-b:a", "128k",
+                                    "-id3v2_version", "0", "-write_id3v1", "0", "-f", "mp3", part], capture_output=True)
+                if r.returncode or not os.path.getsize(part):
+                    raise RuntimeError("%s couldn't be converted: %s" % (name, r.stderr.decode(errors="replace").strip()))
+                os.replace(part, os.path.join(folder, name))
+            finally:
+                for tmp in (raw, part):
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+            written.append("Sound\\CinematicVoices\\" + name)
+    return written
+
+
+# wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
+# app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
+RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGED": 1786420, "KULTIRAN": 2447785, "DARKIRON": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
+              "NIGHTBORNE": 1786421, "ZANDALARI": 1851465, "HIGHMOUNTAIN": 1786419, "VULPERA": 3208033, "MAGHAR": 1989713}
+
+
+def race_icons(read, client, log=print):
+    """The race icons as 64 x 64 3.3.5 textures: Interface/Glues/CharacterCreate/WrathppRaces/<TOKEN>.blp."""
+    import blp
+    import numpy as np
+    from PIL import Image
+    folder = os.path.join(client, "Interface", "Glues", "CharacterCreate", "WrathppRaces")
+    os.makedirs(folder, exist_ok=True)
+    written = []
+    for token, fid in sorted(RACE_ICONS.items()):
+        rgba = blp.read(read(fid))
+        img = Image.fromarray(rgba).convert("RGBA").resize((64, 64), Image.LANCZOS)
+        with open(os.path.join(folder, token + ".blp"), "wb") as f:
+            f.write(blp.write_palette(np.ascontiguousarray(np.asarray(img)), alpha=True))
+        written.append("Interface\\Glues\\CharacterCreate\\WrathppRaces\\%s.blp" % token)
+    return written
+
+
 def package(looks_path, cache, dbc_dir, out_dir, log=print):
+    """The models, textures, voices and narrations of [looks_path]'s races into OUT/client (the game's paths), and the ten
+    races' rows as change files into OUT/changes. A race with "alias_of" (the High Elf) has the other's files."""
     import check_m2
     import m2
     import package as allied_package
@@ -241,7 +306,9 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     read = allied_package.cached(cache, allied_package.wago)
     client = os.path.join(out_dir, "client")
     written = []
-    for entry in looks["races"].values():
+    for key, entry in looks["races"].items():
+        if entry.get("alias_of"):
+            continue
         for sex, model in sorted(entry["models"].items()):
             written += m2.convert(read, dict(model, geosets=None), client, log)
             model_path = os.path.join(client, model["folder"].replace("\\", "/"), model["name"] + ".m2")
@@ -259,44 +326,67 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 with open(full, "wb") as out:
                     out.write(read(fid))
                 written.append(path)
-    written += write_tables(looks, dbc_dir, out_dir)
-    missing = verify(looks, dbc_dir, out_dir)
+        if entry.get("voices"):
+            written += allied_package.voice_files(entry, read, client, log)
+    written += narrations([e for e in looks["races"] if e in NARRATIONS or e in NARRATION_FILES], read, client, log)
+    if any(e.get("alias_of") or k in KEYS.values() for k, e in looks["races"].items()):
+        written += race_icons(read, client, log)
+    changes = looks_changes(looks, dbc_dir)
+    os.makedirs(os.path.join(out_dir, "changes"), exist_ok=True)
+    for name, text in changes.items():
+        with open(os.path.join(out_dir, "changes", name + ".txt"), "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+    missing = verify(looks, out_dir)
     if missing:
         raise ValueError("%d files the tables name are not in the package, e.g. %s" % (len(missing), ", ".join(missing[:5])))
-    with open(os.path.join(out_dir, "looks.files"), "w") as out:
+    listing = os.path.join(out_dir, "looks.files")
+    if os.path.exists(listing):                      # (the ten's and the allied races' runs share an OUT)
+        with open(listing) as f:
+            written += [line.rstrip("\n") for line in f if line.strip()]
+    with open(listing, "w") as out:
         out.write("".join(p + "\n" for p in sorted(set(written))))
     log("looks: %d files" % len(set(written)))
 
 
-def verify(looks, dbc_dir, out_dir):
-    """The files the ten races' new rows name that the package lacks (a table row naming no file is a white character)."""
+def verify(looks, out_dir):
+    """The files the ten races' new rows and every race's models name that the package lacks (a table row naming no file is
+    a white character)."""
     client = os.path.join(out_dir, "client")
     have = set()
     for root, _, files in os.walk(client):
         for f in files:
             have.add(os.path.relpath(os.path.join(root, f), client).replace("/", "\\").lower())
-    sections, hair, facial = table_rows(looks)
-    named = {r[3] for r in sections} | {r[4] for r in sections} | {r[5] for r in sections}
-    named.discard("")
+    named = set()
+    ten = {"races": {k: v for k, v in looks["races"].items() if v.get("replace_rows")}}
+    if ten["races"]:
+        sections, hair, facial = table_rows(ten)
+        named |= {r[3] for r in sections} | {r[4] for r in sections} | {r[5] for r in sections}
+        named.discard("")
     for entry in looks["races"].values():
         for m in entry["models"].values():
             named.add(m["folder"] + "\\" + m["name"] + ".m2")
     return sorted(n for n in named if n.lower() not in have)
 
 
-def write_tables(looks, dbc_dir, out_dir):
-    """The three tables into OUT/client/DBFilesClient and OUT/dbc; their game paths."""
-    client = os.path.join(out_dir, "client")
-    os.makedirs(os.path.join(client, "DBFilesClient"), exist_ok=True)
+def assemble(stock_dbc_dir, out_dir, change_dirs):
+    """OUT/changes: the change files of [change_dirs] merged a table (the ten races' looks, the allied races'); OUT/dbc: the
+    server's tables, the stock ones with all of them applied. (The client's are made by the app from its own.)"""
+    import apply_client
+    names = merge_changes(os.path.join(out_dir, "changes"), *change_dirs)
     os.makedirs(os.path.join(out_dir, "dbc"), exist_ok=True)
-    written = []
-    for name, t in tables_for(looks, dbc_dir).items():
-        blob = t.write()
-        for path in (os.path.join(client, "DBFilesClient", name + ".dbc"), os.path.join(out_dir, "dbc", name + ".dbc")):
-            with open(path, "wb") as out:
-                out.write(blob)
-        written.append("DBFilesClient\\%s.dbc" % name)
-    return written
+    for name in names:
+        table_name = name[:-4]
+        path = os.path.join(stock_dbc_dir, table_name + ".dbc")
+        if not os.path.exists(path):
+            continue                                       # (a table the server doesn't read)
+        with open(path, "rb") as f:
+            table = apply_client.Table(f.read())
+        with open(os.path.join(out_dir, "changes", name), encoding="utf-8") as f:
+            apply_client.apply(table, f.read())
+        with open(os.path.join(out_dir, "dbc", table_name + ".dbc"), "wb") as f:
+            f.write(table.write())
+    print("assembled %d tables" % len(names))
+    return 0
 
 
 def fetch(csv_dir):
@@ -309,7 +399,59 @@ def fetch(csv_dir):
         sl_inventory.TABLES = saved
 
 
+# The allied races' keys in the races data (the allied races module's own for its four).
+KEYS = {27: "nightborne", 28: "highmountain", 29: "voidelf", 30: "lightforged", 31: "zandalari", 32: "kultiran",
+        34: "darkiron", 35: "vulpera", 36: "maghar", 37: "mechagnome"}
+
+
+def high_elf(void):
+    """The High Elf (the Alliance's, built on the Void Elf's body): the Void Elf's models with only the skins and faces of the
+    high elf kind (today's Void Elf tables carry both), the skins numbered from 0 (their files keep the Void Elf's numbers:
+    names.py's "file_index"). Its files are the Void Elf's: nothing of its own to convert ("alias_of")."""
+    import copy
+    out = copy.deepcopy(void)
+    out["alias_of"] = "voidelf"
+    for sex, m in out["models"].items():
+        void_skins = {s["index"] for s in m["skins"] if s["index"] < 6}
+        keep = [s for s in m["skins"] if s["index"] not in void_skins]
+        faces = [f for f in m["faces"] if f["skins"] and not set(f["skins"]) <= void_skins]
+        m["file_index"] = {str(j): s["index"] for j, s in enumerate(keep)}
+        m["skins"] = [dict(s, index=j) for j, s in enumerate(keep)]
+        m["base_skins"] = len(keep)
+        m["faces"] = faces
+        m["model_path"] = m["folder"] + "\\" + m["name"] + ".mdx"
+    return out
+
+
+def races_data(csv_dir, out_path):
+    """The races data (the format of the allied races module's data/retail/races.json: models, voices, names) for the ten
+    allied races and the High Elf: what Wrath++'s race wiring (tools/races_profile.py, the allied races' build_data.py) reads."""
+    looks = build_races(csv_dir, ALLIED)
+    tables = Tables(csv_dir)
+    data = {}
+    for race_id, entry in looks["races"].items():
+        race_id = int(race_id)
+        key = KEYS[race_id]
+        data[key] = {"race": race_id, "name": entry["name"], "models": entry["models"],
+                     "voices": allied.voices(tables, race_id),
+                     "names": [{"name": n["Name"], "sex": int(n["Sex"])} for n in tables.names if n["RaceID"] == str(race_id)]}
+    he = high_elf(data["voidelf"])
+    he["name"] = "HighElf"
+    he["race"] = 10                                      # its voices and names are the Blood Elves'
+    he["voices"] = allied.voices(tables, 10)
+    he["names"] = [{"name": n["Name"], "sex": int(n["Sex"])} for n in tables.names if n["RaceID"] == "10"]
+    data["highelf"] = he
+    with open(out_path, "w") as f:
+        json.dump(data, f, indent=1, sort_keys=True)
+    return data
+
+
 def main(argv):
+    if len(argv) == 4 and argv[1] == "data":
+        for k, e in races_data(argv[2], argv[3]).items():
+            print("%s: %s, %d vocal, %d emotes, %d names" % (k, "+".join("%s %d skins %d faces" % (m["name"], len(m["skins"]), len(m["faces"])) for m in e["models"].values()),
+                                                           len(e["voices"]["vocal"]), len(e["voices"]["emotes"]), len(e["names"])))
+        return 0
     if len(argv) == 3 and argv[1] == "fetch":
         fetch(argv[2])
         return 0
@@ -323,9 +465,11 @@ def main(argv):
                     m["name"], len(m["skins"]), len(m["faces"]), len(m["eyes"]), len(m["hair"]), len(m["hair_colors"]),
                     len(m["features"]), ", ".join(m["feature_options"])))
         return 0
-    if len(argv) == 5 and argv[1] == "verify":
+    if len(argv) >= 5 and argv[1] == "assemble":
+        return assemble(argv[2], argv[3], argv[4:])
+    if len(argv) == 4 and argv[1] == "verify":
         with open(argv[2]) as f:
-            missing = verify(json.load(f), argv[3], argv[4])
+            missing = verify(json.load(f), argv[3])
         print("%d missing" % len(missing), *missing[:20], sep="\n")
         return 1 if missing else 0
     if len(argv) == 6 and argv[1] == "package":

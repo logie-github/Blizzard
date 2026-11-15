@@ -29,14 +29,15 @@ object WrathppSetup {
         // The creator's Legion-style column, from the app itself: whatever happened to the add-on.
         report.say("Putting in Wrath++'s character creator", null)
         runCatching {
-            val glue = context.assets.open(GLUE_ASSET).use { it.readBytes() }
-            WrathppAddon.writeGluePatch(layout.wrathppClient, mapOf("WrathppCreate.lua" to glue))
+            val glue = GLUE_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
+            WrathppAddon.writeGluePatch(layout.wrathppClient, glue)
         }.onSuccess { notes.append("creator patch: written\n") }.onFailure { e -> notes.append("creator patch FAILED: ${e.message}\n") }
         val log = java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log")
         runCatching { log.parentFile?.mkdirs(); log.writeText(notes.toString()) }
     }
 
-    const val GLUE_ASSET = "wrathpp/WrathppCreate.lua"
+    /** The interface files the app writes into Wrath++'s copy of the game (assets/wrathpp), loaded in [WrathppAddon.loadOrder]. */
+    val GLUE_FILES = listOf("WrathppAlliedRaces.xml", "WrathppAlliedRaces.lua", "WrathppCreate.lua")
 
     /**
      * After Wrath++'s game has started: a report of what it was set up with and how WarcraftXL's runtime got on (its log), so
