@@ -3,7 +3,15 @@
     "allow": [
       "Bash(git push origin HEAD:main)",
       "Bash(git push -u origin HEAD:main)",
-      "Bash(git push origin HEAD:claude/blizzard-game-launcher-dqzz1j)"
+      "Bash(git push origin HEAD:claude/blizzard-game-launcher-dqzz1j)",
+      "mcp__github__actions_list",
+      "mcp__github__list_issues",
+      "mcp__github__list_releases",
+      "mcp__github__issue_read",
+      "mcp__github__get_job_logs",
+      "mcp__github__actions_get",
+      "mcp__github__get_release_by_tag",
+      "Bash(unzip -l *)"
     ]
   }
 }
