@@ -260,8 +260,38 @@ namespace
         }
     }
 
+    /// Whether a CM2Model has loaded (its flags' first bit). (No object with a destructor beside a __try: MSVC's C2712.)
+    bool ModelLoaded(uintptr_t model)
+    {
+        __try { return model && (*reinterpret_cast<const uint32_t*>(model + 0x10) & 1); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    /// Once, when the creation component's model has loaded: whether this runtime lets a model skinned to a character's
+    /// skeleton be hung on it (wxl.m2's WXL_M2_ATTACH_FOLLOW_BONES), which the options that are parts of the model (hair,
+    /// horns, markings) would be made of; the answer is in the log (Wrath++'s start report carries it). An empty model
+    /// of the game's, taken off again at once.
+    void ProbeBones(uintptr_t component)
+    {
+        static bool done = false;
+        if (done || component != CreationComponent()) return;
+        const uintptr_t model = ComponentModel(component);
+        if (!ModelLoaded(model)) return;
+        done = true;
+        wxl::M2Model probe(reinterpret_cast<void*>(model), "Spells\\Blank.mdx");
+        if (!probe)
+        {
+            wxl::Log(WXL_LOG_INFO, kTag, "bones probe: wxl.m2 made no model");
+            return;
+        }
+        const wxl_result hung = probe.Attach(reinterpret_cast<void*>(model), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
+        wxl::Log(WXL_LOG_INFO, kTag, "bones probe: a model that follows the character's bones {} ({})",
+                 hung == WXL_OK ? "can be hung" : "can not be hung", wxl::ResultName(hung));
+    }
+
     void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
     {
+        ProbeBones(reinterpret_cast<uintptr_t>(component));
         ApplyPreview(reinterpret_cast<uintptr_t>(component));
         g_geosRenderPrep(component);
         if (const uintptr_t model = LayerModel(reinterpret_cast<uintptr_t>(component))) ShowLayer(model);
