@@ -146,12 +146,46 @@ class ForeverSteps(
     private fun writeCertificates() {
         if (ForeverAuth.hasCertificate(layout)) return
         layout.keys.mkdirs()
-        File(layout.keys, "bnetserver.ext").writeText(ForeverAuth.serverCertExt())
+        val tag = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date())
+        File(layout.keys, "ca.cnf").writeText(ForeverAuth.caConfig(tag))
+        File(layout.keys, "server.cnf").writeText(ForeverAuth.serverConfig())
+        File(layout.keys, "leaf.ext").writeText(ForeverAuth.leafExt())
         for (cmd in ForeverAuth.certificateCommands(layout)) {
             val code = runToEnd(ForeverServer.command(layout, "openssl", cmd.drop(1)), File(layout.logs, "certificate.log"))
-            if (code != 0) throw IOException("The login certificate couldn't be made (${WowLogs.exitInWords(code)}).")
+            if (code != 0) throw IOException("The login certificate couldn't be made (${WowLogs.exitInWords(code)}): ${WowLogs.tail(File(layout.logs, "certificate.log"), 4)}")
         }
+        // The chain bnetserver sends: the leaf, then the root.
+        File(layout.keys, "bnetserver.cert.pem").writeText(
+            ForeverAuth.chain(File(layout.keys, "bnetserver.leaf.pem").readText(), ForeverAuth.rootCertificate(layout).readText()))
         File(layout.keys, "bnetserver.key.pem").apply { setReadable(false, false); setReadable(true, true) }
+        File(layout.keys, "forever-root-ca.key.pem").apply { setReadable(false, false); setReadable(true, true) }
+    }
+
+    // ---- 5b: the local account (upstream's way: the world server's console) ---------------------------------------------
+    override fun account(): String? {
+        val account = ForeverAuth.loadOrCreate(layout)
+        fun query(statement: String): String? {
+            val log = File(layout.logs, "account-query.log")
+            val args = ForeverServer.clientArgs(account.dbUser, account.dbPassword, "-N", "-B", "-e", statement)
+            val code = runToEnd(ForeverServer.command(layout, "mariadb", args), log)
+            return if (code == 0) log.readText().lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() && it != "NULL" } else null
+        }
+        val world = processes[ForeverServer.WORLD.key] ?: return "The world server isn't running."
+        var id = query(ForeverAuth.idSql(account))?.toIntOrNull()
+        // A command typed while the world server is still loading its bots can be lost: sent again, up to 3 times (upstream does the same).
+        for (attempt in 1..3) {
+            if (id != null) break
+            runCatching { world.outputStream.write((ForeverAuth.createCommand(account) + "\n").toByteArray()); world.outputStream.flush() }
+            repeat(12) { if (id == null) { Thread.sleep(1000); id = query(ForeverAuth.idSql(account))?.toIntOrNull() } }
+        }
+        val accountId = id ?: return "The account wasn't created. See the world server's log."
+        var level = query(ForeverAuth.gmSql(account))?.toIntOrNull()
+        for (attempt in 1..3) {
+            if ((level ?: 0) >= 3) break
+            runCatching { world.outputStream.write((ForeverAuth.gmCommand(accountId) + "\n").toByteArray()); world.outputStream.flush() }
+            repeat(10) { if ((level ?: 0) < 3) { Thread.sleep(1000); level = query(ForeverAuth.gmSql(account))?.toIntOrNull() } }
+        }
+        return if ((level ?: 0) >= 3) null else "The account exists but its GM level wasn't confirmed."
     }
 
     // ---- 6: start --------------------------------------------------------------------------------------------------------

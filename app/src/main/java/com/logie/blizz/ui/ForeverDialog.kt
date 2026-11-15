@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.logie.blizz.forevernew.ForeverInstaller
 import com.logie.blizz.forevernew.ForeverPlay
 import com.logie.blizz.forevernew.ForeverState
 
@@ -26,6 +25,9 @@ fun ForeverDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     val status by ForeverPlay.status.collectAsState()
     LaunchedEffect(Unit) { ForeverPlay.refresh(context) }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) ForeverPlay.importClient(context, uri)
+    }
     Dialog(onDismissRequest = onDismiss) {
         androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.padding(20.dp)) {
@@ -37,12 +39,15 @@ fun ForeverDialog(onDismiss: () -> Unit) {
                     if (p != null) LinearProgressIndicator(progress = { p.coerceIn(0f, 1f) }, Modifier.fillMaxWidth().padding(top = 8.dp))
                     else LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
-                if (status.state == ForeverState.AWAITING_CLIENT) {
-                    Text("Importing your WoW Forever folder from inside the app isn't built yet in this version.", Modifier.padding(top = 8.dp))
+                if (status.state == ForeverState.AWAITING_CLIENT && !status.running) {
+                    Text("Forever's game can't be downloaded by the app. Install World of Warcraft: Forever with Battle.net on a computer, copy the whole World of Warcraft folder (it holds .build.info, Data and _forever_) to this phone, then pick it once.", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
                 }
-                Text(ForeverInstaller.Plan.notImplemented.joinToString("\n") { "• $it" }, Modifier.padding(top = 12.dp), style = MaterialTheme.typography.bodySmall)
                 Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    TextButton(onClick = { ForeverPlay.start(context) }, enabled = !status.running) { Text("Install & Play") }
+                    if (status.state == ForeverState.AWAITING_CLIENT) {
+                        TextButton(onClick = { picker.launch(null) }, enabled = !status.running) { Text("Import & Install") }
+                    } else {
+                        TextButton(onClick = { ForeverPlay.start(context) }, enabled = !status.running) { Text("Install & Play") }
+                    }
                     TextButton(onClick = { ForeverPlay.stop() }, enabled = !status.running && status.state == ForeverState.READY) { Text("Stop") }
                     TextButton(onClick = onDismiss) { Text("Close") }
                 }

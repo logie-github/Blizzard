@@ -2,6 +2,8 @@ package com.logie.blizz.forevernew
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -137,8 +139,12 @@ class ForeverClientConfigTest {
         val a = ForeverAuth.loadOrCreate(layout)
         val b = ForeverAuth.loadOrCreate(layout)
         assertEquals(a, b)
-        assertTrue(a.password.length >= 18 && a.dbPassword.length >= 36 && a.dbPassword != a.dbRoot)
-        assertTrue(ForeverAuth.consoleCommands(a).first().startsWith("bnetaccount create "))
+        assertTrue(a.password.length in 6..16 && a.password.none { it.isWhitespace() || it in "\"'`;" })
+        assertTrue(a.dbPassword.length >= 36 && a.dbPassword != a.dbRoot)
+        assertEquals("forever@forever.local", a.name)
+        assertEquals("bnetaccount create forever@forever.local ${a.password}", ForeverAuth.createCommand(a))
+        assertEquals("account set gmlevel 7#1 3 -1", ForeverAuth.gmCommand(7))
+        assertTrue(ForeverAuth.idSql(a).contains("battlenet_accounts"))
         assertTrue(ForeverAuth.realmSql(70938).contains("70938") && ForeverAuth.realmSql(70938).contains("(70,"))
     }
 
@@ -167,6 +173,7 @@ class ForeverClientConfigTest {
         override fun addon(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit) = step("addon")
         override fun startAuth() = step("auth")
         override fun startWorld() = step("world")
+        override fun account() = step("account")
     }
 
     private fun installer(layout: ForeverLayout, f: Fake) =
@@ -177,8 +184,7 @@ class ForeverClientConfigTest {
         val layout = ForeverLayout(File(tmp.root, "i1")); val f = Fake(layout, ok)
         val r = installer(layout, f).run { _, _, _ -> }
         assertEquals(ForeverInstaller.Outcome.READY, r.outcome)
-        assertEquals(listOf("package", "client", "extract", "database", "addon", "auth", "world"), f.calls)
-        assertTrue(r.message.contains("not implemented"))
+        assertEquals(listOf("package", "client", "extract", "database", "addon", "auth", "world", "account"), f.calls)
         assertEquals(ForeverState.READY, ForeverStateStore(layout.stateFile).load().state)
     }
 
@@ -194,7 +200,7 @@ class ForeverClientConfigTest {
         val layout = ForeverLayout(File(tmp.root, "i2")); val f = Fake(layout, null)
         assertEquals(ForeverInstaller.Outcome.AWAITING_CLIENT, installer(layout, f).run { _, _, _ -> }.outcome)
         assertEquals(listOf("package", "client"), f.calls)
-        for (stage in listOf("package", "extract", "database", "addon", "auth", "world")) {
+        for (stage in listOf("package", "extract", "database", "addon", "auth", "world", "account")) {
             val l = ForeverLayout(File(tmp.root, "f-$stage")); val fk = Fake(l, ok, failAt = stage)
             val r = installer(l, fk).run { _, _, _ -> }
             assertEquals(stage, ForeverInstaller.Outcome.FAILED, r.outcome)
@@ -209,10 +215,120 @@ class ForeverClientConfigTest {
         val c = ForeverServer.command(layout, ForeverServer.WORLD)
         assertEquals(File(layout.lib, "ld-musl-aarch64.so.1").path, c.argv[0])
         assertEquals("--library-path", c.argv[1]); assertEquals(File(layout.bin, "worldserver").path, c.argv[3])
-        assertTrue(c.env["LD_PRELOAD"]!!.endsWith("libandroidcompat.so"))
+        assertTrue(c.env["LD_PRELOAD"]!!.contains("libandroidcompat.so") && c.env["LD_PRELOAD"]!!.contains("libforeverresolve.so"))
         assertEquals(listOf("db", "auth", "world"), ForeverServer.startOrder.map { it.key })
         assertEquals(listOf("world", "auth", "db"), ForeverServer.stopOrder.map { it.key })
         assertTrue(ForeverServer.dbArgs(layout).contains("--bind-address=127.0.0.1"))
         assertTrue(ForeverServer.explain("Correct *.map files not found")!!.contains("map data"))
+    }
+
+    // ---- the game's side: certificate, hosts, launch files, key helper settings ----
+    @Test fun certificateConfigsMatchUpstream() {
+        assertTrue(ForeverAuth.caConfig("t").contains("nameConstraints=critical,permitted;DNS:actual.battle.net"))
+        assertTrue(ForeverAuth.leafExt().contains("subjectAltName=DNS:trinity.actual.battle.net"))
+        val layout = ForeverLayout(File(tmp.root, "c"))
+        val cmds = ForeverAuth.certificateCommands(layout)
+        assertEquals(3, cmds.size)
+        assertTrue(cmds[0].containsAll(listOf("-x509", "825")) && cmds[2].contains("-CAcreateserial"))
+        assertEquals("L\nR\n", ForeverAuth.chain("L\n\n", "R\n"))
+        assertFalse(ForeverAuth.hasCertificate(layout))
+    }
+
+    @Test fun wineRootStoreEntryIsIdempotentAndInBothViews() {
+        val der = ByteArray(300) { (it * 3).toByte() }
+        val reg = File(tmp.root, "system.reg").apply { writeText("WINE REGISTRY Version 2\n") }
+        assertTrue(WineCerts.install(reg, der, 1700000000))
+        assertFalse(WineCerts.install(reg, der, 1700000001))
+        val text = reg.readText()
+        val thumb = java.security.MessageDigest.getInstance("SHA-1").digest(der).joinToString("") { "%02X".format(it) }
+        assertEquals(thumb, WineCerts.thumbprint(der))
+        assertEquals(2, Regex(Regex.escape(thumb) + "\\]").findAll(text).count())
+        assertTrue(text.contains("Software\\\\Microsoft\\\\SystemCertificates\\\\Root\\\\Certificates"))
+        assertTrue(text.contains("Software\\\\Wow6432Node\\\\Microsoft\\\\SystemCertificates"))
+        val blob = WineCerts.blob(der)
+        assertEquals(12 + 300, blob.size)
+        assertEquals(32, blob[0].toInt()); assertEquals(1, blob[4].toInt()); assertEquals(300 and 255, blob[8].toInt() and 255)
+        assertTrue(text.contains("\"Blob\"=hex:20,00,00,00,01,00,00,00,2c,01,00,00,00,03,06"))
+        assertFalse(WineCerts.install(File(tmp.root, "none.reg"), der))
+    }
+
+    @Test fun pemConvertsToDer() {
+        val pem = "-----BEGIN CERTIFICATE-----\n" + java.util.Base64.getMimeEncoder(64, "\n".toByteArray()).encodeToString(ByteArray(100) { it.toByte() }) + "\n-----END CERTIFICATE-----\n"
+        assertEquals(100, WineCerts.pemToDer(pem).size)
+    }
+
+    @Test fun launchFilesLeaveThePlayersConfigAlone() {
+        val client = tmp.newFolder("wow")
+        val dir = File(client, "_forever_").apply { mkdirs() }
+        File(dir, "Wow.exe").writeText("x")
+        File(dir, "WTF").mkdirs(); File(dir, "WTF/Config.wtf").writeText("SET portal \"us\"\nSET gxWindow \"0\"\nSET sound \"1\"\n")
+        File(client, ".build.info").writeText("Branch!STRING:0|Tags!STRING:0\nus|Windows x86_64 frFR text? enUS text? enUS speech?\n")
+        assertNull(ForeverLaunch.prepare(client, 2400, 1080) { byteArrayOf(1, 2, 3) })
+        assertTrue(File(dir, "WTF/Config.wtf").readText().contains("SET portal \"us\""))
+        val wtf = File(dir, "WTF/ForeverLauncher.wtf").readText()
+        assertTrue(wtf.contains("SET portal \"trinity.actual.battle.net\"") && wtf.contains("SET sound \"1\"") && wtf.contains("SET gxWindow \"1\""))
+        assertTrue(wtf.contains("SET textLocale \"enUS\"") && wtf.contains("2400x1080"))
+        val cfg = File(dir, "foreverkey.cfg").readText()
+        assertTrue(cfg.contains("client=Wow.exe") && cfg.contains("group=8") && cfg.contains("key=02596F0D0C06"))
+        assertTrue(File(dir, "foreverkey.exe").readBytes().contentEquals(byteArrayOf(1, 2, 3)))
+        assertNotNull(ForeverLaunch.prepare(client, 800, 600) { null })
+        assertEquals("frFR", ForeverLaunch.textLocale("x|Windows frFR text? deDE speech?"))
+        assertEquals("enUS", ForeverLaunch.textLocale(""))
+        assertTrue(ForeverLaunch.PUBLIC_KEY.length == 64)
+    }
+
+    @Test fun portalIsOnlyInTheGamesHosts() {
+        val hosts = com.logie.blizz.game.Offline.hosts(true, listOf(ForeverConfig.PORTAL))
+        assertTrue(hosts.contains("127.0.0.1\ttrinity.actual.battle.net"))
+        assertFalse(com.logie.blizz.game.Offline.hosts(true).contains("trinity.actual.battle.net"))
+        assertTrue(hosts.contains("0.0.0.0\tus.actual.battle.net"))
+    }
+
+    // ---- the one folder pick ----
+    private class MapTree(val files: Map<String, ByteArray>, val failOn: String? = null) : ForeverClientImport.Tree {
+        override val rootId = ""
+        private fun children(id: String): List<String> = files.keys.filter { k -> id.isEmpty() || k.startsWith("$id/") }
+            .map { k -> k.removePrefix(if (id.isEmpty()) "" else "$id/").substringBefore('/') }.distinct()
+        override fun list(id: String) = children(id).map { n ->
+            val path = if (id.isEmpty()) n else "$id/$n"
+            val dir = files.keys.any { it.startsWith("$path/") }
+            ForeverClientImport.Entry(path, n, dir, files[path]?.size?.toLong() ?: 0L)
+        }
+        override fun open(id: String): java.io.InputStream {
+            if (id == failOn) throw java.io.IOException("read failed")
+            return java.io.ByteArrayInputStream(files.getValue(id))
+        }
+    }
+
+    private val install = mapOf(
+        ".build.info" to "x".toByteArray(), "Data/data/data.000" to ByteArray(5000) { 1 }, "Data/config/a" to ByteArray(10),
+        "_forever_/Wow.exe" to ByteArray(2000), "_forever_/WTF/Config.wtf" to ByteArray(20),
+        "_retail_/Wow.exe" to ByteArray(9000), "Launcher.db" to ByteArray(10),
+    )
+
+    @Test fun importCopiesOnlyTheRealmsPartsAndResumes() {
+        val dest = File(tmp.root, "client")
+        assertNull(ForeverClientImport.copy(MapTree(install), dest, { 1L shl 40 }))
+        assertTrue(File(dest, "_forever_/Wow.exe").isFile && File(dest, "Data/data/data.000").length() == 5000L && File(dest, ".build.info").isFile)
+        assertFalse(File(dest, "_retail_").exists()); assertFalse(File(dest, "Launcher.db").exists())
+        // a second pick copies nothing new (and a changed-size file is copied again)
+        File(dest, "_forever_/Wow.exe").writeBytes(ByteArray(5))
+        var opened = 0
+        val counting = object : ForeverClientImport.Tree by MapTree(install) { override fun open(id: String): java.io.InputStream { opened++; return MapTree(install).open(id) } }
+        assertNull(ForeverClientImport.copy(counting, dest, { 1L shl 40 }))
+        assertEquals(1, opened)
+        assertEquals(2000L, File(dest, "_forever_/Wow.exe").length())
+    }
+
+    @Test fun importRefusesWrongFoldersAndLowSpaceAndFailures() {
+        val dest = File(tmp.root, "client2")
+        val foreverOnly = mapOf("Wow.exe" to ByteArray(3), "WTF/Config.wtf" to ByteArray(3))
+        assertTrue(ForeverClientImport.copy(MapTree(foreverOnly), dest)!!.contains("_forever_ folder itself"))
+        assertTrue(ForeverClientImport.copy(MapTree(mapOf("a" to ByteArray(1))), dest)!!.contains("complete WoW Forever installation"))
+        assertTrue(ForeverClientImport.copy(MapTree(install), dest, { 1L shl 20 })!!.contains("Not enough space"))
+        val bad = ForeverClientImport.copy(MapTree(install, failOn = "_forever_/Wow.exe"), dest, { 1L shl 40 })
+        assertTrue(bad!!.contains("failed"))
+        assertFalse(File(dest, "_forever_/Wow.exe").exists())
+        assertTrue(ForeverClientImport.copy(MapTree(install), dest, { 1L shl 40 }, cancelled = { true })!!.contains("stopped"))
     }
 }

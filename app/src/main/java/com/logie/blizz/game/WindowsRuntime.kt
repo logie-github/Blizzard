@@ -120,7 +120,9 @@ object WindowsRuntime {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
         if (!installed) throw IllegalStateException(context.getString(R.string.game_error_runtime))
-        withContext(Dispatchers.IO) { keepOffline(context) }
+        // WoW Forever: its login portal is this phone ([com.logie.blizz.forevernew.ForeverLaunch]); the hosts file is the runtime's, not Android's.
+        val forever = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == com.logie.blizz.forevernew.ForeverLaunch.VERSION
+        withContext(Dispatchers.IO) { keepOffline(context, if (forever) listOf(com.logie.blizz.forevernew.ForeverConfig.PORTAL) else emptyList()) }
 
         _state.value = State.Preparing(Step.WINDOWS, gameId = WowPlay.splashIdOf(entry))
         val (width, height) = size
@@ -134,6 +136,14 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) {
             val env = EsyncSetting.apply(container.getEnvVars(), on = true)
             if (env != container.getEnvVars()) { container.setEnvVars(env); container.saveData() }
+        }
+        // WoW Forever: the realm's own root CA is trusted by the games' Windows (its login is TLS to the portal).
+        if (forever) {
+            withContext(Dispatchers.IO) {
+                val root = com.logie.blizz.forevernew.ForeverAuth.rootCertificate(com.logie.blizz.forevernew.ForeverLayout.of(context))
+                val added = runCatching { com.logie.blizz.forevernew.ForeverLaunch.trustRealm(root, File(container.rootDir, ".wine/system.reg")) }.getOrDefault(false)
+                com.logie.blizz.reports.SessionLog.event("windows", "forever: realm root ${if (root.isFile) (if (added) "added to" else "already in") else "MISSING from"} the games' root store")
+            }
         }
         if (legion) {
             withContext(Dispatchers.IO) {
@@ -202,10 +212,10 @@ object WindowsRuntime {
     }
 
     /** The runtime's hosts file: Blizzard's names nowhere ([Offline]). */
-    private fun keepOffline(context: Context) {
+    private fun keepOffline(context: Context, local: List<String> = emptyList()) {
         val etc = File(RootFS.find(context).rootDir, "etc")
         etc.mkdirs()
-        File(etc, "hosts").writeText(Offline.hosts(true))
+        File(etc, "hosts").writeText(Offline.hosts(true, local))
         File(etc, "nsswitch.conf").writeText(Offline.nsswitch())
     }
 

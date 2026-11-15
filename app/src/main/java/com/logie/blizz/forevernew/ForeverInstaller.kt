@@ -7,7 +7,7 @@ import java.io.IOException
  * The one "Install & Play" workflow, as an ordered list of stages with checkpoints. Each stage reports through [Steps]
  * (injected, so the order, the failure handling and the resume are unit-tested without a phone). What is wired to real work
  * today and what isn't is in [Plan.notImplemented]; the installer never reports READY past a stage it could not run, and
- * never starts the game it cannot start ([ForeverAuth.Launch.NOT_WIRED]).
+ * starts the game only through [ForeverPlay] once this returns READY.
  */
 class ForeverInstaller(private val layout: ForeverLayout, private val steps: Steps, private val store: ForeverStateStore, private val logs: ForeverLogs,
     private val freeBytes: (File) -> Long = { it.usableSpace }) {
@@ -21,6 +21,8 @@ class ForeverInstaller(private val layout: ForeverLayout, private val steps: Ste
         fun addon(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String?
         fun startAuth(): String?
         fun startWorld(): String?
+        /** The local account, with GM level 3, once the world server is up. */
+        fun account(): String?
     }
 
     enum class Outcome { READY, AWAITING_CLIENT, FAILED }
@@ -59,19 +61,12 @@ class ForeverInstaller(private val layout: ForeverLayout, private val steps: Ste
             steps.startAuth()?.let { return fail(ForeverState.STARTING_AUTH, "login server", it) }
             enter(ForeverState.STARTING_WORLD, "Starting the world server")
             steps.startWorld()?.let { return fail(ForeverState.STARTING_WORLD, "world server", it) }
-            enter(ForeverState.READY, "The server is running. ${ForeverAuth.Launch.NOT_WIRED}")
-            Result(Outcome.READY, "The server is running. ${ForeverAuth.Launch.NOT_WIRED}")
+            enter(ForeverState.STARTING_WORLD, "Making the local account")
+            steps.account()?.let { return fail(ForeverState.STARTING_WORLD, "account", it) }
+            enter(ForeverState.READY, "The server is running")
+            Result(Outcome.READY, "The server is running")
         } catch (e: IOException) {
             fail(store.load().state, "io", e.message ?: e.javaClass.simpleName)
         }
-    }
-
-    /** What the installer does and does not do yet. Shown by the page and written into the log: nothing here is claimed as working on a phone. */
-    object Plan {
-        val notImplemented = listOf(
-            "Starting the game: Wine trust of the login certificate and the launcher's server key (WoWForeverLauncher.exe) are not built or tested.",
-            "Downloading the game client: no authorised Battle.net download exists in the app; the client is imported once from the user's own installation.",
-            "Nothing here has run on a real phone.",
-        )
     }
 }

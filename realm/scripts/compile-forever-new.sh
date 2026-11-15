@@ -39,6 +39,12 @@ if [ "${FETCH:-1}" != 0 ]; then
 fi
 [ "$(git -C "$SRC" rev-parse HEAD)" = "$CORE_COMMIT" ] || { echo "Source is not at the pinned commit $CORE_COMMIT" >&2; exit 1; }
 
+# gSOAP (the world server's remote-access dependency) picks glibc's GNU variants of gethostbyname_r and strerror_r unless the
+# POSIX ones are asked for; musl has only the POSIX ones. Asked for here, for that one library, at build time (the source stays as pinned).
+if ! grep -q "forever-musl" "$SRC/dep/gsoap/CMakeLists.txt"; then
+	printf '\n# forever-musl: musl has the POSIX gethostbyname_r and strerror_r only\ntarget_compile_definitions(gsoap PRIVATE _POSIX_C_SOURCE=200809L WITH_POSIX_STRERROR_R)\n' >> "$SRC/dep/gsoap/CMakeLists.txt"
+fi
+
 # musl gives a new thread a 128 KiB stack unless the program asks for more (glibc: 8 MiB).
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/forever \
@@ -51,7 +57,13 @@ grep -q "AddSC_playerbot_v2" "$BUILD.cmake.log" || { echo "Modules: AddSC_player
 grep -E "Playerbot V2|Modules:" "$BUILD.cmake.log" || true
 
 ccache -z > /dev/null
-ninja -C "$BUILD" -j "$JOBS" bnetserver worldserver mapextractor vmap4extractor vmap4assembler mmaps_generator
+# -k 0: every failing file is reported in one run, not only the first.
+if ! ninja -C "$BUILD" -k 0 -j "$JOBS" bnetserver worldserver mapextractor vmap4extractor vmap4assembler mmaps_generator > "$BUILD.ninja.log" 2>&1; then
+	echo "=== compile errors ==="
+	grep -E "^FAILED:|error:|undefined reference|cannot find" "$BUILD.ninja.log" | cut -c1-400 | head -80
+	exit 1
+fi
+tail -3 "$BUILD.ninja.log"
 ccache -s
 
 rm -rf "$DIST"

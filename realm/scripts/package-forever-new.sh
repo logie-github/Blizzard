@@ -34,6 +34,8 @@ cp -r /usr/share/mariadb "$pkg/share/mariadb"
 cp -L /usr/lib/ossl-modules/legacy.so "$pkg/lib/ossl-modules/"
 cp -L /usr/lib/libjemalloc.so.2 "$pkg/lib/"
 cc -O2 -shared -fPIC -o "$pkg/lib/libandroidcompat.so" /repo/warcraft/server/android_compat.c
+# The login server's own portal name (*.actual.battle.net) is this phone, answered for these programs only.
+cc -O2 -shared -fPIC -o "$pkg/lib/libforeverresolve.so" /repo/warcraft/forever-new/forever_resolve.c
 
 # Every shared library each program loads (musl's ldd), and musl's loader itself.
 for exe in "$pkg"/bin/*; do

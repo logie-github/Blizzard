@@ -11,8 +11,8 @@ import java.security.SecureRandom
  * What upstream says the client needs (doc/ForeverSetup.md): it logs in over TLS to [ForeverConfig.PORTAL]; that name must
  * resolve to the server (inside the game's own Wine only here, never Android's hosts file); the certificate for it must
  * chain to a root the client trusts (a CA the install makes itself, name-constrained to `actual.battle.net`); and the
- * launcher writes the server's public key into the running client. THE LAST TWO HALVES (the Wine trust store, and the
- * launcher's key injection every start) ARE NOT IMPLEMENTED OR TESTED YET: [Launch] says so instead of starting the game.
+ * launcher writes the server's public key into the running client. Those halves are [WineCerts], the hosts line and
+ * `tools/foreverkey` (see [ForeverLaunch]).
  */
 object ForeverAuth {
     /** The local account's name and password, generated once, kept in app-private storage. */
@@ -30,7 +30,7 @@ object ForeverAuth {
                 return Account(j.getString("name"), j.getString("password"), j.getString("dbUser"), j.getString("dbPassword"), j.getString("dbRoot"))
             }
         }
-        val a = Account("forever", randomSecret(9, random), "forever", randomSecret(18, random), randomSecret(18, random))
+        val a = Account(email("forever"), randomSecret(8, random), "forever", randomSecret(18, random), randomSecret(18, random))
         layout.keys.mkdirs()
         val tmp = File(layout.credentials.path + ".tmp")
         tmp.writeText(JSONObject().put("name", a.name).put("password", a.password).put("dbUser", a.dbUser).put("dbPassword", a.dbPassword).put("dbRoot", a.dbRoot).toString())
@@ -39,20 +39,20 @@ object ForeverAuth {
         return a
     }
 
-    /**
-     * The account in the auth database: Battle.net accounts here are `email` rows with a SRP6 verifier, and the game account
-     * `1#1`. The password hash is made by bnetserver's own scheme, which the app doesn't reimplement: the account is made with
-     * the world server's console (`bnetaccount create <email> <password>`, `bnetaccount gameaccountcreate`, `account set gmlevel`),
-     * which is what [consoleCommands] lists, sent once the world server is up.
-     */
-    fun email(account: Account) = "${account.name}@forever.local"
+    /** The login name is an e-mail-shaped name (a Battle.net account); the password is 16 characters, upstream allows 6 to 16 with no spaces or quotes. */
+    fun email(name: String) = "$name@forever.local"
 
-    fun consoleCommands(account: Account): List<String> = listOf(
-        "bnetaccount create ${email(account)} ${account.password}",
-        "bnetaccount gameaccountcreate ${email(account)} ${account.name}",
-        // GM level 3 on this local realm only, so the ForeverBots window and .bot commands work.
-        "account set gmlevel 1#1 3 -1",
-    )
+    /**
+     * Upstream's own way (repack/Create-Account.ps1): the world server's console makes the Battle.net account
+     * (`bnetaccount create <name> <password>`, which also makes its game account `<id>#1`), then
+     * `account set gmlevel <id>#1 3 -1` gives GM level 3 on this local realm so the ForeverBots window and `.bot` commands
+     * work. The id is read from `auth.battlenet_accounts` after the first command ([ID_SQL]).
+     */
+    fun createCommand(account: Account) = "bnetaccount create ${account.name} ${account.password}"
+    fun gmCommand(id: Int) = "account set gmlevel $id#1 3 -1"
+    fun idSql(account: Account) = "SELECT id FROM auth.battlenet_accounts WHERE UPPER(email)=UPPER('${ForeverDb.escape(account.name)}')"
+    fun gmSql(account: Account) = "SELECT MAX(aa.SecurityLevel) FROM auth.account a JOIN auth.account_access aa ON aa.AccountID=a.id " +
+        "JOIN auth.battlenet_accounts b ON a.battlenet_account=b.id WHERE UPPER(b.email)=UPPER('${ForeverDb.escape(account.name)}')"
 
     /** The realm's row in the auth database: id 70 (what the client accepts), this phone, the client's build. */
     fun realmSql(build: Int): String =
@@ -61,31 +61,33 @@ object ForeverAuth {
             "ON DUPLICATE KEY UPDATE name = VALUES(name), address = VALUES(address), localAddress = VALUES(localAddress), " +
             "port = VALUES(port), gamebuild = VALUES(gamebuild);"
 
-    /** `openssl` commands (run through the loader by the installer) for a name-constrained root and the portal's certificate. */
+    /** Upstream's certificate settings (repack/make-certs.ps1): a root restricted to actual.battle.net, and the portal's leaf signed by it. */
+    fun caConfig(tag: String) = "[req]\ndistinguished_name=dn\nx509_extensions=ca\nprompt=no\n[dn]\nCN=WoW Forever Local CA $tag\n" +
+        "[ca]\nbasicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\nsubjectKeyIdentifier=hash\n" +
+        "nameConstraints=critical,permitted;DNS:actual.battle.net\n"
+    fun serverConfig() = "[req]\ndistinguished_name=dn\nprompt=no\n[dn]\nCN=${ForeverConfig.PORTAL}\n"
+    fun leafExt() = "subjectAltName=DNS:${ForeverConfig.PORTAL}\nextendedKeyUsage=serverAuth\nauthorityKeyIdentifier=keyid:always\n"
+
+    /** `openssl` commands (run through the loader by the installer) for the root and the portal's certificate, 825 days (a client's limit). */
     fun certificateCommands(layout: ForeverLayout): List<List<String>> {
         val k = layout.keys
-        val ca = File(k, "forever-root-ca.key.pem").path; val caCert = File(k, "forever-root-ca.cert.pem").path
-        val key = File(k, "bnetserver.key.pem").path; val csr = File(k, "bnetserver.csr.pem").path
-        val cert = File(k, "bnetserver.cert.pem").path; val ext = File(k, "bnetserver.ext").path
-        val caExt = File(k, "ca.ext").path
+        fun f(n: String) = File(k, n).path
         val openssl = File(layout.bin, "openssl").path
         return listOf(
-            listOf(openssl, "req", "-x509", "-newkey", "rsa:3072", "-nodes", "-keyout", ca, "-out", caCert, "-days", "3650",
-                "-subj", "/CN=Forever local root", "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "nameConstraints=critical,permitted;DNS:actual.battle.net"),
-            listOf(openssl, "req", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", csr, "-subj", "/CN=${ForeverConfig.PORTAL}"),
-            listOf(openssl, "x509", "-req", "-in", csr, "-CA", caCert, "-CAkey", ca, "-CAcreateserial", "-out", cert, "-days", "825",
-                "-extfile", ext),
+            listOf(openssl, "req", "-x509", "-newkey", "rsa:3072", "-nodes", "-keyout", f("forever-root-ca.key.pem"), "-out", f("forever-root-ca.cert.pem"), "-days", "825", "-config", f("ca.cnf")),
+            listOf(openssl, "req", "-new", "-newkey", "rsa:2048", "-nodes", "-keyout", f("bnetserver.key.pem"), "-out", f("bnetserver.csr.pem"), "-config", f("server.cnf")),
+            listOf(openssl, "x509", "-req", "-in", f("bnetserver.csr.pem"), "-CA", f("forever-root-ca.cert.pem"), "-CAkey", f("forever-root-ca.key.pem"), "-CAcreateserial", "-out", f("bnetserver.leaf.pem"), "-days", "825", "-extfile", f("leaf.ext")),
         )
     }
 
-    fun serverCertExt(): String = "subjectAltName=DNS:${ForeverConfig.PORTAL}\nbasicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\n"
+    /** The chain file bnetserver sends: the leaf, then the root (upstream's chain.pem). */
+    fun chain(leaf: String, ca: String) = leaf.trimEnd() + "\n" + ca.trimEnd() + "\n"
 
     /** The root's private key never leaves keys/ and isn't packaged, copied or logged; only its certificate is for the game's trust store. */
-    fun hasCertificate(layout: ForeverLayout) = File(layout.keys, "bnetserver.cert.pem").isFile && File(layout.keys, "bnetserver.key.pem").isFile
+    fun hasCertificate(layout: ForeverLayout) = File(layout.keys, "bnetserver.cert.pem").isFile && File(layout.keys, "bnetserver.key.pem").isFile &&
+        File(layout.keys, "forever-root-ca.cert.pem").isFile
 
-    /** The honest state of game start-up: what isn't done yet. */
-    object Launch {
-        const val NOT_WIRED = "Starting the game is not implemented yet: the game's Wine certificate trust and the launcher's server-key step " +
-            "(WoWForeverLauncher.exe under the app's Wine) have not been built or tested on a phone."
-    }
+    /** The root's certificate (public), which the game's Wine is made to trust ([WineCerts]). */
+    fun rootCertificate(layout: ForeverLayout) = File(layout.keys, "forever-root-ca.cert.pem")
+
 }

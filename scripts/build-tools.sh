@@ -60,6 +60,11 @@ mkdir -p "$ASSETS"
 "$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/borderless/borderless.c" -luser32 -lkernel32 -o "$ASSETS/borderless.exe" 2> "$WORK/borderless.log" ||
 	{ tail -40 "$WORK/borderless.log"; exit 1; }
 
+# foreverkey.exe (tools/foreverkey/foreverkey.c): starts WoW Forever's client for the app's own realm and writes the realm's login
+# key into the client's key table, as upstream's own launch script does. The app copies it beside the game's program.
+"$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/foreverkey/foreverkey.c" -luser32 -lkernel32 -o "$ASSETS/foreverkey.exe" 2> "$WORK/foreverkey.log" ||
+	{ tail -40 "$WORK/foreverkey.log"; exit 1; }
+
 # innoextract ----------------------------------------------------------------------------------
 android() { # source build [cmake args...]
 	src="$1"; build="$2"; shift 2
