@@ -134,7 +134,9 @@ return function(opts)
 	WrathppAtlas = nil
 	WrathppShots = opts.shots and "rig" or nil            -- the app asks for pictures of the creator (WrathppShots.lua in its patch)
 	-- (by name, as the app's patch lists them: WrathppAlliedRaces first)
-	local alliedLua = opts.creator and (opts.creator:match("^(.*/)") or "").."WrathppAlliedRaces.lua" or nil
+	-- (with the creator or without it: the tables carry the allied races either way, and the game's own screen needs their buttons)
+	local alliedDir = opts.alliedDir or os.getenv("RIG_ALLIED_DIR") or (opts.creator and opts.creator:match("^(.*/)")) or nil
+	local alliedLua = alliedDir and (alliedDir:gsub("/*$", "/").."WrathppAlliedRaces.lua") or nil
 	local al = alliedLua and io.open(alliedLua)
 	if ( al ) then al:close() else alliedLua = nil end
 	for _, file in ipairs({ alliedLua or false, atlasFile or false, opts.creator or false, opts.looks or false, opts.undead or false }) do

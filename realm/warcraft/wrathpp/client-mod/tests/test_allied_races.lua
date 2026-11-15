@@ -37,10 +37,23 @@ function CharacterCreateEnumerateRaces(...) seen = { ... } end
 local background
 function SetBackgroundModel(model, name) background = name end
 GlueAmbienceTracks = { CHARACTERSELECT = "select", DRAENEI = "draenei" }
+-- the screen's own table of its race icons' places (the game's ten; stock CharacterCreate.lua)
+RACE_ICON_TCOORDS = {}
+for i, t in ipairs({ "HUMAN", "DWARF", "NIGHTELF", "GNOME", "DRAENEI", "ORC", "SCOURGE", "TAUREN", "TROLL", "BLOODELF" }) do
+	RACE_ICON_TCOORDS[t.."_MALE"] = { i / 10, i / 10 + 0.1, 0, 0.25 }; RACE_ICON_TCOORDS[t.."_FEMALE"] = { i / 10, i / 10 + 0.1, 0.25, 0.5 }
+end
 
 dofile(script)
 
 check(MAX_RACES == 21, "the screen counts 21 races")
+do
+	local missing = {}
+	for _, name in ipairs(tokens) do
+		for _, sex in ipairs({ "MALE", "FEMALE" }) do if not RACE_ICON_TCOORDS[strupper(name).."_"..sex] then missing[#missing + 1] = name.."_"..sex end end
+	end
+	check(#missing == 0, "every race's icon has its place on the sheet, as the screen's own code looks it up by file string and sex"..(#missing > 0 and (": "..table.concat(missing, ", ")) or ""))
+	check(RACE_ICON_TCOORDS.VOIDELF_MALE[1] == RACE_ICON_TCOORDS.BLOODELF_MALE[1], "  an allied race takes its start race's place for the big icon")
+end
 check(CharacterCreateRaceButton11 == AlliedRaceButton11 and CharacterCreateRaceButton21 == AlliedRaceButton21, "the xml's buttons have the names the screen looks for")
 check(CharacterCreateRaceButton11NormalTexture == AlliedRaceButton11NormalTexture, "  with their pictures")
 check(CharacterCreateRaceButton11.parent == config, "  and the screen's frame as parent")
