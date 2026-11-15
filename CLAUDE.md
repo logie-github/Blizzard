@@ -55,6 +55,11 @@
 - **A fault in a game's clicks or keys is reproduced on Winlator's own X server** (`tools/xrig/README.md`: the server in a unit
   test, the phone's Wine connected to it), where the phone's input differs from Xvfb: pointer grabs, the stretch, which window
   gets the event. A change to the input path, the keeper or Winlator's server is run there before it is pushed.
+- **Never overwrite Forever** (the user: "Be sure neither of these sessions overwrite forever"). WoW: Forever is another session's
+  work: `app/src/main/java/com/logie/blizz/forever/`, its tests, `realm/forever/`, `forever-arm64/`, `scripts/mirror-forever-arm64.sh`,
+  `tools/forevergo/`, `.github/workflows/*forever*`, `notes/*forever*` and its page in the launcher. The races, Wrath++, Cataclysm
+  and rig sessions don't edit them. Before every push to `main`: `git diff --name-only origin/main HEAD | grep -i forever` must list
+  nothing you did not mean to change; after a merge, `git diff <your commit>~1 <your commit> --stat` for those paths is empty.
 - Never commit build outputs, downloaded tools, or any game files.
 
 ## Wrath++: the whole Shadowlands creator, every option, every race (the user's standing rule)
