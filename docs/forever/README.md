@@ -21,19 +21,27 @@ sources are Karrz's current projects, pinned in `realm/warcraft/forever-new/fore
 | App: process start-up through the musl loader, readiness, stop order | `ForeverServer.kt`, `ForeverSteps.kt` | **not run anywhere** |
 | App: stage machine and the Install & Play dialog | `ForeverInstaller.kt`, `ForeverPlay.kt`, `ui/ForeverDialog.kt` | order unit-tested; the dialog **not compiled or seen** |
 
-## What does not exist (do not read the page as a working game)
+## The game side (added after the first pass; what each piece was checked against)
 
-1. **Starting the game.** Upstream needs the login certificate trusted inside the game's Wine, the portal name resolving to
-   the phone inside that Wine only, and the launcher writing the server's public key into the running client every start
-   (`WoWForeverLauncher.exe`, release asset 19). None of that is built or tested. The installer ends at "server running".
-2. **Getting the client.** Karrz ships no client and no authorised Battle.net download is implemented. The client is the user's
-   own installation; the in-app "Import & Install" (folder picker, copy, validate) **is not written**. `ForeverSteps.client()`
-   reads `files/realms/forever-v2/client-path.txt`, which nothing creates yet.
-3. **Any phone run**: the loader running these programs inside the app sandbox, MariaDB's bootstrap, the SQL updater on Karrz's
-   dumps (whether their `updates` rows are present is unknown), map extraction time and space on a phone, bots under memory.
-4. **Map extraction space**: upstream says ~45 GB at the peak. The app refuses below that; streaming extraction is not written.
-5. **Optional vanilla 1.12 values** (step 11), **backup/restore/update/repair buttons** (step 15) and the account editor.
-6. The `account set gmlevel 1#1 3 -1` console line and `bnetaccount` commands are taken from TrinityCore's command set; unverified here.
+| Piece | What it does | Checked |
+|---|---|---|
+| `tools/foreverkey/foreverkey.c` → `foreverkey.exe` | Written new from upstream's `Play-WoWForever.ps1`: starts `Wow.exe -config ForeverLauncher.wtf`, finds the client's 12-record login key table in memory by its layout and writes the realm's public key into region group 8's record; keeps watching | Run under the phone's own Wine 10.10 (x86_64, Xvfb, `scripts/build-tools.sh`'s target) against a stand-in client holding such a table: the key was written to record 8 and records 7 and 9 were untouched, and the arguments were passed as `-config ForeverLauncher.wtf`. **Not against the real client.** |
+| `WineCerts.kt` | Adds the realm's own name-constrained root CA to the games' Windows root store (registry `Blob`, both views) | Same Wine: a chain check of the portal certificate went from `CERT_TRUST_IS_PARTIAL_CHAIN` (0x10000) to no error after the entry was added. **Whether the real client uses that store is unverified** (upstream imports into Windows' `LocalMachine\Root`, which this matches). |
+| `forever_resolve.c` (preloaded into the servers) | The login server resolves `trinity.actual.battle.net` at start; Android has no hosts file an app may edit, so any name under `.actual.battle.net` answers 127.0.0.1 for these programs only | Built and run with `LD_PRELOAD` on glibc here; not on musl/Android. |
+| `Offline.hosts(…, local)` | The games' runtime hosts file (never Android's) maps the portal to the phone | Unit-tested text. |
+| `ForeverLaunch.kt` | `WTF/ForeverLauncher.wtf` (portal, language from `.build.info`, screen), `foreverkey.cfg`, the keeper copied beside the client, the entry Winlator starts | Unit-tested files; the player's `Config.wtf` is never changed. |
+| `ForeverClientImport.kt`, `ForeverSafTree.kt` | "Import & Install": one Android folder pick; copies only `.build.info`, `Data`, `_forever_` into the app (resumable, never writes to the picked folder) | Walk, resume, refusals and space check unit-tested on a fake tree; the Android picker/DocumentsContract part is **not compiled or run**. |
+| `ForeverAuth.kt` account | Upstream's way: the world console's `bnetaccount create`, then `account set gmlevel <id>#1 3 -1`; certificates from upstream's own openssl settings | Command text and SQL unit-tested; not run. |
+| `ForeverPlay.kt` | One action: install, start the realm, make the account, then `WindowsRuntime.play` like Legion/Wrath++ | **Not run.** |
+
+## What is still not done or not known
+
+1. **Nothing has run on a phone** (Z Fold) and the real WoW Forever client was never available here. Unknown until then: whether the client runs under Wine/Box64 and which graphics path it needs (D3D11 through DXVK is the shared container's default), whether it trusts the Wine root store, whether the key table is found in a Box64-run client, and how long a start takes.
+2. **The server package has never built successfully.** The first CI run reached the compile and stopped on musl incompatibilities in the bundled gSOAP (patched at build time in `compile-forever-new.sh`, along with `NOJEM`); more may follow. The loader step, the manifest and the release come after that, and the release is published only from `main`.
+3. **Getting the client**: there is no authorised download; the user installs Forever with Battle.net on a computer and picks the folder once.
+4. **Map extraction space**: ~45 GB at the peak per upstream; the app refuses below that. Streaming extraction is not written.
+5. **Optional vanilla 1.12 values**, **backup/restore/repair/update buttons** and an account editor are not written.
+6. `Realm.AlsoAcceptBuilds` needs each build in `auth.build_info`; nothing checks that yet. Whether the repack dumps carry the `updates` rows is unknown.
 
 ## Facts found in Karrz's sources that shaped this
 
@@ -50,6 +58,6 @@ sources are Karrz's current projects, pinned in `realm/warcraft/forever-new/fore
 
 ## Verified from here
 
-`client-builds.txt` and `SHA256SUMS.txt` match the pinned hashes; the pinned commit is the head of `forever-bots`; 34 unit
+`client-builds.txt` and `SHA256SUMS.txt` match the pinned hashes; the pinned commit is the head of `forever-bots`; 41 unit
 tests pass in a standalone JVM harness (Kotlin compiler + JUnit against the new files). The Gradle/Android build was NOT run
 (no Android SDK in this environment), so the Compose dialog and the Android-API lines (`ForeverLayout.of`, `ForeverPlay`) are uncompiled.

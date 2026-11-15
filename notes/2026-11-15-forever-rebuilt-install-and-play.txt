@@ -1,1 +1,1 @@
-World of Warcraft: Forever has a new Install & Play page that sets up the server and database in the app; starting the game itself isn't finished yet.
+World of Warcraft: Forever has a new Install & Play page: it sets up its own server, copies your game folder once and starts the game; none of it has been tried on a phone yet.
