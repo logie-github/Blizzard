@@ -1,0 +1,1 @@
+WoW Forever: the game's sound is set up properly, which should stop it freezing on its start screen.
