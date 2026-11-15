@@ -128,6 +128,14 @@ def digits_of(tables, model, chr_model):
     return out, fields
 
 
+def _parts_ids():
+    path = os.path.join(os.path.dirname(HERE), "registry", "parts_ids.json")
+    return json.load(open(path)).get("keys", {}) if os.path.exists(path) else {}
+
+
+PARTS_IDS = _parts_ids()
+
+
 def build_model(tables, categories, race_id, sex, model):
     chr_model = model["chr_model"]
     for asked, today in sl_looks.ALIASES.get(race_id, {}).items():
@@ -159,6 +167,9 @@ def build_model(tables, categories, race_id, sex, model):
                 if pictures:
                     e["ov"] = pictures
             option["overlay"] = names.shell(model)
+            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            if reg:
+                option["reg"] = reg                    # the registry's category: the realm keeps the character's choice (registry_parts.py)
         if len(option["choices"]) < 2:
             continue
         options.append(option)

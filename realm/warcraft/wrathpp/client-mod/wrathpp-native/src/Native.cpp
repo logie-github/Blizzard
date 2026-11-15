@@ -29,6 +29,11 @@
 //                                from its bottom left), "creator 0" when it is not. Written whole (a file beside it, then
 //                                moved over it) to Logs\wrathpp-screen.txt beside the game; the app's touch reads it
 //                                (WowGestureView): on the creator a finger turns the character and walks nowhere.
+//   WrathPP_ApplyLook(guid, shell1, picture1, shell2, picture2, shell3, picture3)
+//                                the parts a character of the world wears (the add-on's WRATHPP_APPEARANCE: its registry choices
+//                                made paths by the parts table, Wrathpp\parts.txt): head shells hung on the model the character
+//                                draws with (wxl.m2's ObjectModel, WXL_M2_ATTACH_FOLLOW_BONES), each with its picture; "" for none.
+//                                guid: "0x" and sixteen hex digits. Kept every quarter second; let go with the model.
 //   WrathPP_NativeVersion()      -> this mod's version, for the interface to know it is there.
 //
 // And, with no function to call: the body options' layer (realm/warcraft/wrathpp/tools/body_shapes/layer.py) shown on a
@@ -61,6 +66,8 @@
 // The creator uses context 0 (COMPONENT_CONTEXT_0), as CCharacterCreation's own calls do.
 
 #include <cstdint>
+#include <cstdlib>
+#include <map>
 #include <string>
 #include <utility>
 
@@ -70,6 +77,7 @@
 #include <windows.h>
 #endif
 
+#include "wxl/objects.hpp"
 #include "wxl/sdk.hpp"
 #include "wxl/services/hook.hpp"
 #include "wxl/services/m2.hpp"
@@ -327,37 +335,109 @@ namespace
     };
     OverlayPart g_overlays[3];
 
+    /// Keeps one part on a model: made and hung when there is none on [parent] (a new model of the character: made again),
+    /// its picture put on when it is not. [parent] 0 or not loaded: nothing now. [what]: the log's name for it.
+    void SyncPart(OverlayPart& part, uintptr_t parent, const char* what, int index)
+    {
+        if (part.wantShell.empty())
+        {
+            if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+            return;
+        }
+        if (!parent || !ModelLoaded(parent)) return;
+        if (!part.model || part.parent != parent || part.shell != part.wantShell || !part.model.Parent())
+        {
+            part.model.Reset();
+            part.model = wxl::M2Model(reinterpret_cast<void*>(parent), part.wantShell);
+            part.parent = parent;
+            part.shell = part.wantShell;
+            part.picture.clear();
+            if (!part.model) { wxl::Log(WXL_LOG_WARN, kTag, "{} {}: wxl.m2 made no model of {}", what, index, part.wantShell); return; }
+            const wxl_result hung = part.model.Attach(reinterpret_cast<void*>(parent), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
+            wxl::Log(WXL_LOG_INFO, kTag, "{} {}: {} hung on the character ({})", what, index, part.shell, wxl::ResultName(hung));
+        }
+        if (part.picture != part.wantPicture && part.model)
+        {
+            const wxl_result put = part.model.ReplaceTexture(11, part.wantPicture);
+            part.picture = part.wantPicture;
+            if (put != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "{} {}: {} not put on ({})", what, index, part.wantPicture, wxl::ResultName(put));
+        }
+    }
+
     void SyncOverlays(uintptr_t component)
     {
         if (component != CreationComponent()) return;
         const uintptr_t parent = ComponentModel(component);
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 3; ++i) SyncPart(g_overlays[i], parent, "overlay", i + 1);
+    }
+
+    // The characters of the world (WrathPP_ApplyLook): the same parts, on the model each draws with (wxl.m2's ObjectModel), for
+    // every guid the add-on has told of; kept at the pace of a few times a second, and let go when the character leaves the view
+    // (a model comes again with the object) or the world.
+    constexpr int kWorldParts = 3;
+    struct WorldLook
+    {
+        OverlayPart parts[kWorldParts];
+    };
+    std::map<uint64_t, WorldLook> g_world;
+
+    void SyncWorld()
+    {
+        for (auto it = g_world.begin(); it != g_world.end();)
         {
-            OverlayPart& part = g_overlays[i];
-            if (part.wantShell.empty())
+            WorldLook& look = it->second;
+            const wxl::Object object = wxl::Object::Resolve(it->first);
+            bool any = false;
+            for (const OverlayPart& part : look.parts) any = any || !part.wantShell.empty();
+            if (!any)
             {
-                if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+                it = g_world.erase(it);
                 continue;
             }
-            if (!parent || !ModelLoaded(parent)) continue;
-            if (!part.model || part.parent != parent || part.shell != part.wantShell || !part.model.Parent())
+            uintptr_t parent = 0;
+            if (object) parent = reinterpret_cast<uintptr_t>(wxl::M2Service::ObjectModel(object));
+            for (int i = 0; i < kWorldParts; ++i)
             {
-                part.model.Reset();
-                part.model = wxl::M2Model(reinterpret_cast<void*>(parent), part.wantShell);
-                part.parent = parent;
-                part.shell = part.wantShell;
-                part.picture.clear();
-                if (!part.model) { wxl::Log(WXL_LOG_WARN, kTag, "overlay {}: wxl.m2 made no model of {}", i + 1, part.wantShell); continue; }
-                const wxl_result hung = part.model.Attach(reinterpret_cast<void*>(parent), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
-                wxl::Log(WXL_LOG_INFO, kTag, "overlay {}: {} hung on the character ({})", i + 1, part.shell, wxl::ResultName(hung));
+                OverlayPart& part = look.parts[i];
+                if (!parent)
+                {
+                    if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+                    continue;
+                }
+                SyncPart(part, parent, "world part", i + 1);
             }
-            if (part.picture != part.wantPicture && part.model)
-            {
-                const wxl_result put = part.model.ReplaceTexture(11, part.wantPicture);
-                part.picture = part.wantPicture;
-                if (put != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "overlay {}: {} not put on ({})", i + 1, part.wantPicture, wxl::ResultName(put));
-            }
+            ++it;
         }
+    }
+
+    class World final : public wxl::WorldScript
+    {
+    public:
+        void OnUpdate(float delta) override
+        {
+            wait_ -= delta;
+            if (wait_ > 0.0f || g_world.empty()) return;
+            wait_ = 0.25f;
+            SyncWorld();
+        }
+        // The world's models go with it; the looks stay and are made again on the way back in.
+        void OnWorldLeave(uint32_t, wxl_vec3) override
+        {
+            for (auto& entry : g_world)
+                for (OverlayPart& part : entry.second.parts) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+        }
+
+    private:
+        float wait_ = 0.0f;
+    };
+    World g_worldScript;
+
+    /// What a character of the world is to wear: part [slot] (0 to 2) the head shell and its picture, "" for none.
+    void WorldLookSet(uint64_t guid, int slot, const std::string& shell, const std::string& picture)
+    {
+        WorldLook& look = g_world[guid];
+        look.parts[slot].wantShell = shell;
+        look.parts[slot].wantPicture = picture;
     }
 
     void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
@@ -401,6 +481,7 @@ namespace
     struct OverlayPart { std::string wantShell, wantPicture; };
     OverlayPart g_overlays[3];
     void SyncOverlays(uintptr_t) {}
+    void WorldLookSet(uint64_t, int, const std::string&, const std::string&) {}
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -540,7 +621,34 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.7.0"); }
+    /// The parts of a character of the world: guid ("0x" and sixteen hex digits, as the add-on has it), then up to three
+    /// pairs of a head shell's path and a picture's ("" for none). Replaces what the character was to wear.
+    void ApplyLookCall(wxl::ScriptCall& call)
+    {
+        const auto guidText = call.String(0);
+        if (!guidText || guidText->empty())
+        {
+            call.Fail("WrathPP_ApplyLook(guid, shell1, picture1, shell2, picture2, shell3, picture3): guid is \"0x\" and hex digits");
+            return;
+        }
+        const std::string text(*guidText);
+        const uint64_t guid = std::strtoull(text.c_str(), nullptr, 16);
+        if (!guid)
+        {
+            call.Fail("WrathPP_ApplyLook: no guid");
+            return;
+        }
+        for (int i = 0; i < 3; ++i)
+        {
+            const auto shell = call.String(1 + 2 * i);
+            const auto picture = call.String(2 + 2 * i);
+            WorldLookSet(guid, i, shell ? std::string(shell->substr(0, 260)) : std::string(),
+                         picture ? std::string(picture->substr(0, 260)) : std::string());
+        }
+        call.PushBool(true);
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.8.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -557,6 +665,7 @@ namespace
                                         std::pair{"WrathPP_SetScreen", script.RegisterFunction<&SetScreenCall>("WrathPP_SetScreen")},
                                         std::pair{"WrathPP_SetBodyPreview", script.RegisterFunction<&SetBodyPreviewCall>("WrathPP_SetBodyPreview")},
                                         std::pair{"WrathPP_SetOverlay", script.RegisterFunction<&SetOverlayCall>("WrathPP_SetOverlay")},
+                                        std::pair{"WrathPP_ApplyLook", script.RegisterFunction<&ApplyLookCall>("WrathPP_ApplyLook")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));
@@ -572,6 +681,9 @@ namespace
         wxl_result OnLoad() override
         {
             wxl::ScriptMgr::Add(&g_api);
+#if defined(_M_IX86)
+            wxl::ScriptMgr::Add(&g_worldScript);
+#endif
             AttachLayer();
             wxl::Log(WXL_LOG_INFO, kTag, "Wrath++ native loaded");
             return WXL_OK;
