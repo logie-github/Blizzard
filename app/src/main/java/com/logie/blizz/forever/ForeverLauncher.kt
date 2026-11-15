@@ -109,7 +109,7 @@ object ForeverLauncher {
     }
 
     /** The game's own programs, as their windows name them (`WM_CLASS`, lower case): `_forever_\Wow.exe`, the beta's and test's. */
-    val GAME_PROGRAMS = setOf("wow.exe", "wowb.exe", "wowt.exe")
+    val GAME_PROGRAMS = setOf("wow.exe", "wowb.exe", "wowt.exe", "wow-arm64.exe", "wowb-arm64.exe", "wowt-arm64.exe")
 
     /**
      * Whether a window is the game's own, started by the launcher's PLAY NOW: one of the game's programs ([program] is

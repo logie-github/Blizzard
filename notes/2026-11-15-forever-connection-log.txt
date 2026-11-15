@@ -1,0 +1,1 @@
+WoW Forever's reports now include the game's own sign-in log.

@@ -129,6 +129,18 @@ object GameLog {
         return "[Forever graphics: gx.log]\n" + lines.takeLast(max).joinToString("\n") { it.take(300) }
     }
 
+    /**
+     * World of Warcraft: Forever's own log of its sign-in and realm connection (`Logs/Connection.log`): the portal it logs on
+     * to, the login server's answer, the realm joined, the error a stop ends with. Beside [foreverGxLog]; its last lines in
+     * the reports.
+     */
+    fun foreverConnectionLines(max: Int = 50): String {
+        val f = foreverGxLog?.parentFile?.let { java.io.File(it, "Connection.log") }?.takeIf { it.isFile } ?: return ""
+        val lines = runCatching { f.readLines(Charsets.ISO_8859_1) }.getOrDefault(emptyList()).filter { it.isNotBlank() }
+        if (lines.isEmpty()) return ""
+        return "[Forever connection: Connection.log]\n" + lines.takeLast(max).joinToString("\n") { it.take(300) }
+    }
+
     /** The sign-in program's lines, each cut to 300 characters; "" when there is none. */
     fun foreverGoLines(file: java.io.File? = foreverGoLog, max: Int = 60): String {
         val f = file?.takeIf { it.isFile } ?: return ""
@@ -157,6 +169,7 @@ object GameLog {
         keeperLines(),
         foreverGoLines(),
         foreverGxLines(),
+        foreverConnectionLines(),
         synchronized(notes) { notes.joinToString("\n") },
     ).filter { it.isNotEmpty() }.joinToString("\n\n")
 }
