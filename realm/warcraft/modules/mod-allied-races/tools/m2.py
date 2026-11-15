@@ -1123,6 +1123,28 @@ def convert(files, policy, out_dir, log=print):
     for t in sorted(sizes):
         kept = sum(len(cut[s]) * 3 for n, s, b in plan if tier_of(n) == t)
         log("%s: %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
+    # A shell cut down (hair over the scalp, gear over the body) lies inside what its removed vertices lay on, and the
+    # skin shows through the chords (the user's hair that "doesn't fit": bare patches in the cap of the Dwarf woman's
+    # Shieldmaiden). Each vertex kept is moved out along its normal by what its triangles' removed vertices stand over
+    # them (decimate.sink_lifts); a vertex shared with another section (joins) stays.
+    normals = np.array([struct.unpack_from("<3f", v, 20) for v in model.vertices])
+    lifts, lift_tier = {}, {}
+    for s, t in tier_of_section.items():
+        if s in whole or t in ("body", "gear") or cut[s] is source_tris[s]:
+            continue
+        for v, height in decimate.sink_lifts(positions, normals, source_tris[s], cut[s], joins.get(s, ())).items():
+            lifts[v] = max(lifts.get(v, 0.0), height)
+            lift_tier[v] = t
+    for v, height in lifts.items():
+        n = normals[v] / max(np.linalg.norm(normals[v]), 1e-9)
+        moved = bytearray(model.vertices[v])
+        struct.pack_into("<3f", moved, 0, *(positions[v] + n * height))
+        model.vertices[v] = bytes(moved)
+    if lifts:
+        for t in ("features", "hair"):
+            h = sorted(lifts[v] for v in lifts if lift_tier[v] == t)
+            if h:
+                log("%s: %s: %d vertices moved out (median %.1f mm, most %.1f mm)" % (name, t, len(h), 1000.0 * h[len(h) // 2], 1000.0 * h[-1]))
 
     vertices_bytes = []
     for new_id, s, b in sorted(plan, key=lambda p: (tier_of(p[0]) == "body", p[0], p[1])):

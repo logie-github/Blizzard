@@ -233,5 +233,37 @@ check((laid[1, 1] == skin_px[1, 1]).all() and tuple(laid[0, 0, :3]) == (0, 0, 25
 check(m2.uncut([(0, 0, None), (0, 1, None), (702, 2, None), (1502, 3, None)], [(3201,), (3301,), (701,), (1502,)]) == {0, 1},
       "the head's and the eyeballs' sections are kept whole")
 
+# a shell cut down no longer sinks into what it lies over: the vertices kept are lifted out along their normals
+import math
+ring = [[math.sin(math.pi * i / 24) * math.cos(2 * math.pi * j / 24), math.sin(math.pi * i / 24) * math.sin(2 * math.pi * j / 24), math.cos(math.pi * i / 24)]
+        for i in range(25) for j in range(24)]
+ring = np.array(ring)
+tri_list = []
+for i in range(24):
+    for j in range(24):
+        a, b, c_, d_ = i * 24 + j, i * 24 + (j + 1) % 24, (i + 1) * 24 + j, (i + 1) * 24 + (j + 1) % 24
+        tri_list += [[a, c_, b], [b, c_, d_]]
+tri_list = np.array(tri_list)
+cut_tris = decimate.decimate(ring, tri_list, len(tri_list) // 4)
+lifts = decimate.sink_lifts(ring, ring, tri_list, cut_tris, cap=1.0)
+lifted = ring.copy()
+for v, h in lifts.items():
+    lifted[v] = ring[v] * (1 + h)
+def worst_sink(P):
+    kept = set(int(v) for v in cut_tris.ravel())
+    A, B, C = P[cut_tris[:, 0]], P[cut_tris[:, 1]], P[cut_tris[:, 2]]
+    w = 0.0
+    for r in range(len(ring)):
+        if r in kept:
+            continue
+        hit = decimate._closest_on_triangles(ring[r], A, B, C)
+        k = int(np.argmin(((hit - ring[r]) ** 2).sum(1)))
+        w = max(w, float(np.dot(ring[r] - hit[k], ring[r])))
+    return w
+check(worst_sink(lifted) < 0.2 * worst_sink(ring), "a cut shell's vertices are lifted until the removed ones are under it again (worst sink %.4f -> %.4f)" % (worst_sink(ring), worst_sink(lifted)))
+check(not decimate.sink_lifts(ring, ring, tri_list, tri_list), "nothing is lifted where nothing was cut")
+locked_lifts = decimate.sink_lifts(ring, ring, tri_list, cut_tris, locked=set(lifts), cap=1.0)
+check(not locked_lifts, "a vertex that is locked is never lifted")
+
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)
