@@ -396,5 +396,34 @@ R = make({ race = 1, sex = 0, class = 1 })
 R.open(); R.frames(2); R.tap("WrathppCustomizeButton"); R.frames(2)
 check(shotsOf(R) == 0, "  none when the app has not asked")
 
+-- a paint whose picture follows its style (the Orc man's War Paint and its Color): the style is a row too, the colour's picture is the one
+-- of the style chosen (none while the style is None)
+if R.G and WrathppLooks and WrathppLooks.models["2_0"] then
+	local orc = WrathppLooks.models["2_0"]
+	local pair
+	for _, o in ipairs(orc.options) do if o.depends and o.overlay then pair = o end end
+	if pair then
+		R = make({ race = 2, sex = 0, class = 1 })
+		R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+		local function find(name)
+			for k = 1, 8 do
+				if R.visible("WrathppCategory"..k) then
+					R.tap("WrathppCategory"..k); R.frames(0.1)
+					if R.row(name) then return R.row(name) end
+				end
+			end
+		end
+		local style, colour = find(pair.depends[1]), find(pair.name)
+		check(style and colour and style.row.kind == "list" and colour.row.kind == "list", "paint pair: the "..pair.depends[1].." and "..pair.name.." are rows that can be chosen")
+		local function shown()
+			for k = 1, 3 do if R.G.overlays[k] and R.G.overlays[k].picture:match("Ov%d+%.blp$") and R.G.overlays[k].shell:match("Face%.m2$") then return R.G.overlays[k].picture end end
+		end
+		local first = shown()
+		R.tap(style.next, WrathppOptionList); R.frames(0.1)
+		local painted = shown()
+		check(painted and painted ~= first, "  a style chosen: its paint's picture is told to the native mod ("..tostring(painted)..")")
+	end
+end
+
 print(fails == 0 and "all passed" or (fails.." failed"))
 os.exit(fails == 0 and 0 or 1)

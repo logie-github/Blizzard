@@ -114,27 +114,40 @@ class Tables(allied.Tables):
 # Today's options that are a picture laid over the head or the body (the layers of its skin after the face: eyebrows, makeup,
 # scars, paints, tattoos), apart from what the five sliders and the feature slider carry.
 SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
-HEAD_MASKS = (512, 1024)                    # the sections of the head in today's layouts
+HEAD_MASKS = (512, 1024, 2048, -1)           # the layers that reach the head in today's layouts: its sections (9, 10, 11) or the whole skin (-1)
+
+
+def ui_order(choice):
+    return int(choice.get("UiOrderIndex") or 0), int(choice.get("OrderIndex") or 0)
 
 
 def overlays_of(tables, chr_model, model):
-    """The options of [chr_model] that are pictures over the head: [{"name", "target", "choices": [{"name", "files":
-    {"*": file id, or a hair colour's index: file id}}]}]. A choice with no picture (None) has no files. Only the options
-    whose pictures hang on the choice itself or on a hair colour; the paints and tattoos whose picture depends on another
-    option's choice (a style and a colour) are the next of them."""
+    """The options of [chr_model] that are pictures over the head, in the order the creator lists the choices (the available
+    ones by their UI order: a choice's number is its place here, from 1):
+
+        [{"name", "target", "choices": [{"name", "id", "files"}], "depends": [options], "style": bool}]
+
+    A choice's files: {"*": file id} for any, {a hair colour's index: file id} where the picture follows the hair (eyebrows),
+    {"r<id>": file id} where it follows another option's choice (a paint's colour follows the paint's style: the file is the
+    colour's own for the style whose choice id that is). A choice with no picture (None) has no files. An option whose
+    pictures hang on another's choices names them in "depends"; each of those (the styles: no picture of their own) is
+    listed with "style": true so that the character keeps its choice of it. The pictures are the head's sections (masks 512,
+    1024, 2048: 512 x 512) or the whole skin (-1: 1024 x 512, the head its right half); a picture on the body only is left to
+    the body's parts."""
     layout = tables.chr_models[str(chr_model)]["CharComponentTextureLayoutID"]
     masks = {}
     for row in tables.layers:
-        if row["CharComponentTextureLayoutsID"] == layout:
+        if row["CharComponentTextureLayoutsID"] == layout and row["TextureType"] == "1":     # the skin's (type 1), not the hair's, horns' or jewellery's
             masks[row["ChrModelTextureTargetID_0"]] = int(row["TextureSectionTypeBitMask"])
     colour_of = {c["choice"]: c["index"] for c in model["hair_colors"] if "choice" in c}
+    option_of = {c["ID"]: o for o in tables.options.values() for c in tables.choices[o["ID"]]}
     out = []
     skip = set(SLIDERS) | set(model.get("feature_options", []))
     for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
-        if o["Name_lang"] in skip:
-            continue
-        choices, targets = [], set()
-        for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False):
+        if o["Name_lang"] in skip or (len(model.get("tattoos", [])) > 1 and o["Name_lang"] in allied.BODY_TATTOOS):
+            continue                                # (the skin's own tattoos are painted into the skins already)
+        choices, targets, depends = [], set(), []
+        for c in sorted((c for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False) if tables.available(c)), key=ui_order):
             files = {}
             for e in tables.elements[c["ID"]]:
                 if e["ChrCustomizationMaterialID"] == "0":
@@ -148,9 +161,22 @@ def overlays_of(tables, chr_model, model):
                     files["*"] = fids[0]
                 elif related in colour_of:
                     files[str(colour_of[related])] = fids[0]
+                elif related in option_of and option_of[related]["ID"] != o["ID"]:
+                    files["r" + related] = fids[0]
+                    if option_of[related]["Name_lang"] not in depends:
+                        depends.append(option_of[related]["Name_lang"])
             choices.append({"name": c["Name_lang"], "id": c["ID"], "files": files})
         if targets and any(c["files"] for c in choices) and len(targets) == 1:
-            out.append({"name": o["Name_lang"], "target": next(iter(targets)), "choices": choices})
+            entry = {"name": o["Name_lang"], "target": next(iter(targets)), "choices": choices}
+            if depends:
+                entry["depends"] = depends
+            out.append(entry)
+    for entry in list(out):
+        for name in entry.get("depends", []):
+            if not any(x["name"] == name for x in out):
+                chs = [{"name": c["Name_lang"], "id": c["ID"], "files": {}} for c in
+                       sorted((c for c in tables.option_choices(chr_model, name, only_available=False) if tables.available(c)), key=ui_order)]
+                out.append({"name": name, "target": entry["target"], "choices": chs, "style": True})
     return out
 
 

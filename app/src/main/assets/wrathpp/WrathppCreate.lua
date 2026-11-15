@@ -469,6 +469,27 @@ function W.ovCurrent(option)
 	return W.ovPick()[option.name] or 1
 end
 
+-- The picture of an overlay option's current choice: its own for any (or the hair colour's), or, for a paint's colour, the one of the
+-- style chosen beside it (the colours' pictures name the style's choice by its id).
+function W.ovPicture(model, option, colour)
+	local choice = option.choices[math.min(W.ovCurrent(option), #option.choices)]
+	local pictures = choice and choice.ov
+	if ( not pictures ) then return nil end
+	if ( option.depends ) then
+		for _, name in ipairs(option.depends) do
+			for _, style in ipairs(model.options) do
+				if ( style.name == name and style.style ) then
+					local at = style.choices[math.min(W.ovCurrent(style), #style.choices)]
+					local picture = at and at.id and pictures["r"..at.id]
+					if ( picture ) then return picture end
+				end
+			end
+		end
+		return nil
+	end
+	return pictures["*"] or pictures[tostring(colour)]
+end
+
 function W.Look()
 	-- the hair colour the character is made with: the registry keeps it (pictures that follow the hair choose by it)
 	if ( type(WrathPP_SetChoice) == "function" and number(FIELD.haircolor) ) then pcall(WrathPP_SetChoice, 1190, number(FIELD.haircolor) + 1) end
@@ -477,13 +498,11 @@ function W.Look()
 	local slot = 0
 	if ( model and number(FIELD.skin) ) then
 		local colour = number(FIELD.haircolor)
-		local picks = W.ovPick()
 		for _, option in ipairs(model.options) do
 			if ( option.overlay and not option.field ) then
 				slot = slot + 1
 				if ( slot > 3 ) then break end
-				local choice = option.choices[math.min(W.ovCurrent(option), #option.choices)]
-				local picture = choice and choice.ov and (choice.ov["*"] or choice.ov[tostring(colour)])
+				local picture = W.ovPicture(model, option, colour)
 				pcall(WrathPP_SetOverlay, slot, picture and option.overlay or "", picture or "")
 			end
 		end
@@ -578,7 +597,7 @@ function W.Rows()
 		if ( option.category == W.category ) then
 			local row = { name = option.name, option = option, kind = option.type == 1 and "switch" or "list", choices = {} }
 			local skinColour = option.field == "skin" and option.part == #model.fields.skin
-			if ( not option.field and option.overlay ) then
+			if ( not option.field and (option.overlay or option.style) ) then
 				-- a picture laid over the head (eyebrows, makeup, scars): chosen here, drawn by the native mod on the head shell
 				row.ovname = option.name
 				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end

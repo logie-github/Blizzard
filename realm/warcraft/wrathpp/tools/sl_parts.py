@@ -96,9 +96,26 @@ def resized_over(rgba, size):
 
 
 def overlay_picture(rgba, layout):
-    """A layer of the head (512 x 512, today's place of the head in its texture) as the shell draws it: the face's place of
-    the skin, 256 x 128, the alpha kept."""
+    """A layer of the head as the shell draws it: the face's place of the skin, 256 x 128, the alpha kept. [rgba] is the head's
+    own section (512 x 512, today's place of the head in its texture) or the whole skin's layer (1024 x 512: the head its right
+    half). A layer opaque everywhere is one today's game blends into the skin by a mode of its own (scars and grime: laid over, mid
+    grey changing nothing; a tattoo: multiplied, white changing nothing): the shell is alpha blended, so such a layer is made a
+    black or white picture whose alpha is how far it is from the unchanging grey or white (the skin darkened or lightened by
+    about as much)."""
     import textures
+    h, w = rgba.shape[:2]
+    if w == 2 * h:
+        rgba = np.ascontiguousarray(rgba[:, w // 2:])
+    if rgba[:, :, 3].min() == 255:
+        grey = rgba[:, :, :3].astype(np.float32).mean(axis=2)
+        out = np.zeros(rgba.shape, np.uint8)
+        if np.median(grey) > 192:
+            out[:, :, 3] = np.clip(255.0 - grey, 0, 255).astype(np.uint8)            # multiplied: white changes nothing, dark darkens
+        else:
+            # laid over (overlay/soft light: mid grey changes nothing, darker darkens, lighter lightens): black or white by how far from grey
+            out[:, :, :3] = np.where(grey[:, :, None] > 127.5, 255, 0).astype(np.uint8)
+            out[:, :, 3] = np.clip(np.abs(grey - 127.5) * 2.0, 0, 255).astype(np.uint8)
+        rgba = out
     return textures.scalp_cut(rgba, layout)
 
 
@@ -127,27 +144,49 @@ def write_overlays(read, model, layout, out_dir, log=print):
 
 
 def write_parts_table(looks, out_dir, ids):
-    """Wrathpp/parts.txt in [out_dir] (the game's patch): what the native mod needs to draw a character's parts from the
-    registry's choices, tab separated: `S race sex slot category shell` (a slot of the model: the option that has it and
-    the head shell it is drawn on) and `C race sex category option colour picture` (the picture of a choice, for a hair
-    colour's index, or `*` for any). [ids]: registry/parts_ids.json's keys. The path of the file written."""
+    """Wrathpp/parts.txt in [out_dir] (the game's patch): what the add-on needs to draw a character's parts from the
+    registry's choices, tab separated:
+
+        S race sex slot category shell                            a picture over the head: the option (its registry category)
+                                                                  and the shell it is drawn on, in slot `slot` of the character
+        P race sex slot category style_category shell             the same for a paint whose picture follows another option's
+                                                                  choice (its colour): `category` the colour's, `style_category` the style's
+        C race sex category option colour picture                 the picture of a choice (1 from the first): `colour` is `*` for
+                                                                  any, a hair colour's index, or `s<number>` for the style's choice
+
+    [ids]: registry/parts_ids.json's keys. The path of the file written."""
     import names
     lines = []
     for entry in sorted(looks["races"].values(), key=lambda e: e["race"]):
         for sex, model in sorted(entry["models"].items()):
             slot = 0
-            for option in model.get("overlays", []):
+            overlays = model.get("overlays", [])
+            number = {}                                  # the style options' choice ids -> their numbers
+            for option in overlays:
+                if option.get("style"):
+                    number[option["name"]] = {c["id"]: k for k, c in enumerate(option["choices"], 1)}
+            for option in overlays:
                 category = ids.get("%d_%d:%s" % (entry["race"], int(sex), option["name"]))
-                if not category:
+                if not category or option.get("style"):
                     continue
                 slot += 1
-                lines.append("S\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, names.shell(model)))
-                for number, choice in enumerate(option["choices"], 1):
+                depends = option.get("depends")
+                if depends:
+                    style = ids.get("%d_%d:%s" % (entry["race"], int(sex), depends[0]))
+                    lines.append("P\t%d\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, style or 0, names.shell(model)))
+                else:
+                    lines.append("S\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, names.shell(model)))
+                for k, choice in enumerate(option["choices"], 1):
                     for colour, fid in sorted(choice["files"].items()):
-                        lines.append("C\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, number, colour, names.overlay(model, fid)))
+                        if colour.startswith("r"):
+                            hit = [number[d][colour[1:]] for d in (depends or []) if d in number and colour[1:] in number[d]]
+                            if not hit:
+                                continue
+                            colour = "s%d" % hit[0]
+                        lines.append("C\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, k, colour, names.overlay(model, fid)))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write("# Wrath++'s parts (sl_parts.py): S race sex slot category shell; C race sex category option colour picture\n")
+        f.write("# Wrath++'s parts (sl_parts.py): S/P race sex slot category [style category] shell; C race sex category option colour picture\n")
         f.write("".join(line + "\n" for line in lines))
     return path

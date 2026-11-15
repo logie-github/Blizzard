@@ -192,6 +192,10 @@ function WPP.loadParts()
             local list = parts.slots[key] or {}
             parts.slots[key] = list
             list[#list + 1] = { category = tonumber(d), shell = e }
+        elseif kind == "P" and key then                       -- a paint: its colour's category, then its style's
+            local list = parts.slots[key] or {}
+            parts.slots[key] = list
+            list[#list + 1] = { category = tonumber(d), style = tonumber(e), shell = f }
         elseif kind == "C" and key then
             local byCategory = parts.pictures[key] or {}
             parts.pictures[key] = byCategory
@@ -216,7 +220,7 @@ function WPP.partsOf(look)
         local options = parts.pictures[look.race .. ":" .. look.sex]
         options = options and options[slot.category]
         local colours = options and options[look.entries[slot.category] or 1]
-        local picture = colours and (colours["*"] or colours[colour])
+        local picture = colours and (colours["*"] or colours[colour] or (slot.style and colours["s" .. (look.entries[slot.style] or 1)]))
         if picture and #out < WPP.MAX_PARTS then out[#out + 1] = { shell = slot.shell, picture = picture } end
     end
     return out

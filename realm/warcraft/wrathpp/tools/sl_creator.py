@@ -166,7 +166,14 @@ def build_model(tables, categories, race_id, sex, model):
                 pictures = {k: names.overlay(model, fid) for k, fid in files.get(c["ID"], {}).items()}
                 if pictures:
                     e["ov"] = pictures
-            option["overlay"] = names.shell(model)
+                if overlay.get("style") or overlay.get("depends"):
+                    e["id"] = int(c["ID"])             # a paint's style: the colours' pictures name it by this id
+            if overlay.get("style"):
+                option["style"] = True                 # kept by the registry, no picture of its own: its colour option draws
+            else:
+                option["overlay"] = names.shell(model)
+                if overlay.get("depends"):
+                    option["depends"] = list(overlay["depends"])
             reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
             if reg:
                 option["reg"] = reg                    # the registry's category: the realm keeps the character's choice (registry_parts.py)

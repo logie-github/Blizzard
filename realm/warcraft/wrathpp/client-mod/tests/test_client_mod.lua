@@ -38,7 +38,7 @@ local state, _, version, renderer = mock.functions.WrathPP_Status()
 check(state == "ready" and version == F.version and renderer == false, "status: ready, the registry's version, renderer false (no seam yet)")
 
 check(mock.functions.WrathPP_GetNumCategories(10, 0, 2) == 3, "a blood elf man paladin: 3 categories (the two of the demon hunter look and the hair colour)")
-check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 7, "a night elf woman warrior: 7 (the two, the three body options, her scars and the hair colour)")
+check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 9, "a night elf woman warrior: 9 (the two, the three body options, her scars, her markings and their colour, and the hair colour)")
 check(mock.functions.WrathPP_GetNumCategories(1, 0, 1) == 2, "a human man: his eyebrows and the hair colour")
 check(mock.functions.WrathPP_GetNumCategories(1, 1, 1) == 6, "a human woman: the three body options, her eyebrows and makeup and the hair colour")
 local id, name, n, default = mock.functions.WrathPP_GetCategoryInfo(1, 10, 0, 2)
@@ -80,13 +80,20 @@ mock.files["Wrathpp\\parts.txt"] = table.concat({
 	"C\t1\t1\t1201\t1\t0\tCharacter\\Human\\Female\\HumanFemaleOv1.blp",
 	"C\t1\t1\t1201\t1\t1\tCharacter\\Human\\Female\\HumanFemaleOv2.blp",
 	"C\t1\t1\t1202\t1\t*\tCharacter\\Human\\Female\\HumanFemaleOv3.blp",
-	"C\t1\t1\t1202\t2\t*\tCharacter\\Human\\Female\\HumanFemaleOv4.blp" }, "\n") .. "\n"
+	"C\t1\t1\t1202\t2\t*\tCharacter\\Human\\Female\\HumanFemaleOv4.blp",
+	"P\t2\t0\t1\t1211\t1212\tCharacter\\Orc\\Male\\OrcMaleFace.m2",
+	"C\t2\t0\t1211\t1\ts2\tCharacter\\Orc\\Male\\OrcMaleOvGhost.blp",
+	"C\t2\t0\t1211\t1\ts3\tCharacter\\Orc\\Male\\OrcMaleOvBeast.blp" }, "\n") .. "\n"
 WPP.looks["0x00000000000000B1"] = { race = 1, sex = 1, class = 1, version = 3, entries = { [1190] = 2, [1202] = 2 } }
 check(WPP.applyParts("0x00000000000000B1"), "a character's parts handed to the native mod")
 local chunk = mock.ran[#mock.ran] and mock.ran[#mock.ran].chunk or ""
 check(chunk:find("HumanFemaleOv2.blp", 1, true) and chunk:find("HumanFemaleOv4.blp", 1, true), "  her hair colour's eyebrows and her second makeup")
 check(chunk:find('"0x00000000000000B1"', 1, true) and chunk:find('""', 1, true), "  the guid, and the empty third part")
 check(not WPP.applyParts("0x00000000000000B2"), "  a character the server didn't describe: nothing")
+WPP.looks["0x00000000000000B4"] = { race = 2, sex = 0, class = 1, version = 3, entries = { [1211] = 1, [1212] = 3 } }
+WPP.applyParts("0x00000000000000B4")
+chunk = mock.ran[#mock.ran].chunk
+check(chunk:find("OrcMaleOvBeast.blp", 1, true) and chunk:find("OrcMaleFace.m2", 1, true), "  an orc's war paint: the colour's picture for the style he chose")
 WPP.looks["0x00000000000000B3"] = { race = 10, sex = 0, class = 1, version = 3, entries = {} }
 local before = #mock.ran
 WPP.applyParts("0x00000000000000B3")
