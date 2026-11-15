@@ -1097,6 +1097,14 @@ local function categoryButton(k)
 		b.label = label(b, 12, "white"); b.label:Hide()
 		b:SetScript("OnClick", guarded(function(self)
 			W.category = self.category
+			-- The body options are about the body: on the Body tab the character is shown without her gear (her trousers would
+			-- cover the layer's design), and dressed again on leaving it.
+			if ( W.category == BODY_TAB ) then
+				if ( W.gear ~= false ) then W.bodyUndressed = true; W.SetGear(false) end
+			elseif ( W.bodyUndressed ) then
+				W.bodyUndressed = nil
+				W.SetGear(true)
+			end
 			WrathppCreate_ClosePopout()
 			optionList:ScrollTo(0)
 			-- Shadowlands brings the view in for the face's categories and back out for the body's
@@ -1743,6 +1751,7 @@ local opened = guarded(function()
 	pcall(W.SyncZoomSlider); pcall(W.PaintViews)
 	W.fresh = 3
 	W.gear = true                                         -- the game dresses the character as the creator opens
+	W.bodyUndressed = nil
 	if ( type(WrathPP_ResetChoices) == "function" ) then pcall(WrathPP_ResetChoices) end   -- the body options from their defaults
 	log("opened: native "..tostring(type(WrathPP_NativeVersion) == "function" and WrathPP_NativeVersion() or "none")
 		..", looks' options "..(type(WrathppLooks) == "table" and "in" or "not in")..", undead skins "..(type(WrathppUndead) == "table" and "in" or "not in"))

@@ -278,6 +278,7 @@ if os.getenv("RIG_WPP") then
 	for k = 1, 8 do if R.visible("WrathppCategory"..k) then last = k end end
 	check(last and _G["WrathppCategory"..last].label:GetText() == "Body", "body options: the last category is Body ("..tostring(last and _G["WrathppCategory"..last].label:GetText())..")")
 	R.tap("WrathppCategory"..last); R.frames(0.1)
+	check(R.G.character.dressed == false, "  the Body tab shows her without her gear (the layer's design is under trousers)")
 	local shape, style, density = R.row("Shape"), R.row("Style"), R.row("Density")
 	check(shape and style and density and #shape.row.choices == 4 and #style.row.choices == 17 and #density.row.choices == 5,
 		"  Shape (4), Style (17) and Density (5) on it")
@@ -296,6 +297,9 @@ if os.getenv("RIG_WPP") then
 	R.tap(R.row("Style").previous, WrathppOptionList); R.tap(R.row("Style").previous, WrathppOptionList); R.frames(0.1)
 	check(R.G.bodyPreview == "Character\\Human\\Female\\WppLayer_0.blp", "  Style none: the empty design: "..tostring(R.G.bodyPreview))
 	R.tap(R.row("Style").next, WrathppOptionList); R.tap(R.row("Style").next, WrathppOptionList); R.tap(R.row("Density").next, WrathppOptionList); R.frames(0.1)
+	R.tap("WrathppCategory1"); R.frames(0.1)
+	check(R.G.character.dressed ~= false, "  leaving the Body tab dresses her again")
+	R.tap("WrathppCategory"..last); R.frames(0.1)
 	local before = #R.wppMock.sent
 	R.tap("WrathppFinishButton"); R.frames(0.1)
 	local sent = R.wppMock.sent[before + 1]
