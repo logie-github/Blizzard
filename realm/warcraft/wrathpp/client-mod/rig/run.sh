@@ -18,7 +18,8 @@ for f in GlueParent GlueButtons CharacterCreate; do
 	cp "$WORK/data/$f.xml.lua" "$WORK/plain/$f.xml.lua"
 done
 # Wrath++'s allied races' race buttons (the add-on's own XML, beside the creator): the game has ten, the screen loops over the races
-ALLIED_XML="$(dirname "$CREATOR")/WrathppAlliedRaces.xml"
+RIG_ALLIED_DIR="$(dirname "$CREATOR")"; export RIG_ALLIED_DIR
+ALLIED_XML="$RIG_ALLIED_DIR/WrathppAlliedRaces.xml"
 if [ -f "$ALLIED_XML" ]; then
 	for d in data plain; do python3 -I "$HERE/tools/xml2lua.py" "$ALLIED_XML" "$WORK/$d/WrathppAlliedRaces.xml.lua"; done
 fi
