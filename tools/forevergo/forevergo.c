@@ -285,8 +285,11 @@ static WCHAR *rest_of_command_line(void)
     return p;
 }
 
-/* The game's programs: _forever_\Wow.exe, the beta's and test's. */
-static const WCHAR *const game_names[] = {L"Wow.exe", L"WowB.exe", L"WowT.exe", NULL};
+/*
+ * The game's programs: _forever_\Wow.exe, the beta's and test's, and their Windows ARM64 builds (Wow-ARM64.exe is the one the
+ * phone runs: without its name here the game was never found and the realm's key never put in; report 200, build 289).
+ */
+static const WCHAR *const game_names[] = {L"Wow.exe", L"WowB.exe", L"WowT.exe", L"Wow-ARM64.exe", L"WowB-ARM64.exe", L"WowT-ARM64.exe", NULL};
 
 /* A running game program other than [skip]: opened for the key, or NULL. */
 static HANDLE find_game(DWORD skip, DWORD *pid)

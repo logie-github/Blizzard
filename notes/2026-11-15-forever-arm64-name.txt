@@ -1,0 +1,1 @@
+WoW Forever: the sign-in helper now recognises the ARM64 game, so the game can get past its start screen into the realm.

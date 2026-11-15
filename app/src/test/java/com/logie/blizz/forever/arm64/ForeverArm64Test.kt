@@ -54,6 +54,9 @@ class ForeverArm64Test {
         assertEquals("libvulkan_freedreno.so", env["ADRENOTOOLS_DRIVER_NAME"])
         assertEquals("enable_tp_ubwc_flag_hint=1", env["FD_DEV_FEATURES"])
         assertTrue(env.getValue("LD_PRELOAD").endsWith("/usr/lib/libredirect-bionic-wx.so"))
+        // The realm's name comes from the image's hosts file through the hosts library, first in the preload order.
+        assertTrue(env.getValue("LD_PRELOAD").startsWith("/data/user/0/com.logie.blizz/files/forever-arm64/lib/libblizzhosts.so:"))
+        assertEquals("/data/user/0/com.logie.blizz/files/imagefs/etc/hosts", env["BLIZZ_HOSTS"])
         assertEquals(
             "/system/bin/linker64 /data/user/0/com.logie.blizz/files/imagefs_shared/proton/proton-11.0-90624-arm64ec/bin/wine explorer /desktop=shell,{screen} C:\\windows\\borderless.exe /noframes G:\\_forever_\\Wow-ARM64.exe",
             ForeverArm64.command(layout, "C:\\windows\\borderless.exe /noframes G:\\_forever_\\Wow-ARM64.exe"),

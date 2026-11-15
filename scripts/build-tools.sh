@@ -65,6 +65,11 @@ mkdir -p "$ASSETS"
 	{ tail -40 "$WORK/borderless-arm64.log"; exit 1; }
 "$WORK/zig/zig" cc -target aarch64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/forevergo/forevergo.c" -lkernel32 -luser32 -ladvapi32 -lcrypt32 -liphlpapi -lws2_32 -o "$ASSETS/forevergo-arm64.exe" 2> "$WORK/forevergo-arm64.log" ||
 	{ tail -40 "$WORK/forevergo-arm64.log"; exit 1; }
+# For Android itself (the container's Wine is run by Android's own loader): the hosts library (tools/hostsfix), preloaded so the
+# realm's name in the image's hosts file resolves; Android's resolver reads only the system's.
+"$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang" -O2 -fPIC -shared -Wall "$ROOT/tools/hostsfix/hostsfix.c" -o "$ASSETS/libblizzhosts.so" 2> "$WORK/hostsfix.log" ||
+	{ tail -40 "$WORK/hostsfix.log"; exit 1; }
+"$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip" "$ASSETS/libblizzhosts.so"
 
 # innoextract ----------------------------------------------------------------------------------
 android() { # source build [cmake args...]
