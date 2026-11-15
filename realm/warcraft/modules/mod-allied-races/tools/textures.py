@@ -63,6 +63,33 @@ def resized(rgba, size):
     return np.array(image(rgba).resize(size, Image.Resampling.LANCZOS))
 
 
+def resized_over(rgba, size):
+    """A picture with an alpha channel made another size without the colour under the transparent parts bleeding in (the
+    colour is weighed by the alpha)."""
+    a = rgba[:, :, 3:4].astype(np.float32) / 255.0
+    pre = np.concatenate([rgba[:, :, :3].astype(np.float32) * a, rgba[:, :, 3:4].astype(np.float32)], axis=2)
+    small = np.asarray(Image.fromarray(np.clip(pre, 0, 255).astype(np.uint8), "RGBA").resize(size, Image.Resampling.LANCZOS)).astype(np.float32)
+    out = np.zeros(small.shape, np.uint8)
+    alpha = small[:, :, 3:4]
+    out[:, :, :3] = np.clip(np.where(alpha > 0, small[:, :, :3] * 255.0 / np.maximum(alpha, 1.0), 0), 0, 255).astype(np.uint8)
+    out[:, :, 3] = alpha[:, :, 0].astype(np.uint8)
+    return out
+
+
+def scalp_cut(scalp_rgba, layout):
+    """The head's used part of a hair style's 512 x 512 scalp picture (laid over the face in the head's place), turned and
+    sized as FaceLower, its alpha kept."""
+    u0, v0, u1, v1 = layout["box"]
+    h, w = scalp_rgba.shape[:2]
+    x0, x1 = int(round((u0 - 0.5) * 2 * w)), int(round((u1 - 0.5) * 2 * w))
+    y0, y1 = int(round(v0 * h)), int(round(v1 * h))
+    x1, y1 = max(x1, x0 + 1), max(y1, y0 + 1)
+    cut = scalp_rgba[y0:y1, x0:x1]
+    if layout["rotate"]:
+        cut = np.rot90(cut, k=1)
+    return resized_over(np.ascontiguousarray(cut), FACE_LOWER)
+
+
 def head_cut(face_rgba, layout):
     """The head's used part of a 512 x 512 face texture, turned and sized as FaceLower."""
     u0, v0, u1, v1 = layout["box"]
@@ -164,6 +191,15 @@ def build(read, model, layout, out_dir, log=print):
             if e is not None and e.get("overlay"):
                 face = add(face, resized(texture(e["overlay"]), (face.shape[1], face.shape[0])))
             w.write(path, blp.write_palette(head_cut(face, head)))
+
+    # Scalps: a hair style's cut-short parts in the hair's colour, over the face (the hair rows' second texture).
+    for hair in model.get("hair", []):
+        for fid in sorted(set(hair.get("scalp", {}).values())):
+            path = names.scalp(model, fid)
+            if not w.exists(path):
+                w.write(path, blp.write_palette(scalp_cut(texture(fid), head), alpha=True))
+            else:
+                w.write(path, b"")
 
     # Hair: the colours' textures as they are (DXT, the model's own).
     for h in model["hair_colors"]:

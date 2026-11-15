@@ -198,7 +198,11 @@ def table_rows(looks):
                                          names.face_variation(m, fi, eye["index"]), s["index"]])
             for h in m["hair"]:
                 for hc in m["hair_colors"]:
-                    sections.append([race, sex, 3, names.hair(m, hc["index"]), "", "", 17, h["variation"], hc["index"]])
+                    # Texture2 is the scalp (ScalpLower, laid over the face's place): the hair's colour on the skin where
+                    # the style is cut short
+                    scalp = h.get("scalp", {}).get(str(hc["index"])) or h.get("scalp", {}).get("*")
+                    sections.append([race, sex, 3, names.hair(m, hc["index"]), names.scalp(m, scalp) if scalp else "", "", 17,
+                                     h["variation"], hc["index"]])
                 hair.append([race, sex, h["variation"], h["geoset"], 0])
             for f in m["features"]:
                 facial.append([race, sex, f["variation"]] + list(f["geosets"]))

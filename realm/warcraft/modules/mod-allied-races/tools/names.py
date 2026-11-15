@@ -29,6 +29,11 @@ def hair(model, colour):
     return "%s\\%sHair00_%02d.blp" % (race_folder(model), model["name"], colour)
 
 
+def scalp(model, file_id):
+    """a hair style's scalp for one hair colour (ScalpLower, a layer over FaceLower): named by today's file"""
+    return "%s\\%sScalp%d.blp" % (model["folder"], model["name"], file_id)
+
+
 def face_lower(model, face_file, eye):
     """[face_file]: the face texture's file id; [eye]: the eye colour (its glow is painted into
     the face when it has one), else None."""

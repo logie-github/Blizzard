@@ -21,6 +21,7 @@ import blp      # noqa: E402
 import m2       # noqa: E402
 import names    # noqa: E402
 import scale    # noqa: E402
+import textures  # noqa: E402
 
 MODULE = os.path.dirname(HERE)
 failures = 0
@@ -75,6 +76,15 @@ check(complete["2"] == [2, 21] and "202" not in complete and "3502" not in compl
 check(complete["401"] == [401] and complete["402"] == [402], "the tables' groups stay whole")
 check(complete["702"] == [702] and "703" not in complete, "other groups the game knows keep their lowest")
 check(complete["2001"] == [0] and "2002" not in complete and complete["2201"] == [0] and "2202" not in complete, "groups the game doesn't know: their lowest becomes the body")
+
+# the scalp: a hair style's cut-short parts in the hair's colour, laid over the face's place with its alpha kept
+scalp_src = np.zeros((512, 512, 4), np.uint8)
+scalp_src[:200, :, :3] = (200, 40, 40); scalp_src[:200, :, 3] = 255
+cut = textures.scalp_cut(scalp_src, {"box": (0.5, 0.0, 1.0, 1.0), "rotate": False})
+check(cut.shape == (128, 256, 4), "a scalp is cut to FaceLower's size")
+check(int(cut[10, 100, 3]) == 255 and int(cut[120, 100, 3]) == 0, "...its alpha kept (opaque where hair, clear elsewhere)")
+check(tuple(int(v) for v in cut[10, 100, :3]) == (200, 40, 40) and int(cut[120, 100, :3].max()) == 0, "...no colour bleeding in from the clear parts")
+check(names.scalp({"folder": "Character\\Dwarf\\Female", "name": "DwarfFemale"}, 7) == "Character\\Dwarf\\Female\\DwarfFemaleScalp7.blp", "a scalp is named by its file")
 check(complete["3301"] == [0], "the eyes go to the body as named")
 capped = m2.complete_policy({"geoset_policy": {"0": [0]}, "drop_groups": []}, [0, 501, 502, 506, 507, 510, 1502, 1507])
 check(all(k in capped for k in ("501", "502", "506", "1502")) and not any(k in capped for k in ("507", "510", "1507")), "gear variants no 3.3.5 item asks for go")
