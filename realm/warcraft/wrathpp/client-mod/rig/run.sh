@@ -12,12 +12,6 @@ set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WORK="$1"; CREATOR="$2"; LOOKS="$3"; CLIENT="$4"; STOCK="$5"; ART="${6:-}"
 mkdir -p "$WORK/stock" "$WORK/data" "$WORK/plain"
-# The game's tables as Wrath++ has them: the stock ones with the looks' own over them (ChrRaces, ChrClasses, CharBaseInfo,
-# FactionTemplate with the allied races' rows and Wrath++'s ids), since CharSections names races the stock ChrRaces hasn't.
-rm -rf "$WORK/game-dbc"; mkdir -p "$WORK/game-dbc"
-cp "$STOCK"/*.dbc "$WORK/game-dbc/"
-for f in "$CLIENT"/*.dbc; do [ -e "$f" ] && cp "$f" "$WORK/game-dbc/"; done
-STOCK="$WORK/game-dbc"
 sh "$HERE/tools/fetch_stock.sh" "$WORK/stock"
 for f in GlueParent GlueButtons CharacterCreate; do
 	python3 -I "$HERE/tools/xml2lua.py" "$WORK/stock/$f.xml" "$WORK/data/$f.xml.lua"
