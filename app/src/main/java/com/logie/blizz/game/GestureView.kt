@@ -221,6 +221,16 @@ class GestureView(
     /** A minute into a game: its log, once a day (the same title isn't sent twice in a day), for black screens that nothing reports. */
     private val minuteReport = Runnable { sendReport("log after 60 s") }
 
+    /**
+     * World of Warcraft: Forever, two and five minutes into a start: its log by itself, every time (the time is in the title, so
+     * none is held back as a repeat), while the silent sign-in is not yet seen working on a phone. It carries the sign-in
+     * program's log, the game's connection log and its graphics log, so nobody has to reach the menu at the right moment.
+     */
+    private val foreverReport = Runnable {
+        val now = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+        sendReport("sign-in log, build ${com.logie.blizz.BuildConfig.VERSION_CODE}, $now")
+    }
+
     private fun sendReport(what: String, message: String = "Sent by the app") {
         com.logie.blizz.reports.BugReports.report(
             activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} $what",
@@ -259,6 +269,7 @@ class GestureView(
         }
         removeCallbacks(noWindowReport)
         postDelayed(minuteReport, 60_000)
+        if (GameLog.foreverGxLog != null) { postDelayed(foreverReport, 120_000); postDelayed(foreverReport, 300_000) }
         // Recorded apart from the import's file checks: the program started under Winlator.
         gameId?.takeIf { it != "installer" }?.let { id ->
             val app = activity.applicationContext
@@ -507,6 +518,7 @@ class GestureView(
         }
         removeCallbacks(noWindowReport)
         removeCallbacks(minuteReport)
+        removeCallbacks(foreverReport)
         removeCallbacks(typeNext)
         removeCallbacks(ticker)
         removeCallbacks(watching)

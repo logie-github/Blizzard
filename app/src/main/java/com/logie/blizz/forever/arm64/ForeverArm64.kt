@@ -343,6 +343,8 @@ object ForeverArm64 {
             "HODLL" to "wowbox64.dll",
             // The names in the image's hosts file (the realm's): Android's resolver never reads it (tools/hostsfix).
             "BLIZZ_HOSTS" to "$root/etc/hosts",
+            // Each name it answers goes into Wine's output, which the reports carry.
+            "BLIZZ_HOSTS_LOG" to "1",
             "LD_PRELOAD" to listOf("${layout.libs.path}/$HOSTS_ASSET", "$root/usr/lib/libandroid-sysvshm.so", "${layout.libs.path}/libgamenative_dns_v4mapped.so", "$root/usr/lib/libredirect-bionic-wx.so").joinToString(":"),
             // Graphics: the Vulkan wrapper over this phone's Turnip, DXVK (D3D11) on it.
             "VK_ICD_FILENAMES" to "$root/usr/share/vulkan/icd.d/wrapper_icd.aarch64.json",

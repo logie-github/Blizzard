@@ -157,6 +157,7 @@ object WindowsRuntime {
         // Its log of this session goes into the reports; the last session's is no word on this one.
         withContext(Dispatchers.IO) { runCatching { Borderless.logFile(container.rootDir).delete() } }
         GameLog.keeperLog = if (keeper) Borderless.logFile(container.rootDir) else null
+        GameLog.foreverGxLog = null
         withContext(Dispatchers.IO) { runCatching { Borderless.dialogFile(container.rootDir).delete() } }
         Borderless.dialogFlag = if (keeper) Borderless.dialogFile(container.rootDir) else null
         // A game that dies of a fault ends without Wine's "Program Error" box: the launcher is back and the app reports it ([WineCrashDialog]).
