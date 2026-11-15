@@ -72,6 +72,7 @@
 
 #include "wxl/sdk.hpp"
 #include "wxl/services/hook.hpp"
+#include "wxl/services/m2.hpp"
 #include "wxl/services/script.hpp"
 
 namespace
@@ -220,10 +221,88 @@ namespace
         }
     }
 
+    // The creator's own preview of the body options' design (the realm's displays carry it in the world; the creator's
+    // character is a component, not a display): the Lua says which design file the woman being made has
+    // (WrathPP_SetBodyPreview), and the creation component's model takes it as texture type 11, through wxl.m2. The layer
+    // is then drawn as for any model whose design is not the model file's own (LayerModel), where nothing is on her legs.
+    std::string g_previewDesign;       // "" for no preview (the model keeps what it has)
+    uintptr_t   g_previewModel = 0;    // the model the design was last put on
+    std::string g_previewApplied;      // and which
+
+    uintptr_t CreationComponent()
+    {
+        __try { return *reinterpret_cast<const uintptr_t*>(0x00B6B1A0); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return 0; }
+    }
+
+    uintptr_t ComponentModel(uintptr_t component)
+    {
+        __try { return component ? *reinterpret_cast<const uintptr_t*>(component + 0x18 + 0x20) : 0; }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return 0; }
+    }
+
+    /// Puts the preview's design on the creation component's model, once for each model and design.
+    void ApplyPreview(uintptr_t component)
+    {
+        if (g_previewDesign.empty() || component != CreationComponent()) return;
+        const uintptr_t model = ComponentModel(component);
+        if (!model || (model == g_previewModel && g_previewApplied == g_previewDesign)) return;
+        const wxl_result result = wxl::M2Service::ReplaceTexture(reinterpret_cast<void*>(model), kDesignTexture, g_previewDesign);
+        if (result == WXL_OK)
+        {
+            g_previewModel = model;
+            g_previewApplied = g_previewDesign;
+        }
+        else if (g_previewApplied != g_previewDesign)
+        {
+            g_previewApplied = g_previewDesign;
+            wxl::Log(WXL_LOG_WARN, kTag, "body preview: {} not put on ({})", g_previewDesign, wxl::ResultName(result));
+        }
+    }
+
+    /// Whether a CM2Model has loaded (its flags' first bit). (No object with a destructor beside a __try: MSVC's C2712.)
+    bool ModelLoaded(uintptr_t model)
+    {
+        __try { return model && (*reinterpret_cast<const uint32_t*>(model + 0x10) & 1); }
+        __except (EXCEPTION_EXECUTE_HANDLER) { return false; }
+    }
+
+    /// Once, when the creation component's model has loaded: whether this runtime lets a model skinned to a character's
+    /// skeleton be hung on it (wxl.m2's WXL_M2_ATTACH_FOLLOW_BONES), which the options that are parts of the model (hair,
+    /// horns, markings) would be made of; the answer is in the log (Wrath++'s start report carries it). An empty model
+    /// of the game's, taken off again at once.
+    void ProbeBones(uintptr_t component)
+    {
+        static bool done = false;
+        if (done || component != CreationComponent()) return;
+        const uintptr_t model = ComponentModel(component);
+        if (!ModelLoaded(model)) return;
+        done = true;
+        wxl::M2Model probe(reinterpret_cast<void*>(model), "Spells\\Blank.mdx");
+        if (!probe)
+        {
+            wxl::Log(WXL_LOG_INFO, kTag, "bones probe: wxl.m2 made no model");
+            return;
+        }
+        const wxl_result hung = probe.Attach(reinterpret_cast<void*>(model), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
+        wxl::Log(WXL_LOG_INFO, kTag, "bones probe: a model that follows the character's bones {} ({})",
+                 hung == WXL_OK ? "can be hung" : "can not be hung", wxl::ResultName(hung));
+    }
+
     void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
     {
+        ProbeBones(reinterpret_cast<uintptr_t>(component));
+        ApplyPreview(reinterpret_cast<uintptr_t>(component));
         g_geosRenderPrep(component);
         if (const uintptr_t model = LayerModel(reinterpret_cast<uintptr_t>(component))) ShowLayer(model);
+    }
+
+    /// The design now; the creation component is made to prepare its geosets again so that it shows at once.
+    void PreviewNow()
+    {
+        const uintptr_t component = CreationComponent();
+        if (!component || !g_geosRenderPrep) return;
+        GeosRenderPrepDetour(reinterpret_cast<void*>(component), nullptr);
     }
 
     void AttachLayer()
@@ -245,6 +324,8 @@ namespace
     bool CreatingWho(int32_t&, int32_t&, int32_t&) { return false; }
     bool SetGear(bool) { return false; }
     void AttachLayer() {}
+    std::string g_previewDesign;
+    void PreviewNow() {}
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -346,7 +427,24 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.5.0"); }
+    /// The design file of the woman being made, a path of the game's (Character\\Human\\Female\\WppLayer_3_2.blp), or ""
+    /// for none: the creator's preview of her body options.
+    void SetBodyPreviewCall(wxl::ScriptCall& call)
+    {
+        const auto path = call.String(0);
+        if (!path)
+        {
+            call.Fail("WrathPP_SetBodyPreview(path): path is a string, empty for none");
+            return;
+        }
+        const std::string next(path->substr(0, 260));
+        if (next == g_previewDesign) { call.PushBool(true); return; }
+        g_previewDesign = next;
+        PreviewNow();
+        call.PushBool(true);
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.6.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -361,6 +459,7 @@ namespace
                                         std::pair{"WrathPP_SetGear", script.RegisterFunction<&SetGearCall>("WrathPP_SetGear")},
                                         std::pair{"WrathPP_Log", script.RegisterFunction<&LogCall>("WrathPP_Log")},
                                         std::pair{"WrathPP_SetScreen", script.RegisterFunction<&SetScreenCall>("WrathPP_SetScreen")},
+                                        std::pair{"WrathPP_SetBodyPreview", script.RegisterFunction<&SetBodyPreviewCall>("WrathPP_SetBodyPreview")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));

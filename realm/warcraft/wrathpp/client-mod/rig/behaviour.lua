@@ -26,7 +26,7 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
-check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.5.0, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
+check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.6.0, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
 -- the game's own buttons, where the creator put them, do the game's own work
 R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))
@@ -288,6 +288,14 @@ if os.getenv("RIG_WPP") then
 	check(shape.choice.label:GetText() == "Petite" and WrathPP_GetChoice(1101) == 2, "  next: Petite, kept by the add-on")
 	style = R.row("Style"); R.tap(style.next, WrathppOptionList); R.tap(R.row("Style").next, WrathppOptionList); R.frames(0.1)
 	check(R.row("Style").choice.label:GetText() == "2" and WrathPP_GetChoice(1102) == 3, "  Style twice next: 2")
+	-- the creator's preview: the design file of her layer (Style 2 of Human, Density 100%) given to the native mod, none for the
+	-- default, and the empty design for a Style of none
+	check(R.G.bodyPreview == "Character\\Human\\Female\\WppLayer_2_4.blp", "  the native mod is told the design: "..tostring(R.G.bodyPreview))
+	R.tap(R.row("Density").previous, WrathppOptionList); R.frames(0.1)
+	check(R.G.bodyPreview == "Character\\Human\\Female\\WppLayer_2_3.blp", "  Density 75%: "..tostring(R.G.bodyPreview))
+	R.tap(R.row("Style").previous, WrathppOptionList); R.tap(R.row("Style").previous, WrathppOptionList); R.frames(0.1)
+	check(R.G.bodyPreview == "Character\\Human\\Female\\WppLayer_0.blp", "  Style none: the empty design: "..tostring(R.G.bodyPreview))
+	R.tap(R.row("Style").next, WrathppOptionList); R.tap(R.row("Style").next, WrathppOptionList); R.tap(R.row("Density").next, WrathppOptionList); R.frames(0.1)
 	local before = #R.wppMock.sent
 	R.tap("WrathppFinishButton"); R.frames(0.1)
 	local sent = R.wppMock.sent[before + 1]
@@ -307,6 +315,7 @@ if os.getenv("RIG_WPP") then
 	local any = false
 	for k = 1, 8 do if R.visible("WrathppCategory"..k) and _G["WrathppCategory"..k].label:GetText() == "Body" then any = true end end
 	check(not any and not R.row("Shape"), "  a man: no Body tab of them")
+	check(R.G.bodyPreview == "", "  a man: no design for the native mod")
 	check(WrathPP_GetChoice(1101) == 1, "  a new screen: the defaults again")
 end
 
