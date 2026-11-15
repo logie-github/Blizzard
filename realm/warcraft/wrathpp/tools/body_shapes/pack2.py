@@ -35,6 +35,17 @@ def sha(b):
     return hashlib.sha256(b).hexdigest()
 
 
+def struct_sha(m2b):
+    """The SHA-256 of a model without where its vertices are (the first 12 bytes of each of the 48 a vertex has): what a package
+    names its looks' model by, so that looks whose hair was pushed out a little differently still take it (WrathppBody)."""
+    n, o = struct.unpack_from("<II", m2b, 60)
+    if n == 0 or o < 68 or o + n * 48 > len(m2b):
+        return sha(m2b)
+    a = np.frombuffer(bytearray(m2b), np.uint8)
+    a[o:o + n * 48].reshape(n, 48)[:, :12] = 0
+    return sha(a.tobytes())
+
+
 def vertices_of(m2b):
     nv, ov = struct.unpack_from("<II", m2b, 60)
     return m2b[ov:ov + nv * 48]
@@ -63,6 +74,7 @@ def main(out, looks, races_json, maps, v1=None):
             folder = "Character\\%s\\Female" % race
             made, s1, li = layer.add(base, s0, V, R, folder=folder)
             entry = {"race": race, "shape": 0, "model": rel + ".m2", "skin": rel + "00.skin", "looks_sha256": sha(base),
+                     "looks_struct_sha256": struct_sha(base), "made_struct_sha256": struct_sha(made),
                      "made_sha256": sha(made), "patch": put("%s/0.patch" % race, layer.patch(base, made)),
                      "skin_file": put("%s/0.skin" % race, s1)}
             man["models"].append(entry)
@@ -71,7 +83,7 @@ def main(out, looks, races_json, maps, v1=None):
             old = next((m for m in v1_list["models"] if m["race"] == race), None)
             if old is None:
                 continue
-            if old["looks_sha256"] != sha(base):
+            if old["looks_sha256"] != sha(base) and old.get("looks_struct_sha256", old["looks_sha256"]) != struct_sha(base):
                 raise SystemExit("%s: the shapes were made for other looks" % race)
             blocks = {p: shapes_zip.read(b["file"]) for p, b in old["blocks"].items()}
             vskin = shapes_zip.read(old["skin_file"])
@@ -93,6 +105,7 @@ def main(out, looks, races_json, maps, v1=None):
                     raise SystemExit("%s: the shapes' skins differ" % race)
                 man["models"].append({"race": race, "shape": k, "model": "%sWpp%d.m2" % (rel, k), "skin": "%sWpp%d00.skin" % (rel, k),
                                       "anims_of": rel, "looks_sha256": sha(base), "made_sha256": sha(made),
+                                      "looks_struct_sha256": struct_sha(base), "made_struct_sha256": struct_sha(made),
                                       "patch": put("%s/%d.patch" % (race, k), layer.patch(base, made)), "skin_file": shared})
                 print(race, shape, li, flush=True)
         # the designs, a texture each style and density, and the empty one
