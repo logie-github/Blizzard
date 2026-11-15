@@ -25,6 +25,12 @@
   YeaBwoi's `scripts/` when it is cloned beside this repository). Say what was tested and what wasn't:
   nothing here has run on a real phone unless the user says so.
 - `README.md` is the manual: keep it current with every change.
+- **A one-line patch note with every change** (the user: "Start leaving one line patch notes in the update when you update
+  the version. Put this only in the games, settings, gear button menu"). Each change that reaches `main` adds one file to
+  `notes/` (`YYYY-MM-DD-what.txt`, one line in plain words for the player: `notes/README.md`). CI's release step puts the
+  lines added since the previous release into the new release (`scripts/release-notes.sh`), and the app shows them only on
+  Settings' Games page (the gear button, `PatchNotes`): never in a popup, the update banner or anywhere else. Never edit or
+  remove a released note.
 - Reports from the app (crashes, failed installs, the launch test) arrive as GitHub issues on this
   repository once the `BLIZZ_REPORT_TOKEN` secret is set (it is). Read them with the issues tools
   before asking the user to paste anything.
@@ -50,3 +56,24 @@
   test, the phone's Wine connected to it), where the phone's input differs from Xvfb: pointer grabs, the stretch, which window
   gets the event. A change to the input path, the keeper or Winlator's server is run there before it is pushed.
 - Never commit build outputs, downloaded tools, or any game files.
+
+## Wrath++: the whole Shadowlands creator, every option, every race (the user's standing rule)
+
+The user (14 November 2026): "We are using 3.3.5 modified client. It allows for more options because we are using the
+shadowlands character creator. So all of this shit needs to be available and I should NOT have to keep repeating this
+over and over."
+
+- Wrath++ is **not stock 3.3.5**: it is the 3.3.5a client run through WarcraftXL's runtime with Wrath++'s own native mod
+  (`client-mod/wrathpp-native`), its appearance add-on (`client-mod/wrathpp`), its realm module
+  (`mod-wrathpp-customization`, the extended appearance protocol and registry) and the Shadowlands character creator
+  (`app/src/main/assets/wrathpp/WrathppCreate.lua`). Its limits are what those can be made to do, not the stock client's.
+- **Every option Shadowlands' creator has for a race and sex is available in Wrath++ and seen in the game**, per character:
+  every race and both sexes (the Blood Elf man included), every category and option (Face, Hair, Accessories, Body,
+  Markings: scars, paints, tattoos, horns, ears, vines, jewellery, makeup, face shape, Upright, the lot), and Wrath++'s own
+  body options (Shape, Style, Density) for every race's women with every shape. "3.3.5 keeps five numbers" is never the
+  end of it: what the five numbers can't carry goes through the extended appearance (registry categories, stored per
+  character by the realm) and is drawn by the native mod (geosets, texture layers, extra models, bones) or by displays.
+- An option greyed as "Not drawn yet", a race left on the old look, a shape only some races have or an animation that
+  falls back to standing is **unfinished work, not an answer**. Never present it as done; list what is left and keep
+  working through it (task #19 and the body options' races). Don't ask the user whether to wire something the creator
+  shows: wire it.

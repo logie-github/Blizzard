@@ -1,0 +1,1 @@
+Warcraft III: the minimap's pan now works as meant: drag on it to pan, and a tap there no longer jumps the view (1.0.215 missed it).

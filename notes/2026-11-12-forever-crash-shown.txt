@@ -1,0 +1,1 @@
+World of Warcraft: Forever: if the launcher stops right away, the app now shows its log with a Copy button.

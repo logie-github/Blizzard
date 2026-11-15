@@ -19,6 +19,14 @@ object WrathppSetup {
         }
         // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.
         val notes = StringBuilder()
+        // Project Reforged's parts chosen on Wrath++'s settings page (Reforged): what finished downloading put in, what was
+        // turned off taken out (a shared archive of Wrath+'s it stood in for linked back), the glue screens kept the game's own.
+        // Before the creator's patch, whose table of contents is read from the game. Its downloads go on in the background.
+        runCatching {
+            notes.append(Reforged.prepare(layout.wrathppClient, java.io.File(layout.client, "Data"), Reforged.chosen(context.filesDir)))
+            WrathppClient.addMissing(layout.client, layout.wrathppClient)
+        }.onFailure { e -> notes.append("reforged FAILED: ${e.message}\n") }
+        runCatching { ReforgedDownloads.start(context) }
         runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
             .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
@@ -26,42 +34,186 @@ object WrathppSetup {
         runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
             .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
-        // The creator's Legion-style column, from the app itself: whatever happened to the add-on.
-        report.say("Putting in Wrath++'s character creator", null)
+        // Shadowlands' creator's own art (WrathppArt): without it the creator draws with 3.3.5's pictures in the same places.
+        runCatching { WrathppArt.ensure(layout.wrathppClient, report::say) }
+            .onSuccess { notes.append("creator art: ${WrathppArt.installedSha(layout.wrathppClient) ?: "none"}\n") }
+            .onFailure { e -> notes.append("creator art FAILED: ${e.message}\n") }
+        // Ralia's mod, when you imported it (WrathppRalia): its skins in place of the looks' they are named for.
+        // Its zip is looked for by its name where downloads are (ImportFinder), and taken in by itself the first time.
         runCatching {
-            val glue = GLUE_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
-            WrathppAddon.writeGluePatch(layout.wrathppClient, glue)
-        }.onSuccess { notes.append("creator patch: written\n") }.onFailure { e -> notes.append("creator patch FAILED: ${e.message}\n") }
+            val store = WrathppRalia.store(context)
+            val found = runCatching { ImportFinder.find("ralia.zip") }.getOrNull()
+            val taken = runCatching { WrathppRalia.lookFor(store, found) }.onFailure { e -> notes.append("ralia.zip not read: ${e.message}\n") }.getOrNull()
+            if (taken != null) notes.append("ralia.zip found (${found?.parent}): $taken textures\n")
+            WrathppRalia.apply(store, layout.wrathppClient, report::say)
+        }
+            .onSuccess { notes.append("ralia: $it skins\n") }
+            .onFailure { e -> notes.append("ralia FAILED: ${e.message}\n") }
+        // Body options, when you imported their package (WrathppBody): the women's models with the body layer, the body
+        // shapes' models, the designs, and the display rows the realm gives each woman by her creator's Body tab choices.
+        // The package is looked for by its name too, and taken in by itself the first time.
+        runCatching {
+            val store = WrathppBody.store(context)
+            val found = runCatching { ImportFinder.find(*WrathppBody.NAMES) }.getOrNull()
+            val taken = runCatching { WrathppBody.lookFor(store, found) }.onFailure { e -> notes.append("body options package not read: ${e.message}\n") }.getOrNull()
+            if (taken != null) notes.append("body options package found (${found?.parent}): $taken models\n")
+            WrathppBody.apply(store, layout.wrathppClient, layout.wrathppServer, layout.data, report::say)
+        }
+            .onSuccess { notes.append("body options: $it\n") }
+            .onFailure { e -> notes.append("body options FAILED: ${e.message}\n") }
+        // The undead skins you imported (WrathppUndead): new colours after each race's own in the looks' tables, taken out
+        // again when the import is removed. Without the looks there is nothing to add them to.
+        val undead = runCatching { WrathppUndead.apply(WrathppUndead.store(context), layout.wrathppClient, layout.wrathppServer) }
+            .onSuccess { notes.append("undead skins: ${if (it != null) "in" else "none"}\n") }
+            .onFailure { e -> notes.append("undead skins FAILED: ${e.message}\n") }
+            .getOrNull()
+        // Body option: the women's underwear layer off (WrathppBare), whatever the three above put into the table.
+        runCatching { WrathppBare.apply(layout.wrathppClient) }
+            .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }
+            .onFailure { e -> notes.append("body option (underwear layer) FAILED: ${e.message}\n") }
+        // The creator (Shadowlands' two screens), from the app itself, whatever happened to the add-on; with it what it
+        // shows: the looks' own list of options (made with them: sl_creator.py) and the undead skins' (written above).
+        report.say("Putting in Wrath++'s character creator", null)
+        // A crash of an earlier launch that wasn't reported goes now; one with the creator on the screen leaves the
+        // creator out for the rest of this build (WrathppLogs): the game's own screen, with a line saying so.
+        runCatching { reportCrashes(context) }
+        val creatorOff = WrathppLogs.creatorOff(java.io.File(layout.wrathppClient, "Logs"), com.logie.blizz.BuildConfig.VERSION_CODE)
+        runCatching {
+            // (pictures of the creator as the game draws it are asked for until those of this build, art and looks went: WrathppPictures)
+            val shots = WrathppPictures.flag(java.io.File(layout.wrathppClient, "Logs"), WrathppPictures.state(com.logie.blizz.BuildConfig.VERSION_CODE,
+                WrathppArt.installedSha(layout.wrathppClient), WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer)))
+            val creator = if (creatorOff) mapOf(OFF_NOTE to offNote(com.logie.blizz.BuildConfig.VERSION_CODE).toByteArray(Charsets.UTF_8))
+            else glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead, shots)
+            // (the allied races' race buttons, pictures and texts are for the game's own screen as for the creator's: always)
+            val files = creator + ALLIED_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
+            WrathppAddon.writeGluePatch(layout.wrathppClient, files)
+            files
+        }.onSuccess { files ->
+            notes.append("creator patch: " + (if (creatorOff) "the creator LEFT OUT (the game crashed with it up in this build); " else "") + files.entries.joinToString(", ") { "${it.key} ${it.value.size}" } + "\n")
+        }.onFailure { e -> notes.append("creator patch FAILED: ${e.message}\n") }
         val log = java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log")
         runCatching { log.parentFile?.mkdirs(); log.writeText(notes.toString()) }
     }
 
-    /** The interface files the app writes into Wrath++'s copy of the game (assets/wrathpp), loaded in [WrathppAddon.loadOrder]. */
-    val GLUE_FILES = listOf("WrathppAlliedRaces.xml", "WrathppAlliedRaces.lua", "WrathppCreate.lua")
+    const val GLUE_ASSET = "wrathpp/WrathppCreate.lua"
+    /** The allied races' interface files (assets/wrathpp), loaded before the creator ([WrathppAddon.loadOrder]: frames before scripts, by name). */
+    val ALLIED_FILES = listOf("WrathppAlliedRaces.xml", "WrathppAlliedRaces.lua")
+    const val LOOKS_DATA = "WrathppLooks.lua"
+    const val OFF_NOTE = "WrathppCreateOff.lua"
+
+    /** In place of the creator after a crash with it up: the game's own screen, and a line at its top saying why. */
+    fun offNote(build: Int): String = """
+        -- Wrath++: the creator is left out after the game crashed with it on the screen (app build $build); the report was sent.
+        pcall(function()
+        	local screen = CharacterCreateFrame or CharacterCreate
+        	local s = screen:CreateFontString(nil, "OVERLAY", "GlueFontHighlightSmall")
+        	s:SetPoint("TOP", screen, "TOP", 0, -4)
+        	s:SetText("Wrath++'s creator is off after a crash (build $build): the report was sent, the next update turns it on again")
+        end)
+    """.trimIndent() + "\n"
+
+    /**
+     * The creator's files for its patch: the script ([creator]), the asking for pictures of it ([shots], [WrathppPictures.flag]),
+     * Shadowlands' art's table when the art is in ([WrathppArt]),
+     * the looks' options from the looks in [client] when they are in
+     * (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
+     * The script reads the other two when the creator opens, so the order they load in doesn't matter.
+     */
+    fun glue(creator: ByteArray, client: java.io.File, undead: String?, shots: String? = null): Map<String, ByteArray> {
+        val files = LinkedHashMap<String, ByteArray>()
+        files["WrathppCreate.lua"] = creator
+        if (shots != null) files[WrathppPictures.FLAG] = shots.toByteArray(Charsets.UTF_8)
+        WrathppArt.atlas(client)?.let { files[WrathppArt.ATLAS] = it.readBytes() }
+        java.io.File(client, "Data/${WrathppLooks.PATCH}/Interface/GlueXML/$LOOKS_DATA").takeIf { it.isFile }?.let { files[LOOKS_DATA] = it.readBytes() }
+        if (undead != null) files[WrathppUndead.LUA] = undead.toByteArray(Charsets.UTF_8)
+        return files
+    }
 
     /**
      * After Wrath++'s game has started: a report of what it was set up with and how WarcraftXL's runtime got on (its log), so
-     * that a start that looked like stock 3.3.5 says why without anyone pasting anything.
+     * that a start that looked like stock 3.3.5 says why without anyone pasting anything. Sent whenever what it says
+     * differs from the last one sent (another build of the app, add-on or looks, or the creator saying other things):
+     * as an ordinary report it had gone once a day, its title being the same sentence every time, and a day of changes
+     * said nothing (the user: "I don't think the reporter works right").
      */
     fun report(context: Context) {
         val layout = WowLayout.of(context)
         val client = layout.wrathppClient
+        runCatching { reportCrashes(context) }
         val setup = runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log").readText() }.getOrDefault("no setup.log")
-        val wxl = java.io.File(client, "Logs/WarcraftXL.log")
-        val wxlLog = runCatching { wxl.readLines().takeLast(120).joinToString("\n") }.getOrDefault("no Logs/WarcraftXL.log (the runtime didn't start, or wrote elsewhere)")
+        val logs = java.io.File(client, "Logs")
+        val wxl = java.io.File(logs, "WarcraftXL.log")
+        val lines = runCatching { wxl.readLines() }.getOrNull()
+        val wxlLog = lines?.takeLast(120)?.joinToString("\n") ?: "no Logs/WarcraftXL.log (the runtime didn't start, or wrote elsewhere)"
+        val creator = WrathppLogs.lastCreatorLines(logs)
+        // the realm's own lines about Wrath++ (its module: the registry it serves, the clients that said hello, the body
+        // options' displays), from the end of its Server.log
+        val realm = runCatching { realmLines(java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "Server.log")) }.getOrNull() ?: "no Server.log"
         val files = listOf(WrathppAddon.EXE, "WarcraftXL.dll", "Mods/wrathpp.native/bin/x86/wrathpp-native.dll", "Mods/wxl.lua/bin/x86/wxl-lua.dll",
             "Mods/wxl.glue-unlock/bin/x86/glue-unlock.dll", "Data/${WrathppAddon.PATCH}", "WowPatched.exe", "Wow.exe")
             .joinToString("\n") { name -> val f = java.io.File(client, name); "$name: ${if (f.exists()) "${f.length()} bytes" else "missing"}" }
         // The game's archives in the order it reads them, folders (patch-M, patch-Z: the looks) marked.
         val archives = java.io.File(client, "Data").listFiles()?.filter { it.name.endsWith(".mpq", ignoreCase = true) }?.sortedBy { it.name.lowercase() }
             ?.joinToString("\n") { "Data/${it.name}: ${if (it.isDirectory) "folder" else "${it.length()} bytes"}" } ?: "no Data"
+        val addon = WrathppAddon.installedSha(client) ?: "none"
+        val looks = WrathppLooks.installedSha(client, layout.wrathppServer) ?: "none"
+        val state = listOf(com.logie.blizz.BuildConfig.VERSION_CODE.toString(), addon, looks, setup.replace(Regex("\\d+"), "#"), WrathppLogs.creatorSaid(creator)).joinToString("|")
+        val last = java.io.File(com.logie.blizz.reports.BugReports.dir(context), "wrathpp-start.state")
+        if (runCatching { last.readText() }.getOrNull() == state) return
         runCatching {
-            com.logie.blizz.reports.BugReports.report(
-                context, "Wrath++ start", "What Wrath++'s game was started with",
-                details = listOf("Add-on" to (WrathppAddon.installedSha(client) ?: "none"),
-                    "Looks" to (WrathppLooks.installedSha(client, layout.wrathppServer) ?: "none")),
-                log = "$setup\n$files\n$archives\n\n--- WarcraftXL.log ---\n$wxlLog",
-            )
+            com.logie.blizz.reports.BugReports.submit(context, com.logie.blizz.reports.BugReports.Report(
+                "Wrath++ start: build ${com.logie.blizz.BuildConfig.VERSION_CODE}, add-on ${addon.take(8)}, looks ${looks.take(8)}",
+                com.logie.blizz.reports.BugReports.body("Wrath++ start", "What Wrath++'s game was started with",
+                    listOf("Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
+                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- WarcraftXL.log ---\n$wxlLog"),
+            ))
+            last.parentFile?.mkdirs()
+            last.writeText(state)
+        }
+    }
+
+    /** The last lines of [file] (its last megabyte) that are the Wrath++ module's ("Wrath++"), or what there is instead. */
+    internal fun realmLines(file: java.io.File): String {
+        if (!file.isFile) return "no ${file.name}"
+        val tail = java.io.RandomAccessFile(file, "r").use { f ->
+            val from = maxOf(0L, f.length() - (1 shl 20))
+            f.seek(from)
+            ByteArray((f.length() - from).toInt()).also { f.readFully(it) }
+        }
+        val lines = String(tail, Charsets.UTF_8).lines().filter { "Wrath++" in it }.takeLast(40)
+        return if (lines.isEmpty()) "none (the module said nothing: off, or not this realm)" else lines.joinToString("\n")
+    }
+
+    /**
+     * Crashes of Wrath++'s game that were not reported yet, each sent once whatever went before ([WrathppLogs]: the
+     * runtime writes a crash into the launch's log, and the launches' logs stay on the phone), with the game's own
+     * crash file of that time (`Errors/`). Called as the app starts, before each start of the game, a while after it
+     * and when the game's screen goes. A crash with the creator on the screen leaves the creator out of this build.
+     */
+    @Synchronized
+    fun reportCrashes(context: Context) {
+        val layout = WowLayout.of(context)
+        val client = layout.wrathppClient
+        val logs = java.io.File(client, "Logs")
+        if (!logs.isDirectory) return
+        // (the creator's pictures of itself, taken since the app asked for them: sent now that the game was left)
+        runCatching { WrathppPictures.send(context) }
+        val setup = runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log").readText() }.getOrDefault("no setup.log")
+        for (crash in WrathppLogs.unreported(logs)) {
+            if (crash.creatorUp) WrathppLogs.creatorCrashed(logs, com.logie.blizz.BuildConfig.VERSION_CODE)
+            // the game's own report of it: the file of its Errors folder written nearest the launch's log
+            val log = java.io.File(logs, crash.file)
+            val own = java.io.File(client, "Errors").listFiles { f -> f.isFile && f.name.endsWith(".txt") }
+                ?.minByOrNull { kotlin.math.abs(it.lastModified() - log.lastModified()) }
+                ?.takeIf { kotlin.math.abs(it.lastModified() - log.lastModified()) < 10 * 60 * 1000L }
+            val ownText = own?.let { f -> runCatching { f.readText().take(6000) }.getOrNull() }
+            com.logie.blizz.reports.BugReports.submit(context, com.logie.blizz.reports.BugReports.Report(
+                "Wrath++ crash: ${crash.what.take(140)}",
+                com.logie.blizz.reports.BugReports.body("Wrath++ crash", crash.what,
+                    listOf("Launch" to crash.file, "Creator on the screen" to (if (crash.creatorUp) "yes: left out for the rest of this build" else "no, or it said nothing"),
+                        "Add-on" to (WrathppAddon.installedSha(client) ?: "none"), "Looks" to (WrathppLooks.installedSha(client, layout.wrathppServer) ?: "none")),
+                    log = "--- the game's own crash file (${own?.name ?: "none near that time"}) ---\n${ownText ?: ""}\n\n--- setup ---\n$setup\n--- ${crash.file} ---\n${crash.text}"),
+            ))
         }
     }
 

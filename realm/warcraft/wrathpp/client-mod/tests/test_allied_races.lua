@@ -29,8 +29,8 @@ end
 CharacterCreate = { numRaces = 21 }
 MAX_RACES = 10
 local tokens = { "Human", "Dwarf", "NightElf", "Gnome", "Draenei", "Orc", "Scourge", "Tauren", "Troll", "BloodElf",
-	"VoidElf", "Lightforged", "KulTiran", "DarkIron", "Mechagnome", "HighElf", "Nightborne", "Zandalari", "Highmountain", "Vulpera", "Maghar" }
-local alliance = { Human = 1, Dwarf = 1, NightElf = 1, Gnome = 1, Draenei = 1, VoidElf = 1, Lightforged = 1, KulTiran = 1, DarkIron = 1, Mechagnome = 1, HighElf = 1 }
+	"VoidElf", "LightforgedDraenei", "KulTiran", "DarkIronDwarf", "Mechagnome", "HighElf", "Nightborne", "ZandalariTroll", "HighmountainTauren", "Vulpera", "MagharOrc" }
+local alliance = { Human = 1, Dwarf = 1, NightElf = 1, Gnome = 1, Draenei = 1, VoidElf = 1, LightforgedDraenei = 1, KulTiran = 1, DarkIronDwarf = 1, Mechagnome = 1, HighElf = 1 }
 function GetFactionForRace(i) return nil, alliance[tokens[i]] and "Alliance" or "Horde" end
 local seen
 function CharacterCreateEnumerateRaces(...) seen = { ... } end
@@ -59,14 +59,14 @@ for i = 1, 21 do
 end
 check(left == 11 and right == 10, "the Alliance's eleven on the left, the Horde's ten on the right")
 check(CharacterCreateRaceButton21.points[1][5] > -400 and CharacterCreateRaceButton11.points[1][5] <= -50, "the rows fit above the gender buttons")
-check(CharacterCreateRaceButton21NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\MAGHAR", "Mag'har's picture is on its button")
+check(CharacterCreateRaceButton21NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\MAGHARORC", "Mag'har's picture is on its button")
 check(CharacterCreateRaceButton16NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\HIGHELF", "the High Elf's too")
 check(rawget(CharacterCreateRaceButton1NormalTexture, "texture") == nil, "the game's own ten keep the screen's atlas")
-SetBackgroundModel("m", "Maghar"); check(background == "Orc", "Mag'har's scene is the Orcs'")
+SetBackgroundModel("m", "MagharOrc"); check(background == "Orc", "Mag'har's scene is the Orcs'")
 SetBackgroundModel("m", "KulTiran"); check(background == "Human", "the Kul Tirans' the Humans'")
 SetBackgroundModel("m", "HighElf"); check(background == "BloodElf", "the High Elf's the Blood Elves'")
 SetBackgroundModel("m", "Human"); check(background == "Human", "a game race's own")
-check(GlueAmbienceTracks.MAGHAR == "GlueScreenIntro" or GlueAmbienceTracks.MAGHAR ~= nil, "their selection music")
-check(RACE_INFO_MAGHAR and ABILITY_INFO_MAGHAR1 and ABILITY_INFO_HIGHELF3 and MAGHAR_DISABLED, "their texts")
+check(GlueAmbienceTracks.MAGHARORC == "GlueScreenIntro" or GlueAmbienceTracks.MAGHARORC ~= nil, "their selection music")
+check(RACE_INFO_MAGHARORC and ABILITY_INFO_MAGHARORC1 and ABILITY_INFO_HIGHELF3 and MAGHARORC_DISABLED, "their texts")
 print(fails == 0 and "all passed" or (fails.." failed"))
 os.exit(fails == 0 and 0 or 1)

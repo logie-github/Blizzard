@@ -170,6 +170,78 @@ function WPP.onRegistry(r)
     fire("WRATHPP_READY")
 end
 
+-- The parts (tools/sl_parts.py: Wrathpp\parts.txt in the looks' package): what a character's registry choices of the
+-- Shadowlands options mean as pictures on head shells. Tab separated, `S race sex slot category shell` and
+-- `C race sex category option colour picture`. The native mod hangs them (WrathPP_ApplyLook) on the model each character of the
+-- world draws with.
+WPP.parts = nil
+WPP.HAIR_COLOUR = 1190
+WPP.MAX_PARTS = 3
+
+function WPP.loadParts()
+    if WPP.parts then return WPP.parts end
+    local parts = { slots = {}, pictures = {} }
+    if not (wxl.storage and wxl.storage.Read) then return parts end
+    local ok, text = pcall(wxl.storage.Read, "Wrathpp\\parts.txt")
+    if not ok or type(text) ~= "string" then return parts end      -- (a package without parts: asked again next time)
+    WPP.parts = parts
+    for line in text:gmatch("[^\r\n]+") do
+        local kind, a, b, c, d, e, f = line:match("^(%a)\t([^\t]*)\t([^\t]*)\t([^\t]*)\t([^\t]*)\t?([^\t]*)\t?([^\t]*)$")
+        local key = a and (a .. ":" .. b)
+        if kind == "S" and key then
+            local list = parts.slots[key] or {}
+            parts.slots[key] = list
+            list[#list + 1] = { category = tonumber(d), shell = e }
+        elseif kind == "P" and key then                       -- a paint: its colour's category, then its style's
+            local list = parts.slots[key] or {}
+            parts.slots[key] = list
+            list[#list + 1] = { category = tonumber(d), style = tonumber(e), shell = f }
+        elseif kind == "C" and key then
+            local byCategory = parts.pictures[key] or {}
+            parts.pictures[key] = byCategory
+            local options = byCategory[tonumber(c)] or {}
+            byCategory[tonumber(c)] = options
+            local colours = options[tonumber(d)] or {}
+            options[tonumber(d)] = colours
+            colours[e] = f
+        end
+    end
+    return parts
+end
+
+-- The shells and pictures a look names: { { shell, picture }, ... } (no more than the native mod keeps).
+function WPP.partsOf(look)
+    local parts = WPP.loadParts()
+    local list = parts.slots[look.race .. ":" .. look.sex]
+    local out = {}
+    if not list then return out end
+    local colour = tostring((look.entries[WPP.HAIR_COLOUR] or 1) - 1)
+    for _, slot in ipairs(list) do
+        local options = parts.pictures[look.race .. ":" .. look.sex]
+        options = options and options[slot.category]
+        local colours = options and options[look.entries[slot.category] or 1]
+        local picture = colours and (colours["*"] or colours[colour] or (slot.style and colours["s" .. (look.entries[slot.style] or 1)]))
+        if picture and #out < WPP.MAX_PARTS then out[#out + 1] = { shell = slot.shell, picture = picture } end
+    end
+    return out
+end
+
+-- Gives the native mod a character's parts (it hangs them once the character's model is in the world, and again whenever
+-- the model is made again). The text runs in the client's own Lua, where the native mod's WrathPP_* functions are.
+function WPP.applyParts(guid)
+    local look = WPP.looks[guid]
+    if not look or not (wxl.script and wxl.script.Run) then return false end
+    local list = WPP.partsOf(look)
+    local args = { string.format("%q", guid) }
+    for i = 1, WPP.MAX_PARTS do
+        local part = list[i]
+        args[#args + 1] = string.format("%q", part and part.shell or "")
+        args[#args + 1] = string.format("%q", part and part.picture or "")
+    end
+    local ok = pcall(wxl.script.Run, "if WrathPP_ApplyLook then WrathPP_ApplyLook(" .. table.concat(args, ",") .. ") end", "wrathpp-parts")
+    return ok
+end
+
 function WPP.onAppearance(r)
     local count = r:U8()
     if not r:Ok() or count > WPP.MAX_BATCH then return end
@@ -180,6 +252,7 @@ function WPP.onAppearance(r)
         WPP.looks[guid] = { race = race, sex = sex, class = class, version = version, entries = entries }
         wanted[guid], asked[guid] = nil, nil
         fire("WRATHPP_APPEARANCE", guid)
+        WPP.applyParts(guid)
     end
 end
 

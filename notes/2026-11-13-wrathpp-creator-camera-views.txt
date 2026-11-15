@@ -1,0 +1,1 @@
+Wrath++ character creator: a zoom slider and Full, Face, Torso and Rear views beside the turn buttons.

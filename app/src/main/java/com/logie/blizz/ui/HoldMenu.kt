@@ -12,12 +12,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Tune
@@ -42,6 +46,8 @@ import com.logie.blizz.Game
 /** What a version's hold menu opens (Launcher hosts the screens): its launch options, its add-ons, the modules of its realm. */
 internal val LocalOpenOptions = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenAddons = staticCompositionLocalOf<(Game) -> Unit> { {} }
+/** Opens the Character Porter (World of Warcraft's boxes). */
+internal val LocalOpenPorter = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalOpenModules = staticCompositionLocalOf<() -> Unit> { {} }
 internal val LocalOpenMusic = staticCompositionLocalOf<(Game) -> Unit> { {} }
 internal val LocalOpenControls = staticCompositionLocalOf<(Game) -> Unit> { {} }
@@ -71,32 +77,48 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             val openWizard = LocalOpenWizard.current
             val importable = com.logie.blizz.importer.GameImportManager.importable(effective.id)
             val isWow = effective.id == "wow" || effective.id.startsWith("wow_")
-            if (effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Settings, "Launch options") { onDismiss(); openOptions(game) }
-            if (!isWow && effective.id != com.logie.blizz.d2r.D2r.GAME_ID) HoldItem(Icons.Default.Mouse, "Controls") { onDismiss(); openControls(game) }
+            // Warcraft III plays in Warsmash: Winlator's launch options and touch controls aren't its.
+            val warsmash = effective.id.startsWith("warcraft3")
+            if (effective.id != com.logie.blizz.d2r.D2r.GAME_ID && !warsmash) HoldItem(Icons.Default.Settings, "Launch options") { onDismiss(); openOptions(game) }
+            if (!isWow && effective.id != com.logie.blizz.d2r.D2r.GAME_ID && !warsmash) HoldItem(Icons.Default.Mouse, "Controls") { onDismiss(); openControls(game) }
             if (hasAddons(effective.id)) HoldItem(Icons.Default.Extension, "Add-ons") { onDismiss(); openAddons(game) }
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
+            val openPorter = LocalOpenPorter.current
+            if (isWow && effective.id != "wow_forever") HoldItem(Icons.Default.PersonSearch, "Character Porter") { onDismiss(); openPorter() }
+            // Wrath++: the undead skins you import (UndeadSkinsDialog), new skins under its creator's Undead switch.
+            var undeadSkins by remember { mutableStateOf(false) }
+            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+                HoldItem(Icons.Default.Face, "Undead skins (Wrath++)") { undeadSkins = true }
+            }
+            if (undeadSkins) UndeadSkinsDialog { undeadSkins = false; onDismiss() }
+            // Wrath++: Ralia's mod from your zip of it (RaliaDialog: looked for as ralia.zip, or picked).
+            var ralia by remember { mutableStateOf(false) }
+            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+                HoldItem(Icons.Default.Face, "Ralia's mod (Wrath++)") { ralia = true }
+            }
+            if (ralia) RaliaDialog { ralia = false; onDismiss() }
+            // Warcraft III in Warsmash: Classic+, the remade models and textures (ClassicPlusDialog).
+            var classicPlus by remember { mutableStateOf(false) }
+            if (warsmash) HoldItem(Icons.Default.AutoAwesome, "Classic+ models") { classicPlus = true }
+            if (classicPlus) ClassicPlusDialog { classicPlus = false; onDismiss() }
             HoldItem(Icons.Default.Image, "Art") { onDismiss(); openSplash(game) }
             val openMusic = LocalOpenMusic.current
             HoldItem(Icons.Default.MusicNote, "Music") { onDismiss(); openMusic(game) }
             if (importable) HoldItem(Icons.Default.Build, "Install & repair") { onDismiss(); openWizard(effective) }
             else HoldItem(Icons.Default.Apps, "App") { onDismiss(); chooseApp(game) }
-            // Reset, on every game: it is deleted and installed again from the start (saves stay).
             val context = LocalContext.current
-            var confirm by remember { mutableStateOf(false) }
-            if (importable || effective.id == "wow_forever") HoldItem(Icons.Default.RestartAlt, "Reset") { confirm = true }
-            if (confirm) {
-                val forever = effective.id == "wow_forever"
-                ConfirmDialog(
+            if (importable) {
+                // Reset, on every other game: it is deleted and installed again from the start (saves stay).
+                var confirm by remember { mutableStateOf(false) }
+                HoldItem(Icons.Default.RestartAlt, "Reset") { confirm = true }
+                if (confirm) ConfirmDialog(
                     title = "Reset ${effective.fullTitle}?",
-                    text = if (forever) "The realm (its server, characters and map data) is deleted and downloaded again on the next Play. The game client stays."
-                    else "The game is deleted and installed again from the start. Your saves stay.",
+                    text = "The game is deleted and installed again from the start. Your saves stay.",
                     confirm = "Reset",
                     onDismiss = { confirm = false },
                     onConfirm = {
-                        confirm = false
-                        onDismiss()
-                        if (forever) com.logie.blizz.forever.ForeverPlay.reset(context, client = false)
-                        else { com.logie.blizz.importer.GameImportManager.reinstall(context, effective.id); openWizard(effective) }
+                        confirm = false; onDismiss()
+                        com.logie.blizz.importer.GameImportManager.reinstall(context, effective.id); openWizard(effective)
                     },
                 )
             }

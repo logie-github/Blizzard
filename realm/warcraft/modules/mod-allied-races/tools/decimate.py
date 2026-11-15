@@ -217,3 +217,76 @@ def plan(sizes, budget, floors):
         for t in keep:
             keep[t] *= f
     return keep
+
+
+def _closest_on_triangles(p, a, b, c):
+    """The closest point to [p] on each of the triangles (a, b, c: K x 3), Ericson's method, all at once."""
+    ab, ac, ap = b - a, c - a, p - a
+    d1, d2 = (ab * ap).sum(1), (ac * ap).sum(1)
+    bp = p - b
+    d3, d4 = (ab * bp).sum(1), (ac * bp).sum(1)
+    cp = p - c
+    d5, d6 = (ab * cp).sum(1), (ac * cp).sum(1)
+    vc, vb, va = d1 * d4 - d3 * d2, d5 * d2 - d1 * d6, d3 * d6 - d5 * d4
+    out = np.empty_like(a)
+    for k in range(len(a)):
+        if d1[k] <= 0 and d2[k] <= 0:
+            out[k] = a[k]
+        elif d3[k] >= 0 and d4[k] <= d3[k]:
+            out[k] = b[k]
+        elif vc[k] <= 0 and d1[k] >= 0 and d3[k] <= 0:
+            out[k] = a[k] + ab[k] * (d1[k] / (d1[k] - d3[k]) if d1[k] != d3[k] else 0.0)
+        elif d6[k] >= 0 and d5[k] <= d6[k]:
+            out[k] = c[k]
+        elif vb[k] <= 0 and d2[k] >= 0 and d6[k] <= 0:
+            out[k] = a[k] + ac[k] * (d2[k] / (d2[k] - d6[k]) if d2[k] != d6[k] else 0.0)
+        elif va[k] <= 0 and (d4[k] - d3[k]) >= 0 and (d5[k] - d6[k]) >= 0:
+            w = (d4[k] - d3[k]) / ((d4[k] - d3[k]) + (d5[k] - d6[k])) if ((d4[k] - d3[k]) + (d5[k] - d6[k])) != 0 else 0.0
+            out[k] = b[k] + (c[k] - b[k]) * w
+        else:
+            total = va[k] + vb[k] + vc[k]
+            den = 1.0 / total if total != 0 else 0.0
+            out[k] = a[k] + ab[k] * (vb[k] * den) + ac[k] * (vc[k] * den)
+    return out
+
+
+def sink_lifts(positions, normals, before, after, locked=(), cap=0.025):
+    """What cutting a mesh section down takes from a shell that lies over something (hair over the scalp, worn gear over
+    the body): a triangle spanning what were several is a chord, inside the surface the removed vertices lay on, and the
+    skin shows through it. Returns {vertex: distance} to move each kept vertex out along its normal so that every removed
+    vertex is under the new surface again: each removed vertex that lies out along its normal from the nearest kept
+    triangle asks that triangle's three vertices for that height (the most asked wins, at most [cap]).
+    [positions], [normals]: N x 3 of the model's vertices; [before], [after]: the section's triangles (M x 3) before and
+    after the cut; [locked]: vertices that stay where they are (a seam with another section)."""
+    before, after = np.asarray(before).reshape(-1, 3), np.asarray(after).reshape(-1, 3)
+    if len(after) == 0 or len(before) <= len(after):
+        return {}
+    kept = set(int(v) for v in after.ravel())
+    removed = np.array(sorted(set(int(v) for v in before.ravel()) - kept), dtype=np.int64)
+    if not len(removed):
+        return {}
+    locked = set(int(v) for v in locked)
+    A, B, C = positions[after[:, 0]], positions[after[:, 1]], positions[after[:, 2]]
+    centre = (A + B + C) / 3.0
+    lifts = {}
+    for r in removed:
+        p = positions[r]
+        # (the nearest sixteen by a stable order, taken in the mesh's own order: two triangles that share the closest point
+        # are the same far, and which one wins must not depend on the machine's sort: the lifts have to come out the same
+        # on every build, or the looks' models differ from one build to the next and the body options package, which names
+        # the model it was made for, stops matching)
+        near = np.sort(np.argsort(((centre - p) ** 2).sum(1), kind="stable")[:16])
+        hits = _closest_on_triangles(p, A[near], B[near], C[near])
+        k = int(np.argmin(np.round(((hits - p) ** 2).sum(1), 12)))
+        n = normals[r]
+        ln = np.linalg.norm(n)
+        if ln < 1e-9:
+            continue
+        height = round(float(np.dot(p - hits[k], n / ln)), 5)       # (to a hundredth of a millimetre: no last-bit drift)
+        if not np.isfinite(height) or height <= 1e-5:
+            continue
+        for v in after[near[k]]:
+            v = int(v)
+            if v not in locked:
+                lifts[v] = min(cap, max(lifts.get(v, 0.0), height))
+    return lifts

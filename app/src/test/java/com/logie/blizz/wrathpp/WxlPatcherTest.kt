@@ -130,7 +130,8 @@ class WrathppAddonTest {
     @Test fun theCreatorsFilesLoadFramesBeforeScriptsAndTheRacesBeforeTheCreator() {
         assertEquals(listOf("WrathppAlliedRaces.xml", "WrathppAlliedRaces.lua", "WrathppCreate.lua"),
             WrathppAddon.loadOrder(listOf("WrathppCreate.lua", "WrathppAlliedRaces.lua", "WrathppAlliedRaces.xml")))
-        assertEquals(WrathppSetup.GLUE_FILES, WrathppAddon.loadOrder(WrathppSetup.GLUE_FILES.reversed()))
+        val all = WrathppSetup.ALLIED_FILES + "WrathppCreate.lua"
+        assertEquals(all, WrathppAddon.loadOrder(all.reversed()))
     }
 
     @Test fun wrathppStartsItsOwnProgramElseThePatchedOne() {

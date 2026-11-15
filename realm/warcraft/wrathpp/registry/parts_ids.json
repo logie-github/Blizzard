@@ -1,0 +1,32 @@
+{
+ "keys": {
+  "1_0:Eyebrows": 1200,
+  "1_1:Eyebrows": 1201,
+  "1_1:Makeup": 1202,
+  "2_0:Grime": 1206,
+  "2_0:Scars": 1205,
+  "2_0:War Paint": 1208,
+  "2_0:War Paint Color": 1207,
+  "2_1:Scars": 1209,
+  "2_1:War Paint": 1211,
+  "2_1:War Paint Color": 1210,
+  "3_0:Tattoo": 1213,
+  "3_0:Tattoo Color": 1212,
+  "3_1:Tattoo": 1215,
+  "3_1:Tattoo Color": 1214,
+  "4_0:Scars": 1203,
+  "4_0:Tattoo": 1216,
+  "4_1:Markings": 1218,
+  "4_1:Markings Color": 1217,
+  "4_1:Scars": 1204,
+  "6_0:Face Paint": 1220,
+  "6_0:Paint Color": 1219,
+  "6_1:Face Paint": 1222,
+  "6_1:Paint Color": 1221,
+  "8_0:Face Paint": 1224,
+  "8_0:Face Paint Color": 1223,
+  "8_1:Face Paint": 1226,
+  "8_1:Face Paint Color": 1225
+ },
+ "next": 1227
+}

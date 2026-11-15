@@ -1,0 +1,1 @@
+World of Warcraft: Forever: no more "stopped early" message while the game is still being prepared; it is said only after the game itself has run.

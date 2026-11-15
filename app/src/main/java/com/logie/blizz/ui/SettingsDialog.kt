@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +52,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.logie.blizz.BuildConfig
+import com.logie.blizz.update.PatchNotes
 import com.logie.blizz.Game
 import com.logie.blizz.Games
 import com.logie.blizz.game.GameSettings
@@ -63,7 +68,7 @@ import com.logie.blizz.music.MusicPlayer
 /**
  * The launcher's settings, opened by holding the Blizzard logo. Two pages: **Launcher** (layout, touch, music, tests)
  * and **Games**, where every version of every game has its own settings ([GameSettingsDialog]): Warcraft III's
- * Reign of Chaos and The Frozen Throne apart, World of Warcraft's Wrath+, Legion, OctoWoW and Forever apart.
+ * Reign of Chaos and The Frozen Throne apart, World of Warcraft's Wrath+, Legion and OctoWoW apart.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -226,6 +231,8 @@ private fun LauncherPage(onDismiss: () -> Unit) {
         }
     }
 
+    ReportsCard()
+
     SettingCard("Maintenance") {
         FrameButton("Run the launch test", primary = false, modifier = Modifier.fillMaxWidth()) { com.logie.blizz.selftest.SelfTest.start(context); onDismiss() }
     }
@@ -278,14 +285,59 @@ private fun SteamGridKeyCard() {
     )
 }
 
-/** Every version of every game, one row each: its box art, its name and what is set for it. */
+/** The launcher's patch notes first (they show here and nowhere else), then every version of every game, one row each: its box art, its name and what is set for it. */
 @Composable
 private fun GamesPage(onOpen: (Game) -> Unit) {
+    PatchNotesCard()
     Text("Each version has its own box art, loading screen and music.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
     for (base in Games.all) {
         val versions = listOf(base) + base.variants
         SettingCard(if (versions.size > 1) base.title else null) {
             for (version in versions) GameRow(version, label = if (versions.size > 1) (version.variantLabel ?: version.fullTitle) else null) { onOpen(version) }
+        }
+    }
+}
+
+/** What each update brought, one line a change, newest first ([PatchNotes]: kept from the releases the updater reads). */
+@Composable
+private fun PatchNotesCard() {
+    val context = LocalContext.current
+    val kept by PatchNotes.kept.collectAsState()
+    LaunchedEffect(Unit) { if (PatchNotes.kept.value == null) withContext(Dispatchers.IO) { PatchNotes.load(context) } }
+    var all by remember { mutableStateOf(false) }
+    val notes = kept.orEmpty()
+    SettingCard("Patch notes") {
+        if (notes.isEmpty()) {
+            Text(
+                "Each update's notes show here, a line for each change, once the launcher has looked for updates.",
+                style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+            )
+        } else {
+            val shown = if (all) notes else notes.take(3)
+            for (release in shown) PatchNoteRow(release)
+            if (notes.size > shown.size) {
+                Text(
+                    "Earlier updates (${notes.size - shown.size})", style = MaterialTheme.typography.labelLarge, color = Colors.Ice,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).clickable { all = true }.padding(vertical = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PatchNoteRow(release: PatchNotes.Release) {
+    val installed = BuildConfig.VERSION_CODE
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.width(78.dp)) {
+            Text("1.0.${release.versionCode}", style = MaterialTheme.typography.labelLarge, color = if (release.versionCode == installed) Colors.Ice else Colors.Text)
+            when {
+                release.versionCode == installed -> Text("installed", style = MaterialTheme.typography.bodySmall, color = Colors.Ice)
+                release.versionCode > installed -> Text("on its way", style = MaterialTheme.typography.bodySmall, color = Colors.Gold)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (line in release.lines) Text(line, style = MaterialTheme.typography.bodyMedium, color = Colors.Text)
         }
     }
 }
@@ -321,6 +373,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     var optionsOpen by remember { mutableStateOf(false) }
     var controlsOpen by remember { mutableStateOf(false) }
     var addonsOpen by remember { mutableStateOf(false) }
+    var porterOpen by remember { mutableStateOf(false) }
     var modulesOpen by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     val pickArt = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -364,59 +417,6 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         if (ownMusic) FrameButton("Original", primary = false) { MusicCustom.clear(context, game.id) }
                     }
                 }
-                // Forever's offline realm makes this account at every start (forever@forever.local / forever unless changed here).
-                if (game.id == com.logie.blizz.forever.ForeverPlay.VERSION) {
-                    remember(game.id) { com.logie.blizz.forever.ForeverPlay.login(context) }
-                    AutoLoginCard(game.id, "E-mail")
-                    // The Forever Launcher the person supplies (it lets the client connect to the local realm): pick it once, the app keeps it.
-                    val forever by com.logie.blizz.forever.ForeverPlay.state.collectAsState()
-                    val hasLauncher = remember(forever) { com.logie.blizz.forever.ForeverLayout.of(context).hasLauncher() }
-                    val pickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-                        if (uri != null) com.logie.blizz.forever.ForeverPlay.importLauncher(context, uri)
-                    }
-                    SettingCard("Forever Launcher") {
-                        Text(
-                            if (hasLauncher) "The Forever Launcher is in place; the client connects through it."
-                            else "The client connects to the realm through the Forever Launcher, which you supply (WoWForeverLauncher.exe). Pick it once and the app runs it at every Play. It is a .NET program, so the app puts the .NET runtime (wine-mono) in place on the first run (~60 MB).",
-                            style = MaterialTheme.typography.bodySmall, color = if (hasLauncher) Colors.Ice else Colors.Mist,
-                        )
-                        FrameButton(if (hasLauncher) "Replace launcher" else "Choose launcher (.exe)", primary = false) {
-                            pickLauncher.launch(arrayOf("application/x-msdownload", "application/octet-stream", "application/vnd.microsoft.portable-executable", "*/*"))
-                        }
-                    }
-                    // Start over: the realm alone, or the realm and the downloaded client. Each asks first.
-                    var confirmReset by remember { mutableStateOf<Boolean?>(null) }
-                    SettingCard("Reset") {
-                        Text(
-                            "Reset realm deletes the realm server, its database (your characters) and its map data; the next Play downloads " +
-                                "the server again (263 MB). Reset everything also deletes the game client (${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB, downloaded again on Play).",
-                            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-                        )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FrameButton("Reset realm", primary = false) { confirmReset = false }
-                            FrameButton("Reset everything", primary = false) { confirmReset = true }
-                        }
-                    }
-                    confirmReset?.let { everything ->
-                        Dialog(onDismissRequest = { confirmReset = null }) {
-                            Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text(if (everything) "Reset everything?" else "Reset the realm?", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    if (everything) "Deletes the realm, your characters and the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client. This can't be undone."
-                                    else "Deletes the realm server, its database with your characters, and its map data. The game client stays. This can't be undone.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    FrameButton("Cancel", primary = false) { confirmReset = null }
-                                    FrameButton("Reset") {
-                                        com.logie.blizz.forever.ForeverPlay.reset(context, client = everything)
-                                        confirmReset = null
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
                 if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
                     AutoLoginCard(game.id, if (game.id == "wow_legion") "E-mail" else "Account name")
                     SettingCard("Add-ons") {
@@ -424,6 +424,14 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         FrameButton("Search add-ons", primary = false, modifier = Modifier.fillMaxWidth()) { addonsOpen = true }
                     }
                 }
+                if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
+                    SettingCard("Character Porter") {
+                        Text("Find any character on Blizzard's Armory and see them in 3D as they are dressed now; then bring them into your realm.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+                        FrameButton("Open the Character Porter", primary = false, modifier = Modifier.fillMaxWidth()) { porterOpen = true }
+                    }
+                }
+                // Project Reforged's HD patches for Wrath++'s game (wrathpp/Reforged.kt): a switch each, downloaded by the app.
+                if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) { WrathppGraphicsCard(); WrathppBodyCard(); ReforgedCard() }
                 if (game.id == "wow") {
                     SettingCard("Modules") {
                         Text(com.logie.blizz.wowmodules.modulesSummary(context), style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
@@ -451,7 +459,8 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     }
                 }
                 if (game.id != com.logie.blizz.d2r.D2r.GAME_ID) {
-                    SettingCard("Play") {
+                    // (Warcraft III plays in Warsmash: Winlator's launch options and touch controls aren't its)
+                    if (!game.id.startsWith("warcraft3")) SettingCard("Play") {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FrameButton("Launch options", primary = false) { optionsOpen = true }
                             if (game.id != "wow" && !game.id.startsWith("wow_")) FrameButton("Controls", primary = false) { controlsOpen = true }
@@ -465,5 +474,6 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
     if (optionsOpen) GameOptionsDialog(game, onDismiss = { optionsOpen = false })
     if (controlsOpen) ControlsScreen(game, onDismiss = { controlsOpen = false })
     if (addonsOpen) WowAddonManager(game.id, onDismiss = { addonsOpen = false })
+    if (porterOpen) CharacterPorter(onDismiss = { porterOpen = false })
     if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
 }

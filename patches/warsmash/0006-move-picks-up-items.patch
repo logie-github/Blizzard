@@ -1,0 +1,65 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index b70063b..6641e55 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -4195,6 +4195,9 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 				}
+ 				else if (button == Input.Buttons.LEFT) {
+ 					final boolean shiftDown = isShiftDown();
++					if (pickUpItemWithMove(screenX, worldScreenY, shiftDown)) {
++						return false;
++					}
+ 					this.activeCommandUnitTargetFilter.reset();
+ 					final RenderWidget rayPickUnit = this.war3MapViewer.rayPickUnit(screenX, worldScreenY,
+ 							this.activeCommandUnitTargetFilter);
+@@ -4434,6 +4437,50 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
++	/**
++	 * Blizzard launcher: Move tapped on an item the unit can carry picks it up (it walks over and takes it), as the
++	 * original's right click on an item does; Move alone only targets units, so the tap was a move to the ground.
++	 */
++	private boolean pickUpItemWithMove(final int screenX, final float worldScreenY, final boolean shiftDown) {
++		if ((this.activeCommandOrderId != OrderIds.move) || (this.draggingItem != null)
++				|| (this.activeCommandUnit == null)) {
++			return false;
++		}
++		final RenderWidget picked = this.war3MapViewer.rayPickUnit(screenX, worldScreenY,
++				widget -> (widget instanceof CItem) && !((CItem) widget).isHidden() && !widget.isDead());
++		if (picked == null) {
++			return false;
++		}
++		final CUnit unit = this.activeCommandUnit.getSimulationUnit();
++		for (final CAbility ability : unit.getAbilities()) {
++			if (!(ability instanceof CAbilityInventory)) {
++				continue;
++			}
++			final CWidgetAbilityTargetCheckReceiver receiver = CWidgetAbilityTargetCheckReceiver.INSTANCE.reset();
++			ability.checkCanTarget(this.war3MapViewer.simulation, unit, OrderIds.getitem,
++					picked.getSimulationWidget(), receiver);
++			if (receiver.getTarget() == null) {
++				continue;
++			}
++			this.unitOrderListener.issueTargetOrder(unit.getHandleId(), ability.getHandleId(), OrderIds.getitem,
++					picked.getSimulationWidget().getHandleId(), shiftDown);
++			if (getSelectedUnit().soundset.yes.playUnitResponse(this.war3MapViewer.worldScene.audioContext,
++					getSelectedUnit())) {
++				portraitTalk(getSelectedUnit().soundset.yes);
++			}
++			this.selectedSoundCount = 0;
++			if (!shiftDown) {
++				this.subMenuOrderIdStack.clear();
++				this.activeCommandUnit = null;
++				this.activeCommand = null;
++				this.activeCommandOrderId = -1;
++				clearAndRepopulateCommandCard();
++			}
++			return true;
++		}
++		return false;
++	}
++
+ 	private void useActiveCommandOnUnit(final boolean shiftDown, final RenderWidget rayPickUnit) {
+ 		if (this.draggingItem != null) {
+ 			this.unitOrderListener.issueDropItemAtTargetOrder(this.activeCommandUnit.getSimulationUnit().getHandleId(),

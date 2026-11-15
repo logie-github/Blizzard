@@ -1,0 +1,1 @@
+World of Warcraft: Forever: when the game crashes it no longer stays frozen on the screen: you are back in the launcher and told why (the game's own protection closing it after the Forever Launcher starts it is named as that).

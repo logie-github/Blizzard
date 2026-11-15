@@ -1,0 +1,460 @@
+{
+ "region": "us",
+ "reputations": [
+  {
+   "id": "midnight",
+   "max": false,
+   "name": "Midnight",
+   "reputations": [
+    {
+     "id": "captain-tokka",
+     "max": true,
+     "name": "Captain Tokka",
+     "standing": "Bloodsworn Crew",
+     "standingType": {
+      "id": 4,
+      "name": "Bloodsworn Crew",
+      "enum": "BLOODSWORN_CREW",
+      "slug": "bloodsworn-crew"
+     }
+    },
+    {
+     "id": "harati",
+     "max": false,
+     "maxValue": 2500,
+     "name": "Hara'ti",
+     "standing": "Renown 20",
+     "standingType": {
+      "name": "Renown 20",
+      "enum": "RENOWN_20",
+      "slug": "renown-20"
+     },
+     "value": 0
+    },
+    {
+     "id": "slayers-duellum",
+     "max": true,
+     "name": "Slayer's Duellum",
+     "standing": "Exalted",
+     "standingType": {
+      "id": 7,
+      "name": "Exalted",
+      "enum": "EXALTED",
+      "slug": "exalted"
+     }
+    },
+    {
+     "id": "the-singularity",
+     "max": false,
+     "maxValue": 2500,
+     "name": "The Singularity",
+     "standing": "Renown 20",
+     "standingType": {
+      "name": "Renown 20",
+      "enum": "RENOWN_20",
+      "slug": "renown-20"
+     },
+     "value": 0
+    },
+    {
+     "id": "valeera-sanguinar",
+     "max": true,
+     "name": "Valeera Sanguinar",
+     "standing": "Level 80",
+     "standingType": {
+      "id": 79,
+      "name": "Level 80",
+      "enum": "LEVEL_80",
+      "slug": "level-80"
+     }
+    },
+    {
+     "id": "zuljarras-forces",
+     "max": false,
+     "maxValue": 2500,
+     "name": "Zul'jarra's Forces",
+     "standing": "Renown 18",
+     "standingType": {
+      "name": "Renown 18",
+      "enum": "RENOWN_18",
+      "slug": "renown-18"
+     },
+     "value": 627
+    }
+   ]
+  },
+  {
+   "id": "wrath-of-the-lich-king",
+   "max": false,
+   "name": "Wrath of the Lich King",
+   "reputations": [
+    {
+     "id": "argent-crusade",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Argent Crusade",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 55
+    },
+    {
+     "id": "kirin-tor",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Kirin Tor",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 695
+    },
+    {
+     "id": "knights-of-the-ebon-blade",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Knights of the Ebon Blade",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 0
+    },
+    {
+     "id": "the-wyrmrest-accord",
+     "max": false,
+     "maxValue": 3000,
+     "name": "The Wyrmrest Accord",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 0
+    },
+    {
+     "id": "horde-expedition",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Horde Expedition",
+     "reputations": [
+      {
+       "id": "the-hand-of-vengeance",
+       "max": false,
+       "maxValue": 3000,
+       "name": "The Hand of Vengeance",
+       "standing": "Neutral",
+       "standingType": {
+        "id": 3,
+        "name": "Neutral",
+        "enum": "NEUTRAL",
+        "slug": "neutral"
+       },
+       "value": 1960
+      },
+      {
+       "id": "the-sunreavers",
+       "max": false,
+       "maxValue": 3000,
+       "name": "The Sunreavers",
+       "standing": "Neutral",
+       "standingType": {
+        "id": 3,
+        "name": "Neutral",
+        "enum": "NEUTRAL",
+        "slug": "neutral"
+       },
+       "value": 867
+      },
+      {
+       "id": "the-taunka",
+       "max": false,
+       "maxValue": 3000,
+       "name": "The Taunka",
+       "standing": "Neutral",
+       "standingType": {
+        "id": 3,
+        "name": "Neutral",
+        "enum": "NEUTRAL",
+        "slug": "neutral"
+       },
+       "value": 875
+      },
+      {
+       "id": "warsong-offensive",
+       "max": false,
+       "maxValue": 3000,
+       "name": "Warsong Offensive",
+       "standing": "Neutral",
+       "standingType": {
+        "id": 3,
+        "name": "Neutral",
+        "enum": "NEUTRAL",
+        "slug": "neutral"
+       },
+       "value": 867
+      }
+     ],
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 2255
+    }
+   ]
+  },
+  {
+   "id": "the-burning-crusade",
+   "max": false,
+   "name": "The Burning Crusade",
+   "reputations": [
+    {
+     "id": "ashtongue-deathsworn",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Ashtongue Deathsworn",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 795
+    },
+    {
+     "id": "cenarion-expedition",
+     "max": false,
+     "maxValue": 6000,
+     "name": "Cenarion Expedition",
+     "standing": "Friendly",
+     "standingType": {
+      "id": 4,
+      "name": "Friendly",
+      "enum": "FRIENDLY",
+      "slug": "friendly"
+     },
+     "value": 4429
+    },
+    {
+     "id": "keepers-of-time",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Keepers of Time",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 0
+    },
+    {
+     "id": "sporeggar",
+     "max": false,
+     "maxValue": 6000,
+     "name": "Sporeggar",
+     "standing": "Friendly",
+     "standingType": {
+      "id": 4,
+      "name": "Friendly",
+      "enum": "FRIENDLY",
+      "slug": "friendly"
+     },
+     "value": 5885
+    },
+    {
+     "id": "the-scale-of-the-sands",
+     "max": false,
+     "maxValue": 3000,
+     "name": "The Scale of the Sands",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 0
+    },
+    {
+     "id": "thrallmar",
+     "max": false,
+     "maxValue": 6000,
+     "name": "Thrallmar",
+     "standing": "Friendly",
+     "standingType": {
+      "id": 4,
+      "name": "Friendly",
+      "enum": "FRIENDLY",
+      "slug": "friendly"
+     },
+     "value": 1466
+    }
+   ]
+  },
+  {
+   "id": "classic",
+   "max": false,
+   "name": "Classic",
+   "reputations": [
+    {
+     "id": "darkmoon-faire",
+     "max": false,
+     "maxValue": 3000,
+     "name": "Darkmoon Faire",
+     "standing": "Neutral",
+     "standingType": {
+      "id": 3,
+      "name": "Neutral",
+      "enum": "NEUTRAL",
+      "slug": "neutral"
+     },
+     "value": 112
+    },
+    {
+     "id": "horde",
+     "max": false,
+     "name": "Horde",
+     "reputations": [
+      {
+       "id": "bilgewater-cartel",
+       "max": false,
+       "maxValue": 6000,
+       "name": "Bilgewater Cartel",
+       "standing": "Friendly",
+       "standingType": {
+        "id": 4,
+        "name": "Friendly",
+        "enum": "FRIENDLY",
+        "slug": "friendly"
+       },
+       "value": 1931
+      },
+      {
+       "id": "darkspear-trolls",
+       "max": false,
+       "maxValue": 6000,
+       "name": "Darkspear Trolls",
+       "standing": "Friendly",
+       "standingType": {
+        "id": 4,
+        "name": "Friendly",
+        "enum": "FRIENDLY",
+        "slug": "friendly"
+       },
+       "value": 5018
+      },
+      {
+       "id": "huojin-pandaren",
+       "max": false,
+       "maxValue": 6000,
+       "name": "Huojin Pandaren",
+       "standing": "Friendly",
+       "standingType": {
+        "id": 4,
+        "name": "Friendly",
+        "enum": "FRIENDLY",
+        "slug": "friendly"
+       },
+       "value": 100
+      },
+      {
+       "id": "orgrimmar",
+       "max": false,
+       "maxValue": 12000,
+       "name": "Orgrimmar",
+       "standing": "Honored",
+       "standingType": {
+        "id": 5,
+        "name": "Honored",
+        "enum": "HONORED",
+        "slug": "honored"
+       },
+       "value": 7592
+      },
+      {
+       "id": "silvermoon-city",
+       "max": false,
+       "maxValue": 3000,
+       "name": "Silvermoon City",
+       "standing": "Neutral",
+       "standingType": {
+        "id": 3,
+        "name": "Neutral",
+        "enum": "NEUTRAL",
+        "slug": "neutral"
+       },
+       "value": 2231
+      },
+      {
+       "id": "thunder-bluff",
+       "max": false,
+       "maxValue": 6000,
+       "name": "Thunder Bluff",
+       "standing": "Friendly",
+       "standingType": {
+        "id": 4,
+        "name": "Friendly",
+        "enum": "FRIENDLY",
+        "slug": "friendly"
+       },
+       "value": 1931
+      },
+      {
+       "id": "undercity",
+       "max": false,
+       "maxValue": 3000,
+       "name": "Undercity",
+       "standing": "Neutral",
+       "standingType": {
+        "id": 3,
+        "name": "Neutral",
+        "enum": "NEUTRAL",
+        "slug": "neutral"
+       },
+       "value": 2331
+      }
+     ]
+    },
+    {
+     "id": "horde-forces",
+     "max": false,
+     "name": "Horde Forces",
+     "reputations": [
+      {
+       "id": "brawlgar-arena",
+       "max": false,
+       "maxValue": 1000,
+       "name": "Brawl'gar Arena",
+       "standing": "Rank 1",
+       "standingType": {
+        "id": 0,
+        "name": "Rank 1",
+        "enum": "RANK_1",
+        "slug": "rank-1"
+       },
+       "value": 500
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1 @@
+Forever's game reports now carry Box64's own log, to find why the game's program still ends a few seconds in.

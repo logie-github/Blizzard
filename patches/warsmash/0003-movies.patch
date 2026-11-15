@@ -1,0 +1,476 @@
+diff --git a/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java b/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
+index ecc0952..31037b8 100644
+--- a/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
++++ b/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
+@@ -41,6 +41,7 @@ import com.etheller.warsmash.units.DataTable;
+ import com.etheller.warsmash.units.Element;
+ import com.etheller.warsmash.util.ImageUtils;
+ import com.etheller.warsmash.util.InputManager;
++import com.etheller.warsmash.util.MovieHost;
+ import com.etheller.warsmash.util.WarsmashConstants;
+ import com.etheller.warsmash.util.WarsmashUtils;
+ import com.etheller.warsmash.viewer5.Model;
+@@ -81,6 +82,7 @@ public class WarsmashGdxMapScreen implements InputProcessor, Screen {
+ 	private WarsmashUI meleeUI;
+ 	// The game's own UI under the toggle wrapper (meleeUI is a MeleeToggleUI): its minimap takes its fingers first.
+ 	private MeleeUI minimapUI;
++	private boolean ending;
+ 
+ 	private Music currentMusic;
+ 	private final WarsmashGdxMultiScreenGame screenManager;
+@@ -225,11 +227,44 @@ public class WarsmashGdxMapScreen implements InputProcessor, Screen {
+ 		catch (final IOException e) {
+ 			throw new RuntimeException(e);
+ 		}
++		// Blizzard launcher: the game's end (EndGame, ChangeLevel, a dialog's quit button) plays the movies the map asked
++		// for (PlayCinematic), then goes back to the menu, and on to the next level where there is one.
++		MovieHost.clearQueued();
++		MovieHost.gameEnd = new MovieHost.GameEnd() {
++			@Override
++			public void end(final String nextLevel) {
++				Gdx.app.postRunnable(new Runnable() {
++					@Override
++					public void run() {
++						endGame(nextLevel);
++					}
++				});
++			}
++		};
+ 		this.commonEnv = Jass2.loadCommon(this.viewer.mapMpq, this.uiViewport, this.uiScene, this.viewer, this.meleeUI,
+ 				WarsmashConstants.JASS_FILE_LIST);
+ 		this.commonEnv.main();
+ 	}
+ 
++	/** The game's end: the map's music stops, its movies play, then the menu, then the next level when there is one. */
++	private void endGame(final String nextLevel) {
++		if (this.ending) {
++			return;
++		}
++		this.ending = true;
++		MovieHost.gameEnd = null;
++		this.meleeUI.gameClosed();
++		MovieHost.play(this.viewer.dataSource, new Runnable() {
++			@Override
++			public void run() {
++				WarsmashGdxMapScreen.this.minimapUI.quitGame();
++				if ((nextLevel != null) && !nextLevel.isEmpty()) {
++					WarsmashGdxMapScreen.this.menuScreen.startMap(nextLevel);
++				}
++			}
++		}, MovieHost.takeQueued());
++	}
++
+ 	public static DataSource parseDataSources(final DataTable warsmashIni) {
+ 		final Element dataSourcesConfig = warsmashIni.get("DataSources");
+ 		final List<DataSourceDescriptor> dataSourcesList = new ArrayList<>();
+@@ -548,5 +583,6 @@ public class WarsmashGdxMapScreen implements InputProcessor, Screen {
+ 	@Override
+ 	public void hide() {
+ 		this.meleeUI.gameClosed();
++		MovieHost.gameEnd = null;
+ 	}
+ }
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index 8011c90..40bd766 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -79,6 +79,7 @@ import com.etheller.warsmash.parsers.jass.triggers.UnitGroup;
+ import com.etheller.warsmash.units.Element;
+ import com.etheller.warsmash.units.GameObject;
+ import com.etheller.warsmash.units.manager.MutableObjectData.WorldEditorDataType;
++import com.etheller.warsmash.util.MovieHost;
+ import com.etheller.warsmash.util.RawcodeUtils;
+ import com.etheller.warsmash.util.War3ID;
+ import com.etheller.warsmash.util.WarsmashConstants;
+@@ -2037,8 +2038,20 @@ public class Jass2 {
+ 						final CScriptDialog dialog = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
+ 						final String buttonText = arguments.get(1).visit(StringJassValueVisitor.getInstance());
+ 						final int hotkeyInt = arguments.get(2).visit(IntegerJassValueVisitor.getInstance());
+-						meleeUI.createScriptDialogButton(dialog, buttonText, (char) hotkeyInt);
+-						return null;
++						// Blizzard launcher: the button's handle (was null), so the map's triggers hear its click.
++						return new HandleJassValue(buttonType,
++								meleeUI.createScriptDialogButton(dialog, buttonText, (char) hotkeyInt));
++					});
++			// Blizzard launcher: a button that ends the game when clicked (the victory and defeat dialogs' Quit).
++			jassProgramVisitor.getJassNativeManager().createNative("DialogAddQuitButton",
++					(arguments, globalScope, triggerScope) -> {
++						final CScriptDialog dialog = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						final String buttonText = arguments.get(2).visit(StringJassValueVisitor.getInstance());
++						final int hotkeyInt = arguments.get(3).visit(IntegerJassValueVisitor.getInstance());
++						final CScriptDialogButton button = meleeUI.createScriptDialogButton(dialog, buttonText,
++								(char) hotkeyInt);
++						button.setQuitsGame(true);
++						return new HandleJassValue(buttonType, button);
+ 					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("DialogDisplay",
+ 					(arguments, globalScope, triggerScope) -> {
+@@ -5016,6 +5029,24 @@ public class Jass2 {
+ 						meleeUI.forceCinematicSubtitles(value);
+ 						return null;
+ 					});
++			// Blizzard launcher: Warcraft III's movies and the game's end (MovieHost). PlayCinematic's movie plays when the
++			// game ends, as the original's does (a campaign's ending, after its last mission); EndGame and ChangeLevel end
++			// the game: its movies, then the menu, and for ChangeLevel the next level.
++			jassProgramVisitor.getJassNativeManager().createNative("PlayCinematic",
++					(arguments, globalScope, triggerScope) -> {
++						MovieHost.queue(nullable(arguments, 0, StringJassValueVisitor.getInstance()));
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("EndGame",
++					(arguments, globalScope, triggerScope) -> {
++						MovieHost.endGame(null);
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("ChangeLevel",
++					(arguments, globalScope, triggerScope) -> {
++						MovieHost.endGame(nullable(arguments, 0, StringJassValueVisitor.getInstance()));
++						return null;
++					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("IsPlayerInForce",
+ 					(arguments, globalScope, triggerScope) -> {
+ 						final CPlayer whichPlayer = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
+diff --git a/core/src/com/etheller/warsmash/util/MovieHost.java b/core/src/com/etheller/warsmash/util/MovieHost.java
+new file mode 100644
+index 0000000..b27af86
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/util/MovieHost.java
+@@ -0,0 +1,160 @@
++package com.etheller.warsmash.util;
++
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.io.InputStream;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.List;
++
++import com.badlogic.gdx.Gdx;
++import com.etheller.warsmash.datasources.DataSource;
++
++/**
++ * Warcraft III's movies (Blizzard launcher). The game's pre-rendered movies (Movies\&lt;name&gt;.mpq) are played by the
++ * host over the engine, which has no player of its own: the host sets {@link #player}, and without one nothing plays.
++ * They play where the original plays them: the introduction at the game's first start, a campaign's opening the first
++ * time it is entered (for each profile), its ending once its last mission is won (the map's PlayCinematic, played when
++ * the game ends), and any of them from the campaign's mission list. The game's end (EndGame, ChangeLevel, a dialog's
++ * quit button) comes through here too, since the ending plays before the menu or the next level.
++ */
++public final class MovieHost {
++	/** The host's movie player. */
++	public interface Player {
++		/**
++		 * Plays the movies one after another ({@code names} as the game names them, "HumanEd"; {@code captions} the
++		 * text of their caption files where those are shown, else null), then runs {@code done}, on any thread. The
++		 * engine's rendering and sound wait meanwhile.
++		 */
++		void play(String[] names, String[] captions, Runnable done);
++
++		/** Whether a once-only movie ({@code key}: the introduction, a profile's campaign opening) was played. */
++		boolean seen(String key);
++
++		void markSeen(String key);
++	}
++
++	/** How the game being played ends: set by the map screen while it is up. */
++	public interface GameEnd {
++		/** The game ends: its movies, then the menu, then {@code nextLevel} when it isn't null (ChangeLevel). */
++		void end(String nextLevel);
++	}
++
++	/** The introduction, at the game's first start (the original's "seenintromovie"). */
++	public static final String INTRO = "TutorialIn";
++	public static final String INTRO_KEY = "intro";
++
++	/** Captioned whatever the subtitles: the original always shows these (Archimonde speaks Eredun in the Undead ending). */
++	private static final String[] ALWAYS_CAPTIONED = { "UndeadEd" };
++
++	public static volatile Player player;
++	public static volatile GameEnd gameEnd;
++	private static volatile boolean playing;
++
++	private static final List<String> queued = new ArrayList<>();
++
++	private MovieHost() {
++	}
++
++	/** PlayCinematic: the movie plays when the game ends, before the menu or the next level. */
++	public static synchronized void queue(final String name) {
++		if ((name != null) && !name.isEmpty() && !queued.contains(name)) {
++			queued.add(name);
++		}
++	}
++
++	public static synchronized String[] takeQueued() {
++		final String[] names = queued.toArray(new String[0]);
++		queued.clear();
++		return names;
++	}
++
++	public static synchronized void clearQueued() {
++		queued.clear();
++	}
++
++	/** Whether a movie is up (the menu's music waits). */
++	public static boolean isPlaying() {
++		return playing;
++	}
++
++	/**
++	 * Whether a once-only movie is due: true the first time for {@code key} (it counts as played from then on), false
++	 * after and without a player.
++	 */
++	public static boolean firstTime(final String key) {
++		final Player p = player;
++		if ((p == null) || p.seen(key)) {
++			return false;
++		}
++		p.markSeen(key);
++		return true;
++	}
++
++	/** EndGame and ChangeLevel: the game ends, its movies first. Nothing happens without a map screen up. */
++	public static void endGame(final String nextLevel) {
++		final GameEnd end = gameEnd;
++		if (end != null) {
++			end.end(nextLevel);
++		}
++	}
++
++	/**
++	 * Plays {@code names} (with their captions from {@code source} where the original always shows them), then runs
++	 * {@code then} on the engine's thread; {@code then} runs at once (posted) without a player or names.
++	 */
++	public static void play(final DataSource source, final Runnable then, final String... names) {
++		final Player p = player;
++		if ((p == null) || (names == null) || (names.length == 0)) {
++			if (then != null) {
++				Gdx.app.postRunnable(then);
++			}
++			return;
++		}
++		final String[] captions = new String[names.length];
++		for (int i = 0; i < names.length; i++) {
++			captions[i] = alwaysCaptioned(names[i]) ? captions(source, names[i]) : null;
++		}
++		playing = true;
++		p.play(names, captions, new Runnable() {
++			@Override
++			public void run() {
++				playing = false;
++				if (then != null) {
++					Gdx.app.postRunnable(then);
++				}
++			}
++		});
++	}
++
++	private static boolean alwaysCaptioned(final String name) {
++		for (final String captioned : ALWAYS_CAPTIONED) {
++			if (captioned.equalsIgnoreCase(name)) {
++				return true;
++			}
++		}
++		return false;
++	}
++
++	/** The game's captions for a movie (UI\Captions\&lt;name&gt;.txt), null where it has none. */
++	private static String captions(final DataSource source, final String name) {
++		final String path = "UI\\Captions\\" + name + ".txt";
++		try {
++			if ((source == null) || !source.has(path)) {
++				return null;
++			}
++			try (InputStream in = source.getResourceAsStream(path)) {
++				final ByteArrayOutputStream out = new ByteArrayOutputStream();
++				final byte[] buffer = new byte[4096];
++				int n;
++				while ((n = in.read(buffer)) > 0) {
++					out.write(buffer, 0, n);
++				}
++				return new String(out.toByteArray(), StandardCharsets.UTF_8);
++			}
++		}
++		catch (final IOException e) {
++			return null;
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 1ee170b..b70063b 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -724,14 +724,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 			@Override
+ 			public void run() {
+ 				escMenuInnerEndGamePanel.setVisible(false);
+-
+-				keysEmulator.setOnTouchDown(null);
+-				keysEmulator.setOnKeyUpListener(null);
+-				keysEmulator.setOnKeyDownListener(null);
+-				keysEmulator.setOnTouchUp(null);
+-				CPathfindingProcessor.clearNodes();
+-
+-				MeleeUI.this.exitGameRunnable.run();
++				quitGame();
+ 			}
+ 		});
+ 		endGameExitButton.setOnClick(new Runnable() {
+@@ -5270,6 +5263,17 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		this.musicPlayer.stopMusic();
+ 	}
+ 
++	/** Back to the menu: the End Game panel's Quit, and the game's end (Blizzard launcher: EndGame, ChangeLevel). */
++	public void quitGame() {
++		this.keysEmulator.setOnTouchDown(null);
++		this.keysEmulator.setOnKeyUpListener(null);
++		this.keysEmulator.setOnKeyDownListener(null);
++		this.keysEmulator.setOnTouchUp(null);
++		CPathfindingProcessor.clearNodes();
++
++		this.exitGameRunnable.run();
++	}
++
+ 	@Override
+ 	public Scene getUiScene() {
+ 		return this.uiScene;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
+index 551b4e5..042af81 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
+@@ -63,6 +63,7 @@ import com.etheller.warsmash.util.DataSourceFileHandle;
+ import com.etheller.warsmash.util.InputManager;
+ import com.etheller.warsmash.util.JAVACrc32C;
+ import com.etheller.warsmash.util.StringBundle;
++import com.etheller.warsmash.util.MovieHost;
+ import com.etheller.warsmash.util.WarsmashConstants;
+ import com.etheller.warsmash.util.WorldEditStrings;
+ import com.etheller.warsmash.viewer5.FogSettings;
+@@ -1317,6 +1318,9 @@ public class MenuUI {
+ 					missionSelectMenuUI.setHeight(GameUI.convertY(this.uiViewport, 0.42f));
+ 					this.rootFrame.add(missionSelectMenuUI);
+ 
++					// Blizzard launcher: the campaign's movies in its list, as the original's (the camera button).
++					addCinematicButton(missionSelectMenuUI, campaign.getIntroCinematic());
++					addCinematicButton(missionSelectMenuUI, campaign.getOpenCinematic());
+ 					for (final CampaignMission mission : campaign.getMissions()) {
+ 						missionSelectMenuUI.addButton(mission.getHeader(), mission.getMissionName(), new Runnable() {
+ 							@Override
+@@ -1353,10 +1357,19 @@ public class MenuUI {
+ 							}
+ 						});
+ 					}
++					addCinematicButton(missionSelectMenuUI, campaign.getEndCinematic());
+ 
+ 					this.campaignRootMenuUI.addButton(campaign.getHeader(), campaign.getName(), new Runnable() {
+ 						@Override
+ 						public void run() {
++							// Blizzard launcher: the campaign's opening the first time it is entered (for each
++							// profile), as the original's; this runs again once it has played.
++							final CampaignMission opening = campaign.getOpenCinematic();
++							if ((opening != null) && MovieHost.firstTime("opening/"
++									+ MenuUI.this.profileManager.getCurrentProfile() + "/" + opening.getMapFilename())) {
++								MovieHost.play(MenuUI.this.dataSource, this, opening.getMapFilename());
++								return;
++							}
+ 							if (campaign != MenuUI.this.currentCampaign) {
+ 								MenuUI.this.campaignMenu.setVisible(false);
+ 								MenuUI.this.campaignBackButton.setVisible(false);
+@@ -1644,6 +1657,25 @@ public class MenuUI {
+ 	public void show() {
+ 		playMusic(this.rootFrame.trySkinField("GlueMusic"), true, 0);
+ 		this.glueScreenLoop.play(this.uiScene.audioContext, 0f, 0f, 0f);
++
++		// Blizzard launcher: the introduction at the game's first start, as the original's.
++		if (MovieHost.firstTime(MovieHost.INTRO_KEY)) {
++			MovieHost.play(this.dataSource, null, MovieHost.INTRO);
++		}
++	}
++
++	/** A campaign's movie in its mission list (the original's camera button): a tap plays it (Blizzard launcher). */
++	private void addCinematicButton(final CampaignMenuUI missionSelectMenuUI, final CampaignMission cinematic) {
++		if (cinematic == null) {
++			return;
++		}
++		missionSelectMenuUI.addButton(cinematic.getHeader(), cinematic.getMissionName(), "CampaignCameraButtonTemplate",
++				new Runnable() {
++					@Override
++					public void run() {
++						MovieHost.play(MenuUI.this.dataSource, null, cinematic.getMapFilename());
++					}
++				});
+ 	}
+ 
+ 	private void internalStartMap(final String mapFilename, final int localPlayerIndex) {
+@@ -1948,7 +1980,8 @@ public class MenuUI {
+ 				}
+ 			}
+ 		}
+-		if (this.currentMusics != null) {
++		// Blizzard launcher: no next track while a movie is up (the music is paused under it, not over).
++		if ((this.currentMusics != null) && !MovieHost.isPlaying()) {
+ 			if ((this.currentMusics[this.currentMusicIndex] != null)
+ 					&& !this.currentMusics[this.currentMusicIndex].isPlaying()) {
+ 				if (this.currentMusicRandomizeIndex) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CScriptDialogButton.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CScriptDialogButton.java
+index 7fd5950..cfdedba 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CScriptDialogButton.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CScriptDialogButton.java
+@@ -9,12 +9,14 @@ import com.etheller.warsmash.parsers.fdf.GameUI;
+ import com.etheller.warsmash.parsers.fdf.frames.GlueTextButtonFrame;
+ import com.etheller.warsmash.parsers.fdf.frames.StringFrame;
+ import com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope;
++import com.etheller.warsmash.util.MovieHost;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3;
+ 
+ public class CScriptDialogButton {
+ 	private final GlueTextButtonFrame buttonFrame;
+ 	private final StringFrame buttonText;
+ 	private final List<Trigger> eventTriggers = new ArrayList<>();
++	private boolean quitsGame;
+ 
+ 	public CScriptDialogButton(final GlueTextButtonFrame buttonFrame, final StringFrame buttonText) {
+ 		this.buttonFrame = buttonFrame;
+@@ -39,10 +41,18 @@ public class CScriptDialogButton {
+ 					dialog.getGlobalScope().queueTrigger(null, null, trigger, scope, scope);
+ 				}
+ 				dialog.onButtonClick(CScriptDialogButton.this);
++				if (CScriptDialogButton.this.quitsGame) {
++					MovieHost.endGame(null);
++				}
+ 			}
+ 		});
+ 	}
+ 
++	/** DialogAddQuitButton's button: a click ends the game too (Blizzard launcher). */
++	public void setQuitsGame(final boolean quitsGame) {
++		this.quitsGame = quitsGame;
++	}
++
+ 	public RemovableTriggerEvent addEvent(final Trigger trigger) {
+ 		this.eventTriggers.add(trigger);
+ 		return new RemovableTriggerEvent(trigger) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java
+index a669eb6..3d1321e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java
+@@ -24,9 +24,17 @@ public class CampaignMenuUI extends SimpleFrame {
+ 	}
+ 
+ 	public void addButton(final String header, final String name, final Runnable onClick) {
++		addButton(header, name, "CampaignArrowButtonTemplate", onClick);
++	}
++
++	/**
++	 * A button made from [template]: the arrow for a mission, the camera (CampaignCameraButtonTemplate) for a movie
++	 * (Blizzard launcher).
++	 */
++	public void addButton(final String header, final String name, final String template, final Runnable onClick) {
+ 		final CampaignButtonUI campaignButtonUI = new CampaignButtonUI(null, this);
+-		final TextButtonFrame campaignArrowButton = (TextButtonFrame) this.rootFrame
+-				.createFrame("CampaignArrowButtonTemplate", campaignButtonUI, 0, 0);
++		final TextButtonFrame campaignArrowButton = (TextButtonFrame) this.rootFrame.createFrame(template,
++				campaignButtonUI, 0, 0);
+ 		campaignButtonUI.setButtonArt(campaignArrowButton);
+ 		campaignButtonUI.add(campaignArrowButton);
+ 		campaignArrowButton.addSetPoint(new SetPoint(FramePoint.TOPLEFT, campaignButtonUI, FramePoint.TOPLEFT, 0, 0));

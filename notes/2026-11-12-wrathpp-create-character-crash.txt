@@ -1,0 +1,1 @@
+Wrath++: the crash on Create Character is fixed (the new creator asked the game for the class before the game had made the character).

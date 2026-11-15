@@ -1,12 +1,11 @@
 name: Wrath++ looks
 
-# Shadowlands' looks (9.2.7.45745) for the ten races of 3.3.5, and the allied races (docs/wrathpp/SHADOWLANDS_OPTIONS.md,
-# ALLIED_RACES.md), for Wrath++ alone: realm/warcraft/wrathpp/tools/sl_looks.py reads the game's tables (wago.tools' CSVs), fetches
-# the models, textures, voices and icons by file id (wago.tools), converts them with the allied races' converter
-# (realm/warcraft/modules/mod-allied-races/tools), has that module's generator (build_data.py, with Wrath++'s profile) make the
-# allied races' table changes, and assembles: the change files (the app applies them to the client's own tables) and the
-# server's tables (server-data.env's data.zip's dbc with them applied). Blizzard's files: never in the repository. Published
-# from main as the release wrathpp-looks (wrathpp-looks.zip and .json), which the app puts in Wrath++'s copy of the game
+# Shadowlands' looks (9.2.7.45745) for the ten races of 3.3.5, for Wrath++ alone
+# (docs/wrathpp/SHADOWLANDS_OPTIONS.md): realm/warcraft/wrathpp/tools/sl_looks.py reads the game's tables
+# (wago.tools' CSVs), fetches the ten races' models and textures by file id (wago.tools), converts them with the allied
+# races' converter (realm/warcraft/modules/mod-allied-races/tools) and writes the character tables over the server's
+# own (server-data.env's data.zip: its dbc folder). Blizzard's files: never in the repository. Published from main as
+# the release wrathpp-looks (wrathpp-looks.zip and .json), which the app puts in Wrath++'s copy of the game
 # (Data/patch-Z.MPQ) and its server (share/dbc): WrathppLooks.kt.
 on:
   workflow_dispatch:
@@ -14,11 +13,21 @@ on:
     paths:
       - .github/workflows/wrathpp-looks.yml
       - realm/warcraft/wrathpp/tools/sl_looks.py
+      - realm/warcraft/wrathpp/tools/sl_creator.py
+      - realm/warcraft/wrathpp/tools/sl_skin_names.py
+      - realm/warcraft/wrathpp/data/skin_names.json
       - realm/warcraft/wrathpp/tools/sl_inventory.py
       - realm/warcraft/wrathpp/tools/races_profile.py
       - realm/warcraft/wrathpp/tools/apply_client.py
       - realm/warcraft/modules/mod-allied-races/tools/build_data.py
       - realm/warcraft/modules/mod-allied-races/tools/package.py
+      - app/src/main/assets/wrathpp/WrathppAlliedRaces.lua
+      - app/src/main/assets/wrathpp/WrathppAlliedRaces.xml
+      - realm/warcraft/wrathpp/tools/sl_parts.py
+      - realm/warcraft/wrathpp/tools/sl_ui_art.py
+      - realm/warcraft/wrathpp/tools/body_icon.py
+      - realm/warcraft/wrathpp/client-mod/rig/**
+      - app/src/main/assets/wrathpp/WrathppCreate.lua
       - realm/warcraft/modules/mod-allied-races/tools/m2.py
       - realm/warcraft/modules/mod-allied-races/tools/races.py
       - realm/warcraft/modules/mod-allied-races/tools/textures.py
@@ -29,6 +38,7 @@ on:
 
 permissions:
   contents: write
+  issues: read          # the rig reads the game's own creation screen from the phone's reports (rig/tools/fetch_stock.sh)
 
 concurrency:
   group: wrathpp-looks-${{ github.ref }}
@@ -44,18 +54,20 @@ jobs:
       - name: Tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q python3-numpy python3-pil unzip zip ffmpeg
+          sudo apt-get install -y -q python3-numpy python3-pil unzip zip luajit ffmpeg
 
       - name: The server's tables (data.zip's dbc)
         run: |
           . realm/warcraft/server-data.env
           curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"
           echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -
+          # (every table: the allied races' changes are applied to the server's, and the rig's game needs of the game's own the races,
+          # the classes, which race may be which class)
           unzip -q -o data.zip 'dbc/*' -d server-data
           rm data.zip
           ls server-data/dbc | wc -l
 
-      - name: The core's world SQL (the starts, actions and skills the races copy)
+      - name: The core's world SQL (the starts, actions and skills the allied races copy)
         run: |
           . realm/warcraft/server-version.env
           git clone -q --depth 1 --filter=blob:none --sparse "$CORE_REPO" core
@@ -78,34 +90,87 @@ jobs:
           key: wrathpp-looks-files-${{ hashFiles('build/looks.json', 'build/races.json') }}
           restore-keys: wrathpp-looks-files-
 
-      - name: Models, textures and voices of the ten
-        run: python3 realm/warcraft/wrathpp/tools/sl_looks.py package build/looks.json build/sl-cache server-data/dbc build/looks 2>&1 | tee package.log
+      - name: Models and textures
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_looks.py package build/looks.json build/sl-cache server-data/dbc build/looks 2>&1 | tee package.log
+          [ -f build/looks/looks.files ]
 
-      - name: Models, textures, voices, narrations and icons of the allied races
+      # The allied races (docs/wrathpp/ALLIED_RACES.md): their models, textures, voices, intro narrations and race icons into the same
+      # package.
+      - name: The allied races' models, voices, narrations and icons
         run: python3 realm/warcraft/wrathpp/tools/sl_looks.py package build/races.json build/sl-cache server-data/dbc build/looks 2>&1 | tee -a package.log
 
-      - name: The allied races' table changes and world SQL (the allied races module's generator, Wrath++'s profile)
+      # Their table changes and world SQL: the allied races module's generator with Wrath++'s profile. The committed SQL is what the
+      # server is built with: a run that makes another says so (the SQL is in the logs) and the commit is to be remade.
+      - name: The allied races' table changes and world SQL
         run: |
           mkdir -p build/profile
           ( cd realm/warcraft/modules/mod-allied-races &&
             BUILD_PROFILE="$GITHUB_WORKSPACE/realm/warcraft/wrathpp/tools/races_profile.py" WRATHPP_RACES_JSON="$GITHUB_WORKSPACE/build/races.json" \
             WRATHPP_OUT="$GITHUB_WORKSPACE/build/profile" python3 tools/build_data.py "$GITHUB_WORKSPACE/server-data/dbc" "$GITHUB_WORKSPACE/core/data/sql/base/db_world" )
-          # the server module's committed SQL is this run's: a difference says to regenerate and commit it (the server is built from the commit)
           if ! cmp -s build/profile/sql/wrathpp_races_world.sql realm/warcraft/wrathpp/modules/mod-wrathpp-customization/data/sql/db-world/wrathpp_races_world.sql; then
-            echo "::warning::the committed wrathpp_races_world.sql is not what this run generated; the SQL is artifact wrathpp-looks-logs"
+            echo "::warning::the committed wrathpp_races_world.sql is not what this run generated"
             cp build/profile/sql/wrathpp_races_world.sql generated-wrathpp_races_world.sql
           fi
-
-      - name: The package
-        run: |
+          # The change files merged (the ten races' rows and the allied races'), and the server's tables with them applied: the package
+          # carries the changes (the app applies them to the client's own tables), not tables.
           python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/looks.json build/looks
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/races.json build/looks
-          ( cd build/looks && zip -q -r -6 ../../wrathpp-looks.zip client changes dbc looks.files )
+
+      # What the creator shows a race and sex (Shadowlands' options, their choices, their place in 3.3.5's five numbers):
+      # with the looks, since it is the key to their tables.
+      - name: The creator's options
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua | tee -a looks-report.txt
+          echo 'Interface\GlueXML\WrathppLooks.lua' >> build/looks/looks.files
+
+      # Shadowlands' creator's own art (the pieces its creation screens are drawn from, cut out of the game's interface
+      # sheets at 9.2.7 by file id: wago.tools), each a file 3.3.5 reads, and the table that names them. A package of its
+      # own (some 8 MB), so that a change to the creator's art is not the looks' 400 MB again.
+      - name: Shadowlands' creator art
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_ui_art.py fetch build/ui-csv
+          python3 realm/warcraft/wrathpp/tools/sl_ui_art.py package build/ui-csv build/ui-cache build/art | tee -a looks-report.txt
+
+      # The creator run on the rig (realm/warcraft/wrathpp/client-mod/rig): the game's own creation screen (the phone's
+      # files), the client's creation logic, these looks' tables and that art; every race, sex and class opened, every
+      # option's every choice tapped, the creator turned off, with the art, without it and with it unreadable. Neither
+      # package is published if it fails.
+      - name: The creator on the rig
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sh realm/warcraft/wrathpp/client-mod/rig/run.sh build/rig app/src/main/assets/wrathpp/WrathppCreate.lua \
+            build/looks/client/Interface/GlueXML/WrathppLooks.lua build/looks/dbc server-data/dbc build/art 2>&1 | grep -v '^ok ' | tee -a looks-report.txt
+          grep -q 'the rig: all passed' looks-report.txt
+
+      # Which of today's files each skin was made from, by name: what the app's Ralia import matches a set of replacement
+      # textures by (the names are in the repository: data/skin_names.json).
+      - name: The skins' names
+        run: |
+          python3 realm/warcraft/wrathpp/tools/sl_skin_names.py list build/looks.json realm/warcraft/wrathpp/data/skin_names.json build/looks/client/wrathpp-skins.json | tee -a looks-report.txt
+          echo 'wrathpp-skins.json' >> build/looks/looks.files
+
+      - name: The package
+        run: |
+          # The same files make the same zip, byte for byte (one date on every file, the files in one order, no extra
+          # fields): the app downloads a package again when its checksum changes, and a zip made as it comes carries the
+          # hour it was made, which sent the looks' 400 MB to the phone again after every run of this workflow.
+          pack() {
+            ( cd "$1" && shift && out="$1" && shift && find "$@" -exec touch -h -d '2020-01-01 00:00:00 UTC' {} + \
+              && find "$@" -type f | LC_ALL=C sort | TZ=UTC zip -q -X -6 "$out" -@ )
+          }
+          pack build/looks "$PWD/wrathpp-looks.zip" client changes dbc looks.files
           size=$(stat -c %s wrathpp-looks.zip)
           sha=$(sha256sum wrathpp-looks.zip | cut -d' ' -f1)
           printf '{"size": %s, "sha256": "%s", "format": 2, "commit": "%s"}\n' "$size" "$sha" "${{ github.sha }}" > wrathpp-looks.json
           cat wrathpp-looks.json
+          pack build/art "$PWD/wrathpp-creator-art.zip" client art.txt
+          size=$(stat -c %s wrathpp-creator-art.zip)
+          sha=$(sha256sum wrathpp-creator-art.zip | cut -d' ' -f1)
+          printf '{"size": %s, "sha256": "%s", "format": 1, "commit": "%s"}\n' "$size" "$sha" "${{ github.sha }}" > wrathpp-creator-art.json
+          cat wrathpp-creator-art.json
           du -sh build/looks/client build/looks/changes build/looks/dbc | tee -a looks-report.txt
           wc -l < build/looks/looks.files | tee -a looks-report.txt
 
@@ -119,6 +184,7 @@ jobs:
             looks-report.txt
             package.log
             build/looks/looks.files
+            build/art/art.txt
             generated-wrathpp_races_world.sql
 
       # Only main publishes: the app downloads whatever is published.
@@ -132,6 +198,20 @@ jobs:
             gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/wrathpp-looks" -f sha="${{ github.sha }}" > /dev/null || true
             gh release create wrathpp-looks -R "$repo" --verify-tag --prerelease --latest=false \
               --title "Wrath++ looks: Shadowlands' ten races and the allied races (experimental)" \
-              --notes "Shadowlands' models, textures, voices and table changes for Wrath++'s copy of the game and its server. Downloaded by the app; not an app release."
+              --notes "Shadowlands' models, textures, voices and character table changes for the ten races of 3.3.5 and the allied races, for Wrath++'s copy of the game and its server. Downloaded by the app; not an app release."
           fi
-          gh release upload wrathpp-looks wrathpp-looks.zip wrathpp-looks.json -R "$repo" --clobber
+          # (a package whose checksum is the published one's is left as it is: nothing for the phone to download again)
+          same() { gh release download "$1" -R "$repo" -p "$1.json" -O "published-$1.json" --clobber > /dev/null 2>&1 \
+            && [ "$(sed -n 's/.*"sha256": "\([0-9a-f]*\)".*/\1/p' "published-$1.json")" = "$(sed -n 's/.*"sha256": "\([0-9a-f]*\)".*/\1/p' "$1.json")" ]; }
+          if same wrathpp-looks; then echo "the looks are the published ones: not uploaded"; else
+            gh release upload wrathpp-looks wrathpp-looks.zip wrathpp-looks.json -R "$repo" --clobber
+          fi
+          if ! gh release view wrathpp-creator-art -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/wrathpp-creator-art" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create wrathpp-creator-art -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Wrath++ creator art: Shadowlands' creation screens' pieces (experimental)" \
+              --notes "The pieces Shadowlands draws its character creation screens from, cut out of the game's interface sheets for Wrath++'s creator on the 3.3.5 screen. Downloaded by the app; not an app release."
+          fi
+          if same wrathpp-creator-art; then echo "the creator art is the published one: not uploaded"; else
+            gh release upload wrathpp-creator-art wrathpp-creator-art.zip wrathpp-creator-art.json -R "$repo" --clobber
+          fi

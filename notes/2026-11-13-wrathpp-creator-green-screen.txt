@@ -1,0 +1,1 @@
+Wrath++ creator: the green over the screen is gone (Shadowlands' screen-edge shading was too thin for the game to draw) and the race and class portraits are round again.

@@ -40,7 +40,7 @@ import races as allied                         # noqa: E402
 
 BUILD = "9.2.7.45745"
 TABLES_MORE = ("TextureFileData", "CreatureModelData", "CreatureDisplayInfo", "VocalUISounds", "EmotesTextSound",
-               "SoundKitEntry", "NameGen")
+               "SoundKitEntry", "NameGen", "ChrModelTextureLayer", "CharComponentTextureSections")
 # race id: (folder name, ChrModel ids by sex)
 RACES = {1: ("Human", {0: 1, 1: 2}), 2: ("Orc", {0: 3, 1: 4}), 3: ("Dwarf", {0: 5, 1: 6}), 4: ("NightElf", {0: 7, 1: 8}),
          5: ("Scourge", {0: 9, 1: 10}), 6: ("Tauren", {0: 11, 1: 12}), 7: ("Gnome", {0: 13, 1: 14}),
@@ -92,6 +92,13 @@ AVAILABLE_ONLY = {(6, 0): {"Horn Style"}}
 # their horns' colour their hair colour: the hair texture).
 ALIASES = {6: {"Hair Style": "Foremane", "Hair Color": "Horn Color"}, 28: {"Hair Style": "Foremane", "Hair Color": "Horn Color"},
            35: {"Skin Color": "Fur Color"}}
+# Looks today's game opens by an achievement, open to everyone on Wrath++ from the start: the Blood Elves' Dark Ranger
+# skin and red eyes (achievement 15579; the user: "unlock the dark ranger skin by default for blood elves"). The skin
+# was among the skins already (a choice any class may pick once it is unlocked); the eye colour is marked as one the
+# creator hides (Flags) and was left out with the demon hunters' blind eyes. With it the women's twelve eye colours
+# (3.3.5 holds 255 faces: 20 faces x 12) no longer have room for the death knights' own, which is the last and goes:
+# 3.3.5 lights a death knight's eyes by itself.
+UNLOCKED_ACHIEVEMENTS = {10: {"15579"}}
 SEXES = ("Male", "Female")
 # Models that don't convert yet: the game's own (Alternative HD) look stays for them, rows and all. The Blood Elf man's
 # arms and legs come out shredded (his skeleton file's 252 bones; the other nineteen models are right): open.
@@ -105,12 +112,92 @@ class Tables(allied.Tables):
         super().__init__(csv_dir)
         self.aliases = {}
         self.only_available = {}
+        self.unlocked = set()
+
+    def unlock(self, model_id, achievements):
+        """The choices of a model's options that only an achievement of [achievements] closes: never left out for being hidden."""
+        for o in self.options.values():
+            if o["ChrModelID"] != str(model_id):
+                continue
+            for c in self.choices[o["ID"]]:
+                req = self.reqs.get(c["ChrCustomizationReqID"])
+                if req is not None and req.get("ReqAchievementID") in achievements:
+                    self.unlocked.add(c["ID"])
 
     def option_choices(self, model_id, name, only_available=True):
         name = self.aliases.get((str(model_id), name), name)
         if name in self.only_available.get(str(model_id), ()):
             only_available = True
         return super().option_choices(model_id, name, only_available)
+
+
+# Today's options that are a picture laid over the head or the body (the layers of its skin after the face: eyebrows, makeup,
+# scars, paints, tattoos), apart from what the five sliders and the feature slider carry.
+SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
+HEAD_MASKS = (512, 1024, 2048, -1)           # the layers that reach the head in today's layouts: its sections (9, 10, 11) or the whole skin (-1)
+
+
+def ui_order(choice):
+    return int(choice.get("UiOrderIndex") or 0), int(choice.get("OrderIndex") or 0)
+
+
+def overlays_of(tables, chr_model, model):
+    """The options of [chr_model] that are pictures over the head, in the order the creator lists the choices (the available
+    ones by their UI order: a choice's number is its place here, from 1):
+
+        [{"name", "target", "choices": [{"name", "id", "files"}], "depends": [options], "style": bool}]
+
+    A choice's files: {"*": file id} for any, {a hair colour's index: file id} where the picture follows the hair (eyebrows),
+    {"r<id>": file id} where it follows another option's choice (a paint's colour follows the paint's style: the file is the
+    colour's own for the style whose choice id that is). A choice with no picture (None) has no files. An option whose
+    pictures hang on another's choices names them in "depends"; each of those (the styles: no picture of their own) is
+    listed with "style": true so that the character keeps its choice of it. The pictures are the head's sections (masks 512,
+    1024, 2048: 512 x 512) or the whole skin (-1: 1024 x 512, the head its right half); a picture on the body only is left to
+    the body's parts."""
+    layout = tables.chr_models[str(chr_model)]["CharComponentTextureLayoutID"]
+    masks = {}
+    for row in tables.layers:
+        if row["CharComponentTextureLayoutsID"] == layout and row["TextureType"] == "1":     # the skin's (type 1), not the hair's, horns' or jewellery's
+            masks[row["ChrModelTextureTargetID_0"]] = int(row["TextureSectionTypeBitMask"])
+    colour_of = {c["choice"]: c["index"] for c in model["hair_colors"] if "choice" in c}
+    option_of = {c["ID"]: o for o in tables.options.values() for c in tables.choices[o["ID"]]}
+    out = []
+    skip = set(SLIDERS) | set(model.get("feature_options", []))
+    for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
+        if o["Name_lang"] in skip or (len(model.get("tattoos", [])) > 1 and o["Name_lang"] in allied.BODY_TATTOOS):
+            continue                                # (the skin's own tattoos are painted into the skins already)
+        choices, targets, depends = [], set(), []
+        for c in sorted((c for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False) if tables.available(c)), key=ui_order):
+            files = {}
+            for e in tables.elements[c["ID"]]:
+                if e["ChrCustomizationMaterialID"] == "0":
+                    continue
+                target, fids = tables.material_files(e)
+                if not fids or masks.get(target) not in HEAD_MASKS:
+                    continue
+                targets.add(target)
+                related = e["RelatedChrCustomizationChoiceID"]
+                if related == "0":
+                    files["*"] = fids[0]
+                elif related in colour_of:
+                    files[str(colour_of[related])] = fids[0]
+                elif related in option_of and option_of[related]["ID"] != o["ID"]:
+                    files["r" + related] = fids[0]
+                    if option_of[related]["Name_lang"] not in depends:
+                        depends.append(option_of[related]["Name_lang"])
+            choices.append({"name": c["Name_lang"], "id": c["ID"], "files": files})
+        if targets and any(c["files"] for c in choices) and len(targets) == 1:
+            entry = {"name": o["Name_lang"], "target": next(iter(targets)), "choices": choices}
+            if depends:
+                entry["depends"] = depends
+            out.append(entry)
+    for entry in list(out):
+        for name in entry.get("depends", []):
+            if not any(x["name"] == name for x in out):
+                chs = [{"name": c["Name_lang"], "id": c["ID"], "files": {}} for c in
+                       sorted((c for c in tables.option_choices(chr_model, name, only_available=False) if tables.available(c)), key=ui_order)]
+                out.append({"name": name, "target": entry["target"], "choices": chs, "style": True})
+    return out
 
 
 def build_races(csv_dir, races=None):
@@ -125,6 +212,7 @@ def build_races(csv_dir, races=None):
             for asked, today in ALIASES.get(race_id, {}).items():
                 tables.aliases[(str(chr_model), asked)] = today
             tables.only_available[str(chr_model)] = AVAILABLE_ONLY.get((race_id, sex), set())
+            tables.unlock(chr_model, UNLOCKED_ACHIEVEMENTS.get(race_id, set()))
             file_id = allied.model_file(tables, chr_model)
             if not file_id:
                 raise SystemExit("no model file for ChrModel %d (CreatureDisplayInfo.csv is needed)" % chr_model)
@@ -139,6 +227,7 @@ def build_races(csv_dir, races=None):
             if len(model["features"]) > 255:
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
             model["chr_model"] = chr_model
+            model["overlays"] = overlays_of(tables, chr_model, model)
             entry["models"][str(sex)] = model
         entry["replace_rows"] = races is None             # the ten of 3.3.5: their rows in the tables are replaced
         out["races"][str(race_id)] = entry
@@ -161,18 +250,27 @@ def table_rows(looks):
             sex = int(sex)
             for s in m["skins"]:
                 c = s["index"]
-                sections.append([race, sex, 0, names.skin(m, c), "", "", 17, 0, c])
+                sections.append([race, sex, 0, names.skin(m, c), names.skin_extra(m, c) if m.get("skin_extra") else "", "", 17, 0, c])
                 if s["pelvis"]:
                     sections.append([race, sex, 4, names.pelvis(m, c), names.torso(m, c) if s["torso"] else "", "", 17, 0, c])
             for fi, face in enumerate(m["faces"]):
                 for s in m["skins"]:
                     fid = names.face_file(m, face, s)
                     for eye in m["eyes"]:
-                        sections.append([race, sex, 1, names.face_lower(m, fid, eye), names.face_upper(m, eye), "", 1,
+                        # 17 (0x11): a face of every class's, a death knight's too. 3.3.5's own faces are 1 (every class
+                        # but a death knight) with a death knight's own faces beside them (5); today's game has no faces
+                        # of a death knight's own, and with 1 the game counted NO face for a death knight of these races
+                        # (CCharacterComponent::GetNumFacesForSkin: a death knight's rows need 0x4 or 0x10), so its face
+                        # and skin could not be changed, and Wrath++'s creator stopped on the count (12 November 2026).
+                        sections.append([race, sex, 1, names.face_lower(m, fid, eye), names.face_upper(m, eye), "", 17,
                                          names.face_variation(m, fi, eye["index"]), s["index"]])
             for h in m["hair"]:
                 for hc in m["hair_colors"]:
-                    sections.append([race, sex, 3, names.hair(m, hc["index"]), "", "", 17, h["variation"], hc["index"]])
+                    # Texture2 is the scalp (ScalpLower, laid over the face's place): the hair's colour on the skin where
+                    # the style is cut short
+                    scalp = h.get("scalp", {}).get(str(hc["index"])) or h.get("scalp", {}).get("*")
+                    sections.append([race, sex, 3, names.hair(m, hc["index"]), names.scalp(m, scalp) if scalp else "", "", 17,
+                                     h["variation"], hc["index"]])
                 hair.append([race, sex, h["variation"], h["geoset"], 0])
             for f in m["features"]:
                 facial.append([race, sex, f["variation"]] + list(f["geosets"]))
@@ -273,8 +371,8 @@ def narrations(keys, read, client, log=print):
 
 # wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
 # app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
-RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGED": 1786420, "KULTIRAN": 2447785, "DARKIRON": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
-              "NIGHTBORNE": 1786421, "ZANDALARI": 1851465, "HIGHMOUNTAIN": 1786419, "VULPERA": 3208033, "MAGHAR": 1989713}
+RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "KULTIRAN": 2447785, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
+              "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
 
 
 def race_icons(read, client, log=print):
@@ -319,7 +417,12 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             with open(layout_path) as f:
                 layout = json.load(f)
             os.remove(layout_path)
+            model["skin_extra"] = bool(layout.get("extra"))       # its skin rows name their extra (table_rows)
             written += textures.build(read, model, layout, client, log)
+            if model.get("overlays"):
+                import sl_parts
+                written += sl_parts.head_shell(read, model, client, log)
+                written += sl_parts.write_overlays(read, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
                 os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -336,6 +439,13 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     for name, text in changes.items():
         with open(os.path.join(out_dir, "changes", name + ".txt"), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
+    ten = {"races": {k: v for k, v in looks["races"].items() if v.get("replace_rows")}}
+    if ten["races"]:
+        import sl_parts
+        ids_path = os.path.join(os.path.dirname(HERE), "registry", "parts_ids.json")
+        ids = json.load(open(ids_path)).get("keys", {}) if os.path.exists(ids_path) else {}
+        sl_parts.write_parts_table(ten, client, ids)
+        written.append("Wrathpp\\parts.txt")
     missing = verify(looks, out_dir)
     if missing:
         raise ValueError("%d files the tables name are not in the package, e.g. %s" % (len(missing), ", ".join(missing[:5])))

@@ -21,14 +21,14 @@ with open(os.path.join(out, "fixtures.lua"), "w") as f:
     f.write("return {\n")
     for k, v in (("hello", hello), ("registry", blob), ("appearance", appearance), ("result", result)):
         f.write(f'  {k} = "{v.hex()}",\n')
-    f.write(f'  hash = "{digest:08x}",\n  guid = "0x{guid:016X}",\n}}\n')
+    f.write(f'  hash = "{digest:08x}",\n  version = {version},\n  guid = "0x{guid:016X}",\n}}\n')
 PY
 luajit "$HERE/test_client_mod.lua" "$HERE" "$WPP/client-mod/wrathpp/init.lua" "$OUT/fixtures.lua" "$OUT/sent.txt"
 python3 -I - "$WPP" "$OUT/sent.txt" << 'PY'
 import sys, os, struct
 sys.path.insert(0, os.path.join(sys.argv[1], "tools"))
 import registry, wrathpp_protocol as wp
-_, _, digest = registry.build(registry.DEFAULT)
+version, _, digest = registry.build(registry.DEFAULT)
 sent = []
 for line in open(sys.argv[2]):
     op, _, body = line.strip().partition(" ")
@@ -47,11 +47,31 @@ ops = [op for op, _ in sent]
 check(ops == [wp.CMSG_HELLO, wp.CMSG_SET_APPEARANCE, wp.CMSG_SET_APPEARANCE, wp.CMSG_QUERY], f"the mod sent hello, two choices and a query ({[hex(o) for o in ops]})")
 magic, proto, h, caps = struct.unpack("<IHII", sent[0][1])
 check(magic == wp.MAGIC and proto == 1 and h == digest and caps == wp.CAP_GEOSET, "  its hello: the magic, protocol 1, the registry's hash, geosets")
-check(decode_set(sent[1][1]) == (0, 0, 10, 0, 2, 1, {1002: 2, 1003: 2}), "  the new character's: pending, blood elf man paladin, horns 2, blindfold 2")
-check(decode_set(sent[2][1]) == (1, 0x42, 10, 0, 2, 1, {1002: 3, 1003: 2}), "  the change: that character, horns 3, blindfold kept at 2")
+check(decode_set(sent[1][1]) == (0, 0, 10, 0, 2, version, {1002: 2, 1003: 2, 1190: 1}), "  the new character's: pending, blood elf man paladin, horns 2, blindfold 2, the hair colour's default")
+check(decode_set(sent[2][1]) == (1, 0x42, 10, 0, 2, version, {1002: 3, 1003: 2}), "  the change: that character, horns 3, blindfold kept at 2 (the fixture's looks had no hair colour)")
 check(sent[3][1] == struct.pack("<BQ", 1, 0xAA), "  the query: one guid, 0xAA")
 print("decoded as the server does:", "all passed" if not fails else f"{fails} failed")
 sys.exit(1 if fails else 0)
 PY
-luajit "$HERE/test_creator.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppCreate.lua"
+# The creator (app/src/main/assets/wrathpp/WrathppCreate.lua) is tested on the rig (client-mod/rig/run.sh: the game's own
+# creation screen, its creation logic and its tables), with the looks, by wrathpp-looks.yml. It had a stand-in screen
+# of its own here, which passed three builds that failed on the phone, and is gone.
+
+# The runtime refuses a whole mod whose mod.json breaks the SDK's schema (0.5.0's description was 630 characters, the
+# limit 512: the native mod was not loaded and the creator said "add-on not running"): its description limit, checked here.
+python3 -I - "$WPP" << 'PY'
+import json, os, sys
+bad = 0
+for mod in ("wrathpp", "wrathpp-native"):
+    path = os.path.join(sys.argv[1], "client-mod", mod, "mod.json")
+    d = json.load(open(path))
+    for key, limit in (("description", 512),):
+        n = len(d.get(key, ""))
+        ok = n <= limit
+        print(("ok   " if ok else "FAIL ") + "%s mod.json: %s is %d characters (at most %d)" % (mod, key, n, limit))
+        bad += 0 if ok else 1
+sys.exit(1 if bad else 0)
+PY
+# The allied races' glue on a mock of the creation screen (buttons, columns, pictures, scenes, texts): what a mock can say;
+# the phone and the rig say the rest.
 luajit "$HERE/test_allied_races.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppAlliedRaces.lua"

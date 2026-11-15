@@ -22,7 +22,10 @@ RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN,
 ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, KULTIRAN, DARKIRON, MECHAGNOME, HIGHELF)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
 MOVED = {12: 32}
-CLIENT_FILE_STRING = {HIGHELF: "HighElf"}       # (its models and textures are the Void Elf's)
+# ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
+# (the models' folders are another matter; the High Elf's files are the Void Elf's)
+CLIENT_FILE_STRING = {22: "VoidElf", 23: "Nightborne", 24: "LightforgedDraenei", 25: "ZandalariTroll", 26: "HighmountainTauren",
+                      27: "KulTiran", 28: "DarkIronDwarf", 29: "Vulpera", 30: "MagharOrc", 31: "Mechagnome", 12: "HighElf"}
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari", HIGHMOUNTAIN: "highmountain",
        KULTIRAN: "kultiran", DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}

@@ -1,0 +1,1 @@
+Groundwork for running WoW Forever natively on the phone's processor (no PC translation).

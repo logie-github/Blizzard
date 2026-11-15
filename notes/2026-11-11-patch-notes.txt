@@ -1,0 +1,1 @@
+Patch notes: each update's one-line notes now show in Settings (the gear button), on the Games page.

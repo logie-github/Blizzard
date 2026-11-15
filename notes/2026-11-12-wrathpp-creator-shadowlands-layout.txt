@@ -1,0 +1,1 @@
+Wrath++ creator: the Customize screen is laid out as Shadowlands' own (categories as round buttons top right, one line an option, the name at the top).

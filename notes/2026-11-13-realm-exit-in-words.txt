@@ -1,0 +1,1 @@
+Realms: when a server stops on its own, the report now says why in words (a crash, the system ending it for memory, or another signal).

@@ -120,6 +120,23 @@ jobs:
       - name: Prepare Warsmash Android engine
         run: scripts/prepare-warsmash.sh
 
+      # FFmpeg's decoders for Warcraft III's movies (scripts/build-ffmpeg.sh), cached by the script that pins them.
+      - name: Look for FFmpeg
+        id: ffmpeg
+        uses: actions/cache/restore@v4
+        with:
+          path: app/ffmpeg
+          key: blizz-ffmpeg-v1-${{ hashFiles('scripts/build-ffmpeg.sh') }}
+      - name: Build FFmpeg (only the movies' decoders)
+        if: steps.ffmpeg.outputs.cache-hit != 'true'
+        run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-ffmpeg.sh
+      - name: Save FFmpeg
+        if: steps.ffmpeg.outputs.cache-hit != 'true' && matrix.task == 'assemble'
+        uses: actions/cache/save@v4
+        with:
+          path: app/ffmpeg
+          key: ${{ steps.ffmpeg.outputs.cache-primary-key }}
+
       - run: chmod +x gradlew
       - name: Build the APK
         if: matrix.task == 'assemble'
@@ -158,9 +175,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+      # The history and the release tags, for the patch notes added since the previous release (scripts/release-notes.sh).
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           name: Blizzard
+      - name: Patch notes
+        run: scripts/release-notes.sh | tee release-notes.md
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -168,4 +191,4 @@ jobs:
           gh release create "blizzard-build-${{ github.run_number }}" Blizzard.apk
           --repo "${{ github.repository }}"
           --target "${{ github.sha }}" --title "Blizzard 1.0.${{ github.run_number }}"
-          --notes "Install Blizzard.apk on the phone; it installs over earlier releases."
+          --notes-file release-notes.md

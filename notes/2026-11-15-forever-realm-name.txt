@@ -1,0 +1,1 @@
+WoW Forever: the game can now find the phone's own realm by name when it signs in.

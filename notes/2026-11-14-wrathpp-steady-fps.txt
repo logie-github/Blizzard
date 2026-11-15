@@ -1,0 +1,1 @@
+World of Warcraft holds a steady 30 frames a second by default, and Wrath++ has a Steady graphics setting for Project Reforged's HD parts.

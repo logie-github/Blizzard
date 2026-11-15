@@ -154,6 +154,7 @@ fun Launcher() {
     var holdFor by remember { mutableStateOf<Game?>(null) }
     var optionsFor by remember { mutableStateOf<Game?>(null) }
     var addonsFor by remember { mutableStateOf<Game?>(null) }
+    var porterOpen by remember { mutableStateOf(false) }
     var modulesOpen by remember { mutableStateOf(false) }
     var controlsFor by remember { mutableStateOf<Game?>(null) }
     var musicFor by remember { mutableStateOf<Game?>(null) }
@@ -172,15 +173,15 @@ fun Launcher() {
     val musicGame = Variants.effective(shown, chosenVersions).id
     val customMusic by com.logie.blizz.music.MusicCustom.version.collectAsState()
     LaunchedEffect(musicKey, musicGame, customMusic) { com.logie.blizz.music.MusicPlayer.select(context, musicKey, musicGame) }
-    // World of Warcraft: Forever: a game that fell back here says why by itself (its own crash file, sent as a report).
-    LaunchedEffect(resumed) { com.logie.blizz.forever.ForeverPlay.reportClientStop(context) }
-    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
+    LaunchedEffect(resumed) { withContext(Dispatchers.IO) { GameImportManager.migrateWarcraft3(context); Games.all.flatMap { listOf(it) + it.variants }.filter { GameImportManager.importable(it.id) }.forEach { GameImportManager.refresh(context, it.id) }; GameImportManager.reinstallStale(context) } }
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
-        // World of Warcraft: Forever runs its own offline realm on the phone (its own server package and client,
-        // and the Forever Launcher the person supplies): its own Play flow ([ForeverPlay]), not an importer.
-        if (game.id == "wow_forever") { com.logie.blizz.forever.ForeverPlay.play(context); return }
+        // World of Warcraft: Forever: its page is kept; everything behind it was removed (15 November 2026) to be made again from nothing.
+        if (game.id == "wow_forever") {
+            android.widget.Toast.makeText(context, "World of Warcraft: Forever is being rebuilt from the start. It can't be played in this version.", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         // Wrath++ (experimental): made from the Wrath+ import, so it plays from that entry ([com.logie.blizz.game.WowPlay] with wrathpp).
         if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) {
             val wrath = GameImportManager.library(context).get("wow")
@@ -192,6 +193,8 @@ fun Launcher() {
         if (GameImportManager.importable(game.id)) {
             // An install this update left behind (its recipe changed): made again first, in the wizard, where its progress shows.
             if (GameImportManager.stale(context, game.id)) { GameImportManager.reinstall(context, game.id); wizardFor = game; return }
+            // Warcraft III plays in Warsmash now: an entry from its Winlator days is moved over first (the same files).
+            if (game.id.startsWith("warcraft3")) GameImportManager.migrateWarcraft3(context)
             val entry = GameImportManager.library(context).get(game.id)
             if (entry != null && (entry.runtime == com.logie.blizz.importer.LibraryEntry.RUNTIME_EXTERNAL || game.id in WOW_MODES) && java.io.File(entry.installPath, entry.executable).isFile) {
                 // World of Warcraft: the realm and the client, from the imported files (the WoW app isn't needed).
@@ -221,6 +224,7 @@ fun Launcher() {
             LocalOpenOptions provides { g: Game -> optionsFor = Variants.effective(g) },
             LocalOpenAddons provides { g: Game -> addonsFor = Variants.effective(g) },
             LocalOpenModules provides { modulesOpen = true },
+            LocalOpenPorter provides { porterOpen = true },
             LocalOpenControls provides { g: Game -> controlsFor = Variants.effective(g) },
             LocalOpenMusic provides { g: Game -> musicFor = Variants.effective(g) },
             LocalChooseApp provides { g: Game -> chooseApp(g) },
@@ -235,6 +239,7 @@ fun Launcher() {
         optionsFor?.let { GameOptionsDialog(it, onDismiss = { optionsFor = null }) }
         addonsFor?.let { WowAddonManager(it.id, onDismiss = { addonsFor = null }) }
         if (modulesOpen) WowModuleManager(onDismiss = { modulesOpen = false })
+        if (porterOpen) CharacterPorter(onDismiss = { porterOpen = false })
         controlsFor?.let { ControlsScreen(it, onDismiss = { controlsFor = null }) }
         musicFor?.let { MusicDialog(it, onDismiss = { musicFor = null }) }
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
@@ -302,44 +307,29 @@ private fun rememberLoadingLine(gameId: String?): String {
 @Composable
 private fun RuntimeOverlay() {
     val wow by com.logie.blizz.game.WowPlay.state.collectAsState()
-    val forever by com.logie.blizz.forever.ForeverPlay.state.collectAsState()
     val state by WindowsRuntime.state.collectAsState()
     val context = LocalContext.current
     // One loading screen from the realm's start to the game's own window: World of Warcraft's realm, then Windows, then the
     // game, with no blink back to the launcher between them. It stays up until the game's screen has taken over.
     val running = state as? WindowsRuntime.State.Preparing
-    val foreverBusy = forever as? com.logie.blizz.forever.ForeverPlay.State.Preparing
-    val loadingId = running?.gameId ?: (wow as? com.logie.blizz.game.WowPlay.State.Preparing)?.gameId ?: foreverBusy?.let { "wow_forever" }
-    val busy = running != null || wow is com.logie.blizz.game.WowPlay.State.Preparing || foreverBusy != null
+    val loadingId = running?.gameId ?: (wow as? com.logie.blizz.game.WowPlay.State.Preparing)?.gameId
+    val busy = running != null || wow is com.logie.blizz.game.WowPlay.State.Preparing
     var held by remember { mutableStateOf<String?>(null) }
     var holding by remember { mutableStateOf(false) }
-    // A paused client download has no game window coming: its screen goes at once.
-    var downloading by remember { mutableStateOf(false) }
-    if (busy) { held = loadingId ?: held; holding = true; downloading = foreverBusy?.pausable == true }
+    if (busy) { held = loadingId ?: held; holding = true }
     LaunchedEffect(busy) {
         if (busy) return@LaunchedEffect
-        if (downloading) { downloading = false; holding = false; return@LaunchedEffect }
         // Until the launcher is out of sight (the game's screen is up), at most a few seconds.
         val until = System.currentTimeMillis() + 4_000
         while (com.logie.blizz.MainActivity.visible && System.currentTimeMillis() < until && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) delay(100)
         holding = false
     }
-    if (holding && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed && forever !is com.logie.blizz.forever.ForeverPlay.State.Failed) {
+    if (holding && state !is WindowsRuntime.State.Failed && wow !is com.logie.blizz.game.WowPlay.State.Failed) {
         Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
             Box(Modifier.fillMaxSize()) {
                 // The runtime's install is the one wait with a number to show.
                 val percent = if (running?.step == WindowsRuntime.Step.RUNTIME) running.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty() else ""
-                val fb = forever as? com.logie.blizz.forever.ForeverPlay.State.Preparing
-                if (fb != null) {
-                    val fp = fb.progress?.let { " ${(it * 100).toInt()}%" }.orEmpty()
-                    com.logie.blizz.game.Loading(held, fb.message + fp)
-                    // The client download takes hours: it can be paused, and the next Play goes on from where it stopped.
-                    if (fb.pausable) {
-                        FrameButton("Pause download", Modifier.align(Alignment.BottomEnd).padding(24.dp), primary = false) {
-                            com.logie.blizz.forever.ForeverPlay.pauseDownload()
-                        }
-                    }
-                } else {
+                run {
                     // Wrath++'s start says what it is doing (its server's download, its copy of the game, its realm's set-up),
                     // with a bar: the first start takes long enough that a line alone looks frozen.
                     val ww = wow as? com.logie.blizz.game.WowPlay.State.Preparing
@@ -369,72 +359,6 @@ private fun RuntimeOverlay() {
             Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(s.message, style = MaterialTheme.typography.bodyLarge)
                 FrameButton("OK", Modifier.align(Alignment.End)) { WindowsRuntime.dismiss() }
-            }
-        }
-        else -> {}
-    }
-    when (val f = forever) {
-        is com.logie.blizz.forever.ForeverPlay.State.Failed -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-            Column(Modifier.padding(16.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) { Text(f.message, style = MaterialTheme.typography.bodyLarge) }
-                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FrameButton("Copy", primary = false) { clipboard.setText(androidx.compose.ui.text.AnnotatedString(f.message)) }
-                    FrameButton("OK") { com.logie.blizz.forever.ForeverPlay.dismiss() }
-                }
-            }
-        }
-        is com.logie.blizz.forever.ForeverPlay.State.NeedsClient -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            // Android's folder picker: the app's own storage can't be reached from a file manager, so the client is copied in from wherever it was put.
-            val pickClient = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()) { tree ->
-                if (tree != null) com.logie.blizz.forever.ForeverPlay.importClient(context, tree)
-            }
-            val resuming = remember { com.logie.blizz.forever.ForeverPlay.downloadPaused(context) }
-            Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FrameTitle("Download the Forever client?")
-                Text(
-                    "World of Warcraft: Forever needs its game client once: about ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB from " +
-                        "Blizzard's servers (it needs a little more than that free on the phone).\n\n" +
-                        "This phone is on a metered connection (mobile data). Download anyway, wait for Wi-Fi (Play downloads it " +
-                        "by itself there), or choose a Forever client folder already on the phone (from a PC's Battle.net install: " +
-                        "the one with .build.info, Data and _forever_).\n\n" +
-                        "To connect the client to the local realm, the Forever Launcher must be in the client folder (it sets the server key).",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FrameButton("Cancel", primary = false) { com.logie.blizz.forever.ForeverPlay.dismiss() }
-                    FrameButton("Choose client folder", primary = false) { pickClient.launch(null) }
-                    FrameButton(if (resuming) "Resume download" else "Download") {
-                        com.logie.blizz.forever.ForeverPlay.dismiss()
-                        com.logie.blizz.forever.ForeverPlay.downloadClient(context)
-                    }
-                }
-            }
-        }
-        is com.logie.blizz.forever.ForeverPlay.State.NeedsLauncher -> Dialog(onDismissRequest = { com.logie.blizz.forever.ForeverPlay.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            // The Forever Launcher is the person's to supply: picked here once, kept in the client folder, run at every Play.
-            val pickLauncher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-                if (uri != null) com.logie.blizz.forever.ForeverPlay.importLauncher(context, uri, thenPlay = true)
-            }
-            Column(Modifier.padding(16.dp).widthIn(max = 560.dp).panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                FrameTitle("The Forever Launcher is missing")
-                Text(
-                    "The realm and the game are ready: the game starts and logs in to the realm on this phone.\n\n" +
-                        "It can't enter the realm yet. The game checks the world server's identity against Blizzard's own key, " +
-                        "and disconnects from any other server (\"You have been disconnected\", BLZ51901023). The Forever Launcher " +
-                        "(WoWForeverLauncher.exe, from the realm's makers) is what lets the game accept this realm. This app can't " +
-                        "make or download it: pick the file once and it is run at every Play. It is a .NET program, so the app " +
-                        "puts the .NET runtime (wine-mono) in place on the first run (a ~60 MB download).",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FrameButton("Cancel", primary = false) { com.logie.blizz.forever.ForeverPlay.dismiss() }
-                    FrameButton("Start anyway", primary = false) {
-                        com.logie.blizz.forever.ForeverPlay.dismiss()
-                        com.logie.blizz.forever.ForeverPlay.playWithoutLauncher(context)
-                    }
-                    FrameButton("Choose the launcher file") { pickLauncher.launch(arrayOf("*/*")) }
-                }
             }
         }
         else -> {}

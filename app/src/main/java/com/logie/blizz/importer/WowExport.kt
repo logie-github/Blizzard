@@ -30,7 +30,7 @@ object WowExport {
         val prefs: List<String>,
         /** Files stored under another name than their real one (names that differ only in case, which shared storage can't keep apart): real path to stored path, under `files/`. */
         val renames: Map<String, String> = emptyMap(),
-        /** Which game mode the zip holds ("wrath-plus", "legion", "octowow", "forever"); null in an export of everything, made before modes had a zip of their own. */
+        /** Which game mode the zip holds ("wrath-plus", "legion", "octowow"); null in an export of everything, made before modes had a zip of their own. */
         val mode: String? = null,
     )
 

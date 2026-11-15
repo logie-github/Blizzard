@@ -9,8 +9,8 @@
 --  * Their text.
 -- Loaded after the game's own screens and before WrathppCreate.lua (the file names sort so).
 
-local BACKGROUNDS = { VOIDELF = "BloodElf", LIGHTFORGED = "Draenei", KULTIRAN = "Human", DARKIRON = "Dwarf", MECHAGNOME = "Gnome", HIGHELF = "BloodElf", NIGHTBORNE = "NightElf", ZANDALARI = "Orc", HIGHMOUNTAIN = "Tauren", VULPERA = "Orc", MAGHAR = "Orc" };
-local SIDES = { VOIDELF = "Alliance", LIGHTFORGED = "Alliance", KULTIRAN = "Alliance", DARKIRON = "Alliance", MECHAGNOME = "Alliance", HIGHELF = "Alliance", NIGHTBORNE = "Horde", ZANDALARI = "Horde", HIGHMOUNTAIN = "Horde", VULPERA = "Horde", MAGHAR = "Horde", HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance", ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde" };
+local BACKGROUNDS = { VOIDELF = "BloodElf", LIGHTFORGEDDRAENEI = "Draenei", KULTIRAN = "Human", DARKIRONDWARF = "Dwarf", MECHAGNOME = "Gnome", HIGHELF = "BloodElf", NIGHTBORNE = "NightElf", ZANDALARITROLL = "Orc", HIGHMOUNTAINTAUREN = "Tauren", VULPERA = "Orc", MAGHARORC = "Orc" };
+local SIDES = { VOIDELF = "Alliance", LIGHTFORGEDDRAENEI = "Alliance", KULTIRAN = "Alliance", DARKIRONDWARF = "Alliance", MECHAGNOME = "Alliance", HIGHELF = "Alliance", NIGHTBORNE = "Horde", ZANDALARITROLL = "Horde", HIGHMOUNTAINTAUREN = "Horde", VULPERA = "Horde", MAGHARORC = "Horde", HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance", ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde" };
 local ICON_PATH = "Interface\\Glues\\CharacterCreate\\WrathppRaces\\"
 local ICONS = { }
 for token in pairs(BACKGROUNDS) do ICONS[token] = ICON_PATH..token end
@@ -105,12 +105,12 @@ ABILITY_INFO_VOIDELF3 = "- Chill of Night: Reduces Shadow damage taken by 1%.";
 ABILITY_INFO_VOIDELF4 = "- Preternatural Calm: Your spell casts are not delayed by taking damage.";
 VOIDELF_DISABLED = "Void Elf can't be made on this realm.";
 
-RACE_INFO_LIGHTFORGED = "Draenei remade in the Light's radiance above Argus: warriors bound to the Holy, who now fight beside the Alliance.";
-ABILITY_INFO_LIGHTFORGED1 = "- Light's Judgment: A strike of Holy energy on your target.";
-ABILITY_INFO_LIGHTFORGED2 = "- Forge of Light: Blacksmithing skill increased by 10.";
-ABILITY_INFO_LIGHTFORGED3 = "- Light's Reckoning: When you die, Holy energy harms enemies and heals allies.";
-ABILITY_INFO_LIGHTFORGED4 = "- Holy Resistance, Demonbane.";
-LIGHTFORGED_DISABLED = "Lightforged Draenei can't be made on this realm.";
+RACE_INFO_LIGHTFORGEDDRAENEI = "Draenei remade in the Light's radiance above Argus: warriors bound to the Holy, who now fight beside the Alliance.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI1 = "- Light's Judgment: A strike of Holy energy on your target.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI2 = "- Forge of Light: Blacksmithing skill increased by 10.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI3 = "- Light's Reckoning: When you die, Holy energy harms enemies and heals allies.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI4 = "- Holy Resistance, Demonbane.";
+LIGHTFORGEDDRAENEI_DISABLED = "Lightforged Draenei can't be made on this realm.";
 
 RACE_INFO_KULTIRAN = "Seafaring humans of Boralus and Kul Tiras, hardened by storms, tides and long wars. Stubborn, loyal and strong.";
 ABILITY_INFO_KULTIRAN1 = "- Brush It Off: All damage taken reduced by 2%.";
@@ -119,10 +119,10 @@ ABILITY_INFO_KULTIRAN3 = "- Diplomacy: 10% more reputation gained.";
 ABILITY_INFO_KULTIRAN4 = "- Child of the Sea: Breathe underwater far longer.";
 KULTIRAN_DISABLED = "Kul Tiran can't be made on this realm.";
 
-RACE_INFO_DARKIRON = "Dwarves of the Dark Iron clan, forged by the fires of Blackrock and long bound to Ragnaros. Now they have a place in the Alliance.";
-ABILITY_INFO_DARKIRON1 = "- Fireblood: Removes poison, disease, curse, magic and bleeds, and reduces damage taken for 8 sec.";
-ABILITY_INFO_DARKIRON2 = "- Forged in Flames: Fire damage taken reduced by 10%.";
-DARKIRON_DISABLED = "Dark Iron Dwarf can't be made on this realm.";
+RACE_INFO_DARKIRONDWARF = "Dwarves of the Dark Iron clan, forged by the fires of Blackrock and long bound to Ragnaros. Now they have a place in the Alliance.";
+ABILITY_INFO_DARKIRONDWARF1 = "- Fireblood: Removes poison, disease, curse, magic and bleeds, and reduces damage taken for 8 sec.";
+ABILITY_INFO_DARKIRONDWARF2 = "- Forged in Flames: Fire damage taken reduced by 10%.";
+DARKIRONDWARF_DISABLED = "Dark Iron Dwarf can't be made on this realm.";
 
 RACE_INFO_MECHAGNOME = "Gnomes who rebuilt themselves in metal. Clever engineers who bring their inventions, and their own improvements, to the Alliance.";
 ABILITY_INFO_MECHAGNOME1 = "- Combat Analysis: Critical strike chance increased by 2%.";
@@ -144,18 +144,18 @@ ABILITY_INFO_NIGHTBORNE3 = "- Magical Affinity: Increases magical damage dealt b
 ABILITY_INFO_NIGHTBORNE4 = "- Ancient History: Inscription skill increased by 15.";
 NIGHTBORNE_DISABLED = "Nightborne can't be made on this realm.";
 
-RACE_INFO_ZANDALARI = "The oldest and proudest of the troll tribes, keepers of the loa and of Zuldazar's golden city, allies of the Horde.";
-ABILITY_INFO_ZANDALARI1 = "- Regeneratin': Regenerates health until you take damage.";
-ABILITY_INFO_ZANDALARI2 = "- Embrace of Pa'ku: Your attacks may raise your critical strike chance.";
-ABILITY_INFO_ZANDALARI3 = "- Pterrordax Swoop: Slows your fall.";
-ABILITY_INFO_ZANDALARI4 = "- City of Gold: 2% more money looted.";
-ZANDALARI_DISABLED = "Zandalari Troll can't be made on this realm.";
+RACE_INFO_ZANDALARITROLL = "The oldest and proudest of the troll tribes, keepers of the loa and of Zuldazar's golden city, allies of the Horde.";
+ABILITY_INFO_ZANDALARITROLL1 = "- Regeneratin': Regenerates health until you take damage.";
+ABILITY_INFO_ZANDALARITROLL2 = "- Embrace of Pa'ku: Your attacks may raise your critical strike chance.";
+ABILITY_INFO_ZANDALARITROLL3 = "- Pterrordax Swoop: Slows your fall.";
+ABILITY_INFO_ZANDALARITROLL4 = "- City of Gold: 2% more money looted.";
+ZANDALARITROLL_DISABLED = "Zandalari Troll can't be made on this realm.";
 
-RACE_INFO_HIGHMOUNTAIN = "Tauren of the high peaks, mountaineers who keep to their elders' ways and march with the Horde.";
-ABILITY_INFO_HIGHMOUNTAIN1 = "- Mountaineer: Stamina increased by 3%.";
-ABILITY_INFO_HIGHMOUNTAIN2 = "- Bull Rush: Run speed increased by 30% for 3 sec.";
-ABILITY_INFO_HIGHMOUNTAIN3 = "- Endurance: Health increased by 5%.";
-HIGHMOUNTAIN_DISABLED = "Highmountain Tauren can't be made on this realm.";
+RACE_INFO_HIGHMOUNTAINTAUREN = "Tauren of the high peaks, mountaineers who keep to their elders' ways and march with the Horde.";
+ABILITY_INFO_HIGHMOUNTAINTAUREN1 = "- Mountaineer: Stamina increased by 3%.";
+ABILITY_INFO_HIGHMOUNTAINTAUREN2 = "- Bull Rush: Run speed increased by 30% for 3 sec.";
+ABILITY_INFO_HIGHMOUNTAINTAUREN3 = "- Endurance: Health increased by 5%.";
+HIGHMOUNTAINTAUREN_DISABLED = "Highmountain Tauren can't be made on this realm.";
 
 RACE_INFO_VULPERA = "Small, quick desert foxes, scavengers who learned to survive where no one else would. They travel with the Horde.";
 ABILITY_INFO_VULPERA1 = "- Bag of Tricks: Damage to nearby enemies.";
@@ -164,10 +164,10 @@ ABILITY_INFO_VULPERA3 = "- Rummaging: Skinning skill increased by 10.";
 ABILITY_INFO_VULPERA4 = "- Escape Artist: Escape roots and snares.";
 VULPERA_DISABLED = "Vulpera can't be made on this realm.";
 
-RACE_INFO_MAGHAR = "Orcs of Draenor who never drank the demon's blood. Proud, spiritual, and brothers to the Horde.";
-ABILITY_INFO_MAGHAR1 = "- Ancestral Call: Damage done increased by 10% for 12 sec.";
-ABILITY_INFO_MAGHAR2 = "- Brawn: Critical strikes deal 2% more damage and healing.";
-ABILITY_INFO_MAGHAR3 = "- Hardiness: Stun duration reduced.";
-ABILITY_INFO_MAGHAR4 = "- Command: Pet damage increased.";
-MAGHAR_DISABLED = "Mag'har Orc can't be made on this realm.";
+RACE_INFO_MAGHARORC = "Orcs of Draenor who never drank the demon's blood. Proud, spiritual, and brothers to the Horde.";
+ABILITY_INFO_MAGHARORC1 = "- Ancestral Call: Damage done increased by 10% for 12 sec.";
+ABILITY_INFO_MAGHARORC2 = "- Brawn: Critical strikes deal 2% more damage and healing.";
+ABILITY_INFO_MAGHARORC3 = "- Hardiness: Stun duration reduced.";
+ABILITY_INFO_MAGHARORC4 = "- Command: Pet damage increased.";
+MAGHARORC_DISABLED = "Mag'har Orc can't be made on this realm.";
 

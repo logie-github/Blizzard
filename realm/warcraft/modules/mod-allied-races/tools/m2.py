@@ -47,6 +47,7 @@ INDEX_BUDGET = 65535            # the game reads a section's triangle start as 1
 TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]
 TIER_FLOORS_MORE = [("gear", 0.3), ("features", 0.4), ("hair", 0.4), ("body", 0.6)]
 GEAR_GROUPS = {4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20}
+HEAD_GROUPS = (32, 33)          # today's head and eyeballs: never cut (below)
 GEAR_MAX_VARIANT = 6            # 3.3.5's items ask for a group's variants 1 to 6 (ItemDisplayInfo's geoset groups 0 to 5)
 
 
@@ -66,6 +67,8 @@ HEADER = 304
 BONE, SEQ, ATTACH, EVENT, CAMERA_IN, CAMERA_OUT, VERTEX, SECTION, BATCH = 88, 64, 40, 36, 116, 100, 48, 48, 24
 TRACK, TRACK_BASE = 20, 12
 BODY, CAPE, HAIR, EYES = 1, 2, 6, 19
+SKIN_EXTRA = 8                       # 3.3.5's skin extra: a skin row's second texture
+BONY_GROUPS = (19, 20, 29, 30)       # today's bony pieces (the Forsaken's spine, back, elbows, knees)
 KEPT_TYPES = {0, BODY, CAPE, HAIR}
 
 
@@ -517,6 +520,56 @@ def remap_uv(u, v, kind, layout):
 ANIM_CHUNKS = (b"AFM2", b"AFSA", b"AFSB")
 
 
+def glow_blp(data, box):
+    """The eyes' glow's texture (convert's eye_glow): the file with the colour of the part [box] (u0, v0, u1, v1) holds
+    (the mean of its colour, by its alpha, and its alpha's mean) laid over all of it, the file's own alpha kept: its
+    smoke, which the glow is drawn by, in the glow's colour. DXT5, as the game's own glows."""
+    import numpy as np
+    import blp
+    rgba = blp.read(data).astype(np.float32)
+    h, w = rgba.shape[:2]
+    x0, y0 = int(np.floor(box[0] * w)), int(np.floor(box[1] * h))
+    x1, y1 = max(x0 + 1, int(np.ceil(box[2] * w))), max(y0 + 1, int(np.ceil(box[3] * h)))
+    part = rgba[y0:y1, x0:x1].reshape(-1, 4)
+    weight = part[:, 3:4] / 255.0
+    colour = (part[:, :3] * weight).sum(0) / max(float(weight.sum()), 1e-6)
+    strength = float(weight.mean())
+    out = rgba.copy()
+    out[:, :, :3] = out[:, :, :3] / 255.0 * colour
+    out[:, :, 3] = out[:, :, 3] * strength
+    return blp.write_dxt(np.clip(out, 0, 255).round().astype(np.uint8), alpha=True)
+
+
+def uncut(plan, sections):
+    """The sections of [plan] ((new id, section, batch)) that are never cut down: today's head and eyeballs (its
+    [sections]' own ids in HEAD_GROUPS), whatever new id they take."""
+    return {s for new_id, s, b in plan if sections[s][0] // 100 in HEAD_GROUPS}
+
+
+def shared_positions(positions, sections):
+    """{section: its vertices whose position (to 0.01 mm) a vertex of another section has too}: where sections join."""
+    import numpy as np
+    where = {}
+    for s, tris in sections.items():
+        for v in set(int(x) for x in np.asarray(tris).ravel()):
+            where.setdefault(tuple(np.round(positions[v], 5)), set()).add(s)
+    out = {}
+    for s, tris in sections.items():
+        out[s] = {v for v in set(int(x) for x in np.asarray(tris).ravel()) if len(where[tuple(np.round(positions[v], 5))]) > 1}
+    return out
+
+
+def outline(tris):
+    """The vertices on a mesh's open edges (an edge one triangle has)."""
+    import numpy as np
+    count = {}
+    for a, b, c in np.asarray(tris).reshape(-1, 3):
+        for e in ((a, b), (b, c), (c, a)):
+            k = frozenset((int(e[0]), int(e[1])))
+            count[k] = count.get(k, 0) + 1
+    return {v for e, n in count.items() if n == 1 for v in e}
+
+
 def anim_block(data):
     """A sequence's file of today as 3.3.5's, and where its parts start in it. Today's .anim has the
     skeleton's bone data (AFSB), its attachments' (AFSA) and the model's own (AFM2) in chunks, each
@@ -630,6 +683,16 @@ def convert(files, policy, out_dir, log=print):
     child = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0])) if "SKID" in chunks else OwnSkeleton(m2_data)
     parent = Skeleton(files(child.parent)) if child.parent else None
     merged = Merged(child, parent)
+    if policy.get("stand_only"):
+        # A part a mod hangs on a character (wxl.m2's WXL_M2_ATTACH_FOLLOW_BONES) is posed by the character's own bones every
+        # frame: its model has the bones and the one sequence, Stand, and no animation of its own.
+        stand_keys = [struct.unpack_from("<HH", merged.seq(j), 0) for j in range(merged.n)]
+        j0 = stand_keys.index((0, 0)) if (0, 0) in stand_keys else 0
+        which0, i0 = merged.sources[j0]
+        merged.sources = [(which0, i0)]
+        merged.n = 1
+        merged.child_index = {i0: 0} if which0 else {}
+        merged.parent_index = {i0: 0} if not which0 else {}
     model = Model(m2_data, child)
     parent_model = Model(files(policy["parent_model"]), parent) if parent and policy.get("parent_model") else None
     parent_map = {i: parent_model.index_of.get(parent.key(i), -1) for i in range(len(parent.seqs))} if parent_model else None
@@ -803,6 +866,36 @@ def convert(files, policy, out_dir, log=print):
     key_bones = (child.key_bones + [-1] * KEY_BONES)[:KEY_BONES]
     blob.array(52, len(key_bones), struct.pack("<%dh" % len(key_bones), *key_bones))
 
+    def eye_glow(b):
+        """The eyes' glow today: shader 0x4014 draws two layers of one file, additively: its colour, a small square the
+        first coordinates sample, times the smoke the second coordinates scroll across. 3.3.5 draws a batch's one
+        texture by the first coordinates: the square alone, a solid band of colour over the eyes (build 243, the
+        phone's own picture of a Night Elf). Drawn here by the second, from a copy of the file with its smoke in the
+        square's colour (glow_texture)."""
+        if b[2] != 0x4014 or b[8] != 2 or b[9] + 1 >= len(model.texture_lookup) or model.materials[b[6]][1] not in (3, 4, 7):
+            return False
+        first, second = model.texture_lookup[b[9]], model.texture_lookup[b[9] + 1]
+        ids = model.texture_ids
+        return max(first, second) < len(ids) and ids[first] == ids[second] != 0
+
+    # The bony pieces (once on 3.3.5's skin extra, texture type 8; now a fixed file, below): a section drawn with
+    # the body texture whose coordinates lie mostly where 3.3.5 composes the face (the left half's bottom: FaceUpper and
+    # FaceLower) is today's art for parts the face never covers: the Forsaken's bony knees, elbows and spine, which drew
+    # the face's and the eyes' colours there (the user: "fix all the undead actual undead knees because they're weird
+    # colors now instead of bony"). Such a section draws with its own coordinates on today's whole skin texture (the
+    # first colour's, textures.py), a texture of the model's own.
+    extra_sections = set()
+    for si, sec in enumerate(skin.sections if policy.get("skin_extra", True) else ()):
+        if not any(b[3] == si and model.textures[model.texture_lookup[b[9]]][0] == BODY for b in skin.batches if b[9] < len(model.texture_lookup)):
+            continue
+        uvs = np.array([struct.unpack_from("<ff", model.vertices[skin.vertices[k]], 32) for k in range(sec[2], sec[2] + sec[3])])
+        # (today's bony pieces: groups 19 and 20 the spine and back, 29 the elbows, 30 the knees; a face's own parts,
+        # the tauren's head and the draenei's tendrils, are where 3.3.5 composes the face on purpose)
+        if sec[0] // 100 in BONY_GROUPS and len(uvs) and ((uvs[:, 0] < 0.25) & (uvs[:, 1] > 0.625)).mean() > 0.02:
+            extra_sections.add(si)
+    if extra_sections:
+        log("%s: %d sections drawn on the skin extra (geosets %s)" % (name, len(extra_sections), sorted({skin.sections[s][0] for s in extra_sections})))
+
     # Textures: the ones kept, with names for the fixed ones; the lookup is one entry a texture.
     textures, texture_names, texture_index = [], {}, {}
     hard = policy.get("hardcoded", {})                  # texture type (as text) -> game path
@@ -822,6 +915,37 @@ def convert(files, policy, out_dir, log=print):
         elif str(kind) in hard:
             texture_index[i] = len(textures)
             textures.append((0, flags, hard[str(kind)]))
+    # The bony pieces' texture: the first skin colour's whole texture of today (textures.py writes it), a fixed file.
+    # It was the skin extra (texture type 8), which the game fills only for player characters: on every Forsaken
+    # creature it was empty and the bones drew bright green (the user's Deathknell pictures, 14 November 2026).
+    extra_texture = None
+    if extra_sections:
+        extra_texture = len(textures)
+        textures.append((0, 0, "%s\\%sSkin00_00_Extra.blp" % (folder, name)))
+    glows = {}
+
+    def glow_texture(b, s):
+        """The index of the eyes' glow's own texture (eye_glow): the file's smoke, in the colour of the part of the file the
+        batch's first coordinates sample (the mean of its colour, by its alpha)."""
+        fid = model.texture_ids[model.texture_lookup[b[9]]]
+        sec = skin.sections[s]
+        first = sec[4] + sec[1] * 65536
+        vs = set(int(skin.vertices[v]) for v in skin.indices[first:first + sec[5]])
+        uv = np.array([struct.unpack_from("<ff", model.vertices[v], 32) for v in vs])
+        box = (float(uv[:, 0].min()), float(uv[:, 1].min()), float(uv[:, 0].max()), float(uv[:, 1].max()))
+        key = (fid, tuple(round(x, 3) for x in box))
+        if key not in glows:
+            path = "%s\\%s_%d_glow%d.blp" % (folder, name, fid, len(glows))
+            glow_files[path] = (fid, box)
+            glows[key] = len(textures)
+            textures.append((0, model.textures[model.texture_lookup[b[9]]][1], path))
+        return glows[key]
+
+    glow_files = {}
+    for b in skin.batches:
+        if eye_glow(b):
+            glow_texture(b, b[3])
+
     tex_blob = bytearray()
     paths = []
     for kind, flags, path in textures:
@@ -898,7 +1022,7 @@ def convert(files, policy, out_dir, log=print):
     texture_types = [k for k, _ in model.textures]
     body_sections = [s for s in range(len(skin.sections)) if any(
         b[3] == s and texture_types[model.texture_lookup[b[9]]] == BODY for b in skin.batches)]
-    layout = head_layout(model, skin, body_sections)
+    layout = head_layout(model, skin, [s for s in body_sections if s not in extra_sections])
     out_vertices, out_props, out_indices, out_sections, out_batches, out_lookup = [], [], [], [], [], []
     new_vertex = {}
 
@@ -928,6 +1052,7 @@ def convert(files, policy, out_dir, log=print):
         first, second = model.texture_lookup[b[9]], model.texture_lookup[b[9] + 1]
         ids = model.texture_ids
         return first == second or (max(first, second) < len(ids) and ids[first] == ids[second] != 0)
+
 
     sections_by_id = {}
     for s, sec in enumerate(skin.sections):
@@ -964,38 +1089,81 @@ def convert(files, policy, out_dir, log=print):
         sizes[t] = sizes.get(t, 0) + len(source_tris[s]) * 3
     cut = dict(source_tris)
     tier_of_section = {s: tier_of(new_id) for new_id, s, b in plan}
+    # Where two sections meet (the neck under the head, a wrist under a hand, the body under a geoset's piece) their
+    # edges are at the same places: a vertex there stays where it is, or the section cut down alone slides its edge
+    # along and the other's doesn't, and the model opens there (the user's "lots of seam gaps", 13 November 2026).
+    joins = shared_positions(positions, source_tris)
+    # The bare body's sections keep their whole outline too: the body, and the variant 01 of a gear group (the bare
+    # hands, feet, wrists and legs drawn while nothing is worn there). A foot's top edge tucked inside the leg meets
+    # nothing at the same place, and slid along it showed as a sliver at the heel. (Every section's outline kept is
+    # more than 3.3.5's 65535 indices allow: the hair, the features and the worn gear still give way along theirs.)
+    bare = {s for new_id, s, b in plan if tier_of(new_id) == "body" or (tier_of(new_id) == "gear" and new_id % 100 == 1)}
+    for s in bare:
+        joins[s] = joins.get(s, set()) | outline(source_tris[s])
     # A pass takes what the floors allow; a mesh may not give all that was asked of it (its
     # outline and seams stay), so further passes ask for the rest, more from every tier.
     copies = {}
     for n, s, b in plan:
         copies[s] = copies.get(s, 0) + 1
+    # The head (today's group 32: the face, with the inside of the mouth: tongue, teeth and gums, which a cut takes
+    # first, being out of sight in a closed mouth; the user's "Where's the tongue for females") and the eyeballs (33)
+    # are never cut: the rest gives way for them.
+    whole = uncut(plan, skin.sections)
+    kept_whole = sum(len(cut[s]) * 3 * copies[s] for s in whole)
     for step in range(12):
         now = {}
         for s, t in tier_of_section.items():
-            now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
-        total = sum(now.values())
+            if s not in whole:
+                now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
+        total = sum(now.values()) + kept_whole
         if total <= INDEX_BUDGET:
             break
         floors = TIER_FLOORS if step == 0 else TIER_FLOORS_MORE if step == 1 else []
-        keep = decimate.plan(now, INDEX_BUDGET - 300, floors)
+        keep = decimate.plan(now, INDEX_BUDGET - 300 - kept_whole, floors)
         before = total
         for s, t in tier_of_section.items():
+            if s in whole:
+                continue
             fraction = keep[t]
             if fraction < 0.999 and len(cut[s]) > 2:
-                cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))))
+                cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))), locked=joins.get(s, ()))
         total = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section)
         if total >= before:
             raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, INDEX_BUDGET, total))
     for t in sorted(sizes):
         kept = sum(len(cut[s]) * 3 for n, s, b in plan if tier_of(n) == t)
         log("%s: %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
+    # A shell cut down (hair over the scalp, gear over the body) lies inside what its removed vertices lay on, and the
+    # skin shows through the chords (the user's hair that "doesn't fit": bare patches in the cap of the Dwarf woman's
+    # Shieldmaiden). Each vertex kept is moved out along its normal by what its triangles' removed vertices stand over
+    # them (decimate.sink_lifts); a vertex shared with another section (joins) stays.
+    normals = np.array([struct.unpack_from("<3f", v, 20) for v in model.vertices])
+    lifts, lift_tier = {}, {}
+    for s, t in tier_of_section.items():
+        if s in whole or t in ("body", "gear") or cut[s] is source_tris[s]:
+            continue
+        for v, height in decimate.sink_lifts(positions, normals, source_tris[s], cut[s], joins.get(s, ())).items():
+            lifts[v] = max(lifts.get(v, 0.0), height)
+            lift_tier[v] = t
+    for v, height in lifts.items():
+        n = normals[v] / max(np.linalg.norm(normals[v]), 1e-9)
+        moved = bytearray(model.vertices[v])
+        struct.pack_into("<3f", moved, 0, *(positions[v] + n * height))
+        model.vertices[v] = bytes(moved)
+    if lifts:
+        for t in ("features", "hair"):
+            h = sorted(lifts[v] for v in lifts if lift_tier[v] == t)
+            if h:
+                log("%s: %s: %d vertices moved out (median %.1f mm, most %.1f mm)" % (name, t, len(h), 1000.0 * h[len(h) // 2], 1000.0 * h[-1]))
 
     vertices_bytes = []
     for new_id, s, b in sorted(plan, key=lambda p: (tier_of(p[0]) == "body", p[0], p[1])):
         sec = skin.sections[s]
         kind = texture_types[model.texture_lookup[b[9]]]
         uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
-        if glyph_card(b):
+        if s in extra_sections and kind == BODY:
+            uv_kind = "same"
+        if glyph_card(b) or eye_glow(b):
             uv_kind = "second"
         # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
         # drawing with a section's combo, puts a vertex on the bone its slot names there: the
@@ -1041,6 +1209,10 @@ def convert(files, policy, out_dir, log=print):
                                             index_start, len(triangles) * 3, len(palette), combo_index,
                                             max(1, influences), sec[9], *sec[10:17]))
             texture = texture_index[model.texture_lookup[b[9]]]
+            if s in extra_sections and kind == BODY:
+                texture = extra_texture
+            if eye_glow(b):
+                texture = glow_texture(b, s)
             shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
             flags = b[0] & 0x1F
             # (a glyph card's texture moves as its glyph's stage does, the second: the band's scroll,
@@ -1094,6 +1266,8 @@ def convert(files, policy, out_dir, log=print):
             written[path] = anim_out[j]
     for fid, path in texture_names.items():
         written[path] = files(fid)
+    for path, (fid, box) in glow_files.items():
+        written[path] = glow_blp(files(fid), box)
     for path, data in written.items():
         full = os.path.join(out_dir, path.replace("\\", "/"))
         os.makedirs(os.path.dirname(full), exist_ok=True)
@@ -1101,7 +1275,8 @@ def convert(files, policy, out_dir, log=print):
             out.write(data)
     with open(os.path.join(out_dir, folder.replace("\\", "/"), name + ".layout.json"), "w") as out:
         json.dump({"head": layout, "eyes": [0.0, 0.625, 0.5, 0.75], "sequences": merged.n, "vertices": len(out_vertices),
-                   "sections": len(out_sections), "textures": [(k, p) for k, _, p in textures]}, out, indent=1)
+                   "sections": len(out_sections), "textures": [(k, p) for k, _, p in textures],
+                   "extra": bool(extra_sections)}, out, indent=1)
     log("%s: %d sequences (%d in their own files), %d bones, %d vertices, %d sections, %d textures" % (
         name, merged.n, len(external), len(child.bones), len(out_vertices), len(out_sections), len(textures)))
     return sorted(written)
