@@ -17,6 +17,11 @@ for f in GlueParent GlueButtons CharacterCreate; do
 	python3 -I "$HERE/tools/xml2lua.py" "$WORK/stock/$f.xml" "$WORK/data/$f.xml.lua"
 	cp "$WORK/data/$f.xml.lua" "$WORK/plain/$f.xml.lua"
 done
+# Wrath++'s allied races' race buttons (the add-on's own XML, beside the creator): the game has ten, the screen loops over the races
+ALLIED_XML="$(dirname "$CREATOR")/WrathppAlliedRaces.xml"
+if [ -f "$ALLIED_XML" ]; then
+	for d in data plain; do python3 -I "$HERE/tools/xml2lua.py" "$ALLIED_XML" "$WORK/$d/WrathppAlliedRaces.xml.lua"; done
+fi
 # the tables twice: with undead skins in them as the app's import puts them, and as the looks alone have them
 python3 -I "$HERE/tools/undead_rows.py" "$CLIENT/CharSections.dbc" "$WORK/CharSections.undead.dbc" "$WORK/WrathppUndead.lua"
 python3 -I "$HERE/tools/build_data.py" "$STOCK" "$WORK/CharSections.undead.dbc" "$CLIENT/CharacterFacialHairStyles.dbc" "$WORK/data" "$CLIENT"

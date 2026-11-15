@@ -102,6 +102,10 @@ return function(opts)
 	stockLua()
 	E.load(xml("CharacterCreate"))
 	R.stockErrors = #E.errors
+	-- the allied races' buttons (WrathppAlliedRaces.xml, the add-on's frames, loaded after the game's and before every script)
+	local alliedXml = opts.data.."/WrathppAlliedRaces.xml.lua"
+	local af = io.open(alliedXml)
+	if ( af ) then af:close(); E.load(dofile(alliedXml)) end
 
 	-- Wrath++'s files, last
 	if ( opts.native == false ) then
@@ -129,7 +133,11 @@ return function(opts)
 	if ( atlasFile == "-" or atlasFile == "" or not opts.creator ) then atlasFile = nil end
 	WrathppAtlas = nil
 	WrathppShots = opts.shots and "rig" or nil            -- the app asks for pictures of the creator (WrathppShots.lua in its patch)
-	for _, file in ipairs({ atlasFile or false, opts.creator or false, opts.looks or false, opts.undead or false }) do
+	-- (by name, as the app's patch lists them: WrathppAlliedRaces first)
+	local alliedLua = opts.creator and opts.creator:gsub("[^/]*$", "WrathppAlliedRaces.lua") or nil
+	local al = alliedLua and io.open(alliedLua)
+	if ( al ) then al:close() else alliedLua = nil end
+	for _, file in ipairs({ alliedLua or false, atlasFile or false, opts.creator or false, opts.looks or false, opts.undead or false }) do
 		if ( file ) then
 			local fn, err = loadfile(file)
 			if ( not fn ) then error("the game would not load "..file..": "..tostring(err)) end
