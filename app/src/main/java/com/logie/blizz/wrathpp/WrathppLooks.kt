@@ -28,7 +28,10 @@ object WrathppLooks {
     fun restoreServer(client: File, server: File, sha: String): Boolean {
         val patch = File(client, "Data/$PATCH")
         if (File(patch, MARKER).takeIf { it.isFile }?.readText()?.trim() != sha) return false
-        val tables = File(patch, SERVER_COPY).listFiles { f -> f.isFile && f.name.endsWith(".dbc", ignoreCase = true) } ?: return false
+        // (a patch put in before the packages carried changes has no server copy: its DBFilesClient holds the package's whole
+        // tables, the server's own)
+        val dir = File(patch, SERVER_COPY).takeIf { it.isDirectory } ?: File(patch, "DBFilesClient")
+        val tables = dir.listFiles { f -> f.isFile && f.name.endsWith(".dbc", ignoreCase = true) } ?: return false
         if (tables.none { it.name.equals("CharSections.dbc", ignoreCase = true) }) return false
         val dbcNew = File(server, "share/dbc.new").apply { deleteRecursively(); mkdirs() }
         try {
@@ -53,6 +56,12 @@ object WrathppLooks {
      * game's own looks).
      */
     fun ensure(client: File, server: File, say: (String, Float?) -> Unit) {
+        // The game's patch is in and the server's tables aren't (a server package put in since): the server's are put back from
+        // the patch first, whatever is published, so that a failed download or a package this app can't take keeps the game and
+        // its server on the same looks.
+        File(client, "Data/$PATCH/$MARKER").takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }?.let { sha ->
+            if (installedSha(client, server) == null) runCatching { restoreServer(client, server, sha) }
+        }
         val published = runCatching { WrathppAddon.parseManifest(WrathppAddon.fetchText("$BASE/wrathpp-looks.json")) }.getOrElse { e ->
             if (installedSha(client, server) != null) return
             throw IOException("Wrath++'s looks couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")
