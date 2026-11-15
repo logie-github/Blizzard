@@ -57,30 +57,13 @@ Without `BLIZZ_XRIG=1` the tests are skipped: CI and an ordinary test run pass o
 | `theSessionEndsWhenTheGameDoes` | The game's window closed: Wine exits within seconds (the app returns to the launcher). |
 | `theAppsKeyboardTypesWhatItsCapsShow` | The app's keyboard: letters, Shift, digits, Enter, Escape, F10 as the program reads them. |
 
-`ForeverHandOverRigTest` (same switches) puts the app's real game screen for World of Warcraft: Forever (`WowGestureView`)
-on the rig: the Forever Launcher's phase, in which nothing is typed and a tap is a plain click, and the hand-over to the
-game's own window, told by its program (the probe copied as `Wow.exe`). Then the login: the password typed only once the game's own cursor is up, which the server learns of only after a
-pointer move (Wine's way), so the app moves the pointer a pixel while it waits. It holds the phone's black screen of 12 November
-2026: Wine's desktop, as big as the screen and focused at every start, was taken for the game.
-
-## By hand
-
-`BLIZZ_XRIG_HOLD=<seconds>` (and `BLIZZ_XRIG_SIZE=WxH`) with `--tests 'com.logie.blizz.rig.XServerRigTest.hold'` keeps the
-server up as display `:77`. A Wine program started with `DISPLAY=:77` (in `explorer /desktop=shell,WxH`, as the phone
-starts games) draws on it. Commands written to `/tmp/xrig-77-cmd`, one a line, are answered in `/tmp/xrig-77-out.txt`:
-`move X Y`, `click X Y`, `dclick X Y`, `down`/`up`, `key NAME`, `type text`, `shot file.png`, `windows`, `state`,
-`pshot file.png` (below), `sleep MS`, `exec command`. The window tree is written to `/tmp/xrig-77-windows.txt` as it changes. Diablo II 1.13 was
-played this way through the keeper and winhandler.exe: its menu, a character named with the app's keys, a game entered,
-and the session ending when the game was quit from its own menu.
-
 ## Through the phone's Box64
 
 The phone runs the same Wine through Box64 (arm64). That runs here too, slowly, with `qemu-user`: a program that fails only on
-the phone can be tried through the phone's own Box64 build before anything is changed for it (World of Warcraft: Forever's
-launcher, 12 November 2026: it ran, so Box64 was not what failed).
+the phone can be tried through the phone's own Box64 build before anything is changed for it.
 
 1. `apt-get install qemu-user-static`; `mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc` and register
-   `qemu-aarch64-static` for arm64 programs with the flag `F` (README, "The Forever client and realm on the rig").
+   `qemu-aarch64-static` for arm64 programs with the flag `F`.
 2. Box64: unpack `app/winlator/assets/box64/box64-0.4.4.tzst` and put its `usr/local/bin/box64` into the runtime
    (`winrootfs/usr/local/bin`); its loader path is Winlator's, so link `/data/data/com.winlator/files/rootfs` at the runtime.
    `box64/default.box64rc` goes to `winrootfs/etc/config.box64rc`.

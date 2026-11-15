@@ -156,8 +156,6 @@ dependencies {
 	implementation 'org.jsoup:jsoup:1.18.3'
 	compileOnly 'org.jspecify:jspecify:1.0.0'
 	testImplementation 'junit:junit:4.13.2'
-	// zstd's desktop natives, so the unit tests can unpack .tzst/.wcp files (the app's own build has Android's).
-	testImplementation 'com.github.luben:zstd-jni:1.5.2-3'
 	// The World of Warcraft app's controls tests, as they were written there.
 	testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:2.3.21'
 	testImplementation 'org.robolectric:robolectric:4.16'

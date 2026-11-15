@@ -282,7 +282,7 @@ static BOOL CALLBACK strip(HWND hwnd, LPARAM lparam)
 /*
  * The game's programs one by one, as they start and end: "program started: Name.exe (pid N)" and "program ended: Name.exe
  * (pid N, code 0x...)", the code the program ended with (a crash's exception code, or what it returned). A program started
- * from the game's own (World of Warcraft: Forever's launcher starts the game) that ends while the launcher stays up leaves
+ * from the game's own (a launcher that starts the game) that ends while the launcher stays up leaves
  * the session running: the app reads these lines to know the game went, and why (the phone, 13 November 2026).
  */
 #define TRACKED 32

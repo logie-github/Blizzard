@@ -68,7 +68,7 @@ import com.logie.blizz.music.MusicPlayer
 /**
  * The launcher's settings, opened by holding the Blizzard logo. Two pages: **Launcher** (layout, touch, music, tests)
  * and **Games**, where every version of every game has its own settings ([GameSettingsDialog]): Warcraft III's
- * Reign of Chaos and The Frozen Throne apart, World of Warcraft's Wrath+, Legion, OctoWoW and Forever apart.
+ * Reign of Chaos and The Frozen Throne apart, World of Warcraft's Wrath+, Legion and OctoWoW apart.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -415,68 +415,6 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         FrameButton("Choose song", primary = false) { pickMusic.launch(arrayOf("audio/*")) }
                         if (ownMusic) FrameButton("Original", primary = false) { MusicCustom.clear(context, game.id) }
-                    }
-                }
-                // Forever's offline realm makes this account at every start (forever@forever.local / forever unless changed here).
-                if (game.id == com.logie.blizz.forever.ForeverPlay.VERSION) {
-                    remember(game.id) { com.logie.blizz.forever.ForeverPlay.login(context) }
-                    AutoLoginCard(game.id, "E-mail")
-                    // Start over: the realm alone, or the realm and the downloaded client. Each asks first.
-                    var confirmReset by remember { mutableStateOf<Boolean?>(null) }
-                    var confirmRepair by remember { mutableStateOf(false) }
-                    SettingCard("Reset and repair") {
-                        Text(
-                            "Repair installation keeps your characters, the realm and the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client, but rebuilds everything " +
-                                "the app set up around them on the next Play (the .NET runtime, the launcher's settings, an old browser runtime, and the " +
-                                "launcher file itself — you pick it again). Use it if a Play seems to use old files.\n\n" +
-                                "Reset realm deletes the realm server, its database (your characters) and its map data; the next Play downloads " +
-                                "the server again (263 MB). Delete everything wipes it all — server, characters, the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB client and the app's container setup — and starts from zero.",
-                            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
-                        )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FrameButton("Repair installation", primary = false) { confirmRepair = true }
-                            FrameButton("Reset realm", primary = false) { confirmReset = false }
-                            FrameButton("Delete everything (start over)", primary = false) { confirmReset = true }
-                        }
-                    }
-                    if (confirmRepair) {
-                        Dialog(onDismissRequest = { confirmRepair = false }) {
-                            Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text("Repair installation?", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Keeps your characters, the realm and the game client. Rebuilds the .NET runtime, the launcher's settings and an " +
-                                        "old browser runtime on the next Play, and removes the launcher file so you pick it again. The client's files are re-checked.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    FrameButton("Cancel", primary = false) { confirmRepair = false }
-                                    FrameButton("Repair") {
-                                        com.logie.blizz.forever.ForeverPlay.repair(context)
-                                        confirmRepair = false
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    confirmReset?.let { everything ->
-                        Dialog(onDismissRequest = { confirmReset = null }) {
-                            Column(Modifier.panel().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                Text(if (everything) "Delete everything?" else "Reset the realm?", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    if (everything) "Deletes EVERYTHING and starts from zero: the realm, your characters, the ${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB game client, and everything the app set up in its Windows container (the .NET runtime, the launcher's settings, an old browser runtime). This can't be undone."
-                                    else "Deletes the realm server, its database with your characters, and its map data. The game client stays. This can't be undone.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    FrameButton("Cancel", primary = false) { confirmReset = null }
-                                    FrameButton(if (everything) "Delete everything" else "Reset") {
-                                        if (everything) com.logie.blizz.forever.ForeverPlay.nuke(context)
-                                        else com.logie.blizz.forever.ForeverPlay.reset(context, client = false)
-                                        confirmReset = null
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
                 if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {

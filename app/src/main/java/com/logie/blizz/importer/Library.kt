@@ -38,7 +38,7 @@ data class LibraryEntry(
         const val RUNTIME_EXTERNAL = "external-app"
         /** Diablo II: Resurrected: the game's own program on the phone, through D2R Mobile's native host ([com.logie.blizz.d2r.D2r]). */
         const val RUNTIME_D2R = "d2r-native"
-        /** Imported and kept, but its runtime isn't in the app yet (WoW's Legion, OctoWoW and Forever): Play says so. */
+        /** Imported and kept, but its runtime isn't in the app yet (WoW's Legion and OctoWoW): Play says so. */
         const val RUNTIME_PENDING = "not-ported"
 
         fun fromJson(o: JSONObject) = LibraryEntry(

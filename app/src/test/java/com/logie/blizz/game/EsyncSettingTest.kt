@@ -6,7 +6,7 @@ import org.junit.Test
 class EsyncSettingTest {
     private val winlator = "ZINK_DESCRIPTORS=lazy ZINK_DEBUG=compact MESA_SHADER_CACHE_DISABLE=false MESA_SHADER_CACHE_MAX_SIZE=512MB mesa_glthread=true WINEESYNC=1 TU_DEBUG=noconform"
 
-    @Test fun `off for Forever, the rest kept`() {
+    @Test fun `off, the rest kept`() {
         assertEquals(winlator.replace("WINEESYNC=1", "WINEESYNC=0"), EsyncSetting.apply(winlator, on = false))
     }
 

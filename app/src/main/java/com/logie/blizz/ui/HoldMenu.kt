@@ -107,36 +107,7 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             if (importable) HoldItem(Icons.Default.Build, "Install & repair") { onDismiss(); openWizard(effective) }
             else HoldItem(Icons.Default.Apps, "App") { onDismiss(); chooseApp(game) }
             val context = LocalContext.current
-            if (effective.id == "wow_forever") {
-                // World of Warcraft: Forever — repair, reset the realm only, or wipe everything and start from zero.
-                var confirmRepair by remember { mutableStateOf(false) }
-                var confirmRealm by remember { mutableStateOf(false) }
-                var confirmNuke by remember { mutableStateOf(false) }
-                HoldItem(Icons.Default.Build, "Repair installation") { confirmRepair = true }
-                HoldItem(Icons.Default.RestartAlt, "Reset realm") { confirmRealm = true }
-                HoldItem(Icons.Default.DeleteForever, "Delete everything (start over)") { confirmNuke = true }
-                if (confirmRepair) ConfirmDialog(
-                    title = "Repair installation?",
-                    text = "Keeps your characters, the realm and the game client, but rebuilds the .NET runtime and the launcher's settings on the next Play and removes the launcher file so you pick it again. Use it if a Play runs old files.",
-                    confirm = "Repair",
-                    onDismiss = { confirmRepair = false },
-                    onConfirm = { confirmRepair = false; onDismiss(); com.logie.blizz.forever.ForeverPlay.repair(context) },
-                )
-                if (confirmRealm) ConfirmDialog(
-                    title = "Reset the realm?",
-                    text = "The realm (its server, characters and map data) is deleted and downloaded again on the next Play. The game client stays.",
-                    confirm = "Reset",
-                    onDismiss = { confirmRealm = false },
-                    onConfirm = { confirmRealm = false; onDismiss(); com.logie.blizz.forever.ForeverPlay.reset(context, client = false) },
-                )
-                if (confirmNuke) ConfirmDialog(
-                    title = "Delete everything?",
-                    text = "Deletes EVERYTHING for World of Warcraft: Forever and starts from zero: the realm server, your characters, the map data, the game client (${com.logie.blizz.forever.ForeverPlay.CLIENT_SIZE_GB} GB) and everything the app set up in its Windows container (the .NET runtime, the launcher's settings, an old browser runtime a previous version left). The next Play installs it all again. This can't be undone.",
-                    confirm = "Delete everything",
-                    onDismiss = { confirmNuke = false },
-                    onConfirm = { confirmNuke = false; onDismiss(); com.logie.blizz.forever.ForeverPlay.nuke(context) },
-                )
-            } else if (importable) {
+            if (importable) {
                 // Reset, on every other game: it is deleted and installed again from the start (saves stay).
                 var confirm by remember { mutableStateOf(false) }
                 HoldItem(Icons.Default.RestartAlt, "Reset") { confirm = true }

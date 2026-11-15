@@ -18,7 +18,7 @@ import java.util.TimeZone
  * was left); this one is written line by line, straight to the file (no buffer to lose), so the next start can read the end
  * of the last run, and a report can carry as much of the run as it needs.
  *
- * Kinds: `app` (what the app decided), `forever` (Play's steps), `wine` (Wine's and Box64's lines, without the noise),
+ * Kinds: `app` (what the app decided), `wine` (Wine's and Box64's lines, without the noise),
  * `lib` (libraries loaded), `keeper` (the Windows session's keeper), `res` (memory and processes, every few seconds: [Sampler]),
  * `exit` (how the last run ended: [ExitReasons]), `report` (what became of each report), `log` (this log's own words).
  *

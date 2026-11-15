@@ -326,7 +326,7 @@ class WowImporterTest {
 
     @Test fun anExportMadeBeforeModesIsWrathPlusOnly() {
         assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.WRATH_PLUS) is ImportPipeline.Result.Done)
-        assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.FOREVER) is ImportPipeline.Result.Failed)
+        assertTrue(runMode(zipWithMode(null), WowImporter.WowMode.LEGION) is ImportPipeline.Result.Failed)
     }
 
     @Test fun aFolderNodeDeletesWithWhatIsInIt() {

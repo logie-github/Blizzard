@@ -28,7 +28,6 @@ class WowImporter(private val mode: WowImporter.WowMode = WowImporter.WowMode.WR
         WRATH_PLUS("wrath-plus", "wow", "Wrath+", true),
         LEGION("legion", "wow_legion", "Legion", true),
         OCTOWOW("octowow", "wow_octowow", "OctoWoW", true),
-        FOREVER("forever", "wow_forever", "Forever", false),
     }
 
     /** The zip is this mode's: a zip of another mode is refused by name; one with no mode (everything in one, from before) is Wrath+'s. */
