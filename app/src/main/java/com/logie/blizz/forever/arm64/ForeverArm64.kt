@@ -341,7 +341,9 @@ object ForeverArm64 {
             "WINE_NEW_NDIS" to "1",
             "ANDROID_RESOLV_DNS" to "8.8.4.4",
             "HODLL" to "wowbox64.dll",
-            "LD_PRELOAD" to listOf("$root/usr/lib/libandroid-sysvshm.so", "${layout.libs.path}/libgamenative_dns_v4mapped.so", "$root/usr/lib/libredirect-bionic-wx.so").joinToString(":"),
+            // The names in the image's hosts file (the realm's): Android's resolver never reads it (tools/hostsfix).
+            "BLIZZ_HOSTS" to "$root/etc/hosts",
+            "LD_PRELOAD" to listOf("${layout.libs.path}/$HOSTS_ASSET", "$root/usr/lib/libandroid-sysvshm.so", "${layout.libs.path}/libgamenative_dns_v4mapped.so", "$root/usr/lib/libredirect-bionic-wx.so").joinToString(":"),
             // Graphics: the Vulkan wrapper over this phone's Turnip, DXVK (D3D11) on it.
             "VK_ICD_FILENAMES" to "$root/usr/share/vulkan/icd.d/wrapper_icd.aarch64.json",
             "ADRENOTOOLS_DRIVER_PATH" to turnip.path + "/",
@@ -404,6 +406,8 @@ object ForeverArm64 {
     /** The ARM64 builds of the keeper and the sign-in (scripts/build-tools.sh), as the app's assets name them. */
     const val KEEPER_ASSET = "borderless-arm64.exe"
     const val SIGN_IN_ASSET = "forevergo-arm64.exe"
+    /** The hosts library for the container's programs (tools/hostsfix, built by scripts/build-tools.sh with the NDK). */
+    const val HOSTS_ASSET = "libblizzhosts.so"
 
     /**
      * Everything for one start of the game: the prefix ([Prefix.ensure]) with the ARM64 keeper and sign-in in `C:\windows`,
@@ -421,6 +425,11 @@ object ForeverArm64 {
             extras["forevergo.login"] = com.logie.blizz.forever.ForeverGo.loginFile(login.first, login.second, worldPort).toByteArray()
         }
         Prefix.ensure(layout, client, extras)
+        File(layout.libs, HOSTS_ASSET).let { lib ->
+            layout.libs.mkdirs()
+            assets.open(HOSTS_ASSET).use { input -> lib.outputStream().use { input.copyTo(it) } }
+            lib.setExecutable(true, false); lib.setReadable(true, false)
+        }
         for (name in listOf("borderless.log", "borderless.dialog", "forevergo.log")) File(layout.windows, name).delete()
         if (login == null) File(layout.windows, "forevergo.login").delete()
         File(layout.imagefs, "etc").mkdirs()
