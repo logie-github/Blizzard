@@ -36,12 +36,12 @@ class PartsTest(unittest.TestCase):
     def test_a_grey_layer_is_laid_over_not_multiplied(self):
         layer = np.full((512, 512, 4), 128, np.uint8)      # mid grey: nothing, with one dark and one light stroke
         layer[:, :, 3] = 255
-        layer[100:110, :, :3] = 20
-        layer[300:310, :, :3] = 240
+        layer[100:140, :, :3] = 20
+        layer[300:340, :, :3] = 240
         out = sl_parts.overlay_picture(layer, {"box": (0.5, 0.0, 1.0, 1.0), "rotate": False})
         self.assertLess(int(out[:, :, 3].min()), 4)                                  # the grey: nothing
-        dark = out[(100 * 128) // 512 + 1]
-        light = out[(300 * 128) // 512 + 1]
+        dark = out[(120 * 128) // 512]
+        light = out[(320 * 128) // 512]
         self.assertTrue((dark[:, 3] > 150).all() and (dark[:, :3] <= 5).all())      # darkens
         self.assertTrue((light[:, 3] > 150).all() and (light[:, :3] >= 250).all())  # lightens
 
