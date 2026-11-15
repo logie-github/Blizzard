@@ -47,6 +47,9 @@ class ForeverArm64Test {
         assertEquals("/data/data/com.logie.blizz/winrootfs/tmp/.sysvshm/SM0", env["ANDROID_SYSVSHM_SERVER"])
         assertEquals("com.logie.blizz", env["HOST_PKG"])
         assertEquals("0", env["WINEESYNC"])
+        // Sound's configuration, as GameNative's launcher gives it (report 212: the game stood still after ALSA found none).
+        assertEquals("/data/user/0/com.logie.blizz/files/imagefs/usr/share/alsa/alsa.conf:/data/user/0/com.logie.blizz/files/imagefs/usr/etc/alsa/conf.d/android_aserver.conf", env["ALSA_CONFIG_PATH"])
+        assertEquals("/data/user/0/com.logie.blizz/files/imagefs/usr/lib/alsa-lib", env["ALSA_PLUGIN_DIR"])
         // DXVK's Direct3D, not Wine's (report 183: "Your 3D accelerator card is not supported").
         assertTrue(env.getValue("WINEDLLOVERRIDES").let { it.endsWith("=n,b") && "d3d11" in it.split('=')[0].split(',') && "dxgi" in it.split('=')[0].split(',') })
         assertEquals("1.3.284", env["WRAPPER_VK_VERSION"])

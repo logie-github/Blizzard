@@ -200,6 +200,11 @@ class ForeverCtlTest {
         // Still being written (changed within the last three seconds): not yet.
         assertNull(ForeverCtl.settledCrash(errors, since = 2_000_000, now = 5_001_000))
         assertEquals(crash, ForeverCtl.settledCrash(errors, since = 2_000_000, now = 5_003_000))
+        // The watchdog's warning (a thread unresponsive: the game goes on) is not a crash, however new.
+        File(errors, "2026-11-15_01.39.46_Error_300.txt").apply { writeText("ERROR #109"); setLastModified(6_000_000) }
+        assertEquals(crash, ForeverCtl.settledCrash(errors, since = 2_000_000, now = 9_000_000))
+        crash.delete()
+        assertNull(ForeverCtl.settledCrash(errors, since = 2_000_000, now = 9_000_000))
     }
 
     @Test

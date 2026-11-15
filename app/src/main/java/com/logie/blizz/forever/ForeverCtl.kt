@@ -118,13 +118,21 @@ object ForeverCtl {
         text.lineSequence().any { it.trim().equals("<ExceptionType> Security Crash", ignoreCase = true) }
 
     /**
+     * Whether a file in the game's `Errors` folder is a warning the game goes on after, by its name (`..._Error_<pid>.txt`: its
+     * watchdog's *ERROR #109, a thread has become unresponsive*, type "Ignore"; a crash is `..._Crash_<pid>.txt`). On the Android
+     * rig the game wrote one a minute into its start and went on to its sign-in some four minutes later; on the phone the app
+     * took it for a crash and ended the session at that minute (reports 212 and 228).
+     */
+    fun isWarning(name: String): Boolean = name.contains("_Error_", ignoreCase = true)
+
+    /**
      * The crash file the game has written since [since] and finished ([settleMs] without a change, at [now]): the newest
      * `.txt` in its `Errors` folder ([errors]), else null. After writing it the game stayed up on the rig, its last frame
      * on the screen and its program hung, so the game screen asks this while the game runs and leaves when there is one.
      */
     fun settledCrash(errors: File, since: Long, now: Long, settleMs: Long = 3000): File? =
         errors.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".txt", ignoreCase = true) && it.lastModified() > since }
+            ?.filter { it.isFile && it.name.endsWith(".txt", ignoreCase = true) && !isWarning(it.name) && it.lastModified() > since }
             ?.maxByOrNull { it.lastModified() }
             ?.takeIf { now - it.lastModified() >= settleMs }
 

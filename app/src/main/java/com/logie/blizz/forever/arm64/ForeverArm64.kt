@@ -336,6 +336,22 @@ object ForeverArm64 {
             "SSL_CERT_FILE" to "$root/usr/etc/tls/cert.pem",
             "SSL_CERT_DIR" to "$root/usr/etc/tls/certs",
             "WINE_ADDITIONAL_CERTS_DIR" to "$root/usr/etc/tls/cert.pem",
+            // Sound: ALSA's configuration and its plugin for the session's sound server (ANDROID_ALSA_SERVER, from the session).
+            // GameNative's launcher sets these; without them Wine's ALSA said "Cannot access file .../alsa.conf" and "Unknown
+            // PCM default", and the game's main thread then stood still for a minute at its sixth frame (report 212).
+            "ALSA_CONFIG_PATH" to "$root/usr/share/alsa/alsa.conf:$root/usr/etc/alsa/conf.d/android_aserver.conf",
+            "ALSA_PLUGIN_DIR" to "$root/usr/lib/alsa-lib",
+            "PULSE_LATENCY_MSEC" to "144",
+            // The rest of GameNative's launcher's and its WoW container's environment.
+            "GST_PLUGIN_PATH" to "$root/usr/lib/gstreamer-1.0",
+            "GST_PLUGIN_FEATURE_RANK" to "ximagesink:3000",
+            "WINE_GST_NO_GL" to "1",
+            "WINE_X11FORCEGLX" to "1",
+            "ENABLE_UTIL_LAYER" to "1",
+            "SteamGameId" to "0",
+            "ZINK_DESCRIPTORS" to "lazy",
+            "ZINK_DEBUG" to "compact,deck_emu",
+            "mesa_glthread" to "true",
             "WINE_NO_DUPLICATE_EXPLORER" to "1",
             "WINE_DISABLE_FULLSCREEN_HACK" to "1",
             "WINE_NEW_NDIS" to "1",
@@ -427,6 +443,10 @@ object ForeverArm64 {
             extras["forevergo.login"] = com.logie.blizz.forever.ForeverGo.loginFile(login.first, login.second, worldPort).toByteArray()
         }
         Prefix.ensure(layout, client, extras)
+        // Wine's sound goes through ALSA to the session's sound server (GameNative's changeWineAudioDriver for "alsa").
+        runCatching {
+            com.winlator.core.WineRegistryEditor(File(layout.prefix, "user.reg")).use { it.setStringValue("Software\\Wine\\Drivers", "Audio", "alsa") }
+        }
         File(layout.libs, HOSTS_ASSET).let { lib ->
             layout.libs.mkdirs()
             assets.open(HOSTS_ASSET).use { input -> lib.outputStream().use { input.copyTo(it) } }
