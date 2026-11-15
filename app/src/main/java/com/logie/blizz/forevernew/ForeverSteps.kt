@@ -43,6 +43,13 @@ class ForeverSteps(
         return ForeverClient.inspect(File(path), supportedBuilds()) as? ForeverClient.Result.Ok
     }
 
+    /** The client, from Blizzard's servers (or carried on where it stopped), into the app's own folder. */
+    override fun downloadClient(say: (String, Float?) -> Unit): String? = try {
+        ForeverClientDownload.download(layout.client, ForeverClientDownload.ALL, supportedBuilds(), say)
+        ForeverClientImport.remember(layout)
+        null
+    } catch (e: IOException) { e.message ?: "The game couldn't be downloaded" }
+
     // ---- 3: maps, vmaps, mmaps -------------------------------------------------------------------------------------------
     override fun extractData(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String? {
         prepareRuntime()

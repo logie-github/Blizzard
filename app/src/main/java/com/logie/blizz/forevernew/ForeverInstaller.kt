@@ -16,6 +16,8 @@ class ForeverInstaller(private val layout: ForeverLayout, private val steps: Ste
         fun package_(say: (String, Float?) -> Unit): String?
         /** A complete, supported client, or null when one still has to be imported (the page then shows Import & Install). */
         fun client(): ForeverClient.Result.Ok?
+        /** Fetches the client from Blizzard's own servers; null on success, else why not (offline, no space, a build this server doesn't support). */
+        fun downloadClient(say: (String, Float?) -> Unit): String?
         fun extractData(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String?
         fun database(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String?
         fun addon(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String?
@@ -39,10 +41,17 @@ class ForeverInstaller(private val layout: ForeverLayout, private val steps: Ste
             enter(ForeverState.DOWNLOADING, "Preparing Forever's server")
             steps.package_ { t, p -> say(ForeverState.DOWNLOADING, t, p) }?.let { return fail(ForeverState.DOWNLOADING, "server package", it) }
 
-            val client = steps.client()
+            var client = steps.client()
+            var downloadFailure: String? = null
             if (client == null) {
-                enter(ForeverState.AWAITING_CLIENT, "Select your complete World of Warcraft folder once (Import & Install)")
-                return Result(Outcome.AWAITING_CLIENT, "The WoW Forever client is needed: it can't be downloaded by the app.")
+                enter(ForeverState.DOWNLOADING, "Downloading the game from Blizzard's servers")
+                downloadFailure = steps.downloadClient { t, p -> say(ForeverState.DOWNLOADING, t, p) }
+                if (downloadFailure == null) client = steps.client()
+            }
+            if (client == null) {
+                val why = downloadFailure ?: "The downloaded game wasn't recognised as WoW Forever."
+                enter(ForeverState.AWAITING_CLIENT, "$why You can also pick a World of Warcraft folder you already have.")
+                return Result(Outcome.AWAITING_CLIENT, why)
             }
 
             if (!layout.hasMaps() || ForeverMaps.remaining(layout).isNotEmpty()) {

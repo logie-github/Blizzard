@@ -162,6 +162,7 @@ class ForeverClientConfigTest {
         private fun step(n: String): String? { calls += n; return if (failAt == n) "boom in $n" else null }
         override fun package_(say: (String, Float?) -> Unit) = step("package")
         override fun client() = client.also { calls += "client" }
+        override fun downloadClient(say: (String, Float?) -> Unit): String? { calls += "download"; return if (client == null) "offline" else null }
         override fun extractData(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String? {
             File(layout.data, "maps").mkdirs(); File(layout.data, "maps/a").writeText("x")
             File(layout.data, "vmaps").mkdirs(); File(layout.data, "vmaps/a").writeText("x")
@@ -199,7 +200,7 @@ class ForeverClientConfigTest {
     @Test fun installerStopsAtAMissingClientAndAtEachFailure() {
         val layout = ForeverLayout(File(tmp.root, "i2")); val f = Fake(layout, null)
         assertEquals(ForeverInstaller.Outcome.AWAITING_CLIENT, installer(layout, f).run { _, _, _ -> }.outcome)
-        assertEquals(listOf("package", "client"), f.calls)
+        assertEquals(listOf("package", "client", "download"), f.calls)
         for (stage in listOf("package", "extract", "database", "addon", "auth", "world", "account")) {
             val l = ForeverLayout(File(tmp.root, "f-$stage")); val fk = Fake(l, ok, failAt = stage)
             val r = installer(l, fk).run { _, _, _ -> }
