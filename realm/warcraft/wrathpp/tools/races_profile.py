@@ -15,17 +15,20 @@ if WPP_OUT:
 CLIENT_NOTE = "Wrath++'s allied races' changes"
 SQL_NOTE = "Wrath++'s allied races (the ten, and the High Elf), made by realm/warcraft/wrathpp/tools/races_profile.py"
 
-# Ids: the ten allied races take 22 to 31 (3.3.5's own end at 21), the High Elf the Fel Orcs' 12 (the creatures' race moves to 32).
+# Ids: the ten allied races take 22 to 31 (3.3.5's own end at 21). The Worgen and Goblins (mod-worgen-goblin) keep 12 and 9, so the High Elf
+# takes 21, the Ice Trolls' (a creatures' race: folded into the Forest Trolls' 18); the Northrend Skeletons' 20 (folded into the Skeletons' 15)
+# is the Goblin creatures' new race, and the Fel Orc creatures' race moves from 12 to 32.
 VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(22, 32)
-HIGHELF = 12
+HIGHELF = 21
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF)
 ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, KULTIRAN, DARKIRON, MECHAGNOME, HIGHELF)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
-MOVED = {12: 32}
+FOLDED = {20: 15, 21: 18}
+MOVED = {12: 32, 9: 20}
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
 CLIENT_FILE_STRING = {22: "VoidElf", 23: "Nightborne", 24: "LightforgedDraenei", 25: "ZandalariTroll", 26: "HighmountainTauren",
-                      27: "KulTiran", 28: "DarkIronDwarf", 29: "Vulpera", 30: "MagharOrc", 31: "Mechagnome", 12: "HighElf"}
+                      27: "KulTiran", 28: "DarkIronDwarf", 29: "Vulpera", 30: "MagharOrc", 31: "Mechagnome", 21: "HighElf"}
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari", HIGHMOUNTAIN: "highmountain",
        KULTIRAN: "kultiran", DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}

@@ -16,7 +16,7 @@ Goblins 9, 12, and the creatures' races they moved to 22 to 31) are off there, b
 not need them off, so the ids are ones no module uses.
 
 3.3.5's race mask holds ids up to 32 (`1 << (id - 1)`), the game's `ChrRaces` has rows up to 21 (creatures' races), so the
-new races take **22 to 31** (ten); the High Elf takes **9** (the Goblins' unused row: its creature rows move as the other modules move theirs).
+new races take **22 to 31** (ten). The Worgen and Goblins (Cataclysm's starting areas, `CATA_RACES.md`) keep the ids their module has, 12 and 9, so the High Elf takes **21**: the Ice Trolls' row, a creatures' race, folded into the Forest Trolls' 18 (the Northrend Skeletons' 20 folds into the Skeletons' 15 and is the Goblin creatures' new race; the Fel Orc creatures' race moves from 12 to 32). `FOLDED` and `MOVED` in `tools/races_profile.py`.
 
 | Race | Side | Start (the start race's quests, gear, standing, camera) | Model |
 |---|---|---|---|

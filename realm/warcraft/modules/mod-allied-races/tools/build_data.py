@@ -36,6 +36,7 @@ HUMAN, ORC, DWARF, NIGHTELF, UNDEAD, TAUREN, GNOME, TROLL, BLOODELF, DRAENEI = 1
 VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI = 15, 16, 17, 18
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI)
 ALLIANCE_RACES, HORDE_RACES = (VOIDELF, LIGHTFORGED), (NIGHTBORNE, ZANDALARI)
+FOLDED = {}   # a profile's: creature-only races given up for a playable one's id (old: the race its creatures take)
 MOVED = {15: 24, 16: 25, 17: 26, 18: 27}       # Skeleton, Vrykul, Tuskarr, Forest Troll: the creatures' races, moved
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}
@@ -210,6 +211,9 @@ class Client:
     def remapfield(self, name, field, old, new):
         self.line(name, f"remapfield\t{field}\t{old}\t{new}")
 
+    def drop(self, name, field, value):
+        self.line(name, f"drop\t{field}\t{value}")
+
     def write(self, folder):
         os.makedirs(folder, exist_ok=True)
         for old in os.listdir(folder):
@@ -322,6 +326,13 @@ def main():
     client, sql = Client(), Sql()
     # The creatures' races moved out of the new races' places in the client's own rows (an HD look's
     # too, whatever their ids): their race, their looks, hair shapes, features and voice rows.
+    # A creature-only race given up folds into another: its race row and its looks go, its creatures take the other's.
+    for old, new in FOLDED.items():
+        client.drop("ChrRaces", 0, old)
+        for table, field in (("CharSections", 1), ("CharHairGeosets", 1), ("CharacterFacialHairStyles", 0)):
+            client.drop(table, field, old)
+        for table, field in (("CreatureDisplayInfoExtra", 1), ("VocalUISounds", 2)):
+            client.remapfield(table, field, old, new)
     for old, new in MOVED.items():
         client.copyrow("ChrRaces", old, new)
         for table, field in (("CharSections", 1), ("CharHairGeosets", 1), ("CreatureDisplayInfoExtra", 1),
