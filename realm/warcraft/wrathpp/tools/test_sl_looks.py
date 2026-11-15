@@ -169,6 +169,14 @@ class ChangesTest(unittest.TestCase):
     def test_a_race_without_replace_rows_has_no_changes(self):
         self.assertEqual(sl_looks.looks_changes({"races": {"29": LOOKS["races"]["29"]}}, self.dir.name), {})
 
+    def test_load_looks_takes_both_shapes(self):
+        a = os.path.join(self.dir.name, "a.json"); b = os.path.join(self.dir.name, "b.json")
+        import json
+        json.dump({"build": "x", "races": {"4": {"race": 4}}}, open(a, "w"))
+        json.dump({"voidelf": {"race": 29, "models": {}}}, open(b, "w"))
+        self.assertEqual(list(sl_looks.load_looks(a)["races"]), ["4"])
+        self.assertEqual(list(sl_looks.load_looks(b)["races"]), ["voidelf"])
+
     def test_merge(self):
         a, b, out = (os.path.join(self.dir.name, n) for n in ("a", "b", "out"))
         os.makedirs(a); os.makedirs(b)

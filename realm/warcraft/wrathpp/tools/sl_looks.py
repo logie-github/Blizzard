@@ -392,6 +392,13 @@ def race_icons(read, client, log=print):
     return written
 
 
+def load_looks(path):
+    """A looks file: sl_looks.py races' ({"races": ...}) or the allied races' data (sl_looks.py data: the races by key)."""
+    with open(path) as f:
+        looks = json.load(f)
+    return looks if "races" in looks and isinstance(looks["races"], dict) and "build" in looks else {"races": looks}
+
+
 def package(looks_path, cache, dbc_dir, out_dir, log=print):
     """The models, textures, voices and narrations of [looks_path]'s races into OUT/client (the game's paths), and the ten
     races' rows as change files into OUT/changes. A race with "alias_of" (the High Elf) has the other's files."""
@@ -399,8 +406,7 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     import m2
     import package as allied_package
     import textures
-    with open(looks_path) as f:
-        looks = json.load(f)
+    looks = load_looks(looks_path)
     read = allied_package.cached(cache, allied_package.wago)
     client = os.path.join(out_dir, "client")
     written = []
@@ -578,8 +584,7 @@ def main(argv):
     if len(argv) >= 5 and argv[1] == "assemble":
         return assemble(argv[2], argv[3], argv[4:])
     if len(argv) == 4 and argv[1] == "verify":
-        with open(argv[2]) as f:
-            missing = verify(json.load(f), argv[3])
+        missing = verify(load_looks(argv[2]), argv[3])
         print("%d missing" % len(missing), *missing[:20], sep="\n")
         return 1 if missing else 0
     if len(argv) == 6 and argv[1] == "package":
