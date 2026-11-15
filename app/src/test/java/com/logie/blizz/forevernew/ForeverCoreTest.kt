@@ -8,11 +8,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.io.StringReader
 import java.io.StringWriter
 
 /** The pure parts of the new Forever integration. Nothing here has run on a phone. */
+// (Robolectric: the unit tests' org.json is Android's stub otherwise)
+@RunWith(RobolectricTestRunner::class)
 class ForeverCoreTest {
     @get:Rule val tmp = TemporaryFolder()
 

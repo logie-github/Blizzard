@@ -8,8 +8,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.File
 
+// (Robolectric: the unit tests' org.json is Android's stub otherwise)
+@RunWith(RobolectricTestRunner::class)
 class ForeverClientConfigTest {
     @get:Rule val tmp = TemporaryFolder()
     private val builds = ForeverClient.parseBuilds("# comment\n70938\n70888\n\n70862\n")
