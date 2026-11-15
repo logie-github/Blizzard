@@ -20,9 +20,9 @@ class DiagnosticsTest {
     }
 
     @Test fun aProgramIsNamedByWhatItsCommandLineSays() {
-        assertEquals("Wow.exe", Diagnostics.processName("F:\\client\\_forever_\\Wow.exe\u0000-config\u0000ForeverLauncher.wtf\u0000", "box64"))
-        assertEquals("Wow.exe", Diagnostics.processName("F:\\client\\_forever_\\Wow.exe -config x", "box64"))
-        assertEquals("worldserver", Diagnostics.processName("/data/data/com.logie.blizz/files/forever/server/bin/worldserver\u0000-c\u0000x", "worldserver"))
+        assertEquals("Wow.exe", Diagnostics.processName("D:\\wow\\files\\client\\Wow.exe\u0000-config\u0000Config.wtf\u0000", "box64"))
+        assertEquals("Wow.exe", Diagnostics.processName("D:\\wow\\files\\client\\Wow.exe -config x", "box64"))
+        assertEquals("worldserver", Diagnostics.processName("/data/data/com.logie.blizz/files/games/wow/files/server/bin/worldserver\u0000-c\u0000x", "worldserver"))
         assertEquals("box64", Diagnostics.processName("", "box64\n"))
         assertEquals(40, Diagnostics.processName("a".repeat(100), "x").length)
     }
@@ -42,7 +42,7 @@ class DiagnosticsTest {
             File(d, "status").writeText(status); File(d, "cmdline").writeText(cmdline); File(d, "comm").writeText(comm)
         }
         make(100, "VmRSS:\t 420000 kB\nThreads:\t60\n", "com.logie.blizz\u0000", "blizz")
-        make(200, "VmRSS:\t3178496 kB\nThreads:\t42\n", "F:\\client\\_forever_\\Wow.exe\u0000-config\u0000x", "box64")
+        make(200, "VmRSS:\t3178496 kB\nThreads:\t42\n", "D:\\wow\\files\\client\\Wow.exe\u0000-config\u0000x", "box64")
         make(300, "Name:\tkthread\n", "", "kthread")
         File(proc, "self").mkdirs()
         File(proc, "meminfo").writeText("x")

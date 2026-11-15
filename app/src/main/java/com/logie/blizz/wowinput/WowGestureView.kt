@@ -112,20 +112,6 @@ class WowGestureView(
     /** The text prompt on screen, if one is. */
     private var prompt: ComponentDialog? = null
     private var loginShown = false
-    /**
-     * World of Warcraft: Forever only ([com.logie.blizz.game.GestureView.EXTRA_LAUNCHER]): the Forever Launcher (a
-     * Windows GUI) is on screen before the game. While it is up a tap is a plain left click at that point (its buttons),
-     * not the 3D game's cursor-reading tap, and no password is typed into it. It flips to the normal WoW gestures and
-     * login as soon as the game's own full-screen window appears ([watchForGameWindow]).
-     */
-    private var inLauncher = activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_LAUNCHER, false)
-    private var launcherNoted = false
-    /**
-     * World of Warcraft: Forever only ([com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR]): the game's `Errors` folder.
-     * A crash file written there since this screen opened ends the session: on the desktop rig the game, having written
-     * one, stayed up with its last frame on the screen and took no input, so the phone would show a frozen picture.
-     */
-    private val crashDir = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_CRASH_DIR)?.let { java.io.File(it) }
 
     /**
      * Wrath++ run by WarcraftXL only ([com.logie.blizz.game.GestureView.EXTRA_READY_LOG]): its log, which says when the login
@@ -133,54 +119,6 @@ class WowGestureView(
      */
     private val readyLog = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_READY_LOG)?.let { java.io.File(it) }
     private val readySince = System.currentTimeMillis() - READY_SLACK_MS
-    private val openedAt = System.currentTimeMillis()
-    private var crashSeen = false
-    /** Forever with its launcher: the session began in the launcher's phase, and goes back to it when the game's program ends. */
-    private val launcherSession = inLauncher
-    /** The session keeper's lines already read for programs that ended ([gameEnded]). */
-    private var keeperLinesRead = 0
-
-    /**
-     * The game's own program (Wow.exe) ended while the session goes on: the Forever Launcher started it and stays up (the
-     * phone, 13 November 2026: "IN GAME", then the launcher back on its PLAY NOW, the game never seen). Read from the
-     * session keeper's lines (`program ended: Wow.exe (pid N, code 0x...)`, [com.logie.blizz.forever.ForeverLauncher.gameEnded]).
-     * Said in the reports with the exit code and Wine's lines of the moment, and the touch controls go back to the
-     * launcher's (taps are clicks on its buttons, nothing typed), so PLAY NOW can be pressed again.
-     */
-    private fun gameEnded() {
-        val file = com.logie.blizz.game.GameLog.keeperLog ?: return
-        val lines = runCatching { file.readLines(Charsets.ISO_8859_1) }.getOrNull() ?: return
-        if (lines.size < keeperLinesRead) keeperLinesRead = 0
-        val fresh = lines.drop(keeperLinesRead)
-        keeperLinesRead = lines.size
-        val ended = fresh.mapNotNull { com.logie.blizz.forever.ForeverLauncher.gameEnded(it) }.lastOrNull() ?: return
-        com.logie.blizz.game.GameLog.note("forever: the game's program ended by itself: ${ended.program}, code ${ended.code}")
-        com.logie.blizz.forever.ForeverPlay.reportGameEnded(activity, ended.program, ended.code)
-        if (!launcherSession || inLauncher) return
-        inLauncher = true
-        loginShown = false
-        removeCallbacks(screenCheck)
-        prompt?.dismiss()
-        xServer.renderer.isCursorVisible = true
-        android.widget.Toast.makeText(activity, "The game closed by itself (${ended.code}). A report was sent. PLAY NOW starts it again.", android.widget.Toast.LENGTH_LONG).show()
-        watchForGameWindow()
-    }
-
-    private val crashWatch = object : Runnable {
-        override fun run() {
-            val dir = crashDir ?: return
-            if (crashSeen) return
-            runCatching { gameEnded() }
-            val crash = runCatching { com.logie.blizz.forever.ForeverCtl.settledCrash(dir, openedAt, System.currentTimeMillis()) }.getOrNull()
-            if (crash != null) {
-                crashSeen = true
-                com.logie.blizz.game.GameLog.note("forever: the game wrote a crash file (${crash.name}); leaving the game")
-                onLeave.run()
-                return
-            }
-            postDelayed(this, CRASH_WATCH_MS)
-        }
-    }
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
     /** The account in the game's login box (Config.wtf), if the launcher knows which. */
     private val account: String? get() = activity.intent.getStringExtra(EXTRA_LOGIN_NAME)
@@ -231,15 +169,10 @@ class WowGestureView(
                     removeCallbacks(screenCheck)
                     postDelayed(screenCheck, SCREEN_CHECK_MS)
                 }
-                if (crashDir != null && !crashSeen) {
-                    removeCallbacks(crashWatch)
-                    postDelayed(crashWatch, CRASH_WATCH_MS)
-                }
             }
 
             override fun onStop(owner: LifecycleOwner) {
                 removeCallbacks(screenCheck)
-                removeCallbacks(crashWatch)
             }
         })
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
@@ -306,18 +239,6 @@ class WowGestureView(
 
     /** The game's first window is up (the loading screen closed): the login screen wants the password. */
     fun onGameWindowShown() {
-        // Forever: the first window is the Forever Launcher, not the game. Show the cursor (it is a mouse GUI, and
-        // taps are plain clicks while [inLauncher]), do not type a password into it, and wait for the game's own
-        // window; this runs again — cleared of [inLauncher] — when that appears, and the real login begins then.
-        if (inLauncher) {
-            if (!launcherNoted) {
-                launcherNoted = true
-                com.logie.blizz.game.GameLog.note("forever: the launcher is up; taps are clicks, nothing is typed, until the game's own window")
-            }
-            xServer.renderer.isCursorVisible = true
-            watchForGameWindow()
-            return
-        }
         // The pointer is there for the game (where taps click, what the cursor offers) but never
         // drawn: on a touch screen the finger is the pointer. The game screen shows it with its
         // first window; this comes right after.
@@ -325,20 +246,11 @@ class WowGestureView(
         if (loginShown) return
         loginShown = true
         postDelayed(screenCheck, SCREEN_CHECK_MS)
-        // Forever signed in by itself: the game opens on the character list, whose cursor is the login screen's, so a
-        // password asked for here would cover the game (the phone's report 174, 14 November 2026: "will ask").
-        if (activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_SIGNED_IN, false)) {
-            com.logie.blizz.game.GameLog.note("login: signed in by the game's start (Forever); nothing asked or typed")
-            for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
-            return
-        }
         val saved = activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD)?.let { pw -> account?.let { com.logie.blizz.wow.WowLogin.Login(it, pw) } }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         // A Legion client shows its window well before its login screen (it loads its data behind
-        // it): its own cursor (gxCursor), not the window's first, says the login screen is up. World of Warcraft:
-        // Forever's client (a modern one, [crashDir] is set for it only) does the same: on the desktop rig its login
-        // screen took 35 s natively, longer than the classic wait (15 s), after which the password went nowhere.
-        val legion = legionClient || crashDir != null
+        // it): its own cursor (gxCursor), not the window's first, says the login screen is up.
+        val legion = legionClient
         val wait = if (legion) LEGION_LOGIN_WAIT_MS else LOGIN_WAIT_MS
         val shownAt = SystemClock.uptimeMillis()
         // What the login did, for the report a game sends (never the password).
@@ -393,49 +305,7 @@ class WowGestureView(
      * when the cursor offered more (talk, attack, loot, gather) and still does after the click, a
      * right click, which does it, as on a PC.
      */
-    /** Forever launcher only: a plain left click at the tapped point (its buttons), no cursor-reading or interaction. */
-    private fun plainClick(x: Float, y: Float) {
-        pointerTo(x, y)
-        val moves = pointerMoves
-        postDelayed({ if (moves == pointerMoves) click(Button.LEFT) }, CURSOR_SETTLE_MS)
-    }
-
-    private val gameWatch = Runnable { watchForGameWindow() }
-
-    /**
-     * Forever launcher only: waits for the game's own window (the launcher's PLAY NOW opens it) and hands over to the
-     * normal WoW controls and login. The game's window is told by its program, among all the server's windows
-     * ([com.logie.blizz.forever.ForeverLauncher.isGameWindow]): never by the focused window's size, which Wine's desktop
-     * has too. Polled every [GAME_WATCH_MS] while [inLauncher].
-     */
-    private fun watchForGameWindow() {
-        if (!inLauncher) return
-        if (gameProgramWindow()) {
-            inLauncher = false
-            com.logie.blizz.game.GameLog.note("forever: game window up; WoW controls on")
-            onGameWindowShown()
-        } else {
-            removeCallbacks(gameWatch)
-            postDelayed(gameWatch, GAME_WATCH_MS)
-        }
-    }
-
-    /** Whether one of the server's shown windows is the game's own. */
-    private fun gameProgramWindow(): Boolean = runCatching {
-        val sw = xServer.screenInfo.width.toInt()
-        val sh = xServer.screenInfo.height.toInt()
-        xServer.lock(XServer.Lockable.WINDOW_MANAGER).use {
-            fun visit(window: Window): Boolean {
-                if (!window.isRenderable) return false
-                if (com.logie.blizz.forever.ForeverLauncher.isGameWindow(window.className, window.width.toInt(), window.height.toInt(), sw, sh)) return true
-                return window.children.any { visit(it) }
-            }
-            visit(xServer.windowManager.rootWindow)
-        }
-    }.getOrDefault(false)
-
     override fun tapAt(x: Float, y: Float) {
-        if (inLauncher) return plainClick(x, y)
         val now = SystemClock.uptimeMillis()
         // The same spot tapped again, not quick enough for a double tap: see below.
         val again = now - lastTapAt in TouchGestures.DOUBLE_TAP_MS..AGAIN_MS &&
@@ -503,7 +373,6 @@ class WowGestureView(
      * its own.
      */
     override fun doubleTapAt(x: Float, y: Float) {
-        if (inLauncher) return plainClick(x, y)
         // On the action bars, quick taps are presses of the buttons, as many as there are; on the
         // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
         // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
@@ -930,9 +799,6 @@ class WowGestureView(
         private const val READY_SLACK_MS = 5_000L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
-        /** Forever: how often, while the launcher is up, to look for the game's own window and hand over to WoW controls. */
-        private const val GAME_WATCH_MS = 400L
-        private const val CRASH_WATCH_MS = 2000L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
         private const val AGAIN_MS = 1500L
         /** How long a tap waits for the realm to say what it selected, and how often it looks. */

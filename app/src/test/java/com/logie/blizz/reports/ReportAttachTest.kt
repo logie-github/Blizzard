@@ -34,27 +34,27 @@ class ReportAttachTest {
         val app = RuntimeEnvironment.getApplication()
         BugReports.dir(app).deleteRecursively()
         SessionLog.start(app)
-        SessionLog.event("forever", "Play pressed (1828x1248)")
-        GameLog.note("forever: the launcher is up; taps are clicks")
+        SessionLog.event("windows", "Play pressed (1828x1248)")
+        GameLog.note("login: the game is up; taps are clicks")
         GameLog.take("00ec:err:ole:start_rpcss Failed to start RpcSs service")
         assertTrue(BugReports.report(
-            app, "WoW Forever", "The game stopped: Exception 0xC0000005", listOf("Program" to "Wow.exe"), log = "the tail",
+            app, "World of Warcraft", "The game stopped: Exception 0xC0000005", listOf("Program" to "Wow.exe"), log = "the tail",
             attach = true, force = true,
         ))
         val report = queuedAfterWaiting(app).single()
-        assertEquals("WoW Forever: The game stopped: Exception 0xC0000005", report.title)
+        assertEquals("World of Warcraft: The game stopped: Exception 0xC0000005", report.title)
         assertTrue(report.body.contains("<summary>The phone just now</summary>"))
         assertTrue(report.body.contains("mem avail"))
         assertTrue(report.body.contains("| Program | Wow.exe |"))
         assertTrue("no comment holds the run's log: ${report.comments.map { it.take(60) }}", report.comments.any {
             it.startsWith("**Log of this run (newest last; UTC)") && it.contains("Play pressed (1828x1248)") &&
-                it.contains("forever: the launcher is up") && it.contains("Failed to start RpcSs service")
+                it.contains("login: the game is up") && it.contains("Failed to start RpcSs service")
         })
         // The run's log itself: its head says what ran where.
         val head = SessionLog.tail(1_000_000)
         assertTrue(head, head.contains("run started: Blizzard"))
         assertTrue(head.contains("device:"))
-        assertTrue(head.contains(" app    forever: the launcher is up; taps are clicks"))
+        assertTrue(head.contains(" app    login: the game is up; taps are clicks"))
         assertTrue(head.contains(" wine   00ec:err:ole:start_rpcss"))
     }
 

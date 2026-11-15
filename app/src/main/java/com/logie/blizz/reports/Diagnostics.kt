@@ -41,7 +41,7 @@ object Diagnostics {
 
     /**
      * A process's name for a log: the program in its command line (Wine rewrites it to the Windows program's path:
-     * `F:\client\_forever_\Wow.exe -config x` is `Wow.exe`), else the kernel's short name.
+     * `D:\wow\files\client\Wow.exe -config x` is `Wow.exe`), else the kernel's short name.
      */
     fun processName(cmdline: String, comm: String): String {
         val first = cmdline.substringBefore('\u0000').trim().substringBefore(' ')

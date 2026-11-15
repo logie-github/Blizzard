@@ -221,16 +221,6 @@ class GestureView(
     /** A minute into a game: its log, once a day (the same title isn't sent twice in a day), for black screens that nothing reports. */
     private val minuteReport = Runnable { sendReport("log after 60 s") }
 
-    /**
-     * World of Warcraft: Forever, two and five minutes into a start: its log by itself, every time (the time is in the title, so
-     * none is held back as a repeat), while the silent sign-in is not yet seen working on a phone. It carries the sign-in
-     * program's log, the game's connection log and its graphics log, so nobody has to reach the menu at the right moment.
-     */
-    private val foreverReport = Runnable {
-        val now = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date())
-        sendReport("sign-in log, build ${com.logie.blizz.BuildConfig.VERSION_CODE}, $now")
-    }
-
     private fun sendReport(what: String, message: String = "Sent by the app") {
         com.logie.blizz.reports.BugReports.report(
             activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} $what",
@@ -269,7 +259,6 @@ class GestureView(
         }
         removeCallbacks(noWindowReport)
         postDelayed(minuteReport, 60_000)
-        if (GameLog.foreverGxLog != null) { postDelayed(foreverReport, 120_000); postDelayed(foreverReport, 300_000) }
         // Recorded apart from the import's file checks: the program started under Winlator.
         gameId?.takeIf { it != "installer" }?.let { id ->
             val app = activity.applicationContext
@@ -518,7 +507,6 @@ class GestureView(
         }
         removeCallbacks(noWindowReport)
         removeCallbacks(minuteReport)
-        removeCallbacks(foreverReport)
         removeCallbacks(typeNext)
         removeCallbacks(ticker)
         removeCallbacks(watching)
@@ -535,21 +523,6 @@ class GestureView(
         const val EXTRA_SPLASH = "com.logie.blizz.SPLASH"
         /** Its control profile ([LaunchProfile.id]). */
         const val EXTRA_PROFILE = "com.logie.blizz.PROFILE"
-        /**
-         * World of Warcraft: Forever only: the program started is the Forever Launcher (a Windows GUI), not the game.
-         * While it is up the touch controls are plain tap-to-click (its buttons are clicked, not read as the 3D game's
-         * cursor, and no password is typed into it); the WoW gestures and login begin when the game's own window appears.
-         */
-        const val EXTRA_LAUNCHER = "com.logie.blizz.LAUNCHER"
-
-        /**
-         * World of Warcraft: Forever only: the game's `Errors` folder. A crash file written there while the game is up
-         * ends the session ([com.logie.blizz.forever.ForeverCtl.settledCrash]): the game stays on its last frame otherwise.
-         */
-        const val EXTRA_CRASH_DIR = "com.logie.blizz.CRASH_DIR"
-        /** World of Warcraft: Forever signed in by itself ([com.logie.blizz.forever.ForeverGo]): no login screen, nothing asked or typed. */
-        const val EXTRA_SIGNED_IN = "com.logie.blizz.SIGNED_IN"
-
         /**
          * Wrath++ with WarcraftXL's runtime only: its log (`Logs/WarcraftXL.log`), which says when the login screen is up
          * ([com.logie.blizz.wrathpp.WrathppLogs.ready]); auto-login types the password then instead of after a fixed time.
