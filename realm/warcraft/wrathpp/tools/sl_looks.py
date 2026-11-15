@@ -43,6 +43,15 @@ TABLES_MORE = ("TextureFileData", "CreatureModelData", "CreatureDisplayInfo", "V
 RACES = {1: ("Human", {0: 1, 1: 2}), 2: ("Orc", {0: 3, 1: 4}), 3: ("Dwarf", {0: 5, 1: 6}), 4: ("NightElf", {0: 7, 1: 8}),
          5: ("Scourge", {0: 9, 1: 10}), 6: ("Tauren", {0: 11, 1: 12}), 7: ("Gnome", {0: 13, 1: 14}),
          8: ("Troll", {0: 15, 1: 16}), 10: ("BloodElf", {0: 19, 1: 20}), 11: ("Draenei", {0: 21, 1: 22})}
+# The allied races and the Pandaren (Shadowlands' own race ids), which 3.3.5 hasn't: made the same way, for the races
+# module that gives them a race id of 3.3.5's (docs/wrathpp/ALLIED_RACES.md). race id: (folder name, ChrModel ids by sex)
+ALLIED = {27: ("Nightborne", {0: 53, 1: 54}), 28: ("Highmountain", {0: 55, 1: 56}), 29: ("VoidElf", {0: 57, 1: 58}),
+          30: ("Lightforged", {0: 59, 1: 60}), 31: ("Zandalari", {0: 61, 1: 62}), 32: ("KulTiran", {0: 63, 1: 64}),
+          34: ("DarkIron", {0: 67, 1: 68}), 35: ("Vulpera", {0: 69, 1: 70}), 36: ("Maghar", {0: 71, 1: 72}),
+          37: ("Mechagnome", {0: 73, 1: 74})}
+# The four the allied races module already makes (its own policy: parent skeletons, the eye colours that fit, the
+# Lightforged runes): their key there.
+LEGACY = {27: "nightborne", 29: "voidelf", 30: "lightforged", 31: "zandalari"}
 # The feature slider, a race and sex: today's options (every combination, the first changing slowest; at most 255) and
 # today's geoset groups moved onto 3.3.5's facial groups (1, 3, 2, 16).
 FEATURES = {
@@ -67,11 +76,20 @@ FEATURES = {
     (11, 0): (["Facial Hair", "Tendrils", "Circlet"], {37: 3}),                         # 11 x 8 x 2
     (11, 1): (["Horns", "Tendrils", "Tail"], {24: 3, 38: 16}),                          # 12 x 2 x 6
 }
+FEATURES.update({
+    (28, 0): (["Horn Style", "Beard"], {24: 3}), (28, 1): (["Horn Style", "Earrings"], {24: 3, 35: 1}),
+    (32, 0): (["Mustache", "Beard"], {}), (32, 1): (["Earrings", "Necklace"], {35: 3, 36: 2}),
+    (34, 0): (["Facial Hair", "Piercings"], {35: 3, 16: 16}), (34, 1): (["Piercings"], {35: 3, 16: 16}),
+    (35, 0): (["Ears", "Snout"], {41: 3}), (35, 1): (["Ears", "Snout"], {41: 3}),
+    (36, 0): (["Beard", "Sideburns"], {}), (36, 1): (["Earrings", "Nose Ring"], {35: 3}),
+    (37, 0): (["Facial Hair"], {}), (37, 1): ([], {}),
+})
 # Options of a feature whose choices a player picks only (ChrCustomizationReq), where every choice wouldn't fit.
 AVAILABLE_ONLY = {(6, 0): {"Horn Style"}}
 # Today's names for an option the allied races' reading asks for by another (the Tauren's mane is their hair style,
 # their horns' colour their hair colour: the hair texture).
-ALIASES = {6: {"Hair Style": "Foremane", "Hair Color": "Horn Color"}}
+ALIASES = {6: {"Hair Style": "Foremane", "Hair Color": "Horn Color"}, 28: {"Hair Style": "Foremane", "Hair Color": "Horn Color"},
+           35: {"Skin Color": "Fur Color"}}
 SEXES = ("Male", "Female")
 # Models that don't convert yet: the game's own (Alternative HD) look stays for them, rows and all. The Blood Elf man's
 # arms and legs come out shredded (his skeleton file's 252 bones; the other nineteen models are right): open.
@@ -93,10 +111,11 @@ class Tables(allied.Tables):
         return super().option_choices(model_id, name, only_available)
 
 
-def build_races(csv_dir):
+def build_races(csv_dir, races=None):
+    """What each race and sex is made of. [races]: RACES (the ten of 3.3.5's, the default) or ALLIED."""
     tables = Tables(csv_dir)
     out = {"build": BUILD, "races": {}}
-    for race_id, (name, models) in RACES.items():
+    for race_id, (name, models) in (races or RACES).items():
         entry = {"race": race_id, "name": name, "models": {}}
         for sex, chr_model in models.items():
             if (race_id, sex) in SKIP:
@@ -104,12 +123,16 @@ def build_races(csv_dir):
             for asked, today in ALIASES.get(race_id, {}).items():
                 tables.aliases[(str(chr_model), asked)] = today
             tables.only_available[str(chr_model)] = AVAILABLE_ONLY.get((race_id, sex), set())
-            key = "wpp%d_%d" % (race_id, sex)
-            allied.FEATURES[(key, sex)] = FEATURES[(race_id, sex)]
             file_id = allied.model_file(tables, chr_model)
             if not file_id:
                 raise SystemExit("no model file for ChrModel %d (CreatureDisplayInfo.csv is needed)" % chr_model)
-            race = {"race": race_id, "name": name, "parent_models": {sex: 0}, "eye_colours": 0}
+            if race_id in LEGACY:
+                key = LEGACY[race_id]
+                race = dict(allied.RACES[key], name=name)
+            else:
+                key = "wpp%d_%d" % (race_id, sex)
+                allied.FEATURES[(key, sex)] = FEATURES[(race_id, sex)]
+                race = {"race": race_id, "name": name, "parent_models": {sex: 0}, "eye_colours": 0}
             model = allied.build_model(tables, key, race, sex, chr_model, file_id)
             if len(model["features"]) > 255:
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
@@ -290,8 +313,8 @@ def main(argv):
     if len(argv) == 3 and argv[1] == "fetch":
         fetch(argv[2])
         return 0
-    if len(argv) == 4 and argv[1] == "races":
-        looks = build_races(argv[2])
+    if len(argv) == 4 and argv[1] in ("races", "allied"):
+        looks = build_races(argv[2], ALLIED if argv[1] == "allied" else None)
         with open(argv[3], "w") as f:
             json.dump(looks, f, indent=1, sort_keys=True)
         for entry in looks["races"].values():
