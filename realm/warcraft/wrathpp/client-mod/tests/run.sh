@@ -56,3 +56,19 @@ PY
 # The creator (app/src/main/assets/wrathpp/WrathppCreate.lua) is tested on the rig (client-mod/rig/run.sh: the game's own
 # creation screen, its creation logic and its tables), with the looks, by wrathpp-looks.yml. It had a stand-in screen
 # of its own here, which passed three builds that failed on the phone, and is gone.
+
+# The runtime refuses a whole mod whose mod.json breaks the SDK's schema (0.5.0's description was 630 characters, the
+# limit 512: the native mod was not loaded and the creator said "add-on not running"): its description limit, checked here.
+python3 -I - "$WPP" << 'PY'
+import json, os, sys
+bad = 0
+for mod in ("wrathpp", "wrathpp-native"):
+    path = os.path.join(sys.argv[1], "client-mod", mod, "mod.json")
+    d = json.load(open(path))
+    for key, limit in (("description", 512),):
+        n = len(d.get(key, ""))
+        ok = n <= limit
+        print(("ok   " if ok else "FAIL ") + "%s mod.json: %s is %d characters (at most %d)" % (mod, key, n, limit))
+        bad += 0 if ok else 1
+sys.exit(1 if bad else 0)
+PY
