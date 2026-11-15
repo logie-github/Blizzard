@@ -214,7 +214,7 @@ function WPP.loadParts()
             elseif kind == "G" then      -- a model piece: its model, the texture types it takes, the category of the picker of its type 13 texture
                 local types = {}
                 for t in (f[7] or ""):gmatch("%d+") do types[tonumber(t)] = true end
-                slot(key, { category = tonumber(f[5]), model = f[6], types = types, picker = tonumber(f[8]) or 0 })
+                slot(key, { category = tonumber(f[5]), model = f[6], types = types, picker = tonumber(f[8]) or 0, attach = tonumber(f[9]) or 0 })
             elseif kind == "H" then parts.hair[key] = f[4]
             elseif kind == "K" then parts.skins[key] = parts.skins[key] or {}; parts.skins[key][tonumber(f[4])] = f[5]
             elseif kind == "Z" then picture(parts.pickers, key, tonumber(f[4]), tonumber(f[5]), "*", f[6])
@@ -244,13 +244,13 @@ function WPP.partsOf(look)
                 local colours = options and options[look.entries[slot.picker] or 1]
                 p13 = colours and colours["*"] or ""
             end
-            out[#out + 1] = { shell = slot.model, choice = look.entries[slot.category] or 1, p11 = p11, p12 = p12, p13 = p13 }
+            out[#out + 1] = { shell = slot.model, choice = look.entries[slot.category] or 1, p11 = p11, p12 = p12, p13 = p13, attach = slot.attach }
         else
             local options = (slot.body and parts.bodyPictures or parts.pictures)[who]
             options = options and options[slot.category]
             local colours = options and options[look.entries[slot.category] or 1]
             local picture = colours and (colours["*"] or colours[colour] or (slot.style and colours["s" .. (look.entries[slot.style] or 1)]))
-            if picture then out[#out + 1] = { shell = slot.shell, choice = 0, p11 = picture, p12 = "", p13 = "" } end
+            if picture then out[#out + 1] = { shell = slot.shell, choice = 0, p11 = picture, p12 = "", p13 = "", attach = 0 } end
         end
     end
     return out
@@ -265,7 +265,7 @@ function WPP.applyParts(guid)
     local args = { string.format("%q", guid) }
     for i = 1, WPP.MAX_PARTS do
         local part = list[i]
-        args[#args + 1] = string.format("%q", part and (part.shell .. "|" .. part.choice .. "|" .. part.p11 .. "|" .. part.p12 .. "|" .. part.p13) or "")
+        args[#args + 1] = string.format("%q", part and (part.shell .. "|" .. part.choice .. "|" .. part.p11 .. "|" .. part.p12 .. "|" .. part.p13 .. "|" .. part.attach) or "")
     end
     local ok = pcall(wxl.script.Run, "if WrathPP_ApplyLook then WrathPP_ApplyLook(" .. table.concat(args, ",") .. ") end", "wrathpp-parts")
     return ok

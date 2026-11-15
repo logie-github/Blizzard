@@ -332,6 +332,8 @@ namespace
         std::string wantShell, wantPicture;     // what the Lua asked for ("" for none); the picture is texture type 11
         std::string wantPicture12, wantPicture13;   // the hair's (type 12) and a customization's (type 13) pictures of a part that has them
         int wantChoice = 0;                     // 0 the whole model, else which choice's geosets show (ids choice * 100 to choice * 100 + 99)
+        uint32_t wantAttach = 0;                // 0 posed by the character's bones, else hung on that attachment point (the helm's, 11: horns, blindfolds)
+        uint32_t attach = 0;
         std::string shell, picture, picture12, picture13;   // what is on
         int choice = -1;
         uintptr_t parent = 0;
@@ -349,7 +351,7 @@ namespace
             return;
         }
         if (!parent || !ModelLoaded(parent)) return;
-        if (!part.model || part.parent != parent || part.shell != part.wantShell || !part.model.Parent())
+        if (!part.model || part.parent != parent || part.shell != part.wantShell || part.attach != part.wantAttach || !part.model.Parent())
         {
             part.model.Reset();
             part.model = wxl::M2Model(reinterpret_cast<void*>(parent), part.wantShell);
@@ -357,7 +359,10 @@ namespace
             part.shell = part.wantShell;
             part.picture.clear(); part.picture12.clear(); part.picture13.clear(); part.choice = -1;
             if (!part.model) { wxl::Log(WXL_LOG_WARN, kTag, "{} {}: wxl.m2 made no model of {}", what, index, part.wantShell); return; }
-            const wxl_result hung = part.model.Attach(reinterpret_cast<void*>(parent), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
+            part.attach = part.wantAttach;
+            const wxl_result hung = part.attach
+                ? part.model.Attach(reinterpret_cast<void*>(parent), part.attach, 0)
+                : part.model.Attach(reinterpret_cast<void*>(parent), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
             wxl::Log(WXL_LOG_INFO, kTag, "{} {}: {} hung on the character ({})", what, index, part.shell, wxl::ResultName(hung));
         }
         if (!part.model) return;
@@ -449,7 +454,7 @@ namespace
 
     /// What a character of the world is to wear: part [slot] (0 to 2) the head shell and its picture, "" for none.
     void WorldLookSet(uint64_t guid, int slot, const std::string& shell, const std::string& picture, int choice,
-                      const std::string& picture12, const std::string& picture13)
+                      const std::string& picture12, const std::string& picture13, uint32_t attach)
     {
         WorldLook& look = g_world[guid];
         OverlayPart& part = look.parts[slot];
@@ -458,6 +463,7 @@ namespace
         part.wantChoice = choice;
         part.wantPicture12 = picture12;
         part.wantPicture13 = picture13;
+        part.wantAttach = attach;
     }
 
     void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
@@ -498,10 +504,10 @@ namespace
     void AttachLayer() {}
     std::string g_previewDesign;
     void PreviewNow() {}
-    struct OverlayPart { std::string wantShell, wantPicture, wantPicture12, wantPicture13; int wantChoice = 0; };
+    struct OverlayPart { std::string wantShell, wantPicture, wantPicture12, wantPicture13; int wantChoice = 0; uint32_t wantAttach = 0; };
     OverlayPart g_overlays[kPartSlots];
     void SyncOverlays(uintptr_t) {}
-    void WorldLookSet(uint64_t, int, const std::string&, const std::string&, int, const std::string&, const std::string&) {}
+    void WorldLookSet(uint64_t, int, const std::string&, const std::string&, int, const std::string&, const std::string&, uint32_t) {}
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -640,6 +646,8 @@ namespace
         part.wantChoice = choice ? static_cast<int>(*choice) : 0;
         part.wantPicture12 = p12 ? std::string(p12->substr(0, 260)) : std::string();
         part.wantPicture13 = p13 ? std::string(p13->substr(0, 260)) : std::string();
+        const auto attach = call.Number(6);
+        part.wantAttach = attach && *attach > 0 ? static_cast<uint32_t>(*attach) : 0;
 #if defined(_M_IX86)
         const uintptr_t component = CreationComponent();
         if (component) SyncOverlays(component);
@@ -654,7 +662,7 @@ namespace
         const auto guidText = call.String(0);
         if (!guidText || guidText->empty())
         {
-            call.Fail("WrathPP_ApplyLook(guid, slot1, ... slot8): a slot is shell|choice|picture11|picture12|picture13; guid is \"0x\" and hex digits");
+            call.Fail("WrathPP_ApplyLook(guid, slot1, ... slot8): a slot is shell|choice|picture11|picture12|picture13|attach; guid is \"0x\" and hex digits");
             return;
         }
         const std::string text(*guidText);
@@ -666,14 +674,14 @@ namespace
         }
         for (int i = 0; i < kPartSlots; ++i)
         {
-            // a slot: "shell|choice|picture11|picture12|picture13" ("" for none; paths have no bar)
+            // a slot: "shell|choice|picture11|picture12|picture13|attach" ("" for none; paths have no bar)
             const auto spec = call.String(1 + i);
-            std::string fields[5];
+            std::string fields[6];
             if (spec)
             {
                 size_t from = 0;
                 const std::string whole(*spec);
-                for (int k = 0; k < 5; ++k)
+                for (int k = 0; k < 6; ++k)
                 {
                     const size_t bar = whole.find('|', from);
                     fields[k] = whole.substr(from, bar == std::string::npos ? std::string::npos : bar - from);
@@ -681,7 +689,7 @@ namespace
                     from = bar + 1;
                 }
             }
-            WorldLookSet(guid, i, fields[0].substr(0, 260), fields[2].substr(0, 260), std::atoi(fields[1].c_str()), fields[3].substr(0, 260), fields[4].substr(0, 260));
+            WorldLookSet(guid, i, fields[0].substr(0, 260), fields[2].substr(0, 260), std::atoi(fields[1].c_str()), fields[3].substr(0, 260), fields[4].substr(0, 260), static_cast<uint32_t>(std::atoi(fields[5].c_str())));
         }
         call.PushBool(true);
     }

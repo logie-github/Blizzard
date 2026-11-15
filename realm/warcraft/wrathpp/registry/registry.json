@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 7,
+  "version": 8,
   "comment": "Wrath++ customization registry. Engineering seed for the first vertical slice (docs/wrathpp/MILESTONES.md, phase 3): two geoset categories of Legion 7.3.5's demon hunter looks. Every geoset group and option count here is UNVERIFIED until tools/legion_inventory.py has read the user's own 7.3.5 tables and tools/probe_geosets.py the Wrath++ client's models (docs/wrathpp/LEGION_OPTIONS_735.md). Stable ids: never reuse a category or option id for another look.",
   "classes": {
     "warrior": 1,
@@ -2172,6 +2172,139 @@
       ]
     },
     {
+      "id": 1276,
+      "key": "PART_4_0_HORNS",
+      "name": "Horns",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "id": 1277,
+      "key": "PART_4_0_BLINDFOLD",
+      "name": "Blindfold",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        },
+        {
+          "id": 8,
+          "name": "8",
+          "value": 7
+        },
+        {
+          "id": 9,
+          "name": "9",
+          "value": 8
+        },
+        {
+          "id": 10,
+          "name": "10",
+          "value": 9
+        },
+        {
+          "id": 11,
+          "name": "11",
+          "value": 10
+        },
+        {
+          "id": 12,
+          "name": "12",
+          "value": 11
+        }
+      ]
+    },
+    {
       "id": 1245,
       "key": "PART_4_0_EYEBROWS",
       "name": "Eyebrows",
@@ -2760,6 +2893,85 @@
       ]
     },
     {
+      "id": 1278,
+      "key": "PART_4_1_BLINDFOLD",
+      "name": "Blindfold",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        },
+        {
+          "id": 8,
+          "name": "8",
+          "value": 7
+        },
+        {
+          "id": 9,
+          "name": "9",
+          "value": 8
+        },
+        {
+          "id": 10,
+          "name": "10",
+          "value": 9
+        },
+        {
+          "id": 11,
+          "name": "11",
+          "value": 10
+        },
+        {
+          "id": 12,
+          "name": "12",
+          "value": 11
+        }
+      ]
+    },
+    {
       "id": 1252,
       "key": "PART_4_1_HEADDRESS",
       "name": "Headdress",
@@ -2790,6 +3002,60 @@
           "id": 3,
           "name": "3",
           "value": 2
+        }
+      ]
+    },
+    {
+      "id": 1279,
+      "key": "PART_4_1_HORNS",
+      "name": "Horns",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
         }
       ]
     },
@@ -4177,6 +4443,139 @@
           "id": 7,
           "name": "7",
           "value": 6
+        }
+      ]
+    },
+    {
+      "id": 1280,
+      "key": "PART_10_1_HORNS",
+      "name": "Horns",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "id": 1281,
+      "key": "PART_10_1_BLINDFOLD",
+      "name": "Blindfold",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        },
+        {
+          "id": 8,
+          "name": "8",
+          "value": 7
+        },
+        {
+          "id": 9,
+          "name": "9",
+          "value": 8
+        },
+        {
+          "id": 10,
+          "name": "10",
+          "value": 9
+        },
+        {
+          "id": 11,
+          "name": "11",
+          "value": 10
+        },
+        {
+          "id": 12,
+          "name": "12",
+          "value": 11
         }
       ]
     },

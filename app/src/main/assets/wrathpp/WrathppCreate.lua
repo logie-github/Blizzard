@@ -534,7 +534,7 @@ function W.Look()
 						end
 					end
 				end
-				pcall(WrathPP_SetOverlay, slot, option.geoset, p11, math.min(W.ovCurrent(option), #option.choices), p12, p13)
+				pcall(WrathPP_SetOverlay, slot, option.geoset, p11, math.min(W.ovCurrent(option), #option.choices), p12, p13, option.attach or 0)
 			end
 		end
 	end

@@ -38,7 +38,7 @@ local state, _, version, renderer = mock.functions.WrathPP_Status()
 check(state == "ready" and version == F.version and renderer == false, "status: ready, the registry's version, renderer false (no seam yet)")
 
 check(mock.functions.WrathPP_GetNumCategories(10, 0, 2) == 3, "a blood elf man paladin: 3 categories (the two of the demon hunter look and the hair colour)")
-check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 17, "a night elf woman warrior: 17 (the two, the three body options, her scars, markings, tattoos, vines, ears, eyebrows and headdress with their colours, the hair and the skin colour)")
+check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 19, "a night elf woman warrior: 19 (the two, the three body options, her scars, markings, tattoos, vines, ears, eyebrows, headdress, horns and blindfold with their colours, the hair and the skin colour)")
 check(mock.functions.WrathPP_GetNumCategories(1, 0, 1) == 2, "a human man: his eyebrows and the hair colour")
 check(mock.functions.WrathPP_GetNumCategories(1, 1, 1) == 6, "a human woman: the three body options, her eyebrows and makeup and the hair colour")
 local id, name, n, default = mock.functions.WrathPP_GetCategoryInfo(1, 10, 0, 2)
@@ -105,15 +105,17 @@ mock.files["Wrathpp\\parts.txt"] = mock.files["Wrathpp\\parts.txt"] .. table.con
 	"K\t4\t1\t1\tCharacter\\NightElf\\Female\\NightElfFemaleSkin00_00.blp",
 	"K\t4\t1\t2\tCharacter\\NightElf\\Female\\NightElfFemaleSkin00_01.blp",
 	"Z\t4\t1\t1330\t2\tCharacter\\NightElf\\Female\\NightElfFemalePk9.blp",
-	"G\t4\t1\t1\t1320\tCharacter\\NightElf\\Female\\NightElfFemalePVines.m2\t13\t1330",
+	"G\t4\t1\t1\t1320\tCharacter\\NightElf\\Female\\NightElfFemalePVines.m2\t13\t1330\t0",
+	"G\t4\t1\t4\t1323\tCharacter\\NightElf\\Female\\NightElfFemalePHorns.m2\t\t0\t11",
 	"G\t4\t1\t2\t1321\tCharacter\\NightElf\\Female\\NightElfFemalePEars.m2\t11\t0",
 	"G\t4\t1\t3\t1322\tCharacter\\NightElf\\Female\\NightElfFemalePEyebrows.m2\t12\t0" }, "\n") .. "\n"
 WPP.parts = nil
-WPP.looks["0x00000000000000B6"] = { race = 4, sex = 1, class = 1, version = 3, entries = { [1190] = 4, [1191] = 2, [1320] = 2, [1321] = 5, [1322] = 3, [1330] = 2 } }
+WPP.looks["0x00000000000000B6"] = { race = 4, sex = 1, class = 1, version = 3, entries = { [1190] = 4, [1191] = 2, [1320] = 2, [1321] = 5, [1322] = 3, [1323] = 6, [1330] = 2 } }
 WPP.applyParts("0x00000000000000B6")
 chunk = mock.ran[#mock.ran].chunk
 check(chunk:find("NightElfFemalePVines.m2|2||%S*|Character\\\\NightElf\\\\Female\\\\NightElfFemalePk9.blp") or (chunk:find("PVines.m2|2||", 1, true) and chunk:find("Pk9.blp", 1, true)), "  a night elf woman's vines: choice 2 and the picked colour's texture")
 check(chunk:find("PEars.m2|5|Character", 1, true) and chunk:find("Skin00_01.blp", 1, true), "  her ears: choice 5 on the second skin's texture")
+check(chunk:find("PHorns.m2|6||||11", 1, true), "  her horns: choice 6 on the helm point (11)")
 check(chunk:find("PEyebrows.m2|3||Character", 1, true) and chunk:find("Hair00_03.blp", 1, true), "  her eyebrows: choice 3 in the third hair colour's texture")
 WPP.looks["0x00000000000000B3"] = { race = 10, sex = 0, class = 1, version = 3, entries = {} }
 local before = #mock.ran

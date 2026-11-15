@@ -156,6 +156,38 @@ def used_types(m2b, skin_bytes):
     return used
 
 
+HELM = 11
+
+
+def helm_point(read, model):
+    """Where the character's head attachment point (the helm's, 11) is in its bind pose: [x, y, z] in the model's own coordinates."""
+    import m2
+    data = read(model["model"])
+    chunks = m2.chunks_of(data)
+    child = m2.Skeleton(read(struct.unpack_from("<I", chunks["SKID"])[0])) if "SKID" in chunks else m2.OwnSkeleton(data)
+    for head, _track in child.attachments:
+        if struct.unpack_from("<I", head, 0)[0] == HELM:
+            return struct.unpack_from("<3f", head, 8)
+    raise ValueError("%s has no attachment point %d" % (model["name"], HELM))
+
+
+def move_to_origin(m2b, point):
+    """The model with every vertex moved by minus [point], and its bounds with them."""
+    m = bytearray(m2b)
+    n, o = array(m, VERTICES)
+    lo = np.full(3, np.inf)
+    hi = np.full(3, -np.inf)
+    for i in range(n):
+        at = o + i * 48
+        p = np.array(struct.unpack_from("<3f", m, at), np.float64) - np.array(point, np.float64)
+        struct.pack_into("<3f", m, at, *p)
+        lo, hi = np.minimum(lo, p), np.maximum(hi, p)
+    if n:
+        struct.pack_into("<6f", m, 160, *lo, *hi)
+        struct.pack_into("<f", m, 184, float(np.linalg.norm(np.maximum(abs(lo), abs(hi)))))
+    return bytes(m)
+
+
 def part_model_name(model, part):
     import re
     return model["name"] + "P" + re.sub(r"[^A-Za-z0-9]", "", part["name"])
@@ -175,10 +207,18 @@ def geoset_part(read, model, part, out_dir, log=print):
         return [], set()
     name = part_model_name(model, part)
     spec = dict(model, name=name, geosets=None, stand_only=True, geoset_policy=policy, drop_groups=list(range(0, 100)), keep_types=[8, 10, 20])
+    if part.get("skinned"):
+        spec["model"] = part["skinned"]                 # a collection's model (today's horns, blindfolds), in the character's bind pose
     written = m2.convert(read, spec, out_dir, lambda *a: None)
     path = os.path.join(out_dir, model["folder"].replace("\\", "/"), name + ".m2")
     with open(path, "rb") as f:
         raw = f.read()
+    if part.get("skinned"):
+        # Hung on the head's attachment point (the helm's, 11), not on the bones: the model's own bones aren't the character's. Its
+        # vertices move so that the point is their origin.
+        raw = move_to_origin(raw, helm_point(read, model))
+        with open(path, "wb") as f:
+            f.write(raw)
     with open(path[:-3] + "00.skin", "rb") as f:
         used = used_types(raw, f.read())
     patched, _ = patch_part_textures(raw)
@@ -399,7 +439,7 @@ def write_parts_table(looks, out_dir, ids):
                 # (a picker of the texture type the part takes: types 13 are the customization's: 10 or 20 today)
                 picker = next(iter(pickers.values()), None) if 13 in types else None
                 picker_category = ids.get("%d_%d:%s" % (race, int(sex), picker["name"])) if picker else 0
-                lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0))
+                lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0) + ("\t%d" % HELM if part.get("skinned") else "\t0"))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:

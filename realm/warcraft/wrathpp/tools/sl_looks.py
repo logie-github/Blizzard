@@ -238,6 +238,19 @@ def parts_of(tables, chr_model, model):
         if any(g["geosets"] for g in geo) and len(chs) > 1:
             parts.append({"name": o["Name_lang"], "choices": geo})
             continue
+        # A piece that is a model of its own (horns, blindfolds): a collection's model, a geoset of it for each choice
+        files, skin_geo = set(), []
+        for c in chs:
+            ids = []
+            for e in tables.elements[c["ID"]]:
+                if e["ChrCustomizationSkinnedModelID"] != "0":
+                    sm = tables.skinned[e["ChrCustomizationSkinnedModelID"]]
+                    files.add(int(sm["CollectionsFileDataID"]))
+                    ids.append(int(sm["GeosetType"]) * 100 + int(sm["GeosetID"]))
+            skin_geo.append({"name": c["Name_lang"], "id": c["ID"], "geosets": ids})
+        if len(files) == 1 and any(g["geosets"] for g in skin_geo) and len(chs) > 1:
+            parts.append({"name": o["Name_lang"], "choices": skin_geo, "skinned": next(iter(files))})
+            continue
         types = set()
         picks = []
         for c in chs:

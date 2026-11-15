@@ -1,7 +1,9 @@
 {
  "keys": {
   "10_1:Armbands": 1268,
+  "10_1:Blindfold": 1281,
   "10_1:Ears": 1267,
+  "10_1:Horns": 1280,
   "10_1:Jewelry Color": 1269,
   "10_1:Tattoo": 1237,
   "10_1:Tattoo Color": 1236,
@@ -32,16 +34,20 @@
   "3_0:Tattoo Color": 1212,
   "3_1:Tattoo": 1215,
   "3_1:Tattoo Color": 1214,
+  "4_0:Blindfold": 1277,
   "4_0:Ears": 1246,
   "4_0:Eyebrows": 1245,
+  "4_0:Horns": 1276,
   "4_0:Scars": 1203,
   "4_0:Tattoo": 1216,
   "4_0:Tattoo Color": 1227,
   "4_0:Vine Color": 1248,
   "4_0:Vines": 1247,
+  "4_1:Blindfold": 1278,
   "4_1:Ears": 1251,
   "4_1:Eyebrows": 1250,
   "4_1:Headdress": 1252,
+  "4_1:Horns": 1279,
   "4_1:Markings": 1218,
   "4_1:Markings Color": 1217,
   "4_1:Scars": 1204,
@@ -77,5 +83,5 @@
   "8_1:Face Paint": 1226,
   "8_1:Face Paint Color": 1225
  },
- "next": 1276
+ "next": 1282
 }
