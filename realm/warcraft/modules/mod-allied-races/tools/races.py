@@ -73,7 +73,7 @@ EARS_OPTIONS = ("Ears", "Ear Gauge")
 AVAILABLE = "3"                 # ChrCustomizationReq.ReqType of a choice any player picks
 TARGET_BODY, TARGET_FACE, TARGET_HAIR, TARGET_TENTACLES, TARGET_PELVIS, TARGET_TORSO, TARGET_TATTOO, TARGET_EYES, TARGET_EYE_FACE, TARGET_JEWELRY = \
     "1", "5", "10", "11", "13", "14", "16", "25", "36", "38"
-TARGET_SCALP = "11"             # a layer over the face in the head's place of the skin: the hair's own colour where a style is cut short (the scalp)
+# the scalp: a layer over the face in the head's place of the skin, the hair's own colour where a style is cut short (its target number is the model's)
 BODY_TATTOOS = ("Body Tattoo", "Tattoo")    # a skin overlay with colours of its own (nightborne; lightforged and zandalari)
 # Today's geoset groups the 3.3.5 game picks from its tables, so every variant stays:
 TABLE_GROUPS = {0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 15, 18}
@@ -234,18 +234,23 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
     # The scalp (3.3.5's ScalpLower, a layer of a hair row over the face): a hair style cut short or shaved shows the hair's
     # colour on the skin where the mesh has none. Today's game hangs it on a style (a picture for each colour it is related
     # to, one for any colour) or on a colour (a picture for each style). hair[i]["scalp"]: {colour index or "*": file}.
+    # (the target's number is the model's: 11 for the Dwarf and the Orc, 12 for the Human woman; it is whatever the styles'
+    # materials are on beside the hair's own)
+    scalp_targets = sorted({tables.material_files(e)[0] for c in styles for e in tables.elements[c["ID"]] if e["ChrCustomizationMaterialID"] != "0"} - {TARGET_HAIR})
     style_of_choice = {h["choice"]: h for h in hair}
     for h in hair:
         h["scalp"] = {}
-        for related, files in tables.choice_materials(tables.choice_by_id[h["choice"]], TARGET_SCALP):
-            if files and related in colour_of_choice:
-                h["scalp"][str(colour_of_choice[related])] = files[0]
-            elif files and related == "0":
-                h["scalp"]["*"] = files[0]
+        for target in scalp_targets:
+            for related, files in tables.choice_materials(tables.choice_by_id[h["choice"]], target):
+                if files and related in colour_of_choice:
+                    h["scalp"][str(colour_of_choice[related])] = files[0]
+                elif files and related == "0":
+                    h["scalp"]["*"] = files[0]
     for choice_id, index in colour_of_choice.items():
-        for related, files in tables.choice_materials(tables.choice_by_id[choice_id], TARGET_SCALP):
-            if files and related in style_of_choice:
-                style_of_choice[related]["scalp"][str(index)] = files[0]
+        for target in scalp_targets:
+            for related, files in tables.choice_materials(tables.choice_by_id[choice_id], target):
+                if files and related in style_of_choice:
+                    style_of_choice[related]["scalp"][str(index)] = files[0]
 
     # Skins: body, underwear; nightborne with each body tattoo.
     # A skin without underwear of its own (the Lightforged's) takes the first jewelry colour's
