@@ -134,7 +134,7 @@ return function(opts)
 	WrathppAtlas = nil
 	WrathppShots = opts.shots and "rig" or nil            -- the app asks for pictures of the creator (WrathppShots.lua in its patch)
 	-- (by name, as the app's patch lists them: WrathppAlliedRaces first)
-	local alliedLua = opts.creator and opts.creator:gsub("[^/]*$", "WrathppAlliedRaces.lua") or nil
+	local alliedLua = opts.creator and (opts.creator:match("^(.*/)") or "").."WrathppAlliedRaces.lua" or nil
 	local al = alliedLua and io.open(alliedLua)
 	if ( al ) then al:close() else alliedLua = nil end
 	for _, file in ipairs({ alliedLua or false, atlasFile or false, opts.creator or false, opts.looks or false, opts.undead or false }) do
