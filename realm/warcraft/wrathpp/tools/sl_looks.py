@@ -314,6 +314,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                     out.write(read(fid))
                 written.append(path)
     written += write_tables(looks, dbc_dir, out_dir)
+    import sl_parts
+    ids_path = os.path.join(os.path.dirname(HERE), "registry", "parts_ids.json")
+    ids = json.load(open(ids_path)).get("keys", {}) if os.path.exists(ids_path) else {}
+    sl_parts.write_parts_table(looks, client, ids)
+    written.append("Wrathpp\\parts.txt")
     missing = verify(looks, dbc_dir, out_dir)
     if missing:
         raise ValueError("%d files the tables name are not in the package, e.g. %s" % (len(missing), ", ".join(missing[:5])))

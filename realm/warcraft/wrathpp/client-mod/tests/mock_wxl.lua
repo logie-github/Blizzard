@@ -1,7 +1,7 @@
 -- A stand-in for the WarcraftXL Lua runtime's API, as much of it as the Wrath++ mod uses
 -- (sdk lua/types/wxl.d.lua at the pinned SDK): net's claims, handlers, readers and writers,
 -- script functions and events, Observe. Little-endian, guids as "0x" and 16 hex digits.
-local M = { sent = {}, events = {}, functions = {}, observers = {}, claimed = {}, handlers = {}, heard = false }
+local M = { ran = {}, files = {}, sent = {}, events = {}, functions = {}, observers = {}, claimed = {}, handlers = {}, heard = false }
 
 local function le(value, size)
 	local t = {}
@@ -77,6 +77,10 @@ M.wxl = {
 		RegisterFunction = function(name, fn) M.functions[name] = fn return true end,
 		RegisterEvent = function() return true end,
 		FireEvent = function(name, ...) M.events[#M.events + 1] = { name, ... } return true end,
+		Run = function(chunk, name) M.ran[#M.ran + 1] = { chunk = chunk, name = name } return true end,
+	},
+	storage = {
+		Read = function(path) return M.files[path] end,
 	},
 }
 function M.observe(family, method, fn) M.observers[family .. "." .. method] = fn return 1 end

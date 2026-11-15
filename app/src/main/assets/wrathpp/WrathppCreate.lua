@@ -459,7 +459,19 @@ function W.ovPick()
 	return W.ovPicks
 end
 
+-- The choice of an option drawn by a part (a number from 1): the registry's where the option has a category and the add-on
+-- has the registry (the realm keeps it for the character), else this screen's own.
+function W.ovCurrent(option)
+	if ( option.reg and type(WrathPP_GetChoice) == "function" ) then
+		local ok, id = pcall(WrathPP_GetChoice, option.reg)
+		if ( ok and type(id) == "number" ) then return id end
+	end
+	return W.ovPick()[option.name] or 1
+end
+
 function W.Look()
+	-- the hair colour the character is made with: the registry keeps it (pictures that follow the hair choose by it)
+	if ( type(WrathPP_SetChoice) == "function" and number(FIELD.haircolor) ) then pcall(WrathPP_SetChoice, 1190, number(FIELD.haircolor) + 1) end
 	if ( type(WrathPP_SetOverlay) ~= "function" ) then return end
 	local model = looks()
 	local slot = 0
@@ -470,7 +482,7 @@ function W.Look()
 			if ( option.overlay and not option.field ) then
 				slot = slot + 1
 				if ( slot > 3 ) then break end
-				local choice = option.choices[math.min(picks[option.name] or 1, #option.choices)]
+				local choice = option.choices[math.min(W.ovCurrent(option), #option.choices)]
 				local picture = choice and choice.ov and (choice.ov["*"] or choice.ov[tostring(colour)])
 				pcall(WrathPP_SetOverlay, slot, picture and option.overlay or "", picture or "")
 			end
@@ -570,7 +582,8 @@ function W.Rows()
 				-- a picture laid over the head (eyebrows, makeup, scars): chosen here, drawn by the native mod on the head shell
 				row.ovname = option.name
 				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end
-				row.at = math.min(W.ovPick()[option.name] or 1, #row.choices)
+				row.reg = option.reg
+				row.at = math.min(W.ovCurrent(option), #row.choices)
 			elseif ( not option.field ) then
 				row.kind = "later"
 				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end
@@ -618,7 +631,10 @@ end
 -- Puts a row's choice on.
 function W.Choose(row, k)
 	if ( row.ovname ) then
-		if ( type(k) == "number" ) then W.ovPick()[row.ovname] = k end
+		if ( type(k) == "number" ) then
+			W.ovPick()[row.ovname] = k
+			if ( row.reg and type(WrathPP_SetChoice) == "function" ) then pcall(WrathPP_SetChoice, row.reg, k) end    -- kept by the add-on, sent with the character
+		end
 		W.Look()
 		return
 	end

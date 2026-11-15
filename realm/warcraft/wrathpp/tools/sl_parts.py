@@ -124,3 +124,30 @@ def write_overlays(read, model, layout, out_dir, log=print):
     if written:
         log("%s: %d overlay pictures" % (model["name"], len(written)))
     return written
+
+
+def write_parts_table(looks, out_dir, ids):
+    """Wrathpp/parts.txt in [out_dir] (the game's patch): what the native mod needs to draw a character's parts from the
+    registry's choices, tab separated: `S race sex slot category shell` (a slot of the model: the option that has it and
+    the head shell it is drawn on) and `C race sex category option colour picture` (the picture of a choice, for a hair
+    colour's index, or `*` for any). [ids]: registry/parts_ids.json's keys. The path of the file written."""
+    import names
+    lines = []
+    for entry in sorted(looks["races"].values(), key=lambda e: e["race"]):
+        for sex, model in sorted(entry["models"].items()):
+            slot = 0
+            for option in model.get("overlays", []):
+                category = ids.get("%d_%d:%s" % (entry["race"], int(sex), option["name"]))
+                if not category:
+                    continue
+                slot += 1
+                lines.append("S\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, names.shell(model)))
+                for number, choice in enumerate(option["choices"], 1):
+                    for colour, fid in sorted(choice["files"].items()):
+                        lines.append("C\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, number, colour, names.overlay(model, fid)))
+    path = os.path.join(out_dir, "Wrathpp", "parts.txt")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("# Wrath++'s parts (sl_parts.py): S race sex slot category shell; C race sex category option colour picture\n")
+        f.write("".join(line + "\n" for line in lines))
+    return path
