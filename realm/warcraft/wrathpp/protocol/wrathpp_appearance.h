@@ -283,6 +283,21 @@ inline uint32_t BodyDisplay(const Registry& reg, const Appearance& resolved, uin
     return kBodyDisplayBase + uint32_t(slot) * 260 + uint32_t(shape) * 65 + uint32_t(layer);
 }
 
+// A man's model variants (registry category 1500, parts_ids.json "2_0:Upright"): the Orc man's Upright is another model of the game's; the
+// app (WrathppVariants) writes its display, kVariantDisplayBase + the option's value (1: Upright), into the game's and the server's
+// tables. 0: nothing to change (Hunched, or no such display in the tables): the race's own display stays.
+constexpr uint16_t kOrcUpright = 1500;
+constexpr uint32_t kVariantDisplayBase = 44000;
+
+inline uint32_t VariantDisplay(const Registry& reg, const Appearance& resolved, uint8_t race, uint8_t sex) {
+    if (race != 2 || sex != 0)
+        return 0;
+    const Category* c = reg.FindCategory(kOrcUpright);
+    const Entry* e = resolved.Find(kOrcUpright);
+    const Option* o = c && e ? FindOption(*c, e->option) : nullptr;
+    return o && o->value == 1 ? kVariantDisplayBase + 1 : 0;
+}
+
 inline void WriteRegistry(Writer& w, const Registry& reg) {
     w.u16(reg.version);
     w.u16(uint16_t(reg.categories.size()));

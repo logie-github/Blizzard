@@ -36,6 +36,7 @@ def drawn(model):
     the model pieces and the texture pickers (a jewellery's, a vine's colour)."""
     out = [(o["name"], len(o["choices"])) for o in model.get("overlays", [])]
     out += [(o["name"], len(o["choices"])) for o in model.get("parts", []) if any(c["geosets"] for c in o["choices"])]
+    out += [(o["name"], len(o["choices"])) for o in model.get("variants", [])]
     if model.get("parts"):
         out += [(o["name"], len(o["choices"])) for o in model.get("pickers", [])]
     return out

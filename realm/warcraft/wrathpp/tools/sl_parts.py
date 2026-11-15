@@ -188,6 +188,34 @@ def move_to_origin(m2b, point):
     return bytes(m)
 
 
+def variant_model_name(model, k):
+    return "%sV%d" % (model["name"], k)
+
+
+def variant_model_path(model, k):
+    return "%s\\%s.m2" % (model["folder"], variant_model_name(model, k))
+
+
+def variant_model(read, model, variant, k, choice, out_dir, log=print):
+    """Writes the character's model as the choice [k] of [variant] has it (the Orc man's Upright: another model of the game's, its own
+    skin, bones and sequences; the textures, hair and features are the character's: the game composes them by race and sex) as
+    "<Model>V<k>.m2" into [out_dir]. The files written."""
+    import m2
+    import check_m2
+    name = variant_model_name(model, k)
+    spec = dict(model, name=name, model=choice["file"], geosets=None)
+    written = m2.convert(read, spec, out_dir, lambda *a: None)
+    path = os.path.join(out_dir, model["folder"].replace("\\", "/"), name + ".m2")
+    layout = path[:-3] + ".layout.json"
+    if os.path.exists(layout):
+        os.remove(layout)
+    problems = check_m2.check(path)
+    if problems:
+        raise ValueError("%s: %s" % (name, "; ".join(problems[:10])))
+    log("%s: the model of choice %d of %s" % (name, k, variant["name"]))
+    return [w for w in written if not w.endswith(".layout.json")]
+
+
 def part_model_name(model, part):
     import re
     return model["name"] + "P" + re.sub(r"[^A-Za-z0-9]", "", part["name"])
@@ -440,6 +468,15 @@ def write_parts_table(looks, out_dir, ids):
                 picker = next(iter(pickers.values()), None) if 13 in types else None
                 picker_category = ids.get("%d_%d:%s" % (race, int(sex), picker["name"])) if picker else 0
                 lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0) + ("\t%d" % HELM if part.get("skinned") else "\t0"))
+    for entry in sorted(looks["races"].values(), key=lambda e: e["race"]):
+        for sex, model in sorted(entry["models"].items()):
+            for variant in model.get("variants", []):
+                category = ids.get("%d_%d:%s" % (entry["race"], int(sex), variant["name"]))
+                if not category:
+                    continue
+                for k, choice in enumerate(variant["choices"], 1):
+                    if choice["file"]:
+                        lines.append("V\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), category, k, variant_model_path(model, k)))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:

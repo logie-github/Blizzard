@@ -67,6 +67,10 @@ object WrathppSetup {
             .onSuccess { notes.append("undead skins: ${if (it != null) "in" else "none"}\n") }
             .onFailure { e -> notes.append("undead skins FAILED: ${e.message}\n") }
             .getOrNull()
+        // The models the looks' variants give a character (the Orc man's Upright): their display rows, after the body options' tables.
+        runCatching { WrathppVariants.apply(layout.wrathppClient, layout.wrathppServer, layout.data) }
+            .onSuccess { notes.append("model variants: ${it ?: "none"}\n") }
+            .onFailure { e -> notes.append("model variants FAILED: ${e.message}\n") }
         // Body option: the women's underwear layer off (WrathppBare), whatever the three above put into the table.
         runCatching { WrathppBare.apply(layout.wrathppClient) }
             .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }

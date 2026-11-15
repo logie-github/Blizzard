@@ -160,23 +160,23 @@ namespace
     // race's own otherwise. Kept as her native display too, so a shapeshift or a transform comes back to it.
     void ApplyBody(Player* player)
     {
-        if (player->getGender() != GENDER_FEMALE)
-            return;
         uint8 race = player->getRace(true);                   // her own race's model, whatever race the world takes her for
-        uint32 display = BodyDisplay(S().registry, Resolve(S().registry, Stored(player->GetGUID().GetCounter()), race, player->getGender(), player->getClass()), race);
+        auto resolved = Resolve(S().registry, Stored(player->GetGUID().GetCounter()), race, player->getGender(), player->getClass());
+        // a woman's body options, else a man's model variant (the Orc's Upright)
+        uint32 display = player->getGender() == GENDER_FEMALE ? BodyDisplay(S().registry, resolved, race) : VariantDisplay(S().registry, resolved, race, player->getGender());
         uint32 native = player->GetNativeDisplayId();
-        bool ours = native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260;
+        bool ours = (native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260) || (native > kVariantDisplayBase && native < kVariantDisplayBase + 100);
         if (!display)
         {
             // none (any more): her race's own display, where one of these was hers
             PlayerInfo const* info = sObjectMgr->GetPlayerInfo(race, player->getClass());
             if (!ours || !info)
                 return;
-            display = info->displayId_f;
+            display = player->getGender() == GENDER_FEMALE ? info->displayId_f : info->displayId_m;
         }
         else if (!sCreatureDisplayInfoStore.LookupEntry(display))
         {
-            LOG_INFO("module", "Wrath++: {}'s body options are display {}, which the tables don't have (no body options package imported)", player->GetName(), display);
+            LOG_INFO("module", "Wrath++: {}'s model options are display {}, which the tables don't have (not put in yet)", player->GetName(), display);
             return;
         }
         if (native == display)

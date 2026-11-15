@@ -89,6 +89,16 @@ class PartsTest(unittest.TestCase):
         self.assertEqual([l[6:8] for l in by["G"]], [["13", "1330"], ["11", "0"]])
         self.assertEqual(len(by["Z"]), 1)                                        # the picker's choice with a file
 
+    def test_parts_table_has_the_variants_models(self):
+        model = {"name": "OrcMale", "folder": "Character\\Orc\\Male", "overlays": [],
+                 "variants": [{"name": "Upright", "choices": [{"id": "1", "name": "Hunched", "file": 0}, {"id": "2", "name": "Upright", "file": 77}]}]}
+        looks = {"races": {"2": {"race": 2, "models": {"0": model}}}}
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, {"2_0:Upright": 1500})
+            with open(path, encoding="utf-8") as f:
+                lines = [l.split("\t") for l in f.read().splitlines() if not l.startswith("#")]
+        self.assertEqual(lines, [["V", "2", "0", "1500", "2", "Character\\Orc\\Male\\OrcMaleV2.m2"]])
+
     def test_parts_table_pairs_a_paint_with_its_style(self):
         model = {"name": "OrcMale", "folder": "Character\\Orc\\Male", "overlays": [
             {"name": "Scars", "choices": [{"id": "1", "name": "None", "files": {}}, {"id": "2", "name": "Cut", "files": {"*": 77}}]},

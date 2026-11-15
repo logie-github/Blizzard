@@ -107,6 +107,7 @@ class Tables:
         for t in r("TextureFileData"):
             self.textures[t["MaterialResourcesID"]].append(int(t["FileDataID"]))
         self.model_data = {m["ID"]: m for m in r("CreatureModelData")}
+        self.cond_models = {c["ID"]: c for c in r("ChrCustomizationCondModel")} if os.path.exists(os.path.join(csv_dir, "ChrCustomizationCondModel.csv")) else {}
         self.chr_models = {m["ID"]: m for m in r("ChrModel")}
         self.displays = {}
         display_path = os.path.join(csv_dir, "CreatureDisplayInfo.csv")

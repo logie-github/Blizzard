@@ -188,6 +188,12 @@ def build_model(tables, categories, race_id, sex, model):
         # choice's geosets; a texture picker (a jewellery's or a vine's colour) is kept beside it and its picture put on the piece
         part = next((x for x in model.get("parts", []) if x["name"] == o["Name_lang"]), None)
         picker = next((x for x in model.get("pickers", []) if x["name"] == o["Name_lang"]), None) if model.get("parts") else None
+        variant = next((x for x in model.get("variants", []) if x["name"] == o["Name_lang"]), None)
+        if variant is not None and "field" not in option:
+            option["variant"] = True                  # another model: kept for the character and shown in the world (not in the creator's preview)
+            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            if reg:
+                option["reg"] = reg
         if "field" not in option and "overlay" not in option and "style" not in option and (part is not None or picker is not None):
             reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
             if part is not None and any(c["geosets"] for c in part["choices"]):

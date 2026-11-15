@@ -40,7 +40,7 @@ import races as allied                         # noqa: E402
 
 BUILD = "9.2.7.45745"
 TABLES_MORE = ("TextureFileData", "CreatureModelData", "CreatureDisplayInfo", "VocalUISounds", "EmotesTextSound",
-               "SoundKitEntry", "NameGen", "ChrModelTextureLayer", "CharComponentTextureSections")
+               "SoundKitEntry", "NameGen", "ChrModelTextureLayer", "CharComponentTextureSections", "ChrCustomizationCondModel")
 # race id: (folder name, ChrModel ids by sex)
 RACES = {1: ("Human", {0: 1, 1: 2}), 2: ("Orc", {0: 3, 1: 4}), 3: ("Dwarf", {0: 5, 1: 6}), 4: ("NightElf", {0: 7, 1: 8}),
          5: ("Scourge", {0: 9, 1: 10}), 6: ("Tauren", {0: 11, 1: 12}), 7: ("Gnome", {0: 13, 1: 14}),
@@ -211,6 +211,28 @@ def overlays_of(tables, chr_model, model):
     return out
 
 
+def variants_of(tables, chr_model, model):
+    """The options of [chr_model] that change the character's model (the Orc man's Upright: another model of the game's, a conditional
+    model): [{"name", "choices": [{"name", "id", "file": the model's file id, or 0 for the model itself}]}]. A choice's number is its
+    place here (the available ones by their UI order, from 1), as the creator lists them."""
+    out = []
+    for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
+        chs = sorted((c for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False) if tables.available(c)), key=ui_order)
+        choices = []
+        for c in chs:
+            file = 0
+            for e in tables.elements[c["ID"]]:
+                cond = tables.cond_models.get(e.get("ChrCustomizationCondModelID", "0"))
+                if cond:
+                    data = tables.model_data.get(cond["CreatureModelDataID"])
+                    if data and int(data["FileDataID"]) != model["model"]:
+                        file = int(data["FileDataID"])
+            choices.append({"name": c["Name_lang"], "id": c["ID"], "file": file})
+        if len(choices) > 1 and any(c["file"] for c in choices):
+            out.append({"name": o["Name_lang"], "choices": choices})
+    return out
+
+
 def parts_of(tables, chr_model, model):
     """The options of [chr_model] that are model pieces (ears, headdresses, vines, tails, hair of the Tauren...: geosets today's 3.3.5
     skin has no room for) and the texture pickers beside them (a jewellery's, a vine's colour: a layer of a texture type other than the
@@ -228,6 +250,7 @@ def parts_of(tables, chr_model, model):
             kinds[row["ChrModelTextureTargetID_0"]] = row["TextureType"]
     skip = set(SLIDERS) | set(model.get("feature_options", [])) | {o["name"] for o in model.get("overlays", [])}
     skip |= {today for (cm, asked), today in tables.aliases.items() if cm == str(chr_model)}      # (the Tauren's Foremane and Horn Color are the hair's sliders)
+    skip |= {v["name"] for v in model.get("variants", [])}
     skip |= {"Face Shape", "Skin Type"}         # (they replace the head or the body of the model itself: a piece laid over it would double it)
     parts, pickers = [], []
     for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
@@ -296,6 +319,7 @@ def build_races(csv_dir, races=None):
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
             model["chr_model"] = chr_model
             model["overlays"] = overlays_of(tables, chr_model, model)
+            model["variants"] = variants_of(tables, chr_model, model)
             model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
             entry["models"][str(sex)] = model
         entry["replace_rows"] = races is None             # the ten of 3.3.5: their rows in the tables are replaced
@@ -499,6 +523,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 written += sl_parts.head_shell(read, model, client, log)
                 if any(c.get("body") for o in model["overlays"] for c in o["choices"]):
                     written += sl_parts.body_shell(read, model, client, log)
+            for variant in model.get("variants", []):
+                import sl_parts
+                for k, choice in enumerate(variant["choices"], 1):
+                    if choice["file"]:
+                        written += sl_parts.variant_model(read, model, variant, k, choice, client, log)
             if model.get("parts"):
                 import sl_parts
                 model["part_types"] = {}

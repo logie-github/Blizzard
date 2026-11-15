@@ -641,7 +641,7 @@ function W.Rows()
 		if ( option.category == W.category ) then
 			local row = { name = option.name, option = option, kind = option.type == 1 and "switch" or "list", choices = {} }
 			local skinColour = option.field == "skin" and option.part == #model.fields.skin
-			if ( not option.field and (option.overlay or option.style or option.geoset or option.texture) ) then
+			if ( not option.field and (option.overlay or option.style or option.geoset or option.texture or option.variant) ) then
 				-- a picture laid over the head (eyebrows, makeup, scars): chosen here, drawn by the native mod on the head shell
 				row.ovname = option.name
 				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end

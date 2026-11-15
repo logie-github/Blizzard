@@ -197,6 +197,21 @@ static void TestToolRegistry(const char* path, const char* expectedHash) {
     CHECK(shown(1, 0, 3, 5, 5) == 0);
     CHECK(shown(9, 1, 3, 5, 5) == 0);
     CHECK(shown(10, 1, 4, 2, 2) == 42000 + 8 * 260 + 3 * 65 + 1);
+    // a man's model variant: the Orc man's Upright is its own display; Hunched, other men and every woman: none
+    auto variant = [&](uint8_t race, uint8_t sex, uint16_t option) {
+        Appearance a; a.registryVersion = reg.version;
+        a.Set(kOrcUpright, option);
+        return VariantDisplay(reg, Resolve(reg, a, race, sex, 1), race, sex);
+    };
+    const Category* upright = reg.FindCategory(kOrcUpright);
+    CHECK(upright != nullptr);
+    if (upright) {
+        CHECK(upright->options.size() == 2);
+        CHECK(variant(2, 0, upright->options[1].id) == kVariantDisplayBase + 1);
+        CHECK(variant(2, 0, upright->options[0].id) == 0);
+        CHECK(variant(2, 1, upright->options[1].id) == 0);
+        CHECK(variant(1, 0, upright->options[1].id) == 0);
+    }
 }
 
 int main(int argc, char** argv) {
