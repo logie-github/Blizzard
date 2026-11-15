@@ -195,6 +195,15 @@ class WrathppBodyTest {
         assertFalse(WrathppBody.structSha256(changed) == WrathppBody.structSha256(withVertices(1f)))
         val tail = withVertices(1f).also { it[it.size - 1] = 99 }
         assertFalse(WrathppBody.structSha256(tail) == WrathppBody.structSha256(withVertices(1f)))
+        // a model made by a patch keeps the looks' old array where it was: with the looks' own positions in it, which the name leaves out
+        fun looksWith(x: Float) = withVertices(x)
+        val patch = ByteArray(0x138 + 2 * 48 + 16) { (it * 7).toByte() }.also { "MD20".toByteArray().copyInto(it) }
+        val newArrayAt = ((0x138 + 2 * 48 + 16) + 15) / 16 * 16 + 0x138
+        ByteBuffer.wrap(patch).order(ByteOrder.LITTLE_ENDIAN).putInt(60, 2).putInt(64, newArrayAt)
+        val made1 = WrathppBody.withPatch(looksWith(1f), patch)
+        val made2 = WrathppBody.withPatch(looksWith(2f), patch)
+        assertFalse(sha(made1) == sha(made2))
+        assertEquals(WrathppBody.structSha256(made1, looksWith(1f)), WrathppBody.structSha256(made2, looksWith(2f)))
         // a header that names no vertex array inside the file: the model whole
         val junk = model(37, 1)
         assertEquals(sha(junk), WrathppBody.structSha256(junk))

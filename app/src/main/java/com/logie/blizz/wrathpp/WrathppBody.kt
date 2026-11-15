@@ -191,7 +191,7 @@ object WrathppBody {
             val rightLooks = if (byStructure) structSha256(base) == m.getString("looks_struct_sha256") else sha256(base) == m.getString("looks_sha256")
             if (!rightLooks) { if (shape == 0) done.add("$race: made for other looks, left as drawn"); continue }
             val out = withPatch(base, File(files, m.getJSONObject("patch").getString("file")).readBytes())
-            val madeRight = if (byStructure) structSha256(out) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
+            val madeRight = if (byStructure) structSha256(out, base) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
             if (!madeRight) throw IOException("$race: the package's model doesn't make what it says")
             val skin = File(files, m.getJSONObject("skin_file").getString("file")).readBytes()
             val model = File(patch, m.getString("model"))
@@ -404,17 +404,28 @@ object WrathppBody {
     /**
      * The SHA-256 of a model without where its vertices are (the first 12 bytes of each of the 48 a vertex has: the array's count
      * and place are in the header at 60 and 64). A model whose header doesn't say a vertex array that lies inside the file is
-     * taken whole.
+     * taken whole. For a model a patch made of the looks' [base], the array of the base's header is left out too: the made model
+     * keeps the base's old array where it was (the patch's header names the new one, after the end), and it holds the looks' own
+     * positions.
      */
-    internal fun structSha256(bytes: ByteArray): String {
-        if (bytes.size < 68) return sha256(bytes)
-        val head = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+    internal fun structSha256(bytes: ByteArray, base: ByteArray? = null): String {
+        val arrays = ArrayList<Pair<Int, Int>>()
+        arrays.addAll(listOfNotNull(vertexArray(bytes, bytes)))
+        if (base != null) arrays.addAll(listOfNotNull(vertexArray(base, bytes)))
+        if (arrays.isEmpty()) return sha256(bytes)
+        val masked = bytes.copyOf()
+        for ((count, at) in arrays) for (i in 0 until count) java.util.Arrays.fill(masked, at + i * 48, at + i * 48 + 12, 0.toByte())
+        return sha256(masked)
+    }
+
+    /** (count, offset) of the vertex array [header]'s model names, if it lies inside [file]. */
+    private fun vertexArray(header: ByteArray, file: ByteArray): Pair<Int, Int>? {
+        if (header.size < 68) return null
+        val head = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
         val count = head.getInt(60).toLong() and 0xFFFFFFFFL
         val at = head.getInt(64).toLong() and 0xFFFFFFFFL
-        if (count == 0L || at < 68 || at + count * 48 > bytes.size) return sha256(bytes)
-        val masked = bytes.copyOf()
-        for (i in 0 until count.toInt()) java.util.Arrays.fill(masked, (at + i * 48).toInt(), (at + i * 48 + 12).toInt(), 0.toByte())
-        return sha256(masked)
+        if (count == 0L || at < 68 || at + count * 48 > file.size) return null
+        return count.toInt() to at.toInt()
     }
 
     private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

@@ -241,14 +241,39 @@ namespace
         __except (EXCEPTION_EXECUTE_HANDLER) { return 0; }
     }
 
+    // The client's own calls, as the runtime's binding makes them (corex's BindingX86 m2_replace_texture; the runtime's wxl.m2
+    // takes only models it made itself, which the creation component's is not: its ReplaceTexture answered WXL_E_INVALID on the
+    // phone). GetGlobalStatusObj (0x0047C090) and CCharacterComponent's CreateTexture (0x004E8D30) are cdecl, as is HandleClose
+    // (0x0047BF30); CM2Model::ReplaceTexture (0x00825260) is thiscall, `ret 8`. The model takes a handle of its own.
+    using StatusFn = void*(__cdecl*)();
+    using CreateTextureFn = void*(__cdecl*)(const char*, void*);
+    using ReplaceTextureFn = void(__thiscall*)(void*, uint32_t, void*);
+    using CloseFn = void(__cdecl*)(void*);
+
+    bool ReplaceDesign(uintptr_t model, const char* path)
+    {
+        __try
+        {
+            void* status = reinterpret_cast<StatusFn>(0x0047C090)();
+            void* texture = reinterpret_cast<CreateTextureFn>(0x004E8D30)(path, status);
+            if (!texture) return false;
+            reinterpret_cast<ReplaceTextureFn>(0x00825260)(reinterpret_cast<void*>(model), kDesignTexture, texture);
+            reinterpret_cast<CloseFn>(0x0047BF30)(texture);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
     /// Puts the preview's design on the creation component's model, once for each model and design.
     void ApplyPreview(uintptr_t component)
     {
         if (g_previewDesign.empty() || component != CreationComponent()) return;
         const uintptr_t model = ComponentModel(component);
         if (!model || (model == g_previewModel && g_previewApplied == g_previewDesign)) return;
-        const wxl_result result = wxl::M2Service::ReplaceTexture(reinterpret_cast<void*>(model), kDesignTexture, g_previewDesign);
-        if (result == WXL_OK)
+        if (ReplaceDesign(model, g_previewDesign.c_str()))
         {
             g_previewModel = model;
             g_previewApplied = g_previewDesign;
@@ -256,7 +281,7 @@ namespace
         else if (g_previewApplied != g_previewDesign)
         {
             g_previewApplied = g_previewDesign;
-            wxl::Log(WXL_LOG_WARN, kTag, "body preview: {} not put on ({})", g_previewDesign, wxl::ResultName(result));
+            wxl::Log(WXL_LOG_WARN, kTag, "body preview: {} not put on", g_previewDesign);
         }
     }
 
@@ -444,7 +469,7 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.6.0"); }
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.6.1"); }
 
     class Api final : public wxl::LuaScript
     {
