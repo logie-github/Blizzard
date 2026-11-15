@@ -40,13 +40,12 @@ fun ForeverDialog(onDismiss: () -> Unit) {
                     else LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
                 }
                 if (status.state == ForeverState.AWAITING_CLIENT && !status.running) {
-                    Text("Forever's game can't be downloaded by the app. Install World of Warcraft: Forever with Battle.net on a computer, copy the whole World of Warcraft folder (it holds .build.info, Data and _forever_) to this phone, then pick it once.", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
+                    Text("The game is downloaded from Blizzard's own servers (about 49 GB of free space, no account). If that couldn't be done, pick a World of Warcraft folder you already have (it holds .build.info, Data and _forever_): Import & Install.", Modifier.padding(top = 8.dp), style = MaterialTheme.typography.bodySmall)
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    TextButton(onClick = { ForeverPlay.start(context) }, enabled = !status.running) { Text("Install & Play") }
                     if (status.state == ForeverState.AWAITING_CLIENT) {
                         TextButton(onClick = { picker.launch(null) }, enabled = !status.running) { Text("Import & Install") }
-                    } else {
-                        TextButton(onClick = { ForeverPlay.start(context) }, enabled = !status.running) { Text("Install & Play") }
                     }
                     TextButton(onClick = { ForeverPlay.stop() }, enabled = !status.running && status.state == ForeverState.READY) { Text("Stop") }
                     TextButton(onClick = onDismiss) { Text("Close") }

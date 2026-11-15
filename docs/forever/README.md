@@ -34,11 +34,39 @@ sources are Karrz's current projects, pinned in `realm/warcraft/forever-new/fore
 | `ForeverAuth.kt` account | Upstream's way: the world console's `bnetaccount create`, then `account set gmlevel <id>#1 3 -1`; certificates from upstream's own openssl settings | Command text and SQL unit-tested; not run. |
 | `ForeverPlay.kt` | One action: install, start the realm, make the account, then `WindowsRuntime.play` like Legion/Wrath++ | **Not run.** |
 
+## The client: downloaded from Blizzard's own servers (new)
+
+The game is not bundled and not mirrored: `forevernew/tact/*` is an installer that reads Blizzard's public version server
+(`https://us.version.battle.net/wowf/versions`, `.../cdns`) and content servers (`us.cdn.blizzard.com`, `tpr/wow`), the ones the
+Battle.net app uses, with no account. Written new from the documented TACT/CASC formats and CascLib's source; nothing from earlier work.
+
+What was measured against the live servers on 15 November 2026 (build 70938, `1.60.1.70938`):
+
+| | |
+|---|---|
+| Whole download manifest, all platforms and languages | 2,208,764 files, 118 GiB |
+| Windows + x64 + English text and speech | 47.1 GiB: 0.43 GiB at Blizzard's priority 0, 36.4 GiB priority 1, 10.2 GiB priority 2 |
+| Programs (install manifest, Windows x64) | 39 files, about 140 MB, each checked against its MD5 |
+| The installer's essential run (`maxPriority 0`) | 1,487 files / 439 MB into `Data/data` plus the programs, about 1 GB on disk, a few minutes |
+
+Checked: the storage it writes (index files with Blizzard's Jenkins-hash guards, 30-byte local headers, data files) was opened with
+**CascLib itself** (the library the server's extractors use) on that essential install: it opened the build, resolved the TVFS root,
+listed 2,209,354 files, and read the build's encoding (141 MB), download, install and root files and the files it holds with no error. `ForeverClient.inspect` accepts the folder
+(`Ok`, build 70938, `_forever_/Wow.exe`). The real `Wow.exe` from that install was then started under the phone's own Wine
+(x86_64 desktop rig, no GPU): it loaded, created its window, wrote its logs and started its network layer.
+
+Not checked: that the real client accepts this storage the way it accepts Battle.net's own (CascLib is lenient where Blizzard's code may not be:
+the index files here have no second journal page and there is no `shmem` or `.product.db`); the full 47 GiB download (only the
+essential set was run); the client past its first seconds. **On the desktop rig the game's network-adapter enumeration crashes in Wine's
+`iphlpapi` (a 10-line program that calls `GetAdaptersAddresses` crashes the same way there, so it's Wine and that sandbox's interfaces, not the
+game or this app); whether the phone's Wine does the same is unknown.** No GPU on the rig, so no picture was drawn: the login screen, an account,
+a character and an NPC were not reached.
+
 ## What is still not done or not known
 
 1. **Nothing has run on a phone** (Z Fold) and the real WoW Forever client was never available here. Unknown until then: whether the client runs under Wine/Box64 and which graphics path it needs (D3D11 through DXVK is the shared container's default), whether it trusts the Wine root store, whether the key table is found in a Box64-run client, and how long a start takes.
 2. **The server package has never built successfully.** The first CI run reached the compile and stopped on musl incompatibilities in the bundled gSOAP (patched at build time in `compile-forever-new.sh`, along with `NOJEM`); more may follow. The loader step, the manifest and the release come after that, and the release is published only from `main`.
-3. **Getting the client**: there is no authorised download; the user installs Forever with Battle.net on a computer and picks the folder once.
+3. **Getting the client**: downloaded from Blizzard's own servers by the app (above); "Import & Install" stays as the way to use a folder you already have.
 4. **Map extraction space**: ~45 GB at the peak per upstream; the app refuses below that. Streaming extraction is not written.
 5. **Optional vanilla 1.12 values**, **backup/restore/repair/update buttons** and an account editor are not written.
 6. `Realm.AlsoAcceptBuilds` needs each build in `auth.build_info`; nothing checks that yet. Whether the repack dumps carry the `updates` rows is unknown.
