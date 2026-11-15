@@ -45,6 +45,29 @@ class PartsTest(unittest.TestCase):
         self.assertTrue((dark[:, 3] > 150).all() and (dark[:, :3] <= 5).all())      # darkens
         self.assertTrue((light[:, 3] > 150).all() and (light[:, :3] >= 250).all())  # lightens
 
+    def test_a_body_picture_is_the_left_half_or_the_whole_section(self):
+        whole = np.zeros((512, 1024, 4), np.uint8)
+        whole[:, :512] = (200, 30, 30, 160)       # the body half: red, part transparent
+        whole[:, 512:] = (0, 255, 0, 255)         # the head half
+        out = sl_parts.body_picture(whole)
+        self.assertEqual(out.shape, (512, 512, 4))
+        self.assertTrue((out[:, :, 0] > 150).all() and (abs(out[:, :, 3].astype(int) - 160) <= 2).all())
+        section = np.zeros((512, 512, 4), np.uint8)
+        section[:, :, 3] = 90
+        self.assertEqual(sl_parts.body_picture(section).shape, (512, 512, 4))
+
+    def test_parts_table_gives_the_body_its_own_slot(self):
+        model = {"name": "TaurenMale", "folder": "Character\\Tauren\\Male", "overlays": [
+            {"name": "Tattoo", "choices": [{"id": "1", "name": "None", "files": {}}, {"id": "2", "name": "Cut", "files": {"*": 5}, "body": {"*": 6}}]}]}
+        looks = {"races": {"6": {"race": 6, "models": {"0": model}}}}
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, {"6_0:Tattoo": 1300})
+            with open(path, encoding="utf-8") as f:
+                lines = [l.split("\t") for l in f.read().splitlines() if not l.startswith("#")]
+        self.assertEqual([l[0] for l in lines], ["S", "C", "T", "D"])
+        self.assertTrue(lines[2][5].endswith("TaurenMaleBody.m2") and lines[2][3] == "2")
+        self.assertTrue(lines[3][6].endswith("TaurenMaleBo6.blp"))
+
     def test_parts_table_pairs_a_paint_with_its_style(self):
         model = {"name": "OrcMale", "folder": "Character\\Orc\\Male", "overlays": [
             {"name": "Scars", "choices": [{"id": "1", "name": "None", "files": {}}, {"id": "2", "name": "Cut", "files": {"*": 77}}]},

@@ -38,7 +38,7 @@ local state, _, version, renderer = mock.functions.WrathPP_Status()
 check(state == "ready" and version == F.version and renderer == false, "status: ready, the registry's version, renderer false (no seam yet)")
 
 check(mock.functions.WrathPP_GetNumCategories(10, 0, 2) == 3, "a blood elf man paladin: 3 categories (the two of the demon hunter look and the hair colour)")
-check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 9, "a night elf woman warrior: 9 (the two, the three body options, her scars, her markings and their colour, and the hair colour)")
+check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 11, "a night elf woman warrior: 11 (the two, the three body options, her scars, markings, tattoos and their colours, and the hair colour)")
 check(mock.functions.WrathPP_GetNumCategories(1, 0, 1) == 2, "a human man: his eyebrows and the hair colour")
 check(mock.functions.WrathPP_GetNumCategories(1, 1, 1) == 6, "a human woman: the three body options, her eyebrows and makeup and the hair colour")
 local id, name, n, default = mock.functions.WrathPP_GetCategoryInfo(1, 10, 0, 2)
@@ -94,6 +94,12 @@ WPP.looks["0x00000000000000B4"] = { race = 2, sex = 0, class = 1, version = 3, e
 WPP.applyParts("0x00000000000000B4")
 chunk = mock.ran[#mock.ran].chunk
 check(chunk:find("OrcMaleOvBeast.blp", 1, true) and chunk:find("OrcMaleFace.m2", 1, true), "  an orc's war paint: the colour's picture for the style he chose")
+mock.files["Wrathpp\\parts.txt"] = mock.files["Wrathpp\\parts.txt"] .. "T\t6\t0\t2\t1300\tCharacter\\Tauren\\Male\\TaurenMaleBody.m2\nD\t6\t0\t1300\t2\t*\tCharacter\\Tauren\\Male\\TaurenMaleBo6.blp\n"
+WPP.parts = nil
+WPP.looks["0x00000000000000B5"] = { race = 6, sex = 0, class = 1, version = 3, entries = { [1300] = 2 } }
+WPP.applyParts("0x00000000000000B5")
+chunk = mock.ran[#mock.ran].chunk
+check(chunk:find("TaurenMaleBody.m2", 1, true) and chunk:find("TaurenMaleBo6.blp", 1, true), "  a tauren's tattoo: the body shell and the body picture")
 WPP.looks["0x00000000000000B3"] = { race = 10, sex = 0, class = 1, version = 3, entries = {} }
 local before = #mock.ran
 WPP.applyParts("0x00000000000000B3")

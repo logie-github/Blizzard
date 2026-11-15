@@ -472,9 +472,9 @@ end
 
 -- The picture of an overlay option's current choice: its own for any (or the hair colour's), or, for a paint's colour, the one of the
 -- style chosen beside it (the colours' pictures name the style's choice by its id).
-function W.ovPicture(model, option, colour)
+function W.ovPicture(model, option, colour, body)
 	local choice = option.choices[math.min(W.ovCurrent(option), #option.choices)]
-	local pictures = choice and choice.ov
+	local pictures = choice and (body and choice.bov or choice.ov)
 	if ( not pictures ) then return nil end
 	if ( option.depends ) then
 		for _, name in ipairs(option.depends) do
@@ -491,6 +491,8 @@ function W.ovPicture(model, option, colour)
 	return pictures["*"] or pictures[tostring(colour)]
 end
 
+local PART_SLOTS = 8
+
 function W.Look()
 	-- the hair colour the character is made with: the registry keeps it (pictures that follow the hair choose by it)
 	if ( type(WrathPP_SetChoice) == "function" and number(FIELD.haircolor) ) then pcall(WrathPP_SetChoice, 1190, number(FIELD.haircolor) + 1) end
@@ -499,16 +501,19 @@ function W.Look()
 	local slot = 0
 	if ( model and number(FIELD.skin) ) then
 		local colour = number(FIELD.haircolor)
-		for _, option in ipairs(model.options) do
-			if ( option.overlay and not option.field ) then
-				slot = slot + 1
-				if ( slot > 3 ) then break end
-				local picture = W.ovPicture(model, option, colour)
-				pcall(WrathPP_SetOverlay, slot, picture and option.overlay or "", picture or "")
+		-- the head shells first, then the body's (a slot each)
+		for _, body in ipairs({ false, true }) do
+			for _, option in ipairs(model.options) do
+				if ( option.overlay and not option.field and (not body or option.bodyoverlay) ) then
+					slot = slot + 1
+					if ( slot > PART_SLOTS ) then break end
+					local picture = W.ovPicture(model, option, colour, body)
+					pcall(WrathPP_SetOverlay, slot, picture and (body and option.bodyoverlay or option.overlay) or "", picture or "")
+				end
 			end
 		end
 	end
-	for k = slot + 1, 3 do pcall(WrathPP_SetOverlay, k, "", "") end
+	for k = slot + 1, PART_SLOTS do pcall(WrathPP_SetOverlay, k, "", "") end
 end
 
 

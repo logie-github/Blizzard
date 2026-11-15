@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/WarcraftXL-Labs/sdk/2920b6e3143169a4244dde6e9d832cd7721f2489/schema/mod.json",
   "id": "wrathpp.native",
   "name": "Wrath++ native",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "abi": "0.1.46",
   "description": "What Wrath++'s interface can't do in the stock 32-bit client: the creator's current choice and option count per customization (WrathPP_GetCustomization, WrathPP_SetCustomization), whose character is made (WrathPP_GetCreating), its starting outfit (WrathPP_SetGear), the creator's log lines (WrathPP_Log), the screen for the app's touch (WrathPP_SetScreen), the body options' layer on a character with bare legs (a detour in GeosRenderPrep), and the parts a character of the world wears (WrathPP_ApplyLook).",
   "binaries": {

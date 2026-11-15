@@ -1,5 +1,7 @@
 {
  "keys": {
+  "10_1:Tattoo": 1237,
+  "10_1:Tattoo Color": 1236,
   "1_0:Eyebrows": 1200,
   "1_1:Eyebrows": 1201,
   "1_1:Makeup": 1202,
@@ -16,17 +18,26 @@
   "3_1:Tattoo Color": 1214,
   "4_0:Scars": 1203,
   "4_0:Tattoo": 1216,
+  "4_0:Tattoo Color": 1227,
   "4_1:Markings": 1218,
   "4_1:Markings Color": 1217,
   "4_1:Scars": 1204,
+  "4_1:Tattoo": 1229,
+  "4_1:Tattoo Color": 1228,
+  "6_0:Body Paint": 1230,
   "6_0:Face Paint": 1220,
   "6_0:Paint Color": 1219,
+  "6_1:Body Paint": 1231,
   "6_1:Face Paint": 1222,
   "6_1:Paint Color": 1221,
+  "8_0:Body Paint": 1233,
+  "8_0:Body Paint Color": 1232,
   "8_0:Face Paint": 1224,
   "8_0:Face Paint Color": 1223,
+  "8_1:Body Paint": 1235,
+  "8_1:Body Paint Color": 1234,
   "8_1:Face Paint": 1226,
   "8_1:Face Paint Color": 1225
  },
- "next": 1227
+ "next": 1238
 }

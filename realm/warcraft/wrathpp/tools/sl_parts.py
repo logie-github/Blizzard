@@ -32,7 +32,7 @@ def array(m, off):
     return struct.unpack_from("<II", m, off)
 
 
-def patch_shell(m2b):
+def patch_shell(m2b, head=True):
     """The converted head model made a shell: vertices out along their normals, texture coordinates the picture's, the
     texture replaceable type 11 and the materials alpha blended."""
     m = bytearray(m2b)
@@ -42,9 +42,10 @@ def patch_shell(m2b):
         p = np.array(struct.unpack_from("<3f", m, at), np.float64)
         nrm = np.array(struct.unpack_from("<3f", m, at + 20), np.float64)
         struct.pack_into("<3f", m, at, *(p + nrm * LIFT))
-        u, v = struct.unpack_from("<ff", m, at + 32)
-        # the head's place in the composed skin: x 0 to 0.5, y 0.75 to 1; the picture is that place alone
-        struct.pack_into("<ff", m, at + 32, min(1.0, max(0.0, u * 2.0)), min(1.0, max(0.0, (v - 0.75) * 4.0)))
+        if head:
+            u, v = struct.unpack_from("<ff", m, at + 32)
+            # the head's place in the composed skin: x 0 to 0.5, y 0.75 to 1; the picture is that place alone
+            struct.pack_into("<ff", m, at + 32, min(1.0, max(0.0, u * 2.0)), min(1.0, max(0.0, (v - 0.75) * 4.0)))
     n, o = array(m, TEXTURES)
     body = [i for i in range(n) if struct.unpack_from("<I", m, o + i * 16)[0] == 1]
     if not body:
@@ -89,6 +90,31 @@ def head_shell(read, model, out_dir, log=print):
     return written
 
 
+BODY_GEOSETS = (0, 401, 501)       # the bare body, hands and feet: the geosets drawn with the skin's own texture
+
+
+def body_shell(read, model, out_dir, log=print):
+    """Writes the model's body shell ("<Model>Body") into [out_dir]: the bare body's geosets (the base, the hands, the feet) lifted
+    0.4 mm, their texture the replaceable type 11 laid over the skin, alpha blended. Its coordinates are the skin's own (the
+    picture is the whole 512 x 512 skin's). The files written."""
+    import m2
+    import check_m2
+    present = [g for g in BODY_GEOSETS if str(g) in model["geoset_policy"] or g // 100 not in (0,) or g == 0]
+    part = dict(model, name=model["name"] + "Body", geosets=None, stand_only=True,
+                geoset_policy={str(g): [1 + i] for i, g in enumerate(present)}, drop_groups=list(range(0, 100)))
+    written = m2.convert(read, part, out_dir, lambda *a: None)
+    path = os.path.join(out_dir, model["folder"].replace("\\", "/"), part["name"] + ".m2")
+    with open(path, "rb") as f:
+        shell = patch_shell(f.read(), head=False)
+    with open(path, "wb") as f:
+        f.write(shell)
+    problems = [x for x in check_m2.check(path) if "type %d" % SHELL_TEXTURE not in x]
+    if problems:
+        raise ValueError("%s: %s" % (part["name"], "; ".join(problems[:10])))
+    log("%s: body shell" % part["name"])
+    return written
+
+
 def resized_over(rgba, size):
     """[rgba] a picture with an alpha channel at another size, the colour weighed by the alpha (textures.resized_over)."""
     import textures
@@ -119,6 +145,33 @@ def overlay_picture(rgba, layout):
     return textures.scalp_cut(rgba, layout)
 
 
+def layer_to_alpha(rgba):
+    """A layer opaque everywhere (today's game blends it by a mode of its own) as the alpha blended picture a shell draws."""
+    if rgba[:, :, 3].min() != 255:
+        return rgba
+    grey = rgba[:, :, :3].astype(np.float32).mean(axis=2)
+    out = np.zeros(rgba.shape, np.uint8)
+    if np.median(grey) > 192:
+        out[:, :, 3] = np.clip(255.0 - grey, 0, 255).astype(np.uint8)
+    else:
+        out[:, :, :3] = np.where(grey[:, :, None] > 127.5, 255, 0).astype(np.uint8)
+        out[:, :, 3] = np.clip(np.abs(grey - 127.5) * 2.0, 0, 255).astype(np.uint8)
+    return out
+
+
+def body_picture(rgba):
+    """A layer of the body as the body shell draws it: the skin's 512 x 512, the alpha kept. [rgba] is the body's own section
+    (512 x 512) or the whole skin's layer (1024 x 512: the body its left half)."""
+    import textures
+    h, w = rgba.shape[:2]
+    if w == 2 * h:
+        rgba = np.ascontiguousarray(rgba[:, :w // 2])
+    rgba = layer_to_alpha(rgba)
+    if rgba.shape[:2] != (512, 512):
+        rgba = textures.resized_over(rgba, (512, 512))
+    return rgba
+
+
 def write_overlays(read, model, layout, out_dir, log=print):
     """Writes the pictures of the model's head overlays (model["overlays"]) into [out_dir]; the files written. [layout]: the
     model's own (m2.convert's: where its head went)."""
@@ -138,6 +191,19 @@ def write_overlays(read, model, layout, out_dir, log=print):
                 with open(full, "wb") as f:
                     f.write(blp.write_palette(np.ascontiguousarray(overlay_picture(picture, layout["head"])), alpha=True))
                 written.append(path)
+    done_body = set()
+    for option in model.get("overlays", []):
+        for choice in option["choices"]:
+            for fid in choice.get("body", {}).values():
+                path = names.body_overlay(model, fid)
+                if fid in done_body:
+                    continue
+                done_body.add(fid)
+                full = os.path.join(out_dir, path.replace("\\", "/"))
+                os.makedirs(os.path.dirname(full), exist_ok=True)
+                with open(full, "wb") as f:
+                    f.write(blp.write_palette(np.ascontiguousarray(body_picture(blp.read(read(fid)))), alpha=True))
+                written.append(path)
     if written:
         log("%s: %d overlay pictures" % (model["name"], len(written)))
     return written
@@ -151,6 +217,8 @@ def write_parts_table(looks, out_dir, ids):
                                                                   and the shell it is drawn on, in slot `slot` of the character
         P race sex slot category style_category shell             the same for a paint whose picture follows another option's
                                                                   choice (its colour): `category` the colour's, `style_category` the style's
+        T / U race sex slot category [style_category] shell       the same for the body shell (a slot of its own); D race sex category option
+                                                                  colour picture are its pictures
         C race sex category option colour picture                 the picture of a choice (1 from the first): `colour` is `*` for
                                                                   any, a hair colour's index, or `s<number>` for the style's choice
 
@@ -176,14 +244,27 @@ def write_parts_table(looks, out_dir, ids):
                     lines.append("P\t%d\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, style or 0, names.shell(model)))
                 else:
                     lines.append("S\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, names.shell(model)))
+                def colour_of(colour):
+                    if colour.startswith("r"):
+                        hit = [number[d][colour[1:]] for d in (depends or []) if d in number and colour[1:] in number[d]]
+                        return "s%d" % hit[0] if hit else None
+                    return colour
                 for k, choice in enumerate(option["choices"], 1):
                     for colour, fid in sorted(choice["files"].items()):
-                        if colour.startswith("r"):
-                            hit = [number[d][colour[1:]] for d in (depends or []) if d in number and colour[1:] in number[d]]
-                            if not hit:
-                                continue
-                            colour = "s%d" % hit[0]
-                        lines.append("C\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, k, colour, names.overlay(model, fid)))
+                        colour = colour_of(colour)
+                        if colour is not None:
+                            lines.append("C\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, k, colour, names.overlay(model, fid)))
+                if any(c.get("body") for c in option["choices"]):
+                    slot += 1
+                    if depends:
+                        lines.append("U\t%d\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, style or 0, names.body_shell(model)))
+                    else:
+                        lines.append("T\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), slot, category, names.body_shell(model)))
+                    for k, choice in enumerate(option["choices"], 1):
+                        for colour, fid in sorted(choice.get("body", {}).items()):
+                            colour = colour_of(colour)
+                            if colour is not None:
+                                lines.append("D\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, k, colour, names.body_overlay(model, fid)))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
