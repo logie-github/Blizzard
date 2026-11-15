@@ -45,12 +45,13 @@ if ! grep -q "forever-musl" "$SRC/dep/gsoap/CMakeLists.txt"; then
 	printf '\n# forever-musl: musl has the POSIX gethostbyname_r and strerror_r only\ntarget_compile_definitions(gsoap PRIVATE _POSIX_C_SOURCE=200809L WITH_POSIX_STRERROR_R)\n' >> "$SRC/dep/gsoap/CMakeLists.txt"
 fi
 
-# musl gives a new thread a 128 KiB stack unless the program asks for more (glibc: 8 MiB).
+# musl gives a new thread a 128 KiB stack unless the program asks for more (glibc: 8 MiB). The bundled jemalloc is configured for glibc
+# (NOJEM): the world server gets Alpine's jemalloc preloaded instead, as the other realms' servers do (musl's malloc is slow for many threads).
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/forever \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,stack-size=8388608" \
-	-DSERVERS=1 -DTOOLS=1 -DSCRIPTS=static -DBUILD_PLAYERBOT_V2=1 -DEMBED_BUILD_PATHS=0 \
+	-DSERVERS=1 -DTOOLS=1 -DSCRIPTS=static -DBUILD_PLAYERBOT_V2=1 -DEMBED_BUILD_PATHS=0 -DNOJEM=1 \
 	-DWITH_WARNINGS=0 -DUSE_COREPCH=1 -DUSE_SCRIPTPCH=1 > "$BUILD.cmake.log" 2>&1 || { tail -60 "$BUILD.cmake.log"; exit 1; }
 grep -q "Playerbot V2 module enabled" "$BUILD.cmake.log" || { echo "CMake did not enable Playerbot V2" >&2; tail -30 "$BUILD.cmake.log"; exit 1; }
 grep -q "AddSC_playerbot_v2" "$BUILD.cmake.log" || { echo "Modules: AddSC_playerbot_v2 missing from CMake output" >&2; exit 1; }

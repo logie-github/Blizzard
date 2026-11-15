@@ -39,7 +39,8 @@ object ForeverServer {
         return WowCtl.Command(
             argv = listOf(loader.path, "--library-path", layout.lib.path, File(layout.bin, program).path) + args,
             env = mapOf(
-                "LD_PRELOAD" to listOf("libandroidcompat.so", "libforeverresolve.so").map { File(layout.lib, it).path }.joinToString(":"),
+                "LD_PRELOAD" to (listOf("libandroidcompat.so", "libforeverresolve.so") + (if (program == "worldserver") listOf("libjemalloc.so.2") else emptyList()))
+                    .map { File(layout.lib, it).path }.joinToString(":"),
                 "OPENSSL_MODULES" to File(layout.lib, "ossl-modules").path,
                 "HOME" to layout.run.path, "TMPDIR" to File(layout.run, "tmp").path,
             ),
