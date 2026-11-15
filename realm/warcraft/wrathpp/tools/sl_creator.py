@@ -30,6 +30,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import sl_looks
+import sl_parts
 import names                                 # noqa: E402
 from sl_looks import allied                     # noqa: E402
 
@@ -183,6 +184,25 @@ def build_model(tables, categories, race_id, sex, model):
             reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
             if reg:
                 option["reg"] = reg                    # the registry's category: the realm keeps the character's choice (registry_parts.py)
+        # A model piece (ears, headdress, vines, a tail...): the native mod hangs its model (sl_parts.geoset_part) and shows the chosen
+        # choice's geosets; a texture picker (a jewellery's or a vine's colour) is kept beside it and its picture put on the piece
+        part = next((x for x in model.get("parts", []) if x["name"] == o["Name_lang"]), None)
+        picker = next((x for x in model.get("pickers", []) if x["name"] == o["Name_lang"]), None) if model.get("parts") else None
+        if "field" not in option and "overlay" not in option and "style" not in option and (part is not None or picker is not None):
+            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            if part is not None and any(c["geosets"] for c in part["choices"]):
+                option["geoset"] = sl_parts.part_model_path(model, part)
+                types = model.get("part_types", {}).get(part["name"], [])
+                option["types"] = list(types)
+                if 13 in types and model.get("pickers"):
+                    option["picker"] = model["pickers"][0]["name"]
+            elif picker is not None:
+                option["texture"] = True
+                for e, c in zip(option["choices"], picker["choices"]):
+                    if c["file"]:
+                        e["tex"] = names.picker(model, c["file"])
+            if reg and ("geoset" in option or "texture" in option):
+                option["reg"] = reg
         if len(option["choices"]) < 2:
             continue
         options.append(option)
@@ -190,7 +210,11 @@ def build_model(tables, categories, race_id, sex, model):
     cats = [{"id": int(c["ID"]), "name": c["CategoryName_lang"].split(" (")[0], "order": int(c["OrderIndex"]),
              "zoom": int(c.get("CameraZoomLevel") or 0)} for c in used.values()]
     cats.sort(key=lambda c: (c["order"], c["id"]))
-    return {"race": race_id, "sex": sex, "name": model["name"], "fields": fields, "categories": cats, "options": options}
+    out = {"race": race_id, "sex": sex, "name": model["name"], "fields": fields, "categories": cats, "options": options}
+    if model.get("parts"):
+        out["hairtex"] = names.hair_template(model)
+        out["skintex"] = [names.skin(model, x["index"]) for x in model["skins"][:model["base_skins"]]]
+    return out
 
 
 def build(csv_dir, looks):

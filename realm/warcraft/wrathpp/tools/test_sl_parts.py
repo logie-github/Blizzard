@@ -68,6 +68,27 @@ class PartsTest(unittest.TestCase):
         self.assertTrue(lines[2][5].endswith("TaurenMaleBody.m2") and lines[2][3] == "2")
         self.assertTrue(lines[3][6].endswith("TaurenMaleBo6.blp"))
 
+    def test_parts_table_has_the_model_pieces(self):
+        model = {"name": "NightElfFemale", "folder": "Character\\NightElf\\Female", "base_skins": 2, "skins": [{"index": 0}, {"index": 1}],
+                 "overlays": [], "part_types": {"Vines": [13], "Ears": [11]},
+                 "parts": [{"name": "Vines", "choices": [{"id": "1", "name": "None", "geosets": []}, {"id": "2", "name": "Woven", "geosets": [3902]}]},
+                           {"name": "Ears", "choices": [{"id": "3", "name": "A", "geosets": [701]}, {"id": "4", "name": "B", "geosets": [702]}]}],
+                 "pickers": [{"name": "Vine Color", "type": 10, "choices": [{"id": "5", "name": "Green", "file": 99}, {"id": "6", "name": "None", "file": 0}]}]}
+        looks = {"races": {"4": {"race": 4, "models": {"1": model}}}}
+        ids = {"4_1:Vines": 1320, "4_1:Ears": 1321, "4_1:Vine Color": 1330}
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, ids)
+            with open(path, encoding="utf-8") as f:
+                lines = [l.split("\t") for l in f.read().splitlines() if not l.startswith("#")]
+        by = {}
+        for l in lines:
+            by.setdefault(l[0], []).append(l)
+        self.assertEqual(len(by["K"]), 2)
+        self.assertTrue(by["H"][0][3].endswith("NightElfFemaleHair00_%02d.blp"))
+        self.assertEqual([l[1:6] for l in by["G"]], [["4", "1", "1", "1320", "Character\\NightElf\\Female\\NightElfFemalePVines.m2"], ["4", "1", "2", "1321", "Character\\NightElf\\Female\\NightElfFemalePEars.m2"]])
+        self.assertEqual([l[6:8] for l in by["G"]], [["13", "1330"], ["11", "0"]])
+        self.assertEqual(len(by["Z"]), 1)                                        # the picker's choice with a file
+
     def test_parts_table_pairs_a_paint_with_its_style(self):
         model = {"name": "OrcMale", "folder": "Character\\Orc\\Male", "overlays": [
             {"name": "Scars", "choices": [{"id": "1", "name": "None", "files": {}}, {"id": "2", "name": "Cut", "files": {"*": 77}}]},

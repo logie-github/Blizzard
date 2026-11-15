@@ -329,8 +329,11 @@ namespace
     // it answers for this one). The Lua says which (WrathPP_SetOverlay); they are made again whenever the character's model is.
     struct OverlayPart
     {
-        std::string wantShell, wantPicture;     // what the Lua asked for ("" for none)
-        std::string shell, picture;             // what is on
+        std::string wantShell, wantPicture;     // what the Lua asked for ("" for none); the picture is texture type 11
+        std::string wantPicture12, wantPicture13;   // the hair's (type 12) and a customization's (type 13) pictures of a part that has them
+        int wantChoice = 0;                     // 0 the whole model, else which choice's geosets show (ids choice * 100 to choice * 100 + 99)
+        std::string shell, picture, picture12, picture13;   // what is on
+        int choice = -1;
         uintptr_t parent = 0;
         wxl::M2Model model;
     };
@@ -342,7 +345,7 @@ namespace
     {
         if (part.wantShell.empty())
         {
-            if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+            if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); part.picture12.clear(); part.picture13.clear(); part.choice = -1; }
             return;
         }
         if (!parent || !ModelLoaded(parent)) return;
@@ -352,16 +355,27 @@ namespace
             part.model = wxl::M2Model(reinterpret_cast<void*>(parent), part.wantShell);
             part.parent = parent;
             part.shell = part.wantShell;
-            part.picture.clear();
+            part.picture.clear(); part.picture12.clear(); part.picture13.clear(); part.choice = -1;
             if (!part.model) { wxl::Log(WXL_LOG_WARN, kTag, "{} {}: wxl.m2 made no model of {}", what, index, part.wantShell); return; }
             const wxl_result hung = part.model.Attach(reinterpret_cast<void*>(parent), 0, WXL_M2_ATTACH_ROOT | WXL_M2_ATTACH_FOLLOW_BONES);
             wxl::Log(WXL_LOG_INFO, kTag, "{} {}: {} hung on the character ({})", what, index, part.shell, wxl::ResultName(hung));
         }
-        if (part.picture != part.wantPicture && part.model)
+        if (!part.model) return;
+        const struct { uint32_t type; const std::string& want; std::string& has; } pictures[] = {
+            {11, part.wantPicture, part.picture}, {12, part.wantPicture12, part.picture12}, {13, part.wantPicture13, part.picture13}};
+        for (const auto& p : pictures)
         {
-            const wxl_result put = part.model.ReplaceTexture(11, part.wantPicture);
-            part.picture = part.wantPicture;
-            if (put != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "{} {}: {} not put on ({})", what, index, part.wantPicture, wxl::ResultName(put));
+            if (p.has == p.want || p.want.empty()) continue;
+            const wxl_result put = part.model.ReplaceTexture(p.type, p.want);
+            p.has = p.want;
+            if (put != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "{} {}: {} not put on as type {} ({})", what, index, p.want, p.type, wxl::ResultName(put));
+        }
+        if (part.choice != part.wantChoice)
+        {
+            // a model of several choices' geosets: only the chosen one's show (a choice's ids are choice * 100 and up)
+            part.model.SetGeosets(0, 65535, part.wantChoice == 0);
+            if (part.wantChoice > 0) part.model.SetGeosets(static_cast<uint32_t>(part.wantChoice) * 100, static_cast<uint32_t>(part.wantChoice) * 100 + 99, true);
+            part.choice = part.wantChoice;
         }
     }
 
@@ -402,7 +416,7 @@ namespace
                 OverlayPart& part = look.parts[i];
                 if (!parent)
                 {
-                    if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+                    if (part.model) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); part.picture12.clear(); part.picture13.clear(); part.choice = -1; }
                     continue;
                 }
                 SyncPart(part, parent, "world part", i + 1);
@@ -425,7 +439,7 @@ namespace
         void OnWorldLeave(uint32_t, wxl_vec3) override
         {
             for (auto& entry : g_world)
-                for (OverlayPart& part : entry.second.parts) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); }
+                for (OverlayPart& part : entry.second.parts) { part.model.Reset(); part.parent = 0; part.shell.clear(); part.picture.clear(); part.picture12.clear(); part.picture13.clear(); part.choice = -1; }
         }
 
     private:
@@ -434,11 +448,16 @@ namespace
     World g_worldScript;
 
     /// What a character of the world is to wear: part [slot] (0 to 2) the head shell and its picture, "" for none.
-    void WorldLookSet(uint64_t guid, int slot, const std::string& shell, const std::string& picture)
+    void WorldLookSet(uint64_t guid, int slot, const std::string& shell, const std::string& picture, int choice,
+                      const std::string& picture12, const std::string& picture13)
     {
         WorldLook& look = g_world[guid];
-        look.parts[slot].wantShell = shell;
-        look.parts[slot].wantPicture = picture;
+        OverlayPart& part = look.parts[slot];
+        part.wantShell = shell;
+        part.wantPicture = picture;
+        part.wantChoice = choice;
+        part.wantPicture12 = picture12;
+        part.wantPicture13 = picture13;
     }
 
     void __fastcall GeosRenderPrepDetour(void* component, void* /*edx*/)
@@ -479,10 +498,10 @@ namespace
     void AttachLayer() {}
     std::string g_previewDesign;
     void PreviewNow() {}
-    struct OverlayPart { std::string wantShell, wantPicture; };
+    struct OverlayPart { std::string wantShell, wantPicture, wantPicture12, wantPicture13; int wantChoice = 0; };
     OverlayPart g_overlays[kPartSlots];
     void SyncOverlays(uintptr_t) {}
-    void WorldLookSet(uint64_t, int, const std::string&, const std::string&) {}
+    void WorldLookSet(uint64_t, int, const std::string&, const std::string&, int, const std::string&, const std::string&) {}
 #endif
 
     void GetCustomization(wxl::ScriptCall& call)
@@ -615,6 +634,12 @@ namespace
         OverlayPart& part = g_overlays[static_cast<int>(*slot) - 1];
         part.wantShell = std::string(shell->substr(0, 260));
         part.wantPicture = std::string(picture->substr(0, 260));
+        const auto choice = call.Number(3);
+        const auto p12 = call.String(4);
+        const auto p13 = call.String(5);
+        part.wantChoice = choice ? static_cast<int>(*choice) : 0;
+        part.wantPicture12 = p12 ? std::string(p12->substr(0, 260)) : std::string();
+        part.wantPicture13 = p13 ? std::string(p13->substr(0, 260)) : std::string();
 #if defined(_M_IX86)
         const uintptr_t component = CreationComponent();
         if (component) SyncOverlays(component);
@@ -629,7 +654,7 @@ namespace
         const auto guidText = call.String(0);
         if (!guidText || guidText->empty())
         {
-            call.Fail("WrathPP_ApplyLook(guid, shell1, picture1, ... shell8, picture8): guid is \"0x\" and hex digits");
+            call.Fail("WrathPP_ApplyLook(guid, slot1, ... slot8): a slot is shell|choice|picture11|picture12|picture13; guid is \"0x\" and hex digits");
             return;
         }
         const std::string text(*guidText);
@@ -641,10 +666,22 @@ namespace
         }
         for (int i = 0; i < kPartSlots; ++i)
         {
-            const auto shell = call.String(1 + 2 * i);
-            const auto picture = call.String(2 + 2 * i);
-            WorldLookSet(guid, i, shell ? std::string(shell->substr(0, 260)) : std::string(),
-                         picture ? std::string(picture->substr(0, 260)) : std::string());
+            // a slot: "shell|choice|picture11|picture12|picture13" ("" for none; paths have no bar)
+            const auto spec = call.String(1 + i);
+            std::string fields[5];
+            if (spec)
+            {
+                size_t from = 0;
+                const std::string whole(*spec);
+                for (int k = 0; k < 5; ++k)
+                {
+                    const size_t bar = whole.find('|', from);
+                    fields[k] = whole.substr(from, bar == std::string::npos ? std::string::npos : bar - from);
+                    if (bar == std::string::npos) break;
+                    from = bar + 1;
+                }
+            }
+            WorldLookSet(guid, i, fields[0].substr(0, 260), fields[2].substr(0, 260), std::atoi(fields[1].c_str()), fields[3].substr(0, 260), fields[4].substr(0, 260));
         }
         call.PushBool(true);
     }

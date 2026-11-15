@@ -906,7 +906,8 @@ def convert(files, policy, out_dir, log=print):
             texture_names[fid] = path
             texture_index[i] = len(textures)
             textures.append((0, flags, path))
-        elif kind in (BODY, CAPE, HAIR):
+        elif kind in (BODY, CAPE, HAIR) or kind in policy.get("keep_types", ()):
+            # (a model piece of Wrath++'s: today's customization textures too, which a picture is put on by type: sl_parts.py)
             texture_index[i] = len(textures)
             textures.append((kind, flags, ""))
         elif kind == EYES:
@@ -1065,7 +1066,7 @@ def convert(files, policy, out_dir, log=print):
         for s in sections_by_id.get(int(old), []):
             for b in batches_of.get(s, []):
                 kind = texture_types[model.texture_lookup[b[9]]]
-                if kind not in KEPT_TYPES and kind != EYES and str(kind) not in hard:
+                if kind not in KEPT_TYPES and kind != EYES and str(kind) not in hard and kind not in policy.get("keep_types", ()):
                     continue
                 for new in news:
                     plan.append((new, s, b))

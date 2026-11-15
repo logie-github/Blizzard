@@ -28,9 +28,17 @@ SEXES = {0: "male", 1: "female"}
 ORIGIN = "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part"
 
 
+SKIN_COLOUR = 1191
+
+
 def drawn(model):
-    """The options of [model] (a looks.json model) that a part draws: [(name, number of choices)]."""
-    return [(o["name"], len(o["choices"])) for o in model.get("overlays", [])]
+    """The options of [model] (a looks.json model) that a part draws: [(name, number of choices)]: the pictures over the head and body,
+    the model pieces and the texture pickers (a jewellery's, a vine's colour)."""
+    out = [(o["name"], len(o["choices"])) for o in model.get("overlays", [])]
+    out += [(o["name"], len(o["choices"])) for o in model.get("parts", []) if any(c["geosets"] for c in o["choices"])]
+    if model.get("parts"):
+        out += [(o["name"], len(o["choices"])) for o in model.get("pickers", [])]
+    return out
 
 
 def build(looks, doc, ids):
@@ -52,6 +60,12 @@ def build(looks, doc, ids):
                              "eligibility": [{"race": entry["race"], "sexes": [SEXES[int(sex_key)]], "classes": []}],
                              "options": [{"id": i + 1, "name": str(i + 1), "value": i} for i in range(n)]})
     ids["next"] = nxt
+    skin_models = [(entry["race"], SEXES[int(sex_key)], model["base_skins"]) for entry in looks["races"].values()
+                   for sex_key, model in entry["models"].items() if model.get("parts")]
+    if skin_models:
+        cats.insert(0, {"id": SKIN_COLOUR, "key": "SKIN_COLOUR", "name": "Skin colour", "kind": "texture_layer", "default": 1, "origin": ORIGIN,
+                        "eligibility": [{"race": r, "sexes": [sx], "classes": []} for r, sx, _ in sorted(skin_models)],
+                        "options": [{"id": i + 1, "name": str(i + 1), "value": i} for i in range(max(n for _, _, n in skin_models))]})
     cats.insert(0, {"id": HAIR_COLOUR, "key": "HAIR_COLOUR", "name": "Hair colour", "kind": "texture_layer", "default": 1, "origin": ORIGIN,
                     "eligibility": [{"race": r, "sexes": ["male", "female"], "classes": []} for r in RACES],
                     "options": [{"id": i + 1, "name": str(i + 1), "value": i} for i in range(colours)]})

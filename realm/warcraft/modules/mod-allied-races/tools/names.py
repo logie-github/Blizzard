@@ -43,6 +43,16 @@ def overlay(model, file_id):
     return "%s\\%sOv%d.blp" % (model["folder"], model["name"], file_id)
 
 
+def picker(model, file_id):
+    """a texture a model piece takes by customization (a jewellery's, a vine's colour: sl_parts), named by today's file"""
+    return "%s\\%sPk%d.blp" % (model["folder"], model["name"], file_id)
+
+
+def hair_template(model):
+    """the hair colours' textures' names with the colour's number as %02d"""
+    return "%s\\%sHair00_%%02d.blp" % (race_folder(model), model["name"])
+
+
 def body_overlay(model, file_id):
     """a picture laid over the body by a part (sl_parts.body_shell), named by today's file"""
     return "%s\\%sBo%d.blp" % (model["folder"], model["name"], file_id)

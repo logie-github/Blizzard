@@ -629,9 +629,9 @@ function G.define()
 	function WrathPP_SetScreen(text) if ( type(text) ~= "string" ) then error("WrathPP_SetScreen(text): text is a string", 2) end; G.screen = text; G.screens = (G.screens or 0) + 1; return true end
 	function WrathPP_Log(text) if ( type(text) ~= "string" ) then error("WrathPP_Log(text): text is a string", 2) end; G.log[#G.log + 1] = text end
 	G.overlays = {}
-	function WrathPP_SetOverlay(slot, shell, picture)
+	function WrathPP_SetOverlay(slot, shell, picture, choice, picture12, picture13)
 		if ( type(slot) ~= "number" or type(shell) ~= "string" or type(picture) ~= "string" ) then error("WrathPP_SetOverlay(slot, shell, picture): a number and two strings, empty for none", 2) end
-		G.overlays[slot] = { shell = shell, picture = picture }
+		G.overlays[slot] = { shell = shell, picture = picture, choice = choice or 0, picture12 = picture12 or "", picture13 = picture13 or "" }
 		return true
 	end
 	G.bodyPreview, G.bodyPreviews = "", 0

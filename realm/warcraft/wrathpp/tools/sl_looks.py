@@ -211,6 +211,50 @@ def overlays_of(tables, chr_model, model):
     return out
 
 
+def parts_of(tables, chr_model, model):
+    """The options of [chr_model] that are model pieces (ears, headdresses, vines, tails, hair of the Tauren...: geosets today's 3.3.5
+    skin has no room for) and the texture pickers beside them (a jewellery's, a vine's colour: a layer of a texture type other than the
+    skin's):
+
+        parts:   [{"name", "choices": [{"name", "id", "geosets": [today's geoset ids]}]}]
+        pickers: [{"name", "type": today's texture type, "choices": [{"name", "id", "file": file id or 0}]}]
+
+    A choice's number is its place here (the available ones by their UI order, from 1), as the creator lists them. What the sliders,
+    the feature slider and the pictures over the head carry is not listed again."""
+    layout = tables.chr_models[str(chr_model)]["CharComponentTextureLayoutID"]
+    kinds = {}
+    for row in tables.layers:
+        if row["CharComponentTextureLayoutsID"] == layout:
+            kinds[row["ChrModelTextureTargetID_0"]] = row["TextureType"]
+    skip = set(SLIDERS) | set(model.get("feature_options", [])) | {o["name"] for o in model.get("overlays", [])}
+    skip |= {today for (cm, asked), today in tables.aliases.items() if cm == str(chr_model)}      # (the Tauren's Foremane and Horn Color are the hair's sliders)
+    skip |= {"Face Shape", "Skin Type"}         # (they replace the head or the body of the model itself: a piece laid over it would double it)
+    parts, pickers = [], []
+    for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
+        if o["Name_lang"] in skip or (len(model.get("tattoos", [])) > 1 and o["Name_lang"] in allied.BODY_TATTOOS):
+            continue
+        chs = sorted((c for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False) if tables.available(c)), key=ui_order)
+        geo = [{"name": c["Name_lang"], "id": c["ID"], "geosets": tables.choice_geosets(c)} for c in chs]
+        if any(g["geosets"] for g in geo) and len(chs) > 1:
+            parts.append({"name": o["Name_lang"], "choices": geo})
+            continue
+        types = set()
+        picks = []
+        for c in chs:
+            file = 0
+            for e in tables.elements[c["ID"]]:
+                if e["ChrCustomizationMaterialID"] == "0":
+                    continue
+                target, fids = tables.material_files(e)
+                if kinds.get(target) not in (None, "1") and fids and e["RelatedChrCustomizationChoiceID"] == "0":
+                    types.add(int(kinds[target]))
+                    file = fids[0]
+            picks.append({"name": c["Name_lang"], "id": c["ID"], "file": file})
+        if len(types) == 1 and len(chs) > 1 and any(p["file"] for p in picks):
+            pickers.append({"name": o["Name_lang"], "type": next(iter(types)), "choices": picks})
+    return parts, pickers
+
+
 def build_races(csv_dir, races=None):
     """What each race and sex is made of. [races]: RACES (the ten of 3.3.5's, the default) or ALLIED."""
     tables = Tables(csv_dir)
@@ -239,6 +283,7 @@ def build_races(csv_dir, races=None):
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
             model["chr_model"] = chr_model
             model["overlays"] = overlays_of(tables, chr_model, model)
+            model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
             entry["models"][str(sex)] = model
         entry["replace_rows"] = races is None             # the ten of 3.3.5: their rows in the tables are replaced
         out["races"][str(race_id)] = entry
@@ -441,6 +486,14 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 written += sl_parts.head_shell(read, model, client, log)
                 if any(c.get("body") for o in model["overlays"] for c in o["choices"]):
                     written += sl_parts.body_shell(read, model, client, log)
+            if model.get("parts"):
+                import sl_parts
+                model["part_types"] = {}
+                for part in model["parts"]:
+                    files, types = sl_parts.geoset_part(read, model, part, client, log)
+                    written += files
+                    model["part_types"][part["name"]] = sorted(types)
+                written += sl_parts.write_pickers(read, model, client, log)
                 written += sl_parts.write_overlays(read, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
@@ -465,6 +518,16 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
         ids = json.load(open(ids_path)).get("keys", {}) if os.path.exists(ids_path) else {}
         sl_parts.write_parts_table(ten, client, ids)
         written.append("Wrathpp\\parts.txt")
+        # (the textures the model pieces take, which the creator's options step needs: put in the looks file)
+        if any(m.get("part_types") for e in ten["races"].values() for m in e["models"].values()):
+            with open(looks_path) as f:
+                saved = json.load(f)
+            for key, e in ten["races"].items():
+                for sex, m in e["models"].items():
+                    if m.get("part_types") and key in saved.get("races", {}):
+                        saved["races"][key]["models"][sex]["part_types"] = m["part_types"]
+            with open(looks_path, "w") as f:
+                json.dump(saved, f, indent=1, sort_keys=True)
     missing = verify(looks, out_dir)
     if missing:
         raise ValueError("%d files the tables name are not in the package, e.g. %s" % (len(missing), ", ".join(missing[:5])))

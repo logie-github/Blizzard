@@ -115,6 +115,105 @@ def body_shell(read, model, out_dir, log=print):
     return written
 
 
+TYPE_SLOTS = {1: 11, 8: 11, 6: 12, 10: 13, 20: 13}     # today's texture type of a part's batch -> the replaceable type wxl.m2 puts a picture on
+
+
+def patch_part_textures(m2b):
+    """A model piece's textures made the replaceable types a mod's model takes (TYPE_SLOTS): the skin's 11, the hair's 12, a
+    customization's 13; the fixed textures (type 0) stay. Returns (the model, the set of the types it has)."""
+    m = bytearray(m2b)
+    n, o = array(m, TEXTURES)
+    wanted = {}
+    for i in range(n):
+        t = struct.unpack_from("<I", m, o + i * 16)[0]
+        if t in TYPE_SLOTS:
+            struct.pack_into("<I", m, o + i * 16, TYPE_SLOTS[t])
+            wanted.setdefault(TYPE_SLOTS[t], i)
+    rn, ro = array(m, REPLACEABLE)
+    table = list(struct.unpack_from("<%dh" % rn, m, ro))
+    for slot, index in wanted.items():
+        if len(table) <= slot:
+            raise ValueError("the part's replaceable table is too short (%d) to carry type %d" % (len(table), slot))
+        table[slot] = index
+    if wanted:
+        struct.pack_into("<%dh" % rn, m, ro, *table)
+    return bytes(m), set(wanted)
+
+
+def used_types(m2b, skin_bytes):
+    """The texture types (today's, before TYPE_SLOTS or after) the batches of a model and its skin draw with."""
+    tc, to = array(m2b, TEXTURES)
+    types = [struct.unpack_from("<I", m2b, to + i * 16)[0] for i in range(tc)]
+    lc, lo = array(m2b, 128)
+    look = struct.unpack_from("<%dh" % lc, m2b, lo)
+    bn, bo = struct.unpack_from("<II", skin_bytes, 36)
+    used = set()
+    for i in range(bn):
+        first, count = struct.unpack_from("<HH", skin_bytes, bo + i * 24 + 16)[0], struct.unpack_from("<H", skin_bytes, bo + i * 24 + 14)[0]
+        for k in range(max(count, 1)):
+            if first + k < len(look) and 0 <= look[first + k] < len(types):
+                used.add(types[look[first + k]])
+    return used
+
+
+def part_model_name(model, part):
+    import re
+    return model["name"] + "P" + re.sub(r"[^A-Za-z0-9]", "", part["name"])
+
+
+def geoset_part(read, model, part, out_dir, log=print):
+    """Writes the model piece of [part] (looks' parts_of: an option's choices and their geosets) into [out_dir]: one model with every
+    choice's geosets, the choice number k's under the ids k * 100 + 1 and up (wxl.m2's SetGeosets shows the chosen one's), its
+    textures the replaceable types of TYPE_SLOTS. Returns (the files written, the replaceable types it takes)."""
+    import m2
+    import check_m2
+    policy = {}
+    for k, choice in enumerate(part["choices"], 1):
+        for j, g in enumerate(choice["geosets"]):
+            policy.setdefault(str(g), []).append(k * 100 + j + 1)
+    if not policy:
+        return [], set()
+    name = part_model_name(model, part)
+    spec = dict(model, name=name, geosets=None, stand_only=True, geoset_policy=policy, drop_groups=list(range(0, 100)), keep_types=[8, 10, 20])
+    written = m2.convert(read, spec, out_dir, lambda *a: None)
+    path = os.path.join(out_dir, model["folder"].replace("\\", "/"), name + ".m2")
+    with open(path, "rb") as f:
+        raw = f.read()
+    with open(path[:-3] + "00.skin", "rb") as f:
+        used = used_types(raw, f.read())
+    patched, _ = patch_part_textures(raw)
+    types = {TYPE_SLOTS[t] for t in used if t in TYPE_SLOTS}
+    with open(path, "wb") as f:
+        f.write(patched)
+    problems = [x for x in check_m2.check(path) if not any("type %d" % t in x for t in (11, 12, 13))]
+    if problems:
+        raise ValueError("%s: %s" % (name, "; ".join(problems[:10])))
+    log("%s: part of %d choices, textures %s" % (name, len(part["choices"]), sorted(types) or "fixed"))
+    return written, types
+
+
+def write_pickers(read, model, out_dir, log=print):
+    """Copies the textures the model's pickers name (a jewellery's, a vine's colour) into [out_dir] as the files the game reads (today's
+    own, BLP): the files written."""
+    import names
+    written, done = [], set()
+    for picker in model.get("pickers", []):
+        for choice in picker["choices"]:
+            fid = choice["file"]
+            if not fid or fid in done:
+                continue
+            done.add(fid)
+            path = names.picker(model, fid)
+            full = os.path.join(out_dir, path.replace("\\", "/"))
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "wb") as f:
+                f.write(read(fid))
+            written.append(path)
+    if written:
+        log("%s: %d picker textures" % (model["name"], len(written)))
+    return written
+
+
 def resized_over(rgba, size):
     """[rgba] a picture with an alpha channel at another size, the colour weighed by the alpha (textures.resized_over)."""
     import textures
@@ -209,6 +308,14 @@ def write_overlays(read, model, layout, out_dir, log=print):
     return written
 
 
+def part_model_path(model, part):
+    return "%s\\%s.m2" % (model["folder"], part_model_name(model, part))
+
+
+def sl_parts_model(model, part):
+    return "%s\\%s.m2" % (model["folder"], part_model_name(model, part))
+
+
 def write_parts_table(looks, out_dir, ids):
     """Wrathpp/parts.txt in [out_dir] (the game's patch): what the add-on needs to draw a character's parts from the
     registry's choices, tab separated:
@@ -265,6 +372,34 @@ def write_parts_table(looks, out_dir, ids):
                             colour = colour_of(colour)
                             if colour is not None:
                                 lines.append("D\t%d\t%d\t%d\t%d\t%s\t%s" % (entry["race"], int(sex), category, k, colour, names.body_overlay(model, fid)))
+        # the model pieces (geosets: ears, headdresses, vines, tails...): a slot of their own each, the textures they take by type
+        for sex, model in sorted(entry["models"].items()):
+            parts = model.get("parts", [])
+            if not parts:
+                continue
+            race = entry["race"]
+            slot = sum(1 for l in lines if l.split("\t")[0] in ("S", "P", "T", "U") and l.split("\t")[1:3] == [str(race), str(int(sex))])
+            lines.append("H\t%d\t%d\t%s" % (race, int(sex), names.hair_template(model)))
+            for digit, s in enumerate(model["skins"][:model["base_skins"]]):
+                lines.append("K\t%d\t%d\t%d\t%s" % (race, int(sex), digit + 1, names.skin(model, s["index"])))
+            pickers = {p["type"]: p for p in model.get("pickers", [])}
+            for picker in model.get("pickers", []):
+                category = ids.get("%d_%d:%s" % (race, int(sex), picker["name"]))
+                if not category:
+                    continue
+                for k, choice in enumerate(picker["choices"], 1):
+                    if choice["file"]:
+                        lines.append("Z\t%d\t%d\t%d\t%d\t%s" % (race, int(sex), category, k, names.picker(model, choice["file"])))
+            for part in parts:
+                category = ids.get("%d_%d:%s" % (race, int(sex), part["name"]))
+                types = model.get("part_types", {}).get(part["name"], [])
+                if not category or not any(c["geosets"] for c in part["choices"]):
+                    continue
+                slot += 1
+                # (a picker of the texture type the part takes: types 13 are the customization's: 10 or 20 today)
+                picker = next(iter(pickers.values()), None) if 13 in types else None
+                picker_category = ids.get("%d_%d:%s" % (race, int(sex), picker["name"])) if picker else 0
+                lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as f:

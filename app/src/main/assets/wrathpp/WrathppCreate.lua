@@ -513,8 +513,34 @@ function W.Look()
 			end
 		end
 	end
+	-- the model pieces (ears, headdresses, vines, tails...): the chosen choice's geosets, with the textures the piece takes by type
+	if ( model and number(FIELD.skin) ) then
+		local digit = W.skinDigit(model)
+		if ( digit and model.skintex and type(WrathPP_SetChoice) == "function" ) then pcall(WrathPP_SetChoice, 1191, digit + 1) end
+		for _, option in ipairs(model.options) do
+			if ( option.geoset and not option.field ) then
+				slot = slot + 1
+				if ( slot > PART_SLOTS ) then break end
+				local has = {}
+				for _, t in ipairs(option.types or {}) do has[t] = true end
+				local p11 = has[11] and digit and model.skintex and model.skintex[digit + 1] or ""
+				local p12 = has[12] and model.hairtex and number(FIELD.haircolor) and string.format(model.hairtex, number(FIELD.haircolor)) or ""
+				local p13 = ""
+				if ( has[13] and option.picker ) then
+					for _, other in ipairs(model.options) do
+						if ( other.texture and other.name == option.picker ) then
+							local at = other.choices[math.min(W.ovCurrent(other), #other.choices)]
+							p13 = at and at.tex or ""
+						end
+					end
+				end
+				pcall(WrathPP_SetOverlay, slot, option.geoset, p11, math.min(W.ovCurrent(option), #option.choices), p12, p13)
+			end
+		end
+	end
 	for k = slot + 1, PART_SLOTS do pcall(WrathPP_SetOverlay, k, "", "") end
 end
+
 
 
 local function step(i, delta)
@@ -561,6 +587,18 @@ local function product(parts)
 	return n
 end
 
+-- The skin colour's number (from 1 less: the first colour is 0) among the skin number's parts, for the model pieces that take the skin's texture.
+function W.skinDigit(model)
+	local value = number(FIELD.skin)
+	if ( not value or not model.fields or not model.fields.skin ) then return nil end
+	for _, option in ipairs(model.options) do
+		if ( option.field == "skin" and option.part == #model.fields.skin ) then
+			return decode(math.min(value, product(model.fields.skin) - 1), model.fields.skin)[option.part]
+		end
+	end
+	return nil
+end
+
 -- The rows of a category --------------------------------------------------------------------------------------------
 
 local function allowed(choice, dk)
@@ -603,7 +641,7 @@ function W.Rows()
 		if ( option.category == W.category ) then
 			local row = { name = option.name, option = option, kind = option.type == 1 and "switch" or "list", choices = {} }
 			local skinColour = option.field == "skin" and option.part == #model.fields.skin
-			if ( not option.field and (option.overlay or option.style) ) then
+			if ( not option.field and (option.overlay or option.style or option.geoset or option.texture) ) then
 				-- a picture laid over the head (eyebrows, makeup, scars): chosen here, drawn by the native mod on the head shell
 				row.ovname = option.name
 				for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end

@@ -425,5 +425,29 @@ if R.G and WrathppLooks and WrathppLooks.models["2_0"] then
 	end
 end
 
+-- a model piece (the Night Elf woman's Ears): a row of its own; the native mod is told its model and the choice, the skin's texture on it
+if R.G and WrathppLooks and WrathppLooks.models["4_1"] then
+	local elf = WrathppLooks.models["4_1"]
+	local piece
+	for _, o in ipairs(elf.options) do if o.geoset and o.name == "Ears" then piece = o end end
+	if piece then
+		R = make({ race = 4, sex = 1, class = 1 })
+		R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+		local row
+		for k = 1, 8 do
+			if R.visible("WrathppCategory"..k) then
+				R.tap("WrathppCategory"..k); R.frames(0.1)
+				if R.row("Ears") then row = R.row("Ears"); break end
+			end
+		end
+		check(row and row.row.kind == "list", "model pieces: Ears is a row that can be chosen")
+		R.tap(row.next, WrathppOptionList); R.frames(0.1)
+		local told
+		for k = 1, 8 do if R.G.overlays[k] and R.G.overlays[k].shell:match("PEars%.m2$") then told = R.G.overlays[k] end end
+		check(told and told.choice == 2, "  the native mod is told the piece's model and the choice (2)")
+		check(told and told.picture:match("Skin00_%d+%.blp$"), "  with the skin's texture on it ("..tostring(told and told.picture)..")")
+	end
+end
+
 print(fails == 0 and "all passed" or (fails.." failed"))
 os.exit(fails == 0 and 0 or 1)
