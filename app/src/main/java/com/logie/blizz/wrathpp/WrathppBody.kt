@@ -184,9 +184,15 @@ object WrathppBody {
             if (!looksModel.isFile) { done.add("$race: not in the looks"); continue }
             if (shape != 0 && 0 !in shapesOf[race].orEmpty()) continue
             val base = if (shape == 0) looksModel.readBytes() else File(looksModel.path + ORIG).takeIf { it.isFile }?.readBytes() ?: looksModel.readBytes()
-            if (sha256(base) != m.getString("looks_sha256")) { if (shape == 0) done.add("$race: made for other looks, left as drawn"); continue }
+            // A package that names its looks' model by structure (everything but the vertices' positions) is for any looks of that
+            // model whose vertices only moved: the hair pushed out of the head differs a little with each build of the looks. An
+            // older package names the bytes.
+            val byStructure = m.has("looks_struct_sha256")
+            val rightLooks = if (byStructure) structSha256(base) == m.getString("looks_struct_sha256") else sha256(base) == m.getString("looks_sha256")
+            if (!rightLooks) { if (shape == 0) done.add("$race: made for other looks, left as drawn"); continue }
             val out = withPatch(base, File(files, m.getJSONObject("patch").getString("file")).readBytes())
-            if (sha256(out) != m.getString("made_sha256")) throw IOException("$race: the package's model doesn't make what it says")
+            val madeRight = if (byStructure) structSha256(out) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
+            if (!madeRight) throw IOException("$race: the package's model doesn't make what it says")
             val skin = File(files, m.getJSONObject("skin_file").getString("file")).readBytes()
             val model = File(patch, m.getString("model"))
             val skinFile = File(patch, m.getString("skin"))
@@ -393,6 +399,22 @@ object WrathppBody {
         val linked = runCatching { java.nio.file.Files.createLink(to.toPath(), from.toPath()); true }.getOrDefault(false)
         if (!linked) from.copyTo(to, overwrite = true)
         made += to
+    }
+
+    /**
+     * The SHA-256 of a model without where its vertices are (the first 12 bytes of each of the 48 a vertex has: the array's count
+     * and place are in the header at 60 and 64). A model whose header doesn't say a vertex array that lies inside the file is
+     * taken whole.
+     */
+    internal fun structSha256(bytes: ByteArray): String {
+        if (bytes.size < 68) return sha256(bytes)
+        val head = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        val count = head.getInt(60).toLong() and 0xFFFFFFFFL
+        val at = head.getInt(64).toLong() and 0xFFFFFFFFL
+        if (count == 0L || at < 68 || at + count * 48 > bytes.size) return sha256(bytes)
+        val masked = bytes.copyOf()
+        for (i in 0 until count.toInt()) java.util.Arrays.fill(masked, (at + i * 48).toInt(), (at + i * 48 + 12).toInt(), 0.toByte())
+        return sha256(masked)
     }
 
     private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

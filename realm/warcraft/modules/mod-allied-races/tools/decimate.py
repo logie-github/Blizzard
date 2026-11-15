@@ -270,14 +270,18 @@ def sink_lifts(positions, normals, before, after, locked=(), cap=0.025):
     lifts = {}
     for r in removed:
         p = positions[r]
-        near = np.argsort(((centre - p) ** 2).sum(1))[:16]
+        # (the nearest sixteen by a stable order, taken in the mesh's own order: two triangles that share the closest point
+        # are the same far, and which one wins must not depend on the machine's sort: the lifts have to come out the same
+        # on every build, or the looks' models differ from one build to the next and the body options package, which names
+        # the model it was made for, stops matching)
+        near = np.sort(np.argsort(((centre - p) ** 2).sum(1), kind="stable")[:16])
         hits = _closest_on_triangles(p, A[near], B[near], C[near])
-        k = int(np.argmin(((hits - p) ** 2).sum(1)))
+        k = int(np.argmin(np.round(((hits - p) ** 2).sum(1), 12)))
         n = normals[r]
         ln = np.linalg.norm(n)
         if ln < 1e-9:
             continue
-        height = float(np.dot(p - hits[k], n / ln))
+        height = round(float(np.dot(p - hits[k], n / ln)), 5)       # (to a hundredth of a millimetre: no last-bit drift)
         if height <= 1e-5:
             continue
         for v in after[near[k]]:

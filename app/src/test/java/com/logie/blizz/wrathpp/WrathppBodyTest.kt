@@ -180,6 +180,26 @@ class WrathppBodyTest {
         assertEquals(null, WrathppBody.lookFor(store, bodyZip()))
     }
 
+    @Test fun aModelIsNamedByStructureWithoutWhereItsVerticesAre() {
+        fun withVertices(x: Float): ByteArray {
+            val b = ByteArray(0x138 + 2 * 48 + 16) { it.toByte() }
+            "MD20".toByteArray().copyInto(b)
+            ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN).putInt(60, 2).putInt(64, 0x138).putFloat(0x138, x).putFloat(0x138 + 48 + 4, x * 3)
+            return b
+        }
+        // looks whose hair was pushed out a little differently: the same model but for where some vertices are
+        assertEquals(WrathppBody.structSha256(withVertices(1f)), WrathppBody.structSha256(withVertices(2f)))
+        assertFalse(sha(withVertices(1f)) == sha(withVertices(2f)))
+        // anything else (a vertex's normal, the bytes after the array) is the model
+        val changed = withVertices(1f).also { it[0x138 + 20] = 99 }
+        assertFalse(WrathppBody.structSha256(changed) == WrathppBody.structSha256(withVertices(1f)))
+        val tail = withVertices(1f).also { it[it.size - 1] = 99 }
+        assertFalse(WrathppBody.structSha256(tail) == WrathppBody.structSha256(withVertices(1f)))
+        // a header that names no vertex array inside the file: the model whole
+        val junk = model(37, 1)
+        assertEquals(sha(junk), WrathppBody.structSha256(junk))
+    }
+
     @Test fun otherLooksAreLeftAsTheyAre() {
         val store = File(tmp.root, "store")
         val client = game()

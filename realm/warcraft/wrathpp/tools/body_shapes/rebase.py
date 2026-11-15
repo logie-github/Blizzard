@@ -20,6 +20,16 @@ def sha(b):
     return hashlib.sha256(b).hexdigest()
 
 
+def struct_sha(m2b):
+    n, o = struct.unpack_from("<II", m2b, 60)
+    if n == 0 or o < 68 or o + n * 48 > len(m2b):
+        return sha(m2b)
+    b = bytearray(m2b)
+    for i in range(n):
+        b[o + i * 48:o + i * 48 + 12] = bytes(12)
+    return sha(bytes(b))
+
+
 def vertices(m2b):
     n, o = struct.unpack_from("<II", m2b, 60)
     return [m2b[o + i * 48:o + (i + 1) * 48] for i in range(n)]
@@ -34,7 +44,7 @@ def rebase(v1, old_dir, new_dir, out):
             rel = entry["model"]
             old = open(os.path.join(old_dir, rel), "rb").read()
             new = open(os.path.join(new_dir, rel), "rb").read()
-            if sha(old) != entry["looks_sha256"]:
+            if sha(old) != entry["looks_sha256"] and struct_sha(old) != entry.get("looks_struct_sha256"):
                 raise SystemExit("%s: the shapes were not made for the old looks given" % rel)
             skin_rel = entry["skin"]
             if open(os.path.join(old_dir, skin_rel), "rb").read() != open(os.path.join(new_dir, skin_rel), "rb").read():
@@ -46,6 +56,7 @@ def rebase(v1, old_dir, new_dir, out):
             if any(ov[i][12:] != nv[i][12:] for i in moved):
                 raise SystemExit("%s: more than positions changed" % rel)
             entry["looks_sha256"] = sha(new)
+            entry["looks_struct_sha256"] = struct_sha(new)
             for preset, block in entry["blocks"].items():
                 data = bytearray(src.read(block["file"]))
                 taken = 0
