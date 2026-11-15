@@ -18,6 +18,9 @@ object ForeverAuth {
     /** The local account's name and password, generated once, kept in app-private storage. */
     data class Account(val name: String, val password: String, val dbUser: String, val dbPassword: String, val dbRoot: String)
 
+    const val DEFAULT_NAME = "logie@wow.server"
+    const val DEFAULT_PASSWORD = "Logie"
+
     fun randomSecret(bytes: Int = 18, random: SecureRandom = SecureRandom()): String {
         val raw = ByteArray(bytes).also { random.nextBytes(it) }
         return raw.joinToString("") { "%02x".format(it) }
@@ -30,7 +33,8 @@ object ForeverAuth {
                 return Account(j.getString("name"), j.getString("password"), j.getString("dbUser"), j.getString("dbPassword"), j.getString("dbRoot"))
             }
         }
-        val a = Account(email("forever"), randomSecret(8, random), "forever", randomSecret(18, random), randomSecret(18, random))
+        // The player's own choice (a made-up address, local to this phone): the server limits a password to 16 characters, with no minimum.
+        val a = Account(DEFAULT_NAME, DEFAULT_PASSWORD, "forever", randomSecret(18, random), randomSecret(18, random))
         layout.keys.mkdirs()
         val tmp = File(layout.credentials.path + ".tmp")
         tmp.writeText(JSONObject().put("name", a.name).put("password", a.password).put("dbUser", a.dbUser).put("dbPassword", a.dbPassword).put("dbRoot", a.dbRoot).toString())
