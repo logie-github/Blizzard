@@ -176,11 +176,11 @@ end
 -- world draws with.
 WPP.parts = nil
 WPP.HAIR_COLOUR = 1190
-WPP.MAX_PARTS = 3
+WPP.MAX_PARTS = 8
 
 function WPP.loadParts()
     if WPP.parts then return WPP.parts end
-    local parts = { slots = {}, pictures = {} }
+    local parts = { slots = {}, pictures = {}, bodyPictures = {} }
     if not (wxl.storage and wxl.storage.Read) then return parts end
     local ok, text = pcall(wxl.storage.Read, "Wrathpp\\parts.txt")
     if not ok or type(text) ~= "string" then return parts end      -- (a package without parts: asked again next time)
@@ -196,6 +196,22 @@ function WPP.loadParts()
             local list = parts.slots[key] or {}
             parts.slots[key] = list
             list[#list + 1] = { category = tonumber(d), style = tonumber(e), shell = f }
+        elseif kind == "T" and key then                       -- the same on the body shell (its pictures: D lines)
+            local list = parts.slots[key] or {}
+            parts.slots[key] = list
+            list[#list + 1] = { category = tonumber(d), shell = e, body = true }
+        elseif kind == "U" and key then
+            local list = parts.slots[key] or {}
+            parts.slots[key] = list
+            list[#list + 1] = { category = tonumber(d), style = tonumber(e), shell = f, body = true }
+        elseif kind == "D" and key then
+            local byCategory = parts.bodyPictures[key] or {}
+            parts.bodyPictures[key] = byCategory
+            local options = byCategory[tonumber(c)] or {}
+            byCategory[tonumber(c)] = options
+            local colours = options[tonumber(d)] or {}
+            options[tonumber(d)] = colours
+            colours[e] = f
         elseif kind == "C" and key then
             local byCategory = parts.pictures[key] or {}
             parts.pictures[key] = byCategory
@@ -217,7 +233,7 @@ function WPP.partsOf(look)
     if not list then return out end
     local colour = tostring((look.entries[WPP.HAIR_COLOUR] or 1) - 1)
     for _, slot in ipairs(list) do
-        local options = parts.pictures[look.race .. ":" .. look.sex]
+        local options = (slot.body and parts.bodyPictures or parts.pictures)[look.race .. ":" .. look.sex]
         options = options and options[slot.category]
         local colours = options and options[look.entries[slot.category] or 1]
         local picture = colours and (colours["*"] or colours[colour] or (slot.style and colours["s" .. (look.entries[slot.style] or 1)]))

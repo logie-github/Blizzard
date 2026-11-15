@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 4,
+  "version": 5,
   "comment": "Wrath++ customization registry. Engineering seed for the first vertical slice (docs/wrathpp/MILESTONES.md, phase 3): two geoset categories of Legion 7.3.5's demon hunter looks. Every geoset group and option count here is UNVERIFIED until tools/legion_inventory.py has read the user's own 7.3.5 tables and tools/probe_geosets.py the Wrath++ client's models (docs/wrathpp/LEGION_OPTIONS_735.md). Stable ids: never reuse a category or option id for another look.",
   "classes": {
     "warrior": 1,
@@ -1676,6 +1676,60 @@
       ]
     },
     {
+      "id": 1227,
+      "key": "PART_4_0_TATTOO_COLOR",
+      "name": "Tattoo Color",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
       "id": 1204,
       "key": "PART_4_1_SCARS",
       "name": "Scars",
@@ -1794,6 +1848,60 @@
       ]
     },
     {
+      "id": 1228,
+      "key": "PART_4_1_TATTOO_COLOR",
+      "name": "Tattoo Color",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
       "id": 1218,
       "key": "PART_4_1_MARKINGS",
       "name": "Markings",
@@ -1863,6 +1971,60 @@
       ]
     },
     {
+      "id": 1229,
+      "key": "PART_4_1_TATTOO",
+      "name": "Tattoo",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 4,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
       "id": 1219,
       "key": "PART_6_0_PAINT_COLOR",
       "name": "Paint Color",
@@ -1908,6 +2070,45 @@
           "id": 6,
           "name": "6",
           "value": 5
+        }
+      ]
+    },
+    {
+      "id": 1230,
+      "key": "PART_6_0_BODY_PAINT",
+      "name": "Body Paint",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 6,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
         }
       ]
     },
@@ -1996,6 +2197,45 @@
           "id": 6,
           "name": "6",
           "value": 5
+        }
+      ]
+    },
+    {
+      "id": 1231,
+      "key": "PART_6_1_BODY_PAINT",
+      "name": "Body Paint",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 6,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
         }
       ]
     },
@@ -2158,6 +2398,60 @@
       ]
     },
     {
+      "id": 1232,
+      "key": "PART_8_0_BODY_PAINT_COLOR",
+      "name": "Body Paint Color",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 8,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
       "id": 1224,
       "key": "PART_8_0_FACE_PAINT",
       "name": "Face Paint",
@@ -2227,9 +2521,102 @@
       ]
     },
     {
+      "id": 1233,
+      "key": "PART_8_0_BODY_PAINT",
+      "name": "Body Paint",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 8,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        }
+      ]
+    },
+    {
       "id": 1225,
       "key": "PART_8_1_FACE_PAINT_COLOR",
       "name": "Face Paint Color",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 8,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "id": 1234,
+      "key": "PART_8_1_BODY_PAINT_COLOR",
+      "name": "Body Paint Color",
       "kind": "texture_layer",
       "default": 1,
       "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
@@ -2316,6 +2703,153 @@
           "id": 4,
           "name": "4",
           "value": 3
+        }
+      ]
+    },
+    {
+      "id": 1235,
+      "key": "PART_8_1_BODY_PAINT",
+      "name": "Body Paint",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 8,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": 1236,
+      "key": "PART_10_1_TATTOO_COLOR",
+      "name": "Tattoo Color",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "id": 1237,
+      "key": "PART_10_1_TATTOO",
+      "name": "Tattoo",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 10,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        },
+        {
+          "id": 4,
+          "name": "4",
+          "value": 3
+        },
+        {
+          "id": 5,
+          "name": "5",
+          "value": 4
+        },
+        {
+          "id": 6,
+          "name": "6",
+          "value": 5
+        },
+        {
+          "id": 7,
+          "name": "7",
+          "value": 6
         }
       ]
     }

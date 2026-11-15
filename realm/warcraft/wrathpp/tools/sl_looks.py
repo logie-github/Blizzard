@@ -135,6 +135,7 @@ class Tables(allied.Tables):
 # scars, paints, tattoos), apart from what the five sliders and the feature slider carry.
 SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
 HEAD_MASKS = (512, 1024, 2048, -1)           # the layers that reach the head in today's layouts: its sections (9, 10, 11) or the whole skin (-1)
+BODY_MASKS = (4096, -1)                      # and the body: its section (12) or the whole skin
 
 
 def ui_order(choice):
@@ -168,26 +169,36 @@ def overlays_of(tables, chr_model, model):
             continue                                # (the skin's own tattoos are painted into the skins already)
         choices, targets, depends = [], set(), []
         for c in sorted((c for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False) if tables.available(c)), key=ui_order):
-            files = {}
+            files, body = {}, {}
             for e in tables.elements[c["ID"]]:
                 if e["ChrCustomizationMaterialID"] == "0":
                     continue
                 target, fids = tables.material_files(e)
-                if not fids or masks.get(target) not in HEAD_MASKS:
+                mask = masks.get(target)
+                if not fids or (mask not in HEAD_MASKS and mask not in BODY_MASKS):
                     continue
                 targets.add(target)
                 related = e["RelatedChrCustomizationChoiceID"]
                 if related == "0":
-                    files["*"] = fids[0]
+                    key = "*"
                 elif related in colour_of:
-                    files[str(colour_of[related])] = fids[0]
+                    key = str(colour_of[related])
                 elif related in option_of and option_of[related]["ID"] != o["ID"]:
-                    files["r" + related] = fids[0]
+                    key = "r" + related
                     if option_of[related]["Name_lang"] not in depends:
                         depends.append(option_of[related]["Name_lang"])
-            choices.append({"name": c["Name_lang"], "id": c["ID"], "files": files})
-        if targets and any(c["files"] for c in choices) and len(targets) == 1:
-            entry = {"name": o["Name_lang"], "target": next(iter(targets)), "choices": choices}
+                else:
+                    continue
+                if mask in HEAD_MASKS:
+                    files[key] = fids[0]
+                if mask in BODY_MASKS:
+                    body[key] = fids[0]
+            entry = {"name": c["Name_lang"], "id": c["ID"], "files": files}
+            if body:
+                entry["body"] = body
+            choices.append(entry)
+        if targets and any(c["files"] or c.get("body") for c in choices):
+            entry = {"name": o["Name_lang"], "target": sorted(targets)[0], "choices": choices}
             if depends:
                 entry["depends"] = depends
             out.append(entry)
@@ -428,6 +439,8 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             if model.get("overlays"):
                 import sl_parts
                 written += sl_parts.head_shell(read, model, client, log)
+                if any(c.get("body") for o in model["overlays"] for c in o["choices"]):
+                    written += sl_parts.body_shell(read, model, client, log)
                 written += sl_parts.write_overlays(read, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))

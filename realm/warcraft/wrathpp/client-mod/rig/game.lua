@@ -641,7 +641,7 @@ function G.define()
 		G.bodyPreview = path
 		return true
 	end
-	function WrathPP_NativeVersion() return "0.8.0" end
+	function WrathPP_NativeVersion() return "0.9.0" end
 end
 
 return G

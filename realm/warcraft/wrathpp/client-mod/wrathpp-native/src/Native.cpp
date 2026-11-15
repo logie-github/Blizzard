@@ -29,7 +29,7 @@
 //                                from its bottom left), "creator 0" when it is not. Written whole (a file beside it, then
 //                                moved over it) to Logs\wrathpp-screen.txt beside the game; the app's touch reads it
 //                                (WowGestureView): on the creator a finger turns the character and walks nowhere.
-//   WrathPP_ApplyLook(guid, shell1, picture1, shell2, picture2, shell3, picture3)
+//   WrathPP_ApplyLook(guid, shell1, picture1, ... shell8, picture8)
 //                                the parts a character of the world wears (the add-on's WRATHPP_APPEARANCE: its registry choices
 //                                made paths by the parts table, Wrathpp\parts.txt): head shells hung on the model the character
 //                                draws with (wxl.m2's ObjectModel, WXL_M2_ATTACH_FOLLOW_BONES), each with its picture; "" for none.
@@ -86,6 +86,7 @@
 namespace
 {
     constexpr const char* kTag = "wrathpp";
+    constexpr int kPartSlots = 8;            // the parts a character can wear at once (a head shell and a body shell for each option drawn so)
 
 #if defined(_M_IX86)
     using Count4 = int32_t(__cdecl*)(int32_t, int32_t, int32_t, int32_t);
@@ -333,7 +334,7 @@ namespace
         uintptr_t parent = 0;
         wxl::M2Model model;
     };
-    OverlayPart g_overlays[3];
+    OverlayPart g_overlays[kPartSlots];
 
     /// Keeps one part on a model: made and hung when there is none on [parent] (a new model of the character: made again),
     /// its picture put on when it is not. [parent] 0 or not loaded: nothing now. [what]: the log's name for it.
@@ -368,13 +369,13 @@ namespace
     {
         if (component != CreationComponent()) return;
         const uintptr_t parent = ComponentModel(component);
-        for (int i = 0; i < 3; ++i) SyncPart(g_overlays[i], parent, "overlay", i + 1);
+        for (int i = 0; i < kPartSlots; ++i) SyncPart(g_overlays[i], parent, "overlay", i + 1);
     }
 
     // The characters of the world (WrathPP_ApplyLook): the same parts, on the model each draws with (wxl.m2's ObjectModel), for
     // every guid the add-on has told of; kept at the pace of a few times a second, and let go when the character leaves the view
     // (a model comes again with the object) or the world.
-    constexpr int kWorldParts = 3;
+    constexpr int kWorldParts = kPartSlots;
     struct WorldLook
     {
         OverlayPart parts[kWorldParts];
@@ -479,7 +480,7 @@ namespace
     std::string g_previewDesign;
     void PreviewNow() {}
     struct OverlayPart { std::string wantShell, wantPicture; };
-    OverlayPart g_overlays[3];
+    OverlayPart g_overlays[kPartSlots];
     void SyncOverlays(uintptr_t) {}
     void WorldLookSet(uint64_t, int, const std::string&, const std::string&) {}
 #endif
@@ -600,15 +601,15 @@ namespace
         call.PushBool(true);
     }
 
-    /// An overlay on the creator's character: slot 1 to 3, the head shell's path and the picture's, both "" for none.
+    /// An overlay on the creator's character: slot 1 to 8, a shell's path and the picture's, both "" for none.
     void SetOverlayCall(wxl::ScriptCall& call)
     {
         const auto slot = call.Number(0);
         const auto shell = call.String(1);
         const auto picture = call.String(2);
-        if (!slot || *slot < 1 || *slot > 3 || !shell || !picture)
+        if (!slot || *slot < 1 || *slot > kPartSlots || !shell || !picture)
         {
-            call.Fail("WrathPP_SetOverlay(slot, shell, picture): slot is 1 to 3, shell and picture are paths, empty for none");
+            call.Fail("WrathPP_SetOverlay(slot, shell, picture): slot is 1 to 8, shell and picture are paths, empty for none");
             return;
         }
         OverlayPart& part = g_overlays[static_cast<int>(*slot) - 1];
@@ -621,14 +622,14 @@ namespace
         call.PushBool(true);
     }
 
-    /// The parts of a character of the world: guid ("0x" and sixteen hex digits, as the add-on has it), then up to three
+    /// The parts of a character of the world: guid ("0x" and sixteen hex digits, as the add-on has it), then up to eight
     /// pairs of a head shell's path and a picture's ("" for none). Replaces what the character was to wear.
     void ApplyLookCall(wxl::ScriptCall& call)
     {
         const auto guidText = call.String(0);
         if (!guidText || guidText->empty())
         {
-            call.Fail("WrathPP_ApplyLook(guid, shell1, picture1, shell2, picture2, shell3, picture3): guid is \"0x\" and hex digits");
+            call.Fail("WrathPP_ApplyLook(guid, shell1, picture1, ... shell8, picture8): guid is \"0x\" and hex digits");
             return;
         }
         const std::string text(*guidText);
@@ -638,7 +639,7 @@ namespace
             call.Fail("WrathPP_ApplyLook: no guid");
             return;
         }
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < kPartSlots; ++i)
         {
             const auto shell = call.String(1 + 2 * i);
             const auto picture = call.String(2 + 2 * i);
@@ -648,7 +649,7 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.8.0"); }
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.9.0"); }
 
     class Api final : public wxl::LuaScript
     {

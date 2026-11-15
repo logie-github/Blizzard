@@ -162,16 +162,22 @@ def build_model(tables, categories, race_id, sex, model):
         overlay = next((x for x in model.get("overlays", []) if x["name"] == o["Name_lang"]), None)
         if overlay is not None and "field" not in option:
             files = {c["id"]: c["files"] for c in overlay["choices"]}
+            c_body = {c["id"]: c.get("body", {}) for c in overlay["choices"]}
             for e, c in zip(option["choices"], (c for c in choices if tables.available(c))):
                 pictures = {k: names.overlay(model, fid) for k, fid in files.get(c["ID"], {}).items()}
                 if pictures:
                     e["ov"] = pictures
+                bodies = {k: names.body_overlay(model, fid) for k, fid in c_body.get(c["ID"], {}).items()}
+                if bodies:
+                    e["bov"] = bodies
                 if overlay.get("style") or overlay.get("depends"):
                     e["id"] = int(c["ID"])             # a paint's style: the colours' pictures name it by this id
             if overlay.get("style"):
                 option["style"] = True                 # kept by the registry, no picture of its own: its colour option draws
             else:
                 option["overlay"] = names.shell(model)
+                if any(c.get("body") for c in overlay["choices"]):
+                    option["bodyoverlay"] = names.body_shell(model)
                 if overlay.get("depends"):
                     option["depends"] = list(overlay["depends"])
             reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))

@@ -43,6 +43,16 @@ def overlay(model, file_id):
     return "%s\\%sOv%d.blp" % (model["folder"], model["name"], file_id)
 
 
+def body_overlay(model, file_id):
+    """a picture laid over the body by a part (sl_parts.body_shell), named by today's file"""
+    return "%s\\%sBo%d.blp" % (model["folder"], model["name"], file_id)
+
+
+def body_shell(model):
+    """the body shell its pictures are drawn on (sl_parts.body_shell)"""
+    return "%s\\%sBody.m2" % (model["folder"], model["name"])
+
+
 def shell(model):
     """the head shell a part's pictures are drawn on (sl_parts.head_shell)"""
     return "%s\\%sFace.m2" % (model["folder"], model["name"])
