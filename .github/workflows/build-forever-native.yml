@@ -1,0 +1,114 @@
+name: Build the WoW Forever realm
+
+# WoW Forever's own server for the phone, made new (docs/forever-new.md): Karrz1/TrinityCore's forever-bots branch at the
+# commit pinned in realm/warcraft/forever-new/forever-version.env, with the PlayerbotV2 module, compiled for Linux arm64
+# (musl) and attached to the release "forever-android-server" as forever-android-arm64.tar.xz with
+# forever-android-arm64.json. Nothing from earlier Forever work is used. The package is only published after the real
+# loader has run the programs (--version) in this job; that is the CI check, not proof of a working phone.
+on:
+  push:
+    paths:
+      - realm/warcraft/forever-new/**
+      - realm/scripts/compile-forever-new.sh
+      - realm/scripts/package-forever-new.sh
+      - .github/workflows/build-forever-native.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forever-new-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    defaults:
+      run:
+        working-directory: realm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pins are well formed
+        run: |
+          . warcraft/forever-new/forever-version.env
+          echo "$CORE_COMMIT" | grep -Eq '^[0-9a-f]{40}$'
+          git ls-remote "$CORE_REPO" "refs/heads/$CORE_BRANCH" | tee /dev/stderr | grep -q .
+          curl -fsSL "$UPSTREAM_BASE/$CLIENT_BUILDS_ASSET" -o /tmp/client-builds.txt
+          echo "$CLIENT_BUILDS_SHA256  /tmp/client-builds.txt" | sha256sum -c -
+          curl -fsSL "$UPSTREAM_BASE/$ADDON_ASSET" -o /tmp/addon.zip
+          echo "$ADDON_SHA256  /tmp/addon.zip" | sha256sum -c -
+
+      - name: Look for the compile cache
+        uses: actions/cache/restore@v4
+        with:
+          path: realm/build/ccache-forever
+          key: forever-new-ccache-arm64-${{ github.run_id }}
+          restore-keys: forever-new-ccache-arm64-
+
+      - name: Compile (Karrz forever-bots, arm64 musl)
+        run: scripts/compile-forever-new.sh
+
+      - name: Save the compile cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: realm/build/ccache-forever
+          key: forever-new-ccache-arm64-${{ github.run_id }}
+
+      - name: Package
+        run: |
+          scripts/package-forever-new.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: The programs are linux aarch64 ELF and the real loader runs them
+        run: |
+          . warcraft/forever-new/forever-version.env
+          mkdir -p build/verify && tar -C build/verify -xJf "build/forever-new-publish/$PACKAGE_ASSET"
+          cd build/verify/forever
+          loader=$(ls lib/ld-musl-aarch64.so.1)
+          for p in bnetserver worldserver mapextractor vmap4extractor vmap4assembler mmaps_generator; do
+            file "bin/$p" | tee /dev/stderr | grep -q 'ELF 64-bit LSB.*ARM aarch64'
+            readelf -d "bin/$p" | grep -E 'NEEDED' || true
+          done
+          # Run through the shipped musl loader with only the shipped libraries (the Alpine of the build is not on the path).
+          sudo env -i "$PWD/$loader" --library-path "$PWD/lib" "$PWD/bin/worldserver" --version | tee /tmp/world-version.txt
+          sudo env -i "$PWD/$loader" --library-path "$PWD/lib" "$PWD/bin/bnetserver" --version
+          sudo env -i "$PWD/$loader" --library-path "$PWD/lib" "$PWD/bin/mariadbd" --version
+
+      - name: Manifest
+        run: |
+          . warcraft/forever-new/forever-version.env
+          cd build/forever-new-publish
+          size=$(stat -c %s "$PACKAGE_ASSET")
+          sha=$(sha256sum "$PACKAGE_ASSET" | cut -d' ' -f1)
+          unpacked=$(xz -dc "$PACKAGE_ASSET" | wc -c)
+          components=$(tar -xJOf "$PACKAGE_ASSET" forever/COMPONENTS.sha256 | jq -R -s 'split("\n") | map(select(length>0) | split("  ") | {(.[1]): .[0]}) | add')
+          builds=$(grep -E '^[0-9]+$' /tmp/client-builds.txt | jq -R -s 'split("\n") | map(select(length>0) | tonumber)')
+          jq -n --argjson size "$size" --arg sha "$sha" --argjson unpacked "$unpacked" --argjson format "$PACKAGE_FORMAT" \
+            --arg source "$CORE_COMMIT" --arg upstream "$UPSTREAM_VERSION" --arg commit "${{ github.sha }}" \
+            --argjson components "$components" --argjson builds "$builds" \
+            --arg url "https://github.com/${{ github.repository }}/releases/download/$RELEASE_TAG/$PACKAGE_ASSET" \
+            '{arch: "aarch64", libc: "musl", format: $format, source_commit: $source, upstream_version: $upstream,
+              ci_commit: $commit, size: $size, sha256: $sha, unpacked: $unpacked, components: $components,
+              client_builds: $builds, schema: 1, min_app_version: 1, url: $url}' > "$MANIFEST_ASSET"
+          cat "$MANIFEST_ASSET" | jq 'del(.components)'
+
+      # Only main publishes: the app downloads whatever is published.
+      - name: Publish (release forever-android-server)
+        if: github.ref == 'refs/heads/main'
+        working-directory: realm/build/forever-new-publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . ../../warcraft/forever-new/forever-version.env
+          repo="${{ github.repository }}"
+          if ! gh release view "$RELEASE_TAG" -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create "$RELEASE_TAG" -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "WoW Forever realm (server package, experimental)" \
+              --notes "Karrz's WoW Forever server (TrinityCore forever-bots + PlayerbotV2) for the phone, arm64 musl. Downloaded by the app's Forever page; not an app release. GPL-2.0, see the package's legal folder."
+          fi
+          gh release upload "$RELEASE_TAG" "$PACKAGE_ASSET" "$MANIFEST_ASSET" -R "$repo" --clobber

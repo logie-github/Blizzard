@@ -1,0 +1,1 @@
+World of Warcraft: Forever has a new Install & Play page that sets up the server and database in the app; starting the game itself isn't finished yet.
