@@ -1,0 +1,1 @@
+Wrath++: parts you choose come off your character while mounted and go back on when you dismount.

@@ -68,6 +68,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -400,6 +401,7 @@ namespace
         OverlayPart parts[kWorldParts];
     };
     std::map<uint64_t, WorldLook> g_world;
+    std::set<uint64_t> g_mounted;           // the units that are mounted: wxl.m2's ObjectModel answers the mount's model for them, which isn't theirs to wear parts on
 
     void SyncWorld()
     {
@@ -415,7 +417,7 @@ namespace
                 continue;
             }
             uintptr_t parent = 0;
-            if (object) parent = reinterpret_cast<uintptr_t>(wxl::M2Service::ObjectModel(object));
+            if (object && !g_mounted.count(it->first)) parent = reinterpret_cast<uintptr_t>(wxl::M2Service::ObjectModel(object));
             for (int i = 0; i < kWorldParts; ++i)
             {
                 OverlayPart& part = look.parts[i];
@@ -451,6 +453,17 @@ namespace
         float wait_ = 0.0f;
     };
     World g_worldScript;
+
+    /// Who is mounted (UnitMountChanged): their parts come off the mount's model and are hung again when they get off.
+    class MountWatch final : public wxl::ObjectScript
+    {
+    public:
+        void OnUnitMountChanged(wxl::Object, wxl_guid guid, uint32_t, uint32_t display) override
+        {
+            if (display) g_mounted.insert(guid); else g_mounted.erase(guid);
+        }
+    };
+    MountWatch g_mountWatch;
 
     /// What a character of the world is to wear: part [slot] (0 to 2) the head shell and its picture, "" for none.
     void WorldLookSet(uint64_t guid, int slot, const std::string& shell, const std::string& picture, int choice,
@@ -694,7 +707,7 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.9.0"); }
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.9.1"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -729,6 +742,7 @@ namespace
             wxl::ScriptMgr::Add(&g_api);
 #if defined(_M_IX86)
             wxl::ScriptMgr::Add(&g_worldScript);
+            wxl::ScriptMgr::Add(&g_mountWatch);
 #endif
             AttachLayer();
             wxl::Log(WXL_LOG_INFO, kTag, "Wrath++ native loaded");
