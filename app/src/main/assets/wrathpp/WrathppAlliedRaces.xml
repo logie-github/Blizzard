@@ -1,5 +1,5 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
-	<!-- Wrath++'s allied races' race buttons for the character creation screen: the game has ten; WrathppAlliedRaces.lua gives these
+	<!-- Wrath++'s allied races' race buttons for the character creation screen: the game has ten (these to 32: the table's playable races, Cataclysm's and the creature races moved in included); WrathppAlliedRaces.lua gives these
 	     the names the screen looks for. -->
 	<CheckButton name="AlliedRaceButton11" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="11" hidden="true"/>
 	<CheckButton name="AlliedRaceButton12" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="12" hidden="true"/>
@@ -12,4 +12,15 @@
 	<CheckButton name="AlliedRaceButton19" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="19" hidden="true"/>
 	<CheckButton name="AlliedRaceButton20" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="20" hidden="true"/>
 	<CheckButton name="AlliedRaceButton21" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="21" hidden="true"/>
+	<CheckButton name="AlliedRaceButton22" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="22" hidden="true"/>
+	<CheckButton name="AlliedRaceButton23" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="23" hidden="true"/>
+	<CheckButton name="AlliedRaceButton24" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="24" hidden="true"/>
+	<CheckButton name="AlliedRaceButton25" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="25" hidden="true"/>
+	<CheckButton name="AlliedRaceButton26" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="26" hidden="true"/>
+	<CheckButton name="AlliedRaceButton27" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="27" hidden="true"/>
+	<CheckButton name="AlliedRaceButton28" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="28" hidden="true"/>
+	<CheckButton name="AlliedRaceButton29" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="29" hidden="true"/>
+	<CheckButton name="AlliedRaceButton30" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="30" hidden="true"/>
+	<CheckButton name="AlliedRaceButton31" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="31" hidden="true"/>
+	<CheckButton name="AlliedRaceButton32" parent="CharacterCreateConfigurationFrame" inherits="CharacterCreateRaceButtonTemplate" id="32" hidden="true"/>
 </Ui>

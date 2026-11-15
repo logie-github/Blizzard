@@ -88,4 +88,15 @@ class WrathppLooksTest {
         assertEquals("sections", File(server, "share/dbc/CharSections.dbc").readText())
         assertEquals("abc", WrathppLooks.installedSha(client, server))
     }
+    @Test fun aPatchFromBeforeTheChangesGivesTheServerItsWholeTables() {
+        val (client, server) = setup()
+        val patch = File(client, "Data/patch-Z.MPQ").apply { mkdirs() }
+        File(patch, "DBFilesClient").mkdirs()
+        File(patch, "DBFilesClient/CharSections.dbc").writeText("old sections")
+        File(patch, WrathppLooks.MARKER).writeText("old\n")
+        assertNull(WrathppLooks.installedSha(client, server))
+        assertTrue(WrathppLooks.restoreServer(client, server, "old"))
+        assertEquals("old sections", File(server, "share/dbc/CharSections.dbc").readText())
+        assertEquals("old", WrathppLooks.installedSha(client, server))
+    }
 }

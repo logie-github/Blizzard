@@ -16,7 +16,7 @@ local ICONS = { }
 for token in pairs(BACKGROUNDS) do ICONS[token] = ICON_PATH..token end
 
 local highest = 0;
-for i = 1, 24 do
+for i = 1, 32 do
 	local name = "CharacterCreateRaceButton"..i;
 	if ( not _G[name] and _G["AlliedRaceButton"..i] ) then
 		local extra = "AlliedRaceButton"..i;
