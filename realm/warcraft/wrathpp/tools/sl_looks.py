@@ -211,6 +211,9 @@ def overlays_of(tables, chr_model, model):
     return out
 
 
+GEOSET_VARIANTS = ("Face Shape", "Skin Type")
+
+
 def variants_of(tables, chr_model, model):
     """The options of [chr_model] that change the character's model (the Orc man's Upright: another model of the game's, a conditional
     model): [{"name", "choices": [{"name", "id", "file": the model's file id, or 0 for the model itself}]}]. A choice's number is its
@@ -230,6 +233,13 @@ def variants_of(tables, chr_model, model):
             choices.append({"name": c["Name_lang"], "id": c["ID"], "file": file})
         if len(choices) > 1 and any(c["file"] for c in choices):
             out.append({"name": o["Name_lang"], "choices": choices})
+        elif len(choices) > 1 and o["Name_lang"] in GEOSET_VARIANTS:
+            # the head's shape, the Forsaken's skin type: geosets of the model itself, which a model piece laid over it would double:
+            # a model of its own for each choice, with that choice's geosets and none of the others'
+            for choice, c in zip(choices, chs):
+                choice["geosets"] = tables.choice_geosets(c)
+            if any(c["geosets"] for c in choices):
+                out.append({"name": o["Name_lang"], "choices": choices, "geoset": True})
     return out
 
 
@@ -526,7 +536,7 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             for variant in model.get("variants", []):
                 import sl_parts
                 for k, choice in enumerate(variant["choices"], 1):
-                    if choice["file"]:
+                    if (choice["file"] or choice.get("geosets")) and not (k == 1 and variant.get("geoset")):     # (the first choice of a geoset variant is the model as it is)
                         written += sl_parts.variant_model(read, model, variant, k, choice, client, log)
             if model.get("parts"):
                 import sl_parts

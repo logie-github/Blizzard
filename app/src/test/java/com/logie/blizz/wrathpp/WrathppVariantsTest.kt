@@ -14,7 +14,8 @@ class WrathppVariantsTest {
     }
 
     @Test fun theNumberingIsTheRealmsOwn() {
-        assertEquals(44001, WrathppVariants.displayId(upright))             // wrathpp_appearance.h: kVariantDisplayBase + the option's value
+        assertEquals(44001, WrathppVariants.displayId(upright))             // wrathpp_appearance.h: kVariantDisplayBase + (category - 1500) * 16 + the option's value
+        assertEquals(44000 + 3 * 16 + 2, WrathppVariants.displayId(WrathppVariants.Variant(5, 0, 1503, 3, "x.m2")))
     }
 
     @Test fun theRowsAreMadeOfTheRacesOwnAndPutInAgain() {

@@ -11,7 +11,7 @@ import java.nio.ByteOrder
  * package (`Wrathpp/parts.txt`, lines `V race sex category choice model`: the model, made by sl_parts.variant_model, is the
  * character's own with that choice). A variant is a display: [apply] puts its rows (a CreatureModelData row of the race's model with
  * the variant's file, and a CreatureDisplayInfo row of the race's own display on it) into the game's tables, in the looks' patch, and
- * the server's, at [DISPLAY_BASE] + the choice's value (the choice's number less one): the numbering wrathpp_appearance.h's
+ * the server's, at [DISPLAY_BASE] + (the category less 1500) * 16 + the choice's value (the choice's number less one): the numbering wrathpp_appearance.h's
  * VariantDisplay has, whose module gives the character the display at login.
  *
  * It runs at every start and puts in what the looks' package carries (idempotent: its rows are taken out of a table before they are
@@ -26,8 +26,12 @@ object WrathppVariants {
     /** One variant: the race and sex, the category and the choice's number (from 1), the model's path (a .m2, as the package names it). */
     data class Variant(val race: Int, val sex: Int, val category: Int, val choice: Int, val model: String)
 
-    fun displayId(variant: Variant) = DISPLAY_BASE + variant.choice - 1
-    fun modelId(variant: Variant) = MODEL_BASE + (variant.race % 16) * 64 + variant.sex * 32 + variant.choice - 1
+    const val FIRST_CATEGORY = 1500
+    const val CATEGORIES = 5
+
+    /** wrathpp_appearance.h: kVariantDisplayBase + (category - 1500) * 16 + the option's value (the choice's number less one). */
+    fun displayId(variant: Variant) = DISPLAY_BASE + (variant.category - FIRST_CATEGORY) * 16 + variant.choice - 1
+    fun modelId(variant: Variant) = MODEL_BASE + (variant.category - FIRST_CATEGORY) * 32 + variant.choice - 1
 
     /** The `V` lines of a parts table. */
     fun parse(table: String): List<Variant> = table.lineSequence().mapNotNull { line ->
@@ -49,8 +53,8 @@ object WrathppVariants {
      * model's with the variant's file) and its display (the race's own, on that model). [own]: each race's display for the sex.
      */
     internal fun addRows(displays: WrathppUndead.Dbc, models: WrathppUndead.Dbc?, variants: List<Variant>, own: (Variant) -> Int?) {
-        displays.rows.removeAll { (it[0] as Int) in DISPLAY_BASE until DISPLAY_BASE + 100 }
-        models?.rows?.removeAll { (it[0] as Int) in MODEL_BASE until MODEL_BASE + 1024 }
+        displays.rows.removeAll { (it[0] as Int) in DISPLAY_BASE until DISPLAY_BASE + CATEGORIES * 16 }
+        models?.rows?.removeAll { (it[0] as Int) in MODEL_BASE until MODEL_BASE + CATEGORIES * 32 }
         val byId = displays.rows.associateBy { it[0] as Int }
         val modelById = models?.rows?.associateBy { it[0] as Int }
         for (v in variants) {

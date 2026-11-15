@@ -197,21 +197,22 @@ static void TestToolRegistry(const char* path, const char* expectedHash) {
     CHECK(shown(1, 0, 3, 5, 5) == 0);
     CHECK(shown(9, 1, 3, 5, 5) == 0);
     CHECK(shown(10, 1, 4, 2, 2) == 42000 + 8 * 260 + 3 * 65 + 1);
-    // a man's model variant: the Orc man's Upright is its own display; Hunched, other men and every woman: none
-    auto variant = [&](uint8_t race, uint8_t sex, uint16_t option) {
+    // model variants: the Orc man's Upright, the Human's Face Shape, the Forsaken's Skin Type: each a display of its own
+    auto variant = [&](uint8_t race, uint8_t sex, uint16_t category, size_t at) {
+        const Category* c = reg.FindCategory(category);
+        CHECK(c != nullptr);
+        if (!c || c->options.size() <= at)
+            return uint32_t(1);
         Appearance a; a.registryVersion = reg.version;
-        a.Set(kOrcUpright, option);
+        a.Set(category, c->options[at].id);
         return VariantDisplay(reg, Resolve(reg, a, race, sex, 1), race, sex);
     };
-    const Category* upright = reg.FindCategory(kOrcUpright);
-    CHECK(upright != nullptr);
-    if (upright) {
-        CHECK(upright->options.size() == 2);
-        CHECK(variant(2, 0, upright->options[1].id) == kVariantDisplayBase + 1);
-        CHECK(variant(2, 0, upright->options[0].id) == 0);
-        CHECK(variant(2, 1, upright->options[1].id) == 0);
-        CHECK(variant(1, 0, upright->options[1].id) == 0);
-    }
+    CHECK(variant(2, 0, 1500, 1) == kVariantDisplayBase + 1);
+    CHECK(variant(2, 0, 1500, 0) == kVariantDisplayBase);
+    CHECK(variant(2, 1, 1500, 1) == 0);                                   // a woman: not his option
+    CHECK(variant(1, 1, 1502, 2) == kVariantDisplayBase + 2 * 16 + 2);
+    CHECK(variant(5, 0, 1503, 1) == kVariantDisplayBase + 3 * 16 + 1);
+    CHECK(variant(1, 0, 1501, 1) == kVariantDisplayBase + 1 * 16 + 1);
 }
 
 int main(int argc, char** argv) {

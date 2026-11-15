@@ -163,9 +163,13 @@ namespace
         uint8 race = player->getRace(true);                   // her own race's model, whatever race the world takes her for
         auto resolved = Resolve(S().registry, Stored(player->GetGUID().GetCounter()), race, player->getGender(), player->getClass());
         // a woman's body options, else a man's model variant (the Orc's Upright)
-        uint32 display = player->getGender() == GENDER_FEMALE ? BodyDisplay(S().registry, resolved, race) : VariantDisplay(S().registry, resolved, race, player->getGender());
+        uint32 display = player->getGender() == GENDER_FEMALE ? BodyDisplay(S().registry, resolved, race) : 0;
+        if (!display)
+            display = VariantDisplay(S().registry, resolved, race, player->getGender());
+        if (display && !sCreatureDisplayInfoStore.LookupEntry(display))
+            display = 0;                                       // the tables don't have it (the app puts the rows in): her race's own stays
         uint32 native = player->GetNativeDisplayId();
-        bool ours = (native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260) || (native > kVariantDisplayBase && native < kVariantDisplayBase + 100);
+        bool ours = (native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260) || (native >= kVariantDisplayBase && native < kVariantDisplayBase + kVariantCount * 16);
         if (!display)
         {
             // none (any more): her race's own display, where one of these was hers
@@ -173,11 +177,6 @@ namespace
             if (!ours || !info)
                 return;
             display = player->getGender() == GENDER_FEMALE ? info->displayId_f : info->displayId_m;
-        }
-        else if (!sCreatureDisplayInfoStore.LookupEntry(display))
-        {
-            LOG_INFO("module", "Wrath++: {}'s model options are display {}, which the tables don't have (not put in yet)", player->GetName(), display);
-            return;
         }
         if (native == display)
             return;

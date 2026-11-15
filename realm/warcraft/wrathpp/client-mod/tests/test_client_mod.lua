@@ -39,8 +39,8 @@ check(state == "ready" and version == F.version and renderer == false, "status: 
 
 check(mock.functions.WrathPP_GetNumCategories(10, 0, 2) == 3, "a blood elf man paladin: 3 categories (the two of the demon hunter look and the hair colour)")
 check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 19, "a night elf woman warrior: 19 (the two, the three body options, her scars, markings, tattoos, vines, ears, eyebrows, headdress, horns and blindfold with their colours, the hair and the skin colour)")
-check(mock.functions.WrathPP_GetNumCategories(1, 0, 1) == 2, "a human man: his eyebrows and the hair colour")
-check(mock.functions.WrathPP_GetNumCategories(1, 1, 1) == 6, "a human woman: the three body options, her eyebrows and makeup and the hair colour")
+check(mock.functions.WrathPP_GetNumCategories(1, 0, 1) == 3, "a human man: his eyebrows and face shape and the hair colour")
+check(mock.functions.WrathPP_GetNumCategories(1, 1, 1) == 7, "a human woman: the three body options, her eyebrows, makeup and face shape and the hair colour")
 local id, name, n, default = mock.functions.WrathPP_GetCategoryInfo(1, 10, 0, 2)
 check(id == 1002 and name == "Horns" and n == 3 and default == 1, "category 1: Horns, 3 options, default 1")
 local oid, oname = mock.functions.WrathPP_GetOptionInfo(1002, 2, 2)

@@ -203,7 +203,16 @@ def variant_model(read, model, variant, k, choice, out_dir, log=print):
     import m2
     import check_m2
     name = variant_model_name(model, k)
-    spec = dict(model, name=name, model=choice["file"], geosets=None)
+    spec = dict(model, name=name, geosets=None)
+    if choice["file"]:
+        spec["model"] = choice["file"]
+    else:
+        # geosets of the model itself: this choice's on (as the policy has them), the variant's others off
+        policy = {k_: list(v) for k_, v in model["geoset_policy"].items()}
+        every = {g for c in variant["choices"] for g in c.get("geosets", [])}
+        for g in every:
+            policy[str(g)] = list(model["geoset_policy"].get(str(g), [g])) if g in choice.get("geosets", []) else []
+        spec["geoset_policy"] = policy
     written = m2.convert(read, spec, out_dir, lambda *a: None)
     path = os.path.join(out_dir, model["folder"].replace("\\", "/"), name + ".m2")
     layout = path[:-3] + ".layout.json"
@@ -475,7 +484,7 @@ def write_parts_table(looks, out_dir, ids):
                 if not category:
                     continue
                 for k, choice in enumerate(variant["choices"], 1):
-                    if choice["file"]:
+                    if (choice["file"] or choice.get("geosets")) and not (k == 1 and variant.get("geoset")):
                         lines.append("V\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), category, k, variant_model_path(model, k)))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)

@@ -283,19 +283,26 @@ inline uint32_t BodyDisplay(const Registry& reg, const Appearance& resolved, uin
     return kBodyDisplayBase + uint32_t(slot) * 260 + uint32_t(shape) * 65 + uint32_t(layer);
 }
 
-// A man's model variants (registry category 1500, parts_ids.json "2_0:Upright"): the Orc man's Upright is another model of the game's; the
-// app (WrathppVariants) writes its display, kVariantDisplayBase + the option's value (1: Upright), into the game's and the server's
-// tables. 0: nothing to change (Hunched, or no such display in the tables): the race's own display stays.
-constexpr uint16_t kOrcUpright = 1500;
+// Model variants (registry categories 1500 to 1504, parts_ids.json): options that give a character another model of the game's, each
+// a display the app (WrathppVariants) writes into the game's and the server's tables: kVariantDisplayBase + (category - 1500) * 16 +
+// the option's value. 1500 the Orc man's Upright, 1501 and 1502 the Human man's and woman's Face Shape, 1503 and 1504 the Forsaken's
+// Skin Type. 0: nothing to change (no such display in the tables: the race's own stays).
+constexpr uint16_t kFirstVariant = 1500, kVariantCount = 5;
+constexpr uint8_t kVariantRace[kVariantCount] = {2, 1, 1, 5, 5};
+constexpr uint8_t kVariantSex[kVariantCount] = {0, 0, 1, 0, 1};
 constexpr uint32_t kVariantDisplayBase = 44000;
 
 inline uint32_t VariantDisplay(const Registry& reg, const Appearance& resolved, uint8_t race, uint8_t sex) {
-    if (race != 2 || sex != 0)
-        return 0;
-    const Category* c = reg.FindCategory(kOrcUpright);
-    const Entry* e = resolved.Find(kOrcUpright);
-    const Option* o = c && e ? FindOption(*c, e->option) : nullptr;
-    return o && o->value == 1 ? kVariantDisplayBase + 1 : 0;
+    for (uint16_t i = 0; i < kVariantCount; ++i) {
+        if (kVariantRace[i] != race || kVariantSex[i] != sex)
+            continue;
+        const Category* c = reg.FindCategory(kFirstVariant + i);
+        const Entry* e = resolved.Find(kFirstVariant + i);
+        const Option* o = c && e ? FindOption(*c, e->option) : nullptr;
+        if (o && o->value < 16)
+            return kVariantDisplayBase + uint32_t(i) * 16 + o->value;
+    }
+    return 0;
 }
 
 inline void WriteRegistry(Writer& w, const Registry& reg) {
