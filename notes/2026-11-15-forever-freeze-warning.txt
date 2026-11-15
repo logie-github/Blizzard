@@ -1,0 +1,1 @@
+WoW Forever: a freeze warning from the game no longer closes it; only a real crash does.
