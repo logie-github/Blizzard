@@ -1,0 +1,128 @@
+From e33a85f323352adac943738516f984a2c19b265b Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 23:46:50 +0000
+Subject: [PATCH] A session can run a program Android runs itself
+ (bionic_command, bionic_env, bionic_dir)
+
+An ARM64 game runs in an Android-native (bionic) Wine, started through
+/system/bin/linker64 with its own environment, without Box64 or the
+glibc rootfs. The game screen starts that command in place of
+GuestProgramLauncherComponent when the intent carries bionic_command
+({screen} becomes the screen's size), bionic_env (NAME=value, over the
+session's own variables) and bionic_dir (its folder). The X server,
+shared memory and sound servers are the same as for every other game.
+---
+ .../com/winlator/XServerDisplayActivity.java  | 24 +++++++-
+ .../BionicProgramLauncherComponent.java       | 58 +++++++++++++++++++
+ 2 files changed, 79 insertions(+), 3 deletions(-)
+ create mode 100644 app/src/main/java/com/winlator/xenvironment/components/BionicProgramLauncherComponent.java
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 0ad500f..4fa5c82 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -80,6 +80,7 @@ import com.winlator.xenvironment.RootFS;
+ import com.winlator.xenvironment.XEnvironment;
+ import com.winlator.xenvironment.components.ALSAServerComponent;
+ import com.winlator.xenvironment.components.GuestProgramLauncherComponent;
++import com.winlator.xenvironment.components.BionicProgramLauncherComponent;
+ import com.winlator.xenvironment.components.NetworkInfoUpdateComponent;
+ import com.winlator.xenvironment.components.PulseAudioComponent;
+ import com.winlator.xenvironment.components.SysVSharedMemoryComponent;
+@@ -546,9 +547,26 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             environment.addComponent(new VirGLRendererComponent(xServer, UnixSocketConfig.create(rootPath, UnixSocketConfig.VIRGL_SERVER_PATH)));
+         }
+ 
+-        guestProgramLauncherComponent.setEnvVars(envVars);
+-        guestProgramLauncherComponent.setTerminationCallback((status) -> exit());
+-        environment.addComponent(guestProgramLauncherComponent);
++        // A program Android runs itself (an ARM64 game in an Android-native Wine): its command, environment and folder are
++        // the app's ("bionic_command" with "{screen}" for the screen's size, "bionic_env" as NAME=value, "bionic_dir"). The X
++        // server, shared memory and sound servers above are the same; nothing goes through Box64 or the glibc rootfs.
++        String bionicCommand = getIntent().getStringExtra("bionic_command");
++        if (bionicCommand != null) {
++            EnvVars bionicEnvVars = new EnvVars();
++            bionicEnvVars.putAll(envVars);
++            String[] bionicEnv = getIntent().getStringArrayExtra("bionic_env");
++            if (bionicEnv != null) bionicEnvVars.putAll(bionicEnv);
++            String bionicDir = getIntent().getStringExtra("bionic_dir");
++            BionicProgramLauncherComponent bionicLauncher = new BionicProgramLauncherComponent(
++                bionicCommand.replace("{screen}", xServer.screenInfo.toString()), bionicEnvVars, bionicDir != null ? new File(bionicDir) : null);
++            bionicLauncher.setTerminationCallback((status) -> exit());
++            environment.addComponent(bionicLauncher);
++        }
++        else {
++            guestProgramLauncherComponent.setEnvVars(envVars);
++            guestProgramLauncherComponent.setTerminationCallback((status) -> exit());
++            environment.addComponent(guestProgramLauncherComponent);
++        }
+ 
+         if (isGenerateWineprefix()) {
+             wineInfo = getIntent().getParcelableExtra("wine_info");
+diff --git a/app/src/main/java/com/winlator/xenvironment/components/BionicProgramLauncherComponent.java b/app/src/main/java/com/winlator/xenvironment/components/BionicProgramLauncherComponent.java
+new file mode 100644
+index 0000000..c20f1c7
+--- /dev/null
++++ b/app/src/main/java/com/winlator/xenvironment/components/BionicProgramLauncherComponent.java
+@@ -0,0 +1,58 @@
++package com.winlator.xenvironment.components;
++
++import android.os.Process;
++
++import com.winlator.core.Callback;
++import com.winlator.core.EnvVars;
++import com.winlator.core.ProcessHelper;
++import com.winlator.xenvironment.EnvironmentComponent;
++
++import java.io.File;
++
++/**
++ * Starts a program that Android runs itself (a bionic build: the Android-native Wine an ARM64 game runs in), with no Box64
++ * and nothing of the glibc rootfs: the command (already through /system/bin/linker64), its environment and its folder are
++ * the caller's (com.logie.blizz.forever.arm64.ForeverArm64). The session's X server, shared memory and sound servers are
++ * the same as for every other game; the program reaches them by the socket paths in its environment.
++ */
++public class BionicProgramLauncherComponent extends EnvironmentComponent {
++    private final String command;
++    private final EnvVars envVars;
++    private final File workingDir;
++    private Callback<Integer> terminationCallback;
++    private static int pid = -1;
++    private static final Object lock = new Object();
++
++    public BionicProgramLauncherComponent(String command, EnvVars envVars, File workingDir) {
++        this.command = command;
++        this.envVars = envVars;
++        this.workingDir = workingDir;
++    }
++
++    public void setTerminationCallback(Callback<Integer> terminationCallback) {
++        this.terminationCallback = terminationCallback;
++    }
++
++    @Override
++    public void start() {
++        synchronized (lock) {
++            stop();
++            pid = ProcessHelper.exec(command, envVars, workingDir, (status) -> {
++                synchronized (lock) {
++                    pid = -1;
++                }
++                if (terminationCallback != null) terminationCallback.call(status);
++            });
++        }
++    }
++
++    @Override
++    public void stop() {
++        synchronized (lock) {
++            if (pid != -1) {
++                Process.killProcess(pid);
++                pid = -1;
++            }
++        }
++    }
++}
+-- 
+2.43.0
+

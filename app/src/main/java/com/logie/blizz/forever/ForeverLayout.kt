@@ -30,9 +30,9 @@ class ForeverLayout(val root: File) {
     /** The client's build (from its `.build.info`), or null when it can't be read. */
     fun clientBuild(): Int? = runCatching { ForeverCtl.clientBuild(File(client, ".build.info").readText()) }.getOrNull()
 
-    /** The game's program (the silent sign-in, [ForeverGo], starts it signed in with the realm's key). */
+    /** The game's program: the ARM64 client's (run natively, [com.logie.blizz.forever.arm64.ForeverArm64]) once it is in place. */
     fun clientExe(): File? {
-        val names = listOf("_forever_/Wow.exe", "_forever_/WowB.exe", "Wow.exe", "WowB.exe", "World of Warcraft Launcher.exe")
+        val names = listOf("_forever_/${com.logie.blizz.forever.arm64.ForeverArm64.EXE}", "_forever_/Wow.exe", "_forever_/WowB.exe", "Wow.exe", "WowB.exe", "World of Warcraft Launcher.exe")
         return names.map { File(client, it) }.firstOrNull { it.isFile }
     }
 

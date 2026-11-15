@@ -137,11 +137,13 @@ object ForeverCtl {
     fun withLocalPortal(config: String?): String {
         val line = "SET portal \"127.0.0.1\""
         val lines = config.orEmpty().lines().filter { it.isNotBlank() }
-        val kept = lines.filterNot { it.trim().startsWith("SET portal ", ignoreCase = true) }
+        // The ARM64 client draws through DXVK's Direct3D 11 (the only renderer its runtime has: ForeverArm64), whatever an
+        // earlier start or a copied settings file chose.
+        val kept = lines.filterNot { it.trim().startsWith("SET portal ", ignoreCase = true) || it.trim().startsWith("SET gxApi ", ignoreCase = true) }
         val locale = listOf("textLocale", "audioLocale")
             .filter { name -> kept.none { it.trim().startsWith("SET $name ", ignoreCase = true) } }
             .map { "SET $it \"enUS\"" }
-        return (kept + locale + line).joinToString("\n", postfix = "\n")
+        return (kept + locale + line + "SET gxApi \"D3D11\"").joinToString("\n", postfix = "\n")
     }
 
     /**
