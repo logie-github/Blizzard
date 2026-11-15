@@ -404,6 +404,25 @@ local function bodyRows(rows)
 	end
 end
 
+-- The creator's preview of a woman's Style and Density: the design file of her layer (the package's WppLayer_<style>_<density>
+-- in her race's folder; WppLayer_0 is none) put on the creator's character by the native mod, which draws the layer where
+-- nothing is on her legs (Gear off). The Shape row's models are the world's (the realm's displays): the creator keeps her as drawn.
+local RACE_FOLDER = { [1] = "Human", [2] = "Orc", [3] = "Dwarf", [4] = "NightElf", [5] = "Scourge", [6] = "Tauren", [7] = "Gnome", [8] = "Troll", [10] = "BloodElf", [11] = "Draenei" }
+local STYLE_ROW, DENSITY_ROW = 1102, 1103
+function W.BodyPreview()
+	if ( type(WrathPP_SetBodyPreview) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return end
+	local race, sex = WrathPP_GetCreating()
+	local folder = race and sex == 1 and RACE_FOLDER[race]
+	local path = ""
+	if ( folder and type(WrathPP_GetChoice) == "function" and type(WrathPP_GetNumCategories) == "function" ) then
+		-- the registry's option ids run one above their values (Style: None 0 to 16; Density: None 0, 25 to 100 per cent 1 to 4)
+		local style, density = (WrathPP_GetChoice(STYLE_ROW) or 1) - 1, (WrathPP_GetChoice(DENSITY_ROW) or 5) - 1
+		local file = (style >= 1 and style <= 16 and density >= 1 and density <= 4) and ("WppLayer_"..style.."_"..density) or "WppLayer_0"
+		path = "Character\\"..folder.."\\Female\\"..file..".blp"
+	end
+	pcall(WrathPP_SetBodyPreview, path)
+end
+
 -- Sends the body options with the character about to be made (the realm keeps them for the character the game makes next).
 function W.SendBody()
 	if ( type(WrathPP_SendCreateChoices) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return end
@@ -564,6 +583,7 @@ function W.Choose(row, k)
 	if ( row.body ) then
 		local c = row.choices[k]
 		if ( c and type(WrathPP_SetChoice) == "function" ) then WrathPP_SetChoice(row.body, c.v) end
+		W.BodyPreview()
 		return
 	end
 	local model, undead = looks()
@@ -1607,6 +1627,7 @@ local function refresh()
 	end
 	for k = n + 1, #categoryButtons do categoryButtons[k]:Hide() end
 	if ( n > 1 ) then categoryPanel:SetWidth(u(104) + (n - 1) * u(104 - 21)); categoryPanel:Show() else categoryPanel:SetWidth(1); categoryPanel:Hide() end
+	W.BodyPreview()
 	local rows = W.Rows()
 	for k, row in ipairs(rows) do showRow(rowFrame(k), row) end
 	for k = #rows + 1, #rowFrames do rowFrames[k]:Hide(); rowFrames[k].row = nil end
