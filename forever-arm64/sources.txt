@@ -1,0 +1,34 @@
+# World of Warcraft: Forever's ARM64 runtime: the Windows ARM64 client runs natively on the phone's CPU in an Android-native
+# (bionic) Wine container, the one jaredgei/wow-forever-android runs it in (GameNative's, GPL-3.0). Each line: the name it is
+# published under in our release (FOREVER_ARM64_RELEASE in forever-arm64/runtime.env), then where it is copied from once.
+# scripts/mirror-forever-arm64.sh downloads them, writes SHA256SUMS and the release carries both; the app downloads only from
+# our release and checks every file against SHA256SUMS. Never edit a line of a published release: publish a new one.
+#
+# From jaredgei/wow-forever-android's components-v1 release, and its Adreno 8xx Turnip from arusiasotto/wow-forever-a840 (hashes in its tools/components.sha256)
+proton-11.0-90624-arm64ec.wcp https://github.com/jaredgei/wow-forever-android/releases/download/components-v1/proton-11.0-90624-arm64ec.wcp
+dxvk-2.4.1-wow-aarch64-test.wcp https://github.com/jaredgei/wow-forever-android/releases/download/components-v1/dxvk-2.4.1-wow-aarch64-test.wcp
+turnip-wow-scheduler-test.zip https://github.com/jaredgei/wow-forever-android/releases/download/components-v1/turnip-wow-scheduler-test.zip
+turnip-V32-RP6sched.zip https://raw.githubusercontent.com/arusiasotto/wow-forever-a840/de6788c99708071465523d3b3b2ad95bea0efde6/driver/turnip-V32-RP6sched.zip
+# From GameNative's download server (the image, its extras, the Vulkan wrapper, the base prefix's common files)
+imagefs_bionic.txz https://downloads.gamenative.app/imagefs_bionic.txz
+extras.tzst https://downloads.gamenative.app/container_files/extras.tzst
+container_pattern_common_20260821.tzst https://downloads.gamenative.app/container_files/container_pattern_common_20260821.tzst
+wrapper.tzst https://downloads.gamenative.app/graphics_driver/wrapper.tzst
+extra_libs.tzst https://downloads.gamenative.app/graphics_driver/extra_libs.tzst
+zink_dlls.tzst https://downloads.gamenative.app/graphics_driver/zink_dlls.tzst
+# From jaredgei/wow-forever-android's source at 62936c2399b7111b0251fa8099bef86379a3d91a (files kept in git)
+redirect.tzst https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/assets/redirect.tzst
+libredirect-bionic-wx.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/modern/assets/libredirect-bionic-wx.so
+libredirect-bionic-wx-minimal.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/modern/assets/libredirect-bionic-wx-minimal.so
+wowbox64-0.4.2.tzst https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/assets/wowbox64/wowbox64-0.4.2.tzst
+pulseaudio-gamenative-20260919.tzst https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/assets/pulseaudio-gamenative-20260919.tzst
+libevshim.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libevshim.so
+libgamenative_dns_v4mapped.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libgamenative_dns_v4mapped.so
+libgnoverlay.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libgnoverlay.so
+libpulseaudio.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libpulseaudio.so
+libpulse.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libpulse.so
+libpulsecore-13.0.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libpulsecore-13.0.so
+libpulsecommon-13.0.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libpulsecommon-13.0.so
+libsndfile.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libsndfile.so
+libltdl.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libltdl.so
+libc++_shared.so https://raw.githubusercontent.com/jaredgei/wow-forever-android/62936c2399b7111b0251fa8099bef86379a3d91a/app/src/main/jniLibs/arm64-v8a/libc++_shared.so

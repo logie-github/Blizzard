@@ -1,0 +1,1 @@
+WoW Forever draws through DXVK again, which should end the "3D accelerator card is not supported" message.

@@ -403,6 +403,17 @@ object ForeverPlay {
         // Warcraft installation is damaged"): given it here, in place, the 47 GB untouched.
         withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.tact.CascStorageWriter.repairIndexes(File(layout.client, "Data/data")) } }
 
+        // The ARM64 client's programs beside the PC client's (same build and data) and the Android-native Wine container
+        // they run in, from this repository's own release ([com.logie.blizz.forever.arm64.ForeverArm64]); each only once.
+        withContext(Dispatchers.IO) {
+            if (!com.logie.blizz.forever.arm64.ForeverArm64.Client.has(layout.client)) {
+                com.logie.blizz.forever.arm64.ForeverArm64.Client.install(layout.client, { _state.value = State.Preparing(it) })
+            }
+            com.logie.blizz.forever.arm64.ForeverArm64.Runtime.install(com.logie.blizz.forever.arm64.ForeverArm64.Layout.of(context),
+                { step, done -> _state.value = State.Preparing(step, done) })
+        }
+        com.logie.blizz.reports.SessionLog.event("forever", "ARM64 client and runtime in place (${com.logie.blizz.forever.arm64.ForeverArm64.RELEASE})")
+
         if (!layout.hasServerData()) {
             _state.value = State.Preparing("Preparing the game data (first time, several minutes)")
             withContext(Dispatchers.IO) {

@@ -1,0 +1,58 @@
+name: Mirror the Forever ARM64 runtime
+
+# World of Warcraft: Forever runs Blizzard's Windows ARM64 client natively on the phone's CPU, in the Android-native
+# (bionic) Wine container that jaredgei/wow-forever-android runs it in (GameNative's; Proton 11 ARM64EC, DXVK for
+# aarch64, Turnip). Those files come from three places, one of them without hashes. This copies every file listed in
+# forever-arm64/sources.txt once, checks the four its makers published hashes for, writes SHA256SUMS, and publishes them
+# as the release named in forever-arm64/runtime.env. The app downloads the runtime from that release only, checking
+# every file against SHA256SUMS.
+#
+# A published release is never changed: a new list of sources gets a new release name (FOREVER_ARM64_RELEASE).
+on:
+  push:
+    branches: [main]
+    paths:
+      - forever-arm64/**
+      - scripts/mirror-forever-arm64.sh
+      - .github/workflows/mirror-forever-arm64.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Which release
+        id: release
+        run: |
+          . forever-arm64/runtime.env
+          echo "name=$FOREVER_ARM64_RELEASE" >> "$GITHUB_OUTPUT"
+
+      - name: Already published?
+        id: published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.release.outputs.name }}" >/dev/null 2>&1; then
+            echo "yes=1" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.release.outputs.name }} is published; it is never changed (a new list gets a new name)."
+          fi
+
+      - name: Download and check
+        if: steps.published.outputs.yes != '1'
+        run: scripts/mirror-forever-arm64.sh build/forever-arm64
+
+      - name: Publish
+        if: steps.published.outputs.yes != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          name="${{ steps.release.outputs.name }}"
+          gh release create "$name" --title "Forever ARM64 runtime ($name)" --latest=false \
+            --notes "The Android-native Wine container World of Warcraft: Forever's ARM64 client runs in (mirror-forever-arm64.yml; sources in forever-arm64/sources.txt). Not an app release."
+          cd build/forever-arm64
+          gh release upload "$name" $(awk '{print $2}' SHA256SUMS) SHA256SUMS

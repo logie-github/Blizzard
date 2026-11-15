@@ -82,16 +82,16 @@ class ForeverCtlTest {
     @Test
     fun `the client's portal points at this phone, its other settings kept`() {
         val locale = "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\n"
-        assertEquals(locale + "SET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(null))
-        val config = "SET gxWindow \"1\"\nSET portal \"us\"\nSET locale \"enUS\"\n"
-        assertEquals("SET gxWindow \"1\"\nSET locale \"enUS\"\n" + locale + "SET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(config))
+        assertEquals(locale + "SET portal \"127.0.0.1\"\nSET gxApi \"D3D11\"\n", ForeverCtl.withLocalPortal(null))
+        val config = "SET gxWindow \"1\"\nSET portal \"us\"\nSET gxApi \"D3D12\"\nSET locale \"enUS\"\n"
+        assertEquals("SET gxWindow \"1\"\nSET locale \"enUS\"\n" + locale + "SET portal \"127.0.0.1\"\nSET gxApi \"D3D11\"\n", ForeverCtl.withLocalPortal(config))
     }
 
     @Test
     fun `a language is set only where the client has none (no language list box at the start)`() {
         val config = "SET textLocale \"deDE\"\nSET portal \"127.0.0.1\"\n"
-        assertEquals("SET textLocale \"deDE\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\n", ForeverCtl.withLocalPortal(config))
-        val both = "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\n"
+        assertEquals("SET textLocale \"deDE\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\nSET gxApi \"D3D11\"\n", ForeverCtl.withLocalPortal(config))
+        val both = "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\nSET gxApi \"D3D11\"\n"
         assertEquals(both, ForeverCtl.withLocalPortal(both))
     }
 
@@ -141,7 +141,7 @@ class ForeverCtlTest {
         val fresh = ForeverCtl.withLoginReady(ForeverCtl.withLocalPortal(null), "forever@forever.local")
         // What the desktop rig ran with (client 70888): no intro, no narrator question, the e-mail filled in.
         assertEquals(
-            "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\nSET playIntroMovie \"1\"\n" +
+            "SET textLocale \"enUS\"\nSET audioLocale \"enUS\"\nSET portal \"127.0.0.1\"\nSET gxApi \"D3D11\"\nSET playIntroMovie \"1\"\n" +
                 "SET showScreenNarrationDialog \"0\"\nSET accessibilityScreenNarrationEnabled \"0\"\n" +
                 "SET showPhotosensitivityWarning \"0\"\nSET accountName \"forever@forever.local\"\n",
             fresh,

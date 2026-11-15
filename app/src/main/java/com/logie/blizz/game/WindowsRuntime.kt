@@ -165,26 +165,24 @@ object WindowsRuntime {
         // ended World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one
         // known iphlpapi.dll only, in every game's Wine alike so they all run the same one).
         withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.WineAdapterFix.apply(RootFS.find(context).rootDir, container.rootDir) } }
-        // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
-        // trusts the realm's HTTPS login server (forevergo.exe also puts it in Windows' root stores, where 70707 looks).
+        // World of Warcraft: Forever runs its Windows ARM64 client natively in the Android-native Wine container
+        // ([com.logie.blizz.forever.arm64.ForeverArm64]; Winlator patch 0010), not the PC client through Box64, which drew no
+        // window on the phone (reports 174 to 181). The keeper and the sign-in run there too, in that container's prefix.
         var foreverGo = false
+        var arm64: com.logie.blizz.forever.arm64.ForeverArm64.Launch? = null
         if (foreverClient) {
-            val driveC = File(container.rootDir, ".wine/drive_c")
             withContext(Dispatchers.IO) {
-                val layout = com.logie.blizz.forever.ForeverLayout.of(context)
-                if (layout.caFile.isFile) LegionClientSetup.installCertificateBundle(layout.caFile, driveC)
-                // The realm's name in Windows' hosts file (the game's portal), and the silent sign-in ([ForeverGo]):
-                // forevergo.exe, the CA and the ticket Play signed in with, so the game starts signed in with the realm's key.
-                runCatching { com.logie.blizz.forever.ForeverLauncher.seedHosts(driveC) }
-                // Microsoft Edge's updater, which an earlier version's browser runtime left: Wine's services start it some two
-                // minutes into the game and it competes with the game's start (report 178). Nothing uses it now.
-                runCatching { File(driveC, "Program Files (x86)/Microsoft/EdgeUpdate").deleteRecursively() }
-                foreverGo = com.logie.blizz.forever.ForeverGo.pending?.let { (account, ticket) ->
-                    runCatching { com.logie.blizz.forever.ForeverGo.prepare(context, container.rootDir, layout.caFile, account, ticket) }
-                        .onFailure { GameLog.note("forever: sign-in not put in place: ${it.message}") }.getOrDefault(false)
-                } ?: false
+                val flayout = com.logie.blizz.forever.ForeverLayout.of(context)
+                val alayout = com.logie.blizz.forever.arm64.ForeverArm64.Layout.of(context)
+                val login = com.logie.blizz.forever.ForeverGo.pending
                 com.logie.blizz.forever.ForeverGo.pending = null
-                GameLog.foreverGoLog = if (foreverGo) com.logie.blizz.forever.ForeverGo.logFile(container.rootDir) else null
+                arm64 = com.logie.blizz.forever.arm64.ForeverArm64.prepare(context, alayout, flayout.client, flayout.caFile, login,
+                    RootFS.find(context).rootDir.path, com.logie.blizz.forever.ForeverLauncher.WORLD_PORT)
+                foreverGo = arm64!!.signedIn
+                GameLog.keeperLog = com.logie.blizz.forever.arm64.ForeverArm64.keeperLog(alayout)
+                Borderless.dialogFlag = com.logie.blizz.forever.arm64.ForeverArm64.dialogFile(alayout)
+                GameLog.foreverGxLog = com.logie.blizz.forever.arm64.ForeverArm64.gxLog(flayout.client)
+                GameLog.foreverGoLog = if (foreverGo) com.logie.blizz.forever.arm64.ForeverArm64.signInLog(alayout) else null
             }
         }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
@@ -206,20 +204,21 @@ object WindowsRuntime {
             .putInt("box64_logs", 0).apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
-        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion || foreverClient) LegionClientSetup.BOX64 else "default"}, silent sign-in $foreverGo")
+        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion) LegionClientSetup.BOX64 else if (arm64 != null) "none (ARM64 client, Android-native Wine)" else "default"}, silent sign-in $foreverGo")
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
             // The program's path alone (Winlator makes it a Windows path); its arguments apart
             // (patches/winlator/0005): paths in them would otherwise break that conversion.
             .putExtra("exec_path", program.path)
-            .putExtra("exec_args", GameArguments.of(entry.gameId, entry.arguments, LaunchOptionsStore(context).get(entry.gameId).extraArgs, entry.clientVersion)
-                .let { if (foreverGo) "$it ${com.logie.blizz.forever.ForeverGo.ARGUMENT}".trim() else it })
+            .putExtra("exec_args", GameArguments.of(entry.gameId, entry.arguments, LaunchOptionsStore(context).get(entry.gameId).extraArgs, entry.clientVersion))
             // Legion and the Forever client share the Wow_loader.dll start-up protection, which needs the Box64 with
             // the signal-flags fix (Winlator patch 0007); without it the loader deadlocks on Wine's loader lock.
-            .apply { if (legion || foreverClient) putExtra("box64_version", LegionClientSetup.BOX64) }
+            .apply { if (legion) putExtra("box64_version", LegionClientSetup.BOX64) }
+            // Forever: the Android-native command the game screen runs in place of Box64's (Winlator patch 0010).
+            .apply { arm64?.let { putExtra("bionic_command", it.command).putExtra("bionic_env", it.env).putExtra("bionic_dir", it.dir.path) } }
             // The session's keeper before winhandler.exe and the game (Winlator patch 0009).
-            .apply { if (keeper) putExtra("exec_wrapper", Borderless.command(entry.gameId).let { if (foreverGo) com.logie.blizz.forever.ForeverGo.wrapper(it) else it }) }
+            .apply { if (keeper && arm64 == null) putExtra("exec_wrapper", Borderless.command(entry.gameId)) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             // Forever: the game's crash files, watched while it runs (a crashed game stays on its last frame).

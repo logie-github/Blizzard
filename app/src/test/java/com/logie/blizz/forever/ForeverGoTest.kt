@@ -37,9 +37,8 @@ class ForeverGoTest {
         assertNull(ForeverGo.accountOf("{}"))
     }
 
-    @Test fun `the sign-in file and the wrapper`() {
+    @Test fun `the sign-in file`() {
         assertEquals("WoW1\nTC-1\n8105\n", ForeverGo.loginFile("WoW1", "TC-1"))
-        assertEquals("C:\\windows\\forevergo.exe C:\\windows\\borderless.exe /noframes", ForeverGo.wrapper("C:\\windows\\borderless.exe /noframes"))
     }
 
     /** Against a running realm (the rig: README, "The Forever client and realm on the rig"): BLIZZ_FOREVER_REALM=1. */

@@ -1,0 +1,1 @@
+WoW Forever now runs Blizzard's ARM64 client natively on the phone, no PC translation; the first Play downloads its runtime (about 460 MB).

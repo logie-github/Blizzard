@@ -20,30 +20,21 @@ import javax.net.ssl.TrustManagerFactory
  * 1. [signIn]: the realm's HTTPS login service (127.0.0.1:8081, certificate made by this phone's CA for
  *    `trinity.actual.battle.net`): `POST /bnetserver/login/` gives a login ticket, `GET /bnetserver/gameAccounts/` the
  *    game account (`WoW1`).
- * 2. [prepare]: puts `forevergo.exe` (tools/forevergo, built by scripts/build-tools.sh into the app's assets), the CA
- *    (`forevergo.ca`) and the sign-in (`forevergo.login`: account, ticket) into the games' Windows (`C:\windows`).
- * 3. The game screen starts `forevergo.exe` in front of the session keeper ([wrapper]) and the game with
- *    [ARGUMENT]: it trusts the CA in Windows' root stores, writes the sign-in where the game reads it, and keeps the
- *    realm's public key in the game's table of realm keys while it runs, which is what lets the game into the realm.
+ * 2. [com.logie.blizz.forever.arm64.ForeverArm64.prepare] puts the ARM64 `forevergo.exe` (tools/forevergo), the CA and the
+ *    sign-in ([loginFile]) into the game's Windows, and the game is started with [ARGUMENT] behind it: it trusts the CA in
+ *    Windows' root stores, writes the sign-in where the game reads it, and keeps the realm's public key in the game's table
+ *    of realm keys while it runs, which is what lets the game into the realm.
  *
  * Run on the desktop rig (14 November 2026) with client 1.60.1.70707 and the realm's arm64 build under qemu: no login
  * screen, the realm joined, a character made, Enter World. Not run on a phone.
  */
 object ForeverGo {
-    const val ASSET = "forevergo.exe"
-    const val PATH = "C:\\windows\\forevergo.exe"
-    const val LOGIN_FILE = "forevergo.login"
-    const val CA_FILE = "forevergo.ca"
-    const val LOG = "forevergo.log"
     /** What the game is started with: it signs in with what the registry holds, no login screen. */
     const val ARGUMENT = "-launcherlogin"
     const val REST_PORT = 8081
 
     /** The sign-in Play made for the next start of the game (game account, ticket), taken by the game screen's setup. */
     @Volatile var pending: Pair<String, String>? = null
-
-    /** The exec wrapper: this program, then the keeper's own command ([Borderless.command]). */
-    fun wrapper(keeper: String): String = "$PATH $keeper"
 
     /** The JSON body of `POST /bnetserver/login/` (the game's own login form). */
     fun loginBody(email: String, password: String): String = JSONObject()
@@ -113,21 +104,4 @@ object ForeverGo {
         return SSLContext.getInstance("TLS").apply { init(null, trust.trustManagers, null) }
     }
 
-    fun logFile(containerRoot: File) = File(containerRoot, ".wine/drive_c/windows/$LOG")
-
-    /**
-     * Puts the program, the realm's CA and the sign-in into the games' Windows at [containerRoot]. Whether all three are
-     * there (without them the game starts as before, at its login screen).
-     */
-    fun prepare(context: Context, containerRoot: File, caFile: File, account: String, ticket: String): Boolean {
-        val windows = File(containerRoot, ".wine/drive_c/windows")
-        if (!windows.isDirectory || !caFile.isFile) return false
-        val bytes = context.assets.open(ASSET).use { it.readBytes() }
-        val exe = File(windows, ASSET)
-        if (!(exe.isFile && exe.length() == bytes.size.toLong() && exe.readBytes().contentEquals(bytes))) exe.writeBytes(bytes)
-        caFile.copyTo(File(windows, CA_FILE), overwrite = true)
-        File(windows, LOGIN_FILE).writeText(loginFile(account, ticket))
-        runCatching { logFile(containerRoot).delete() }
-        return exe.length() == bytes.size.toLong()
-    }
 }
