@@ -17,10 +17,10 @@ object ForeverClientDownload {
     const val PRODUCT = "wowf"
     const val ESSENTIAL = 0
     const val ALL = 2
-    /** Windows x64, English text and speech: what the app plays. */
-    val TAGS = setOf("Windows", "x86_64", "enUS", "US", "speech", "text")
+    /** Windows x64, English text (no voice-over: about 3 GB less to fetch; the game is silent where it would speak). */
+    val TAGS = setOf("Windows", "x86_64", "enUS", "US", "text")
     const val ESSENTIAL_BYTES = 700L shl 20
-    const val ALL_BYTES = 49L shl 30
+    const val ALL_BYTES = 46L shl 30
 
     fun spaceNeeded(maxPriority: Int) = (if (maxPriority >= ALL) ALL_BYTES else ESSENTIAL_BYTES) + (512L shl 20)
 

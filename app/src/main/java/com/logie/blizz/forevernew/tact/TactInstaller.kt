@@ -24,6 +24,8 @@ class TactInstaller(
     private val tags: Set<String> = setOf("Windows", "x86_64", "enUS", "US", "speech", "text"),
     private val maxPriority: Int = Int.MAX_VALUE,
     private val checkpointBytes: Long = 512L shl 20,
+    /** Connections used at once (one connection to the CDN is far slower than the phone's line). */
+    private val parallel: Int = 16,
 ) {
     class Build(val buildKey: String, val cdnKey: String, val versionName: String, val buildId: Int, val config: Map<String, List<String>>, val cdnConfig: Map<String, List<String>>, val buildText: String, val cdnText: String)
 
@@ -38,6 +40,28 @@ class TactInstaller(
     }
 
     private fun key(b: Build, name: String, index: Int): String = b.config[name]?.getOrNull(index) ?: throw IOException("the build has no '$name'")
+
+    /** Runs [work] on every item with [parallel] threads; the first failure stops the rest and is thrown; [cancelled] stops it too. */
+    private fun <T> inParallel(items: List<T>, cancelled: () -> Boolean, work: (T) -> Unit) {
+        if (items.isEmpty()) return
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(parallel.coerceIn(1, 32))
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val next = java.util.concurrent.atomic.AtomicInteger()
+        try {
+            val tasks = (0 until parallel.coerceIn(1, 32)).map {
+                pool.submit {
+                    while (failure.get() == null) {
+                        if (cancelled()) { failure.compareAndSet(null, IOException("stopped")); break }
+                        val i = next.getAndIncrement()
+                        if (i >= items.size) break
+                        try { work(items[i]) } catch (e: Throwable) { failure.compareAndSet(null, e) }
+                    }
+                }
+            }
+            tasks.forEach { it.get() }
+        } finally { pool.shutdownNow() }
+        failure.get()?.let { throw if (it is IOException) it else IOException(it.message ?: it.javaClass.simpleName, it) }
+    }
 
     /** The download manifest: fetched whole with progress, decoded, and the encoded copy let go before the caller goes on. */
     private fun downloadManifest(ekey: String, say: (String, Float?) -> Unit): DownloadManifest {
@@ -125,50 +149,61 @@ class TactInstaller(
         // find each file in the CDN's archives
         val archives = b.cdnConfig["archives"] ?: throw IOException("the CDN config lists no archives")
         val archiveOf = IntArray(total) { -1 }; val offsetOf = LongArray(total); val sizeOf = IntArray(total)
-        var located = 0
+        val located = java.util.concurrent.atomic.AtomicInteger()
         val toLocate = needed.count { it }
-        for ((n, a) in archives.withIndex()) {
-            if (cancelled()) throw IOException("stopped")
-            if (located >= toLocate) break
-            say("Looking up where the files are (${n + 1} of ${archives.size})", n.toFloat() / archives.size)
-            val idx = ArchiveIndex.parse(a, cdn.get("data", a, suffix = ".index"))
-            for (i in idx.ekeys.indices) {
-                val j = itemKey[idx.ekeys[i].prefix64()]
-                if (j >= 0 && needed[j] && archiveOf[j] < 0 && fullKey(j).contentEquals(idx.ekeys[i])) { archiveOf[j] = n; offsetOf[j] = idx.offsets[i]; sizeOf[j] = idx.sizes[i]; located++ }
+        val indexesDone = java.util.concurrent.atomic.AtomicInteger()
+        inParallel(archives.indices.toList(), cancelled) { n ->
+            if (located.get() >= toLocate) return@inParallel
+            val idx = ArchiveIndex.parse(archives[n], cdn.get("data", archives[n], suffix = ".index"))
+            synchronized(archiveOf) {
+                for (i in idx.ekeys.indices) {
+                    val j = itemKey[idx.ekeys[i].prefix64()]
+                    if (j >= 0 && needed[j] && archiveOf[j] < 0 && fullKey(j).contentEquals(idx.ekeys[i])) { archiveOf[j] = n; offsetOf[j] = idx.offsets[i]; sizeOf[j] = idx.sizes[i]; located.incrementAndGet() }
+                }
             }
+            val d = indexesDone.incrementAndGet()
+            say("Looking up where the files are ($d of ${archives.size})", d.toFloat() / archives.size)
         }
         if (planOnly) return plan
 
-        // read them out, archive by archive, adjacent ranges together
-        val byArchive = HashMap<Int, ArrayList<Int>>()
+        // read them out: adjacent ranges of an archive together, many ranges at once
+        class Job(val archive: String, val start: Long, val end: Long, val items: List<Int>)
+        val jobs = ArrayList<Job>()
         var fetchBytes = 0L
+        val byArchive = HashMap<Int, ArrayList<Int>>()
         for (j in 0 until total) if (needed[j] && archiveOf[j] >= 0) { byArchive.getOrPut(archiveOf[j]) { ArrayList() }.add(j); fetchBytes += sizeOf[j] }
-        var done = 0L; var sinceCheckpoint = 0L
-        val blobs = HashMap<Int, ByteArray>()
-        val looseSet = looseItem.toSet()
         for ((archiveNo, items) in byArchive.toSortedMap()) {
-            val archive = archives[archiveNo]
             val sorted = items.sortedBy { offsetOf[it] }
             var i = 0
             while (i < sorted.size) {
-                if (cancelled()) { writer.finish(); throw IOException("stopped") }
                 var k = i; val start = offsetOf[sorted[i]]
                 var end = start + sizeOf[sorted[i]]
-                while (k + 1 < sorted.size && offsetOf[sorted[k + 1]] - end <= 64 * 1024 && offsetOf[sorted[k + 1]] + sizeOf[sorted[k + 1]] - start <= (8L shl 20)) {
+                while (k + 1 < sorted.size && offsetOf[sorted[k + 1]] - end <= 64 * 1024 && offsetOf[sorted[k + 1]] + sizeOf[sorted[k + 1]] - start <= (4L shl 20)) {
                     k++; end = offsetOf[sorted[k]] + sizeOf[sorted[k]]
                 }
-                val chunk = cdn.get("data", archive, start, end - start)
-                for (m in i..k) {
-                    val j = sorted[m]
-                    val bytes = chunk.copyOfRange((offsetOf[j] - start).toInt(), (offsetOf[j] - start).toInt() + sizeOf[j])
-                    if (j in looseSet) blobs[j] = bytes
-                    if (isWanted(j)) { writer.add(fullKey(j), bytes); sinceCheckpoint += sizeOf[j] }
-                    done += sizeOf[j]
-                }
-                say("Downloading the game: ${done shr 20} / ${fetchBytes shr 20} MB", if (fetchBytes > 0) done.toFloat() / fetchBytes else null)
-                if (sinceCheckpoint >= checkpointBytes) { writer.finish(); sinceCheckpoint = 0 }
+                jobs += Job(archives[archiveNo], start, end, sorted.subList(i, k + 1).toList())
                 i = k + 1
             }
+        }
+        val done = java.util.concurrent.atomic.AtomicLong()
+        var sinceCheckpoint = 0L
+        val blobs = java.util.concurrent.ConcurrentHashMap<Int, ByteArray>()
+        val looseSet = looseItem.toSet()
+        val started = System.currentTimeMillis()
+        inParallel(jobs, cancelled) { job ->
+            val chunk = cdn.get("data", job.archive, job.start, job.end - job.start)
+            for (j in job.items) {
+                val bytes = chunk.copyOfRange((offsetOf[j] - job.start).toInt(), (offsetOf[j] - job.start).toInt() + sizeOf[j])
+                if (j in looseSet) blobs[j] = bytes
+                if (isWanted(j)) writer.add(fullKey(j), bytes)
+            }
+            val d = done.addAndGet(job.end - job.start)
+            synchronized(writer) {
+                sinceCheckpoint += job.end - job.start
+                if (sinceCheckpoint >= checkpointBytes) { writer.finish(); sinceCheckpoint = 0 }
+            }
+            val secs = ((System.currentTimeMillis() - started) / 1000).coerceAtLeast(1)
+            say("Downloading the game: ${d shr 20} / ${fetchBytes shr 20} MB (${(d shr 20) / secs} MB/s)", if (fetchBytes > 0) d.toFloat() / fetchBytes else null)
         }
         writer.finish()
         // the wanted files that weren't in an archive are loose on the CDN
