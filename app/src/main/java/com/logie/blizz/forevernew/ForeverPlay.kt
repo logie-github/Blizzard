@@ -42,7 +42,7 @@ object ForeverPlay {
         if (_status.value.running) return
         val app = context.applicationContext
         val layout = ForeverLayout.of(app)
-        val runner = ForeverSteps(layout, Build.SUPPORTED_ABIS.toList(), totalRamMb(app))
+        val runner = ForeverSteps(layout, Build.SUPPORTED_ABIS.toList(), totalRamMb(app), signal = { pid, sig -> android.os.Process.sendSignal(pid, sig) })
         steps = runner
         _status.value = Status(ForeverState.DOWNLOADING, "Starting", null, true)
         Thread({

@@ -20,6 +20,8 @@ class ForeverSteps(
     private val deviceAbis: List<String>,
     private val totalRamMb: Int,
     private val bots: () -> Pair<String, Pair<Boolean, Boolean>> = { "auto" to (true to true) },
+    /** Sends a signal to a process (`android.os.Process.sendSignal` on a phone): how a program left running is ended. */
+    private val signal: (Int, Int) -> Unit = { _, _ -> },
 ) : ForeverInstaller.Steps {
     private val processes = HashMap<String, Process>()
     private val clientPointer get() = File(layout.root, "client-path.txt")
@@ -215,6 +217,11 @@ class ForeverSteps(
     private fun startProgram(p: ForeverServer.Program, minutes: Long = 3): String? {
         if (processes[p.key]?.isAlive == true) return null
         prepareRuntime()
+        // One of ours left running by an app Android ended (it holds the port): ended first, the way it is stopped.
+        if (portOpen(p.port) && ForeverLeftovers.end(File(layout.run, p.pid), layout.bin, signal)) {
+            ForeverLogs(File(layout.logs, "forever-events.log")).event("${p.binary}: one left running from before was ended")
+            repeat(20) { if (portOpen(p.port)) Thread.sleep(500) }
+        }
         if (portOpen(p.port)) return "Port ${p.port} is already in use; ${p.binary} can't start."
         val log = File(layout.logs, p.log)
         val cmd = ForeverServer.command(layout, p)
@@ -224,14 +231,12 @@ class ForeverSteps(
         processes[p.key] = proc
         val watch = LineWatch(p.ready)
         var offset = 0L
-        val deadline = System.currentTimeMillis() + minutes * 60_000
-        while (System.currentTimeMillis() < deadline) {
-            val (text, next) = WowLogs.readFrom(log, offset); offset = next
-            if (watch.feed(text) && portOpen(p.port)) return null
-            if (!proc.isAlive) return "${p.binary} stopped (${WowLogs.exitInWords(proc.exitValue())}). ${ForeverServer.explain(ForeverLogs.tailOf(log)) ?: WowLogs.tail(log, 8)}"
-            Thread.sleep(500)
+        val ready = { val (text, next) = WowLogs.readFrom(log, offset); offset = next; watch.feed(text); watch.found && portOpen(p.port) }
+        return when (ForeverLeftovers.await((minutes * 120).toInt(), ready, { proc.isAlive })) {
+            ForeverLeftovers.Wait.READY -> null
+            ForeverLeftovers.Wait.ENDED -> "${p.binary} stopped (${WowLogs.exitInWords(proc.exitValue())}). ${ForeverServer.explain(ForeverLogs.tailOf(log)) ?: WowLogs.tail(log, 8)}"
+            ForeverLeftovers.Wait.TIMED_OUT -> "${p.binary} did not become ready in $minutes minutes. Last output: ${WowLogs.tail(log, 6)}"
         }
-        return "${p.binary} did not become ready in $minutes minutes. Last output: ${WowLogs.tail(log, 6)}"
     }
 
     private fun portOpen(port: Int): Boolean = runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 300); true } }.getOrDefault(false)
