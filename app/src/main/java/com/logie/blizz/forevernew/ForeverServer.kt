@@ -13,7 +13,13 @@ object ForeverServer {
     /** Start-up order and the line each program prints when it is ready. */
     data class Program(val key: String, val binary: String, val args: (ForeverLayout) -> List<String>, val ready: Regex, val log: String, val pid: String, val port: Int)
 
-    private val BNET_READY = Regex("""Bnet server .*|Listening|Starting up|bnetserver.*ready""", RegexOption.IGNORE_CASE)
+    /**
+     * What the login server's own output says once it is set up: it prints no "ready" line. Its last lines are its REST handlers and
+     * `Added realm "Forever" at 127.0.0.1 (port 8097).`, after which it listens; the port being open is asked beside this
+     * ([ForeverSteps.startProgram]). The words looked for before ("Bnet server", "Listening", "Starting up", "ready") are none of
+     * its: on the phone, 16 November 2026, it stood at "Added realm" for the whole three minutes and was given up on.
+     */
+    internal val BNET_READY = Regex("""Added realm "|<Ctrl-C> to stop""")
     // TrinityCore's own line when the world is up (also what the bots log after); kept as upstream prints it.
     private val WORLD_READY = Regex("""\(worldserver-daemon\) ready\.\.\.|World initialized in""")
 

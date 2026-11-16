@@ -175,11 +175,57 @@ object ForeverPackage {
             staging.deleteRecursively()
             throw IOException("The new server couldn't be put in place")
         }
+        // What the realm made in the server's folder goes on with it: the map data (hours of work on a phone, from 47 GB of game)
+        // lives in `server/data`, and the server set aside is deleted after the next good start.
+        val oldData = File(old, "data")
+        if (hadOld && oldData.isDirectory && !layout.data.exists()) oldData.renameTo(layout.data)
         staging.deleteRecursively()
         layout.manifests.mkdirs()
         layout.installedManifest.writeText(manifestJson(m))
+        etcList(layout).writeText(etcFiles(layout).joinToString("\n"))
         // The previous server stays as server.old until the next successful start ([commit]); a failed start restores it.
         archive.delete()
+    }
+
+    /** The package's own settings files as unpacked (`etc/...` paths), kept so one that goes missing can be seen and put back. */
+    fun etcList(layout: ForeverLayout) = File(layout.manifests, "installed-etc.txt")
+
+    private fun etcFiles(layout: ForeverLayout): List<String> =
+        layout.etc.walkTopDown().filter { it.isFile }.map { it.relativeTo(layout.server).path.replace(File.separatorChar, '/') }.sorted().toList()
+
+    /**
+     * Puts back the package's settings files that are gone from the installed server (never over one that is there), from the
+     * installed package's own archive. An earlier version deleted one at each Play (`worldserver.conf.d/zz-0-playerbot-defaults.conf`:
+     * a file copied onto itself); a server installed before the list above was kept has the archive fetched once to make it.
+     * Returns the files put back.
+     */
+    fun restoreEtc(layout: ForeverLayout, say: (String, Float?) -> Unit = { _, _ -> }, allowHttp: Boolean = false): List<String> {
+        val m = installed(layout) ?: return emptyList()
+        val list = etcList(layout)
+        if (list.isFile && list.readLines().filter { it.isNotBlank() }.all { File(layout.server, it).isFile }) return emptyList()
+        val archive = File(layout.downloads, "forever-android-arm64-${m.sha256.take(12)}.tar.xz")
+        ForeverDownloads.fetch(m.url, archive, m.sha256, m.size, allowHttp) { done, total ->
+            say("Checking Forever's server files: ${done shr 20} / ${(if (total > 0) total else m.size) shr 20} MB", if (total > 0) done.toFloat() / total else null)
+        }
+        val restored = ArrayList<String>(); val all = ArrayList<String>()
+        TarArchiveInputStream(XZInputStream(archive.inputStream().buffered())).use { tar ->
+            while (true) {
+                val entry = tar.nextEntry ?: break
+                val name = entry.name.removePrefix("./").removePrefix("forever/")
+                if (entry.isDirectory || entry.isSymbolicLink || entry.isLink || !name.startsWith("etc/")) continue
+                val target = entryTarget(layout.server, name) ?: continue
+                all += name
+                if (target.isFile) continue
+                if (entry.size > (16L shl 20)) throw IOException("The package's $name is larger than a settings file is")
+                target.parentFile?.mkdirs()
+                target.outputStream().use { tar.copyTo(it) }
+                restored += name
+            }
+        }
+        layout.manifests.mkdirs()
+        list.writeText(all.sorted().joinToString("\n"))
+        archive.delete()
+        return restored
     }
 
     /** After a successful start of the new server: the old one is no longer needed. */

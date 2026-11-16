@@ -47,6 +47,15 @@ object ForeverClientDownload {
     fun supported(release: Release, builds: List<Int>) = builds.isEmpty() || release.buildId in builds
 
     /**
+     * A client this app downloaded with an earlier version lacks index files the realm's tools read the game through
+     * ([TactInstaller.metadataKeys]): fetches the missing ones (133 MB, once). Returns how many were fetched.
+     */
+    fun repairIndex(root: File, say: (String, Float?) -> Unit): Int {
+        val r = release()
+        return TactInstaller(HttpCdn(r.hosts, r.path), root, PRODUCT, tags = TAGS).repairMetadata(say)
+    }
+
+    /**
      * Downloads (or carries on downloading) the client into [root]. Throws with a plain message on failure. [say] gets (words, share).
      */
     fun download(root: File, maxPriority: Int, builds: List<Int>, say: (String, Float?) -> Unit, cancelled: () -> Boolean = { false }) {

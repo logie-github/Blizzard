@@ -133,6 +133,33 @@ class ForeverCoreTest {
         assertTrue(ForeverPackage.needsInstall(layout, manifest))
     }
 
+    @Test fun aSettingsFileThatWentMissingIsPutBackFromThePackageAndNoneIsOverwritten() {
+        val layout = ForeverLayout(File(tmp.root, "root-etc"))
+        val archive = tarXz("forever/bin/worldserver" to "x".toByteArray(), "forever/etc/worldserver.conf.dist" to "dist".toByteArray(),
+            "forever/etc/worldserver.conf.d/zz-0-playerbot-defaults.conf" to "defaults".toByteArray(), "forever/etc/worldserver.conf.d/zz-forever-bots.conf" to "bots".toByteArray())
+        val m = ForeverPackage.parseManifest(manifestJson).copy(sha256 = ForeverDownloads.sha256(archive), size = archive.length())
+        layout.manifests.mkdirs(); layout.installedManifest.writeText(ForeverPackage.manifestJson(m))
+        // the installed server as the phone had it: one file deleted by the old copy, one changed by the person, the app's own beside them
+        File(layout.etc, "worldserver.conf.d").mkdirs()
+        File(layout.etc, "worldserver.conf.dist").writeText("dist")
+        File(layout.etc, "worldserver.conf.d/zz-forever-bots.conf").writeText("changed")
+        File(layout.etc, "worldserver.conf.d/zz-9-local.conf").writeText("local")
+        val kept = File(layout.downloads, "forever-android-arm64-${m.sha256.take(12)}.tar.xz").apply { parentFile.mkdirs() }
+        archive.copyTo(kept)
+        assertEquals(listOf("etc/worldserver.conf.d/zz-0-playerbot-defaults.conf"), ForeverPackage.restoreEtc(layout))
+        assertEquals("defaults", File(layout.etc, "worldserver.conf.d/zz-0-playerbot-defaults.conf").readText())
+        assertEquals("changed", File(layout.etc, "worldserver.conf.d/zz-forever-bots.conf").readText())
+        assertEquals("local", File(layout.etc, "worldserver.conf.d/zz-9-local.conf").readText())
+        assertFalse(File(layout.server, "bin/worldserver").exists()) // nothing but settings files is taken from the archive
+        assertFalse(kept.exists())
+        // with the list kept and every file there, nothing is fetched (there is no archive and no server to fetch it from)
+        assertTrue(ForeverPackage.restoreEtc(layout).isEmpty())
+        // and one that goes missing later is seen
+        File(layout.etc, "worldserver.conf.dist").delete()
+        archive.copyTo(kept)
+        assertEquals(listOf("etc/worldserver.conf.dist"), ForeverPackage.restoreEtc(layout))
+    }
+
     // ---- downloads (resume) ----
     @Test fun downloadResumesAndChecksTheHash() {
         val data = ByteArray(300_000) { (it * 7).toByte() }
