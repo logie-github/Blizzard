@@ -83,6 +83,11 @@ unpacked on the desktop rig and run through its own musl loader under `qemu-aarc
 
 | `mapextractor` (arm64, from the package) on the essential install the app's TACT installer wrote | **opened the storage** (`Opened casc storage .../Data`, `Detected client build 70938 for locale enUS`), then stopped at the first db2 (`AccountStoreCategory.db2: FILE_NOT_FOUND`), which isn't in Blizzard's priority-0 set: the realm needs the full download. It also warns that its online encryption-key list returned `426` here (non-fatal; some encrypted files may not extract) |
 
+Two more facts from the real `Wow.exe` on the rig (Wine 10.10, no GPU): its first act is to call `GetAdaptersAddresses`, which crashes inside Wine's `iphlpapi`
+here (reproduced by a 10-line program; the game's own crash handler writes a report, then the game stalls); and **the client refuses a replaced `iphlpapi`**
+(a stub, or a forwarding wrapper, in the game folder or in the prefix's `system32`: "Internal Error 0x1100, Unsupported software detected, IPHLPAPI.DLL"), so
+that crash can't be worked around by a DLL override. Whether the phone's Wine hits it is unknown; if it does, the fix is in the runtime's Wine, not in this app.
+
 What this rig could not do: the maps need the full client (47 GiB) and then the map extraction (about 45 GB at its peak, hours); the rig has 18 GB free.
 So the world server was not brought up, and nothing past the login server's REST login (the Battle.net client handshake on port 1120, the realm list,
 the character screen, a world, an NPC) has been run: no GPU here, and the real client crashes in Wine's network code on this rig.
