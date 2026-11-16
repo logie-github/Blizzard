@@ -139,8 +139,9 @@ class ForeverSteps(
             certFile = File(layout.keys, "bnetserver.cert.pem").path, keyFile = File(layout.keys, "bnetserver.key.pem").path,
             realmAlsoAccept = supportedBuilds().filter { it != client.build },
         )
-        File(layout.etc, "worldserver.conf").writeText(ForeverConfig.worldserverConf(params))
-        File(layout.etc, "bnetserver.conf").writeText(ForeverConfig.bnetserverConf(params))
+        fun dist(name: String) = File(layout.server, "etc/$name.conf.dist").takeIf { it.isFile }?.readText().orEmpty()
+        File(layout.etc, "worldserver.conf").writeText(ForeverConfig.edit(dist("worldserver"), ForeverConfig.worldserverValues(params)))
+        File(layout.etc, "bnetserver.conf").writeText(ForeverConfig.edit(dist("bnetserver"), ForeverConfig.bnetserverValues(params)))
         val (preset, switches) = bots()
         val profile = ForeverConfig.profile(totalRamMb, preset, switches.first, switches.second)
         File(layout.etc, "worldserver.conf.d").apply { mkdirs() }.let { d ->
@@ -168,31 +169,10 @@ class ForeverSteps(
         File(layout.keys, "forever-root-ca.key.pem").apply { setReadable(false, false); setReadable(true, true) }
     }
 
-    // ---- 5b: the local account (upstream's way: the world server's console) ---------------------------------------------
+    // ---- 5b: the local account (made in the auth database; see ForeverAccount) -------------------------------------------
     override fun account(): String? {
         val account = ForeverAuth.loadOrCreate(layout)
-        fun query(statement: String): String? {
-            val log = File(layout.logs, "account-query.log")
-            val args = ForeverServer.clientArgs(account.dbUser, account.dbPassword, "-N", "-B", "-e", statement)
-            val code = runToEnd(ForeverServer.command(layout, "mariadb", args), log)
-            return if (code == 0) log.readText().lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() && it != "NULL" } else null
-        }
-        val world = processes[ForeverServer.WORLD.key] ?: return "The world server isn't running."
-        var id = query(ForeverAuth.idSql(account))?.toIntOrNull()
-        // A command typed while the world server is still loading its bots can be lost: sent again, up to 3 times (upstream does the same).
-        for (attempt in 1..3) {
-            if (id != null) break
-            runCatching { world.outputStream.write((ForeverAuth.createCommand(account) + "\n").toByteArray()); world.outputStream.flush() }
-            repeat(12) { if (id == null) { Thread.sleep(1000); id = query(ForeverAuth.idSql(account))?.toIntOrNull() } }
-        }
-        val accountId = id ?: return "The account wasn't created. See the world server's log."
-        var level = query(ForeverAuth.gmSql(account))?.toIntOrNull()
-        for (attempt in 1..3) {
-            if ((level ?: 0) >= 3) break
-            runCatching { world.outputStream.write((ForeverAuth.gmCommand(accountId) + "\n").toByteArray()); world.outputStream.flush() }
-            repeat(10) { if ((level ?: 0) < 3) { Thread.sleep(1000); level = query(ForeverAuth.gmSql(account))?.toIntOrNull() } }
-        }
-        return if ((level ?: 0) >= 3) null else "The account exists but its GM level wasn't confirmed."
+        return sql(account.dbUser, account.dbPassword, ForeverAccount.sql(account.name, account.password), "auth")
     }
 
     // ---- 6: start --------------------------------------------------------------------------------------------------------

@@ -62,6 +62,36 @@ essential set was run); the client past its first seconds. **On the desktop rig 
 game or this app); whether the phone's Wine does the same is unknown.** No GPU on the rig, so no picture was drawn: the login screen, an account,
 a character and an NPC were not reached.
 
+## Run on a rig (16 November 2026): the real servers from the CI package, under qemu
+
+The package CI built (`forever-android-arm64.tar.xz`, 51 MB; TrinityCore `51b5ae0971fa`, MariaDB 11.4.13, all linux aarch64 musl) was
+unpacked on the desktop rig and run through its own musl loader under `qemu-aarch64-static`, with the app's own code producing the inputs
+(compiled in a JVM harness): the bootstrap SQL, the database/user SQL, the `SqlCompat` filter, the configs, the certificate commands and the account SQL.
+
+| Step | Result |
+|---|---|
+| `bnetserver`, `worldserver`, `mariadbd` `--version` through the shipped loader | run (TrinityCore 51b5ae0971fa forever-bots; MariaDB 11.4.13) |
+| Real range read of `sql/world.sql` and `sql/hotfixes.sql` out of Karrz's 490 MB repack | both matched their pinned SHA-256 |
+| MariaDB bootstrap with the app's SQL | **failed twice, fixed**: bootstrap mode takes one statement per line; 11.4's files are `mariadb_*.sql`, not `mysql_*.sql` (and the install-db order). Now exit 0, `mysql`, `performance_schema`, `sys` made |
+| Database, user and 5 schemas from `ForeverDb.createSql` | created |
+| Imports through `SqlCompat`: auth, characters, playerbot schema (34 lines rewritten) and data, hotfixes (484 tables), world (270 tables) | all loaded; **world.sql stopped at its first view: `ERROR 1227` (a `DEFINER` of a user that isn't the importer): the filter now drops `DEFINER=`**; the 3 views then created |
+| Certificates: the app's openssl commands run with the package's own `openssl` | root (name-constrained to `actual.battle.net`) and `trinity.actual.battle.net` leaf; `openssl verify` OK, SAN and EKU as upstream |
+| `bnetserver` with a config of only the app's settings | **exited with code 1 and no message**; built on the `.conf.dist` with the app's settings put in (as now written) it runs: auth updates applied, REST handlers registered, `Added realm "Forever" at 127.0.0.1 (port 8097)` |
+| TLS to `trinity.actual.battle.net:8082` | the generated chain verifies against the generated root (`openssl s_client`, `curl --cacert`) |
+| REST login with `logie@wow.server` / `Logie`, the account made by `ForeverAccount.sql` (SRP v2, in Kotlin) | `login_ticket` returned; a wrong password and `logie` (other case) return no ticket. The verifier for a fixed salt is now a unit test |
+| `worldserver` | connected, applied the world/custom/hotfix updates, `Using World DB: TDB 1210.26091`, `Realm running as realm ID 70`, then stopped on **`Map file .../0000_43_31.map does not exist`**: it needs the extracted map data |
+
+| `mapextractor` (arm64, from the package) on the essential install the app's TACT installer wrote | **opened the storage** (`Opened casc storage .../Data`, `Detected client build 70938 for locale enUS`), then stopped at the first db2 (`AccountStoreCategory.db2: FILE_NOT_FOUND`), which isn't in Blizzard's priority-0 set: the realm needs the full download. It also warns that its online encryption-key list returned `426` here (non-fatal; some encrypted files may not extract) |
+
+Two more facts from the real `Wow.exe` on the rig (Wine 10.10, no GPU): its first act is to call `GetAdaptersAddresses`, which crashes inside Wine's `iphlpapi`
+here (reproduced by a 10-line program; the game's own crash handler writes a report, then the game stalls); and **the client refuses a replaced `iphlpapi`**
+(a stub, or a forwarding wrapper, in the game folder or in the prefix's `system32`: "Internal Error 0x1100, Unsupported software detected, IPHLPAPI.DLL"), so
+that crash can't be worked around by a DLL override. Whether the phone's Wine hits it is unknown; if it does, the fix is in the runtime's Wine, not in this app.
+
+What this rig could not do: the maps need the full client (47 GiB) and then the map extraction (about 45 GB at its peak, hours); the rig has 18 GB free.
+So the world server was not brought up, and nothing past the login server's REST login (the Battle.net client handshake on port 1120, the realm list,
+the character screen, a world, an NPC) has been run: no GPU here, and the real client crashes in Wine's network code on this rig.
+
 ## What is still not done or not known
 
 1. **Nothing has run on a phone** (Z Fold) and the real WoW Forever client was never available here. Unknown until then: whether the client runs under Wine/Box64 and which graphics path it needs (D3D11 through DXVK is the shared container's default), whether it trusts the Wine root store, whether the key table is found in a Box64-run client, and how long a start takes.

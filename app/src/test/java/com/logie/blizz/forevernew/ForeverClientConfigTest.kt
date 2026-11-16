@@ -336,4 +336,32 @@ class ForeverClientConfigTest {
         assertFalse(File(dest, "_forever_/Wow.exe").exists())
         assertTrue(ForeverClientImport.copy(MapTree(install), dest, { 1L shl 40 }, cancelled = { true })!!.contains("stopped"))
     }
+
+    // ---- found by running the real login server (docs/forever/README.md) ----
+    @Test fun accountVerifierIsTheOneTheRealLoginServerAccepted() {
+        // known answer: salt = 32 x 0x01, "logie@wow.server" / "Logie": bnetserver's REST login accepted this verifier for "Logie" and refused "logie"
+        val r = ForeverAccount.registration("logie@wow.server", "Logie", ByteArray(32) { 1 })
+        assertEquals(256, r.verifier.size)
+        assertEquals("7025e3e4ae38a2891772d79e543ca8bdc23953c8fe4bdc158588b3d7b4fae4ab4193ceef4e15e1f1", r.verifier.copyOf(40).joinToString("") { "%02x".format(it) })
+        assertEquals(ForeverAccount.registration("LOGIE@WOW.SERVER", "Logie", ByteArray(32) { 1 }).verifier.toList(), r.verifier.toList()) // the name is upper-cased
+        assertFalse(ForeverAccount.registration("logie@wow.server", "logie", ByteArray(32) { 1 }).verifier.contentEquals(r.verifier)) // case-sensitive
+        assertEquals(64, ForeverAccount.srpUsername("logie@wow.server").length)
+    }
+
+    @Test fun accountSqlIsIdempotentAndMakesTheGameAccountAndGm() {
+        val sql = ForeverAccount.sql("logie@wow.server", "Logie")
+        assertTrue(sql.contains("'LOGIE@WOW.SERVER'") && sql.contains("srp_version = 2") && sql.contains("CONCAT(@id, '#1')"))
+        assertTrue(sql.contains("WHERE NOT EXISTS") && sql.contains("ON DUPLICATE KEY UPDATE SecurityLevel = 3") && sql.contains("account_access"))
+        assertTrue(ForeverAuth.realmSql(70938).contains("DELETE FROM realmlist WHERE id <> 70"))
+    }
+
+    @Test fun configEditKeepsTheDistsLoggersAndReplacesOnlyActiveLines() {
+        val dist = "# comment BindIP = old\nBindIP = \"0.0.0.0\"\nAppender.Console=1,2,0\nLogger.root=3,Console\n#Updates.EnableDatabases = 9\nUpdates.EnableDatabases = 0\n"
+        val out = ForeverConfig.edit(dist, linkedMapOf("BindIP" to "\"127.0.0.1\"", "Updates.EnableDatabases" to "15", "Network.EnterEncryptedModeRegionGroup" to "8"))
+        assertTrue(out.contains("Appender.Console=1,2,0") && out.contains("Logger.root=3,Console"))
+        assertTrue(out.contains("\nBindIP = \"127.0.0.1\"\n") && !out.contains("0.0.0.0"))
+        assertTrue(out.contains("\nUpdates.EnableDatabases = 15\n") && out.contains("#Updates.EnableDatabases = 9") && !out.contains("Updates.EnableDatabases = 0"))
+        assertTrue(out.trimEnd().endsWith("Network.EnterEncryptedModeRegionGroup = 8"))
+        assertEquals(1, Regex("(?m)^BindIP").findAll(out).count())
+    }
 }

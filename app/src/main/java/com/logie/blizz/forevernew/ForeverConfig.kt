@@ -45,7 +45,8 @@ object ForeverConfig {
         )
     }
 
-    fun worldserverConf(p: Params): String = buildString {
+    /** The settings the app sets in worldserver.conf (the rest stay the `.conf.dist`'s own: its loggers and defaults). */
+    fun worldserverValues(p: Params): Map<String, String> = LinkedHashMap<String, String>().apply {
         // Upstream (doc/ForeverSetup.md): the client only accepts realm 70; auth.realmlist must hold the same id.
         line("RealmID", REALM_ID.toString())
         line("DataDir", q(p.dataDir)); line("LogsDir", q(p.logsDir)); line("SourceDirectory", q(p.sourceDir))
@@ -66,7 +67,7 @@ object ForeverConfig {
         p.realmAlsoAccept.takeIf { it.isNotEmpty() }?.let { line("Realm.AlsoAcceptBuilds", q(it.joinToString(","))) }
     }
 
-    fun bnetserverConf(p: Params): String = buildString {
+    fun bnetserverValues(p: Params): Map<String, String> = LinkedHashMap<String, String>().apply {
         line("BindIP", q("127.0.0.1")); line("BattlenetPort", ForeverPorts.BNET.toString())
         line("LoginREST.Port", ForeverPorts.REST.toString())
         // Both names are what the client is told to connect to; the certificate is only valid for the portal name.
@@ -81,7 +82,7 @@ object ForeverConfig {
     }
 
     /** `worldserver.conf.d/zz-9-local.conf`: Karrz's realm rules (INSTALL-BOTS.md, examples/karrz-realm.conf) and the phone's bot limits. */
-    fun localConf(bots: BotProfile): String = buildString {
+    fun localValues(bots: BotProfile): Map<String, String> = LinkedHashMap<String, String>().apply {
         line("Playerbot.Enable", "1")
         line("Playerbot.SharedDatabase", q("playerbot"))
         line("Playerbot.World.Enable", if (bots.worldBots) "1" else "0")
@@ -94,6 +95,8 @@ object ForeverConfig {
         line("AuctionHouseBot.Buyer.Enabled", if (bots.auctionBuyer) "1" else "0")
         // The vanilla realm rules of Karrz's own configuration.
         line("Expansion", "0"); line("MaxPlayerLevel", "60"); line("Load.Locales", "0")
+        // the world server names it as missing from its config when it isn't there (found on the rig); upstream's realm config has it at 0
+        line("Classic.Hardcore", "0")
         line("Instance.IgnoreAttunement", "1"); line("Instance.AhnQirajGatesOpen", "1")
     }
 
@@ -104,5 +107,26 @@ object ForeverConfig {
     )
 
     private fun q(s: String) = "\"$s\""
-    private fun StringBuilder.line(key: String, value: String) { append(key).append(" = ").append(value).append('\n') }
+    private fun MutableMap<String, String>.line(key: String, value: String) { put(key, value) }
+
+    fun worldserverConf(p: Params) = text(worldserverValues(p))
+    fun bnetserverConf(p: Params) = text(bnetserverValues(p))
+    fun localConf(bots: BotProfile) = text(localValues(bots))
+    private fun text(v: Map<String, String>) = v.entries.joinToString("") { "${it.key} = ${it.value}\n" }
+
+    private val ACTIVE = Regex("^\\s*([A-Za-z0-9_.]+)\\s*=")
+
+    /**
+     * [dist] (a `.conf.dist`, whose loggers and defaults the server needs: a file with only the app's settings made it stop with no
+     * message, found on the rig) with each of [values] put in place of that key's active line, or added at the end.
+     */
+    fun edit(dist: String, values: Map<String, String>): String {
+        val done = HashSet<String>()
+        val lines = dist.lines().map { line ->
+            val key = ACTIVE.find(line)?.groupValues?.get(1)
+            if (key != null && key in values && done.add(key)) "$key = ${values.getValue(key)}" else line
+        }
+        val added = values.filterKeys { it !in done }.entries.joinToString("") { "${it.key} = ${it.value}\n" }
+        return lines.joinToString("\n").trimEnd('\n') + "\n" + (if (added.isEmpty()) "" else "\n# Set by the app:\n$added")
+    }
 }
