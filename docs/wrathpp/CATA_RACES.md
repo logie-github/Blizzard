@@ -14,15 +14,15 @@ game's creature-only race rows, which is why its id is what the High Elf takes n
 
 ## Ids
 
-Worgen 12 and Goblin 9 as the module has them. High Elf 21 (was 12). Creature rows: Northrend Skeleton 20 folded into Skeleton 15,
-Ice Troll 21 into Forest Troll 18 (their race row and looks dropped, their creatures take the other's), then Goblin creatures
-9 to 20 and Fel Orc creatures 12 to 32 (`MOVED`). The module's own moves (9 and 12 to 28 and 29) are those of ChromieCraft's
-ids and are replaced for Wrath++.
+The client's `m_charPreferences[22][2]` takes race ids to 21 only (`ALLIED_RACES.md`), and the allied races and the High Elf now fill
+9 and 12 to 21, the ids the Worgen (12) and Goblins (9) need. So these two races wait for a change of the native mod: the array moved to
+a larger one (every instruction that names `0x00B6B0D0` to `0x00B6B17F` pointed at it), and the other tables the client sizes by race
+(`SoundInterface2Emotes::m_soundIds[22][2]`) checked. Until then their zones can be reached by teleport only.
 
 ## Stages
 
-1. **Ids** (done in the generator: `FOLDED` in `mod-allied-races/tools/build_data.py`, the profile): the committed
-   `wrathpp_races_world.sql` is regenerated from the next looks run's artifact (CI warns while it differs).
+1. **Ids** (done: the profile; `FOLDED` in the generator is unused now): the committed `wrathpp_races_world.sql` is regenerated from the next looks run's artifact (CI warns while it differs).
+1b. **The native mod's array**: `m_charPreferences` relocated to 40 races (not started).
 2. **The module's tables for Wrath++**: `mod-worgen-goblin/tools/build_data.py` with a Wrath++ profile (its `MOVED` empty: stage 1 moves
    them), its client change files and the zones' merged into the looks package (`sl_looks.py assemble`).
 3. **The server**: `WorgenGoblin.Enable 1` and `StartingAreas 1` for Wrath++ (`ctl.sh`), its world SQL in `acore_world_wrathpp`
