@@ -180,6 +180,31 @@ class WrathppBodyTest {
         assertEquals(null, WrathppBody.lookFor(store, bodyZip()))
     }
 
+    @Test fun theLooksOwnDisplaysAndModelsStayWhenTheBodyRowsGoOverThem() {
+        // the allied races' rows (CreatureDisplayInfo 33001, its model 3601) are in the looks' tables: the crash at Create Character
+        // (issue 272) was the game's own table made over them, which took them out
+        val store = File(tmp.root, "store")
+        val client = game()
+        val patchTables = File(client, "Data/patch-Z.MPQ/DBFilesClient").apply { mkdirs() }
+        val looksDisplays = dbc(displayKinds, listOf(displayRow(49, 3), displayRow(50, 4), displayRow(52, 6), displayRow(33001, 3601)))
+        val looksModels = dbc(WrathppBody.MODEL_KINDS, listOf(modelRow(4, "Character\\Human\\Female\\HumanFemale.mdx"), modelRow(3601, "Character\\VoidElf\\Male\\VoidElfMale.mdx")))
+        File(patchTables, "CreatureDisplayInfo.dbc").writeBytes(looksDisplays)
+        File(patchTables, "CreatureModelData.dbc").writeBytes(looksModels)
+        assertEquals(2, bodyZip().inputStream().use { WrathppBody.importZip(store, it) })
+        WrathppBody.apply(store, client, server, data)
+        val displays = table(File(patchTables, "CreatureDisplayInfo.dbc"), displayKinds)
+        assertEquals(3601, displays[33001]!![1])
+        assertEquals(WrathppBody.EMPTY, displays[50]!![6])
+        assertTrue(displays.containsKey(WrathppBody.displayId(0, 1, 0)))
+        val models = table(File(patchTables, "CreatureModelData.dbc"), WrathppBody.MODEL_KINDS)
+        assertEquals("Character\\VoidElf\\Male\\VoidElfMale.mdx", models[3601]!![2])
+        // removed: the looks' own tables back, byte for byte
+        WrathppBody.remove(store)
+        WrathppBody.apply(store, client, server, data)
+        assertArrayEquals(looksDisplays, File(patchTables, "CreatureDisplayInfo.dbc").readBytes())
+        assertArrayEquals(looksModels, File(patchTables, "CreatureModelData.dbc").readBytes())
+    }
+
     @Test fun aModelIsNamedByStructureWithoutWhereItsVerticesAre() {
         fun withVertices(x: Float): ByteArray {
             val b = ByteArray(0x138 + 2 * 48 + 16) { it.toByte() }

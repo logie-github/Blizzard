@@ -232,8 +232,11 @@ object WrathppBody {
         val game = Mpq.Game(File(client, "Data"), listOf(WrathppLooks.PATCH.lowercase()))
         val withRows = try {
             val chr = game.read("DBFilesClient\\ChrRaces.dbc") ?: throw IOException("The game has no ChrRaces.dbc")
-            val displays = game.read("DBFilesClient\\CreatureDisplayInfo.dbc")?.let { WrathppUndead.Dbc.read(it, DISPLAY_KINDS) } ?: throw IOException("The game has no CreatureDisplayInfo.dbc")
-            val modelData = game.read("DBFilesClient\\CreatureModelData.dbc")?.let { WrathppUndead.Dbc.read(it, MODEL_KINDS) } ?: throw IOException("The game has no CreatureModelData.dbc")
+            // the looks' patch's own tables where it has them (the allied races' displays and models are in them: Wrath++'s own rows go
+            // over those, not over the game's alone, which would take the allied races' out), else the game's
+            val looksTable = { name: String -> File(patch, "DBFilesClient/$name").takeIf { it.isFile } }
+            val displays = (looksTable("CreatureDisplayInfo.dbc")?.readBytes() ?: game.read("DBFilesClient\\CreatureDisplayInfo.dbc"))?.let { WrathppUndead.Dbc.read(it, DISPLAY_KINDS) } ?: throw IOException("The game has no CreatureDisplayInfo.dbc")
+            val modelData = (looksTable("CreatureModelData.dbc")?.readBytes() ?: game.read("DBFilesClient\\CreatureModelData.dbc"))?.let { WrathppUndead.Dbc.read(it, MODEL_KINDS) } ?: throw IOException("The game has no CreatureModelData.dbc")
             val female = femaleDisplays(chr)
             val races = ArrayList<RaceRows>()
             for (i in 0 until raceList.length()) {
@@ -245,8 +248,11 @@ object WrathppBody {
                 races += RaceRows(slot, own, r.getString("folder"), have)
             }
             addRows(displays, modelData, races, game = true)
-            write(File(patch, "DBFilesClient/CreatureDisplayInfo.dbc"), displays.write(), made)
-            write(File(patch, "DBFilesClient/CreatureModelData.dbc"), modelData.write(), made)
+            // (a table the looks' patch has is theirs, this one's rows over it and theirs kept beside to put back; else this one's own)
+            for ((name, bytes) in listOf("CreatureDisplayInfo.dbc" to displays.write(), "CreatureModelData.dbc" to modelData.write())) {
+                val target = File(patch, "DBFilesClient/$name")
+                if (target.isFile) over(target, bytes) else write(target, bytes, made)
+            }
             // the realm's: its package's table, else the game's own it reads
             val serverTable = File(serverDbc, "CreatureDisplayInfo.dbc")
             val serverBase = serverTable.takeIf { it.isFile } ?: File(data, "dbc/CreatureDisplayInfo.dbc")
