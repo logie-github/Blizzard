@@ -36,6 +36,7 @@ class ForeverSteps(
         }
         ForeverPackage.incompatible(published, deviceAbis)?.let { return it }
         if (ForeverPackage.needsInstall(layout, published)) ForeverPackage.install(layout, published, say)
+        ForeverPackage.restoreEtc(layout, say)
         null
     } catch (e: IOException) { e.message ?: "The server package failed" }
 
@@ -170,10 +171,11 @@ class ForeverSteps(
         File(layout.etc, "bnetserver.conf").writeText(ForeverConfig.edit(dist("bnetserver"), ForeverConfig.bnetserverValues(params)))
         val (preset, switches) = bots()
         val profile = ForeverConfig.profile(totalRamMb, preset, switches.first, switches.second)
-        File(layout.etc, "worldserver.conf.d").apply { mkdirs() }.let { d ->
-            File(layout.server, "etc/worldserver.conf.d").listFiles()?.forEach { f -> if (f.isFile) f.copyTo(File(d, f.name), overwrite = true) }
-            File(d, "zz-9-local.conf").writeText(ForeverConfig.localConf(profile))
-        }
+        // The package's own files of this folder are in place already (the settings folder is the package's `etc`). They were once
+        // "copied" here from that same folder: a copy of a file onto itself, which deletes it first and then finds nothing to copy
+        // (the phone, 16 November 2026: "zz-0-playerbot-defaults.conf: open failed: ENOENT", the file gone;
+        // [ForeverPackage.restoreEtc] puts it back).
+        File(layout.etc, "worldserver.conf.d").apply { mkdirs() }.let { d -> File(d, "zz-9-local.conf").writeText(ForeverConfig.localConf(profile)) }
         writeCertificates()
     }
 

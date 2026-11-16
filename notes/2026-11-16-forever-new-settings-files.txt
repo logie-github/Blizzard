@@ -1,0 +1,1 @@
+WoW Forever: writing the realm's settings no longer fails (a settings file was deleted at each try; it is put back by itself), and a server update keeps the map data.
