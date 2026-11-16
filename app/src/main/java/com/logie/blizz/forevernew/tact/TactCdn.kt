@@ -46,6 +46,13 @@ class HttpCdn(hosts: List<String>, private val path: String, private val scheme:
         try {
             val code = c.responseCode
             if (code != 200 && code != 206) throw IOException("HTTP $code for $kind/$hash")
+            // a range answered with 206: read exactly the bytes asked for into one array (no growing buffer, half the memory)
+            if (length >= 0 && code == 206) {
+                val out = ByteArray(length.toInt()); var got = 0
+                c.inputStream.use { input -> while (got < out.size) { val n = input.read(out, got, out.size - got); if (n < 0) break; got += n } }
+                if (got != out.size) throw IOException("short read for $kind/$hash ($got of ${out.size})")
+                return out
+            }
             val bytes = c.inputStream.use { it.readBytes() }
             // the server ignored the range
             if (length >= 0 && code == 200 && bytes.size.toLong() != length) return bytes.copyOfRange(from.toInt(), (from + length).toInt())

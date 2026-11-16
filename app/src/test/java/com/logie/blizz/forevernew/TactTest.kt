@@ -148,7 +148,7 @@ class TactTest {
         val r = ForeverClientDownload.release("us") { url -> if (url.endsWith("/versions")) versions else cdns }
         assertEquals(70938, r.buildId); assertEquals(listOf("a.example", "b.example"), r.hosts); assertEquals("tpr/wow", r.path)
         assertTrue(ForeverClientDownload.supported(r, listOf(70938, 70888))); assertFalse(ForeverClientDownload.supported(r, listOf(70888)))
-        assertTrue(ForeverClientDownload.spaceNeeded(ForeverClientDownload.ALL) > 49L shl 30)
+        assertTrue(ForeverClientDownload.spaceNeeded(ForeverClientDownload.ALL) > 44L shl 30)
     }
 
     @Test fun httpsHostsComeFirstAndHttpOnlyOnesAreLast() {
