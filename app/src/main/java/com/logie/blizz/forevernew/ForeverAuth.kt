@@ -63,7 +63,9 @@ object ForeverAuth {
         "INSERT INTO realmlist (id, name, address, localAddress, port, icon, flag, timezone, allowedSecurityLevel, gamebuild) " +
             "VALUES (${ForeverConfig.REALM_ID}, 'Forever', '127.0.0.1', '127.0.0.1', ${ForeverPorts.WORLD}, 0, 0, 1, 0, $build) " +
             "ON DUPLICATE KEY UPDATE name = VALUES(name), address = VALUES(address), localAddress = VALUES(localAddress), " +
-            "port = VALUES(port), gamebuild = VALUES(gamebuild);"
+            "port = VALUES(port), gamebuild = VALUES(gamebuild);\n" +
+            // the base data's own realm 1 ("Trinity", port 8085) isn't this one
+            "DELETE FROM realmlist WHERE id <> ${ForeverConfig.REALM_ID};"
 
     /** Upstream's certificate settings (repack/make-certs.ps1): a root restricted to actual.battle.net, and the portal's leaf signed by it. */
     fun caConfig(tag: String) = "[req]\ndistinguished_name=dn\nx509_extensions=ca\nprompt=no\n[dn]\nCN=WoW Forever Local CA $tag\n" +
