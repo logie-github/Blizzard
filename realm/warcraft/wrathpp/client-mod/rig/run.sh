@@ -28,7 +28,7 @@ python3 -I "$HERE/tools/undead_rows.py" "$CLIENT/CharSections.dbc" "$WORK/CharSe
 python3 -I "$HERE/tools/build_data.py" "$STOCK" "$WORK/CharSections.undead.dbc" "$CLIENT/CharacterFacialHairStyles.dbc" "$WORK/data" "$CLIENT"
 python3 -I "$HERE/tools/build_data.py" "$STOCK" "$CLIENT/CharSections.dbc" "$CLIENT/CharacterFacialHairStyles.dbc" "$WORK/plain" "$CLIENT"
 if [ -n "$ART" ]; then
-	python3 -I "$HERE/tools/known_textures.py" "$WORK/stock" "$STOCK" "$HERE/textures335.txt" "$WORK/textures.lua" "$ART/art.txt"
+	python3 -I "$HERE/tools/known_textures.py" "$WORK/stock" "$STOCK" "$HERE/textures335.txt" "$WORK/textures.lua" "$ART/art.txt" "$CLIENT/../looks.files"
 	export RIG_ATLAS="$ART/client/Interface/GlueXML/WrathppAtlas.lua" RIG_ART_LIST="$ART/art.txt"
 else
 	python3 -I "$HERE/tools/known_textures.py" "$WORK/stock" "$STOCK" "$HERE/textures335.txt" "$WORK/textures.lua"
