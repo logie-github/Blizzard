@@ -68,6 +68,15 @@ class ForeverSteps(
     // ---- 3: maps, vmaps, mmaps -------------------------------------------------------------------------------------------
     override fun extractData(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String? {
         prepareRuntime()
+        // A game this app downloaded before it stored the VFS files: the tools below find no file in it without them.
+        if (client.root.canonicalPath == layout.client.canonicalPath && !ForeverMaps.isDone(layout, ForeverMaps.Stage.MAPS)) {
+            try {
+                val n = ForeverClientDownload.repairIndex(layout.client) { text, p -> say("Completing the game's index: $text", p) }
+                if (n > 0) ForeverLogs(File(layout.logs, "forever-events.log")).event("client: $n index files added to the downloaded game")
+            } catch (e: IOException) {
+                return "The game's index couldn't be completed (${e.message}). Check the connection and press Install & Play again."
+            }
+        }
         val steps = ForeverMaps.plan(layout, client.root, threads = 0)
         for ((i, step) in steps.withIndex()) {
             if (ForeverMaps.isDone(layout, step.stage)) continue

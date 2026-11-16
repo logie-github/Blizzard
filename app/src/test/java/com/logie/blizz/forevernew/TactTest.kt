@@ -169,6 +169,42 @@ class TactTest {
         } finally { server.stop(0) }
     }
 
+    @Test fun theVfsFilesAreMetadataAndAnEarlierDownloadGetsThemWithoutTheGameAgain() {
+        // A build config as Blizzard's are: each manifest a content key and an encoding key; the VFS root, and the VFS files it names.
+        fun k(n: Int) = "%02x".format(n).repeat(16) // the storage finds a file by its key's first nine bytes
+        val buildKey = k(0xb1); val cdnKey = k(0xc1)
+        val config = "root = ${k(1)}\ninstall = ${k(2)} ${k(3)}\ndownload = ${k(4)} ${k(5)}\nsize = ${k(6)} ${k(7)}\nencoding = ${k(8)} ${k(9)}\n" +
+            "vfs-root = ${k(10)} ${k(11)}\nvfs-root-size = 5 5\nvfs-2 = ${k(14)} ${k(15)}\nvfs-2-size = 5 5\nvfs-1 = ${k(12)} ${k(13)}\nvfs-1-size = 5 5\n"
+        val asked = ArrayList<String>()
+        val cdn = object : Cdn {
+            override fun get(kind: String, hash: String, from: Long, length: Long, suffix: String): ByteArray {
+                if (kind == "config") return (if (hash == buildKey) config else "archives = \n").toByteArray()
+                asked += hash
+                val all = "blob-$hash".toByteArray()
+                return if (length < 0) all else all.copyOfRange(from.toInt(), minOf(all.size.toLong(), from + length).toInt())
+            }
+            override fun size(kind: String, hash: String, suffix: String) = "blob-$hash".length.toLong()
+        }
+        val root = tmp.newFolder("game")
+        val installer = TactInstaller(cdn, root, "wowf")
+        val build = installer.build(buildKey, cdnKey, "1.60.1.70938", 70938)
+        // the manifests, the VFS root, then the VFS files in their number's order
+        assertEquals(listOf(k(9), k(3), k(5), k(7), k(11), k(13), k(15)), installer.metadataKeys(build))
+        File(root, ".build.info").writeText(installer.buildInfo(build))
+        // an earlier download: the manifests and the VFS root are there, the VFS files are not
+        CascWriter(File(root, "Data/data")).apply { for (n in listOf(9, 3, 5, 7, 11)) add(k(n).unhex(), "blob-${k(n)}".toByteArray()); finish() }
+        assertEquals(2, installer.repairMetadata())
+        // (the encoding file is also asked for the root's key; this one has none to give)
+        assertEquals(listOf(k(13), k(15)), asked.filter { it != k(9) })
+        val storage = CascWriter(File(root, "Data/data"))
+        for (n in listOf(9, 3, 5, 7, 11, 13, 15)) assertTrue(k(n), storage.has(k(n).unhex()))
+        assertEquals("blob-${k(15)}", String(storage.read(k(15).unhex())!!))
+        // nothing is fetched twice
+        asked.clear()
+        assertEquals(0, installer.repairMetadata())
+        assertTrue(asked.none { it != k(9) })
+    }
+
     @Test fun longIntMapHoldsAMillionKeysAndFindsThemBack() {
         val m = LongIntMap(10)
         for (i in 0 until 200_000) m[i.toLong() * 7919L + 13] = i

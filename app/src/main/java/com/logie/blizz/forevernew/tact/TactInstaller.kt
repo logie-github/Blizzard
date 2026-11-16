@@ -63,6 +63,62 @@ class TactInstaller(
         failure.get()?.let { throw if (it is IOException) it else IOException(it.message ?: it.javaClass.simpleName, it) }
     }
 
+    /**
+     * The build's metadata files, by encoding key, that the local storage must hold for the client and CascLib to read it: the
+     * encoding, install, download and size manifests, the roots, and every VFS file.
+     *
+     * The VFS root names further VFS files (`vfs-1`, `vfs-2`, ...: 583 of them in build 70938, 133 MB together), and those hold the
+     * game's file numbers. CascLib reads the game's files through them: with the VFS root alone in the storage it opened the
+     * storage and then found no file by its number (the realm's map extractor on the phone, 16 November 2026: "Invalid
+     * CinematicCamera.db2 file format! FILE_NOT_FOUND", 0 files extracted; the same here with CascLib on a storage this installer
+     * made, and every sampled file read once they were stored).
+     */
+    fun metadataKeys(b: Build): List<String> {
+        val vfs = b.config.keys.filter { it.matches(Regex("vfs-\\d+")) }.sortedBy { it.substringAfter('-').toInt() }.mapNotNull { b.config[it]?.getOrNull(1) }
+        return (listOfNotNull(b.config["encoding"]?.getOrNull(1), b.config["install"]?.getOrNull(1), b.config["download"]?.getOrNull(1),
+            b.config["size"]?.getOrNull(1), b.config["vfs-root"]?.getOrNull(1), b.config["root"]?.getOrNull(1)) + vfs).distinct()
+    }
+
+    /** Stores those of [metadataKeys] the storage lacks; returns how many were fetched. */
+    private fun storeMetadata(b: Build, writer: CascWriter, say: (String, Float?) -> Unit): Int {
+        var meta = metadataKeys(b)
+        // The root (the list of the game's files by number) is named by its content key alone: its encoding key is in the encoding
+        // file. CascLib goes from the VFS files to it, so it is made sure of here too (a full download also has it as a game file).
+        val rootKeys = b.config["root"].orEmpty()
+        if (rootKeys.size == 1) {
+            val encodingEKey = key(b, "encoding", 1)
+            // (not found, or the encoding file unreadable: the game's own download brings the root, so the rest goes on)
+            val rootEKey = runCatching { EncodingFile(BlteRandom(cdn, encodingEKey, cdn.size("data", encodingEKey))).lookup(rootKeys[0].unhex()) }.getOrNull()
+            if (rootEKey != null) meta = (meta + rootEKey.hex()).distinct()
+        }
+        var stored = 0
+        for ((i, ek) in meta.withIndex()) {
+            if (writer.has(ek.unhex())) continue
+            say("Storing the build's metadata (${i + 1} of ${meta.size})", i.toFloat() / meta.size)
+            val rawSize = cdn.size("data", ek)
+            writer.addStreamed(ek.unhex(), rawSize) { off, n -> cdn.get("data", ek, off, n.toLong()) }
+            stored++
+        }
+        return stored
+    }
+
+    /**
+     * Puts the metadata files a storage made by an earlier version lacks into it (the VFS files), for the build `.build.info` names:
+     * a game already downloaded needs 133 MB more, not the game again. Returns how many files were fetched (0: nothing was missing).
+     */
+    fun repairMetadata(say: (String, Float?) -> Unit = { _, _ -> }): Int {
+        val info = File(root, ".build.info").takeIf { it.isFile }?.readLines()?.filter { it.isNotBlank() } ?: throw IOException("the game folder has no .build.info")
+        if (info.size < 2) throw IOException(".build.info is empty")
+        val header = info[0].split('|').map { it.substringBefore('!').trim() }
+        val row = info[1].split('|')
+        fun cell(name: String) = row.getOrNull(header.indexOf(name)).orEmpty()
+        val b = build(cell("Build Key"), cell("CDN Key"), cell("Version"), cell("Version").substringAfterLast('.').toIntOrNull() ?: 0)
+        val writer = CascWriter(data)
+        val stored = storeMetadata(b, writer, say)
+        if (stored > 0) writer.finish()
+        return stored
+    }
+
     /** The download manifest: fetched whole with progress, decoded, and the encoded copy let go before the caller goes on. */
     private fun downloadManifest(ekey: String, say: (String, Float?) -> Unit): DownloadManifest {
         val decoded = Blte.decode(fetchWhole(ekey, "Downloading the list of the game's files", say))
@@ -96,16 +152,7 @@ class TactInstaller(
         say("Reading the build's manifests", null)
         val encodingEKey = key(b, "encoding", 1)
         val installEKey = key(b, "install", 1); val downloadEKey = key(b, "download", 1)
-        val meta = listOfNotNull(encodingEKey, installEKey, downloadEKey, b.config["size"]?.getOrNull(1), b.config["vfs-root"]?.getOrNull(1), b.config["root"]?.getOrNull(1))
-        for ((i, ek) in meta.withIndex()) {
-            if (writer.has(ek.unhex())) continue
-            say("Storing the build's metadata (${i + 1} of ${meta.size})", i.toFloat() / meta.size)
-            val rawSize = cdn.size("data", ek)
-            writer.addStreamed(ek.unhex(), rawSize) { off, n ->
-                say("Storing the build's metadata (${i + 1} of ${meta.size}): ${off shr 20} / ${rawSize shr 20} MB", (i + off.toFloat() / rawSize.coerceAtLeast(1)) / meta.size)
-                cdn.get("data", ek, off, n.toLong())
-            }
-        }
+        storeMetadata(b, writer, say)
         writer.finish()
         say("Reading the list of programs", null)
         val install = InstallManifest.parse(Blte.decode(cdn.get("data", installEKey)))
