@@ -95,6 +95,8 @@ object ForeverConfig {
         line("AuctionHouseBot.Buyer.Enabled", if (bots.auctionBuyer) "1" else "0")
         // The vanilla realm rules of Karrz's own configuration.
         line("Expansion", "0"); line("MaxPlayerLevel", "60"); line("Load.Locales", "0")
+        // the world server names it as missing from its config when it isn't there (found on the rig); upstream's realm config has it at 0
+        line("Classic.Hardcore", "0")
         line("Instance.IgnoreAttunement", "1"); line("Instance.AhnQirajGatesOpen", "1")
     }
 
