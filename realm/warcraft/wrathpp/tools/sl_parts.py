@@ -32,6 +32,18 @@ def array(m, off):
     return struct.unpack_from("<II", m, off)
 
 
+def lift_vertices(m2b):
+    """The model with every vertex out along its normal by LIFT."""
+    m = bytearray(m2b)
+    n, o = array(m, VERTICES)
+    for i in range(n):
+        at = o + i * 48
+        p = np.array(struct.unpack_from("<3f", m, at), np.float64)
+        nrm = np.array(struct.unpack_from("<3f", m, at + 20), np.float64)
+        struct.pack_into("<3f", m, at, *(p + nrm * LIFT))
+    return bytes(m)
+
+
 def patch_shell(m2b, head=True):
     """The converted head model made a shell: vertices out along their normals, texture coordinates the picture's, the
     texture replaceable type 11 and the materials alpha blended."""
@@ -309,6 +321,8 @@ def geoset_part(read, model, part, out_dir, log=print):
             f.write(raw)
     with open(path[:-3] + "00.skin", "rb") as f:
         used = used_types(raw, f.read())
+    if part.get("feature"):
+        raw = lift_vertices(raw)                        # over the model's own copy of it (the same geosets): 0.4 mm out, so that it shows
     patched, _ = patch_part_textures(raw)
     types = {TYPE_SLOTS[t] for t in used if t in TYPE_SLOTS}
     with open(path, "wb") as f:

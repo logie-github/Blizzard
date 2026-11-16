@@ -194,6 +194,15 @@ def build_model(tables, categories, race_id, sex, model):
             reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
             if reg:
                 option["reg"] = reg
+        if "field" in option and part is not None and part.get("feature"):
+            # a slider's option drawn again as a piece (its colour): the choice's number is the slider's digit + 1, kept by the registry as well
+            option["geoset"] = sl_parts.part_model_path(model, part)
+            option["types"] = list(model.get("part_types", {}).get(part["name"], []))
+            if 13 in option["types"] and model.get("pickers"):
+                option["picker"] = model["pickers"][0]["name"]
+            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            if reg:
+                option["reg"] = reg
         if "field" not in option and "overlay" not in option and "style" not in option and (part is not None or picker is not None):
             reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
             if part is not None and any(c["geosets"] for c in part["choices"]):

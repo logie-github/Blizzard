@@ -15,6 +15,17 @@ LAYOUT = {"box": (0.5, 0.0, 1.0, 1.0), "rotate": False}      # the head: the rig
 
 
 class PartsTest(unittest.TestCase):
+    def test_a_piece_over_the_models_own_is_lifted_along_its_normals(self):
+        import struct
+        m = bytearray(0x80 + 48)
+        struct.pack_into("<II", m, sl_parts.VERTICES, 1, 0x80)
+        struct.pack_into("<3f", m, 0x80, 1.0, 2.0, 3.0)
+        struct.pack_into("<3f", m, 0x80 + 20, 0.0, 0.0, 1.0)
+        out = sl_parts.lift_vertices(bytes(m))
+        x, y, z = struct.unpack_from("<3f", out, 0x80)
+        self.assertAlmostEqual(z, 3.0 + sl_parts.LIFT, places=5)
+        self.assertEqual((x, y), (1.0, 2.0))
+
     def test_a_whole_skin_layer_gives_its_right_half(self):
         whole = np.zeros((512, 1024, 4), np.uint8)
         whole[:, :512] = (255, 0, 0, 255)       # the body half: red (the multiply rule would also apply here: it is cut away first)

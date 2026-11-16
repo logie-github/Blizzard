@@ -518,7 +518,7 @@ function W.Look()
 		local digit = W.skinDigit(model)
 		if ( digit and model.skintex and type(WrathPP_SetChoice) == "function" ) then pcall(WrathPP_SetChoice, 1191, digit + 1) end
 		for _, option in ipairs(model.options) do
-			if ( option.geoset and not option.field ) then
+			if ( option.geoset ) then
 				slot = slot + 1
 				if ( slot > PART_SLOTS ) then break end
 				local has = {}
@@ -534,7 +534,9 @@ function W.Look()
 						end
 					end
 				end
-				pcall(WrathPP_SetOverlay, slot, option.geoset, p11, math.min(W.ovCurrent(option), #option.choices), p12, p13, option.attach or 0)
+				local at = math.min(W.ovCurrent(option), #option.choices)
+				if ( option.field ) then at = W.featureChoice(model, option) end
+				pcall(WrathPP_SetOverlay, slot, option.geoset, p11, at, p12, p13, option.attach or 0)
 			end
 		end
 	end
@@ -585,6 +587,13 @@ local function product(parts)
 	local n = 1
 	for k = 1, #parts do n = n * parts[k] end
 	return n
+end
+
+-- A slider's option that is also drawn as a piece (the Gnome woman's earrings, in the colour chosen): the piece's choice is the slider's digit + 1.
+function W.featureChoice(model, option)
+	local value = number(FIELD[option.field])
+	if ( value == nil ) then return 1 end
+	return decode(math.min(value, product(model.fields[option.field]) - 1), model.fields[option.field])[option.part] + 1
 end
 
 -- The skin colour's number (from 1 less: the first colour is 0) among the skin number's parts, for the model pieces that take the skin's texture.
@@ -723,6 +732,7 @@ function W.Choose(row, k)
 	local digits = decode(math.min(number(FIELD[field]), product(parts) - 1), parts)
 	digits[row.option.part] = choice.v
 	setNumber(FIELD[field], encode(digits, parts))
+	if ( row.option.geoset and row.option.reg and type(WrathPP_SetChoice) == "function" ) then pcall(WrathPP_SetChoice, row.option.reg, choice.v + 1) end
 end
 
 -- The living skin that was on before Undead, kept a race and sex, so turning it off goes back to it.

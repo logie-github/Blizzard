@@ -133,6 +133,10 @@ class Tables(allied.Tables):
 
 # Today's options that are a picture laid over the head or the body (the layers of its skin after the face: eyebrows, makeup,
 # scars, paints, tattoos), apart from what the five sliders and the feature slider carry.
+# Feature-slider options whose colour is a picker the 3.3.5 model can't take (the Gnome woman's Earrings: their Earring Color): drawn
+# again as a piece over the model's own, lifted, in the colour chosen (parts_of, sl_parts.geoset_part)
+FEATURE_PARTS = {"GnomeFemale": ("Earrings",)}
+
 SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
 HEAD_MASKS = (512, 1024, 2048, -1)           # the layers that reach the head in today's layouts: its sections (9, 10, 11) or the whole skin (-1)
 BODY_MASKS = (4096, -1)                      # and the body: its section (12) or the whole skin
@@ -262,11 +266,20 @@ def parts_of(tables, chr_model, model):
     skip |= {today for (cm, asked), today in tables.aliases.items() if cm == str(chr_model)}      # (the Tauren's Foremane and Horn Color are the hair's sliders)
     skip |= {v["name"] for v in model.get("variants", [])}
     skip |= {"Face Shape", "Skin Type"}         # (they replace the head or the body of the model itself: a piece laid over it would double it)
+    feature_parts = FEATURE_PARTS.get(model.get("name"), ())
+    skip -= set(feature_parts)
     parts, pickers = [], []
     for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
         if o["Name_lang"] in skip or (len(model.get("tattoos", [])) > 1 and o["Name_lang"] in allied.BODY_TATTOOS):
             continue
         chs = sorted((c for c in tables.option_choices(chr_model, o["Name_lang"], only_available=False) if tables.available(c)), key=ui_order)
+        if o["Name_lang"] in feature_parts:
+            # a feature slider's option the model draws in one colour only: a piece over it takes the colour (its choices are the slider's digits)
+            every = tables.option_choices(chr_model, o["Name_lang"], only_available=False)
+            geo = [{"name": c["Name_lang"], "id": c["ID"], "geosets": tables.choice_geosets(c)} for c in every]
+            if any(g["geosets"] for g in geo):
+                parts.append({"name": o["Name_lang"], "choices": geo, "feature": True})
+            continue
         geo = [{"name": c["Name_lang"], "id": c["ID"], "geosets": tables.choice_geosets(c)} for c in chs]
         if any(g["geosets"] for g in geo) and len(chs) > 1:
             parts.append({"name": o["Name_lang"], "choices": geo})

@@ -75,6 +75,8 @@
   "6_1:Nose Ring": 1263,
   "6_1:Paint Color": 1221,
   "7_0:Eyebrows": 1266,
+  "7_1:Earring Color": 1283,
+  "7_1:Earrings": 1282,
   "8_0:Body Paint": 1233,
   "8_0:Body Paint Color": 1232,
   "8_0:Face Paint": 1224,
@@ -84,5 +86,5 @@
   "8_1:Face Paint": 1226,
   "8_1:Face Paint Color": 1225
  },
- "next": 1282
+ "next": 1284
 }
