@@ -48,26 +48,47 @@ object Blte {
             'Z' -> {
                 val inf = Inflater()
                 inf.setInput(b, off + 1, len - 1)
-                val out = ByteArrayOutputStream(if (decodedSize > 0) decodedSize else len * 3)
-                val buf = ByteArray(1 shl 16)
-                while (!inf.finished()) {
-                    val n = inf.inflate(buf)
-                    if (n == 0 && (inf.needsInput() || inf.needsDictionary())) throw IOException("zlib frame is cut short")
-                    out.write(buf, 0, n)
+                if (decodedSize > 0) {
+                    // the size is known: inflate straight into an array of exactly that size (no growing buffer, no copy)
+                    val out = ByteArray(decodedSize)
+                    var done = 0
+                    while (done < decodedSize) {
+                        val n = inf.inflate(out, done, decodedSize - done)
+                        if (n == 0 && (inf.finished() || inf.needsInput() || inf.needsDictionary())) break
+                        done += n
+                    }
+                    inf.end()
+                    if (done != decodedSize) throw IOException("zlib frame is shorter than it says")
+                    out
+                } else {
+                    val out = ByteArrayOutputStream(len * 3)
+                    val buf = ByteArray(1 shl 16)
+                    while (!inf.finished()) {
+                        val n = inf.inflate(buf)
+                        if (n == 0 && (inf.needsInput() || inf.needsDictionary())) throw IOException("zlib frame is cut short")
+                        out.write(buf, 0, n)
+                    }
+                    inf.end(); out.toByteArray()
                 }
-                inf.end(); out.toByteArray()
             }
             else -> throw IOException("BLTE frame type '$t' isn't supported")
         }
     }
 
+    /** Decodes into one array of exactly the decoded size (the download manifest is 56 MB: no stream and no copies). */
     fun decode(b: ByteArray): ByteArray {
         val h = header(b)
         if (h.headerSize == 0) return decodeFrame(b, 8, b.size - 8)
-        val out = ByteArrayOutputStream()
-        var p = h.dataStart
-        for (f in h.frames) { out.write(decodeFrame(b, p, f.encodedSize, f.decodedSize)); p += f.encodedSize }
-        return out.toByteArray()
+        val total = h.frames.sumOf { it.decodedSize.toLong() }
+        if (total > Int.MAX_VALUE) throw IOException("BLTE file is too large")
+        val out = ByteArray(total.toInt())
+        var p = h.dataStart; var o = 0
+        for (f in h.frames) {
+            val part = decodeFrame(b, p, f.encodedSize, f.decodedSize)
+            if (o + part.size > out.size) throw IOException("BLTE frame is larger than it says")
+            System.arraycopy(part, 0, out, o, part.size); o += part.size; p += f.encodedSize
+        }
+        return if (o == out.size) out else out.copyOf(o)
     }
 }
 
@@ -84,13 +105,21 @@ class TagTable(val names: List<String>, val types: List<Int>, private val masks:
      * Whether [entry] is wanted for [selected] tag names: for each kind of tag (platform, architecture, language, region...) the entry has
      * any tag of, it must have at least one selected tag of that kind. An entry with no tag of a kind is wanted whatever is selected.
      */
-    fun wanted(entry: Int, selected: Set<String>): Boolean {
-        for (type in types.toSet()) {
-            val ofType = names.indices.filter { types[it] == type }
-            val has = ofType.filter { has(entry, it) }
-            if (has.isNotEmpty() && has.none { names[it] in selected }) return false
+    fun wanted(entry: Int, selected: Set<String>): Boolean = selector(selected)(entry)
+
+    /** [wanted] for one selection as a function that allocates nothing per entry (it runs over 2.2 million of them). */
+    fun selector(selected: Set<String>): (Int) -> Boolean {
+        val groups = types.toSet().map { t -> names.indices.filter { types[it] == t }.toIntArray() }
+        val sel = BooleanArray(names.size) { names[it] in selected }
+        return { entry ->
+            var ok = true
+            for (g in groups) {
+                var any = false; var chosen = false
+                for (t in g) if (has(entry, t)) { any = true; if (sel[t]) { chosen = true; break } }
+                if (any && !chosen) { ok = false; break }
+            }
+            ok
         }
-        return true
     }
 
     companion object {
@@ -130,8 +159,17 @@ class InstallManifest(val tags: TagTable, val names: List<String>, val contentKe
     }
 }
 
-/** The download manifest: every encoded file (by encoding key) with its size, install priority and tags. */
-class DownloadManifest(val tags: TagTable, val ekeys: List<ByteArray>, val sizes: LongArray, val priorities: IntArray) {
+/**
+ * The download manifest: every encoded file (by encoding key) with its size, install priority and tags. Read in place from the decoded
+ * bytes (2.2 million entries: an object each would not fit a phone), so an entry is a position, not an object.
+ */
+class DownloadManifest(val tags: TagTable, private val d: ByteArray, private val start: Int, private val stride: Int, private val hashSize: Int,
+    private val basePriority: Int, val count: Int) {
+    fun ekey(i: Int): ByteArray = d.copyOfRange(start + i * stride, start + i * stride + hashSize)
+    fun prefix(i: Int): Long = d.prefix64(start + i * stride)
+    fun size(i: Int): Long = be40(d, start + i * stride + hashSize)
+    fun priority(i: Int): Int = (d[start + i * stride + hashSize + 5].toInt() and 0xff).let { if (it > 127) it - 256 else it } - basePriority
+
     companion object {
         fun parse(d: ByteArray): DownloadManifest {
             if (d.size < 11 || d[0] != 'D'.code.toByte() || d[1] != 'L'.code.toByte()) throw IOException("not a download manifest")
@@ -142,16 +180,9 @@ class DownloadManifest(val tags: TagTable, val ekeys: List<ByteArray>, val sizes
             var p = 11; var flagSize = 0; var basePriority = 0
             if (version >= 2) { flagSize = d[p].toInt() and 0xff; p++ }
             if (version >= 3) { basePriority = d[p].toInt(); p += 4 }
-            val ekeys = ArrayList<ByteArray>(count); val sizes = LongArray(count); val pri = IntArray(count)
-            for (i in 0 until count) {
-                ekeys += d.copyOfRange(p, p + hashSize); p += hashSize
-                sizes[i] = be40(d, p); p += 5
-                pri[i] = (d[p].toInt() and 0xff).let { if (it > 127) it - 256 else it } - basePriority; p += 1
-                if (hasChecksum) p += 4
-                p += flagSize
-            }
-            val (tags, _) = TagTable.read(d, p, tagCount, count)
-            return DownloadManifest(tags, ekeys, sizes, pri)
+            val stride = hashSize + 5 + 1 + (if (hasChecksum) 4 else 0) + flagSize
+            val (tags, _) = TagTable.read(d, p + count * stride, tagCount, count)
+            return DownloadManifest(tags, d, p, stride, hashSize, basePriority, count)
         }
     }
 }

@@ -95,7 +95,7 @@ class TactTest {
         fun ent(k: Int, size: Int, pri: Int) = ByteArray(16) { k.toByte() } + byteArrayOf(0, 0, (size shr 16).toByte(), (size shr 8).toByte(), size.toByte(), pri.toByte())
         val dl = byteArrayOf('D'.code.toByte(), 'L'.code.toByte(), 2, 16, 0) + be(2) + byteArrayOf(0, 1, 0) + ent(5, 70000, 0) + ent(6, 9, 2) + ("x".toByteArray() + byteArrayOf(0, 0, 1, 0xC0.toByte()))
         val d = DownloadManifest.parse(dl)
-        assertEquals(2, d.ekeys.size); assertEquals(70000L, d.sizes[0]); assertEquals(2, d.priorities[1]); assertTrue(d.tags.has(1, 0))
+        assertEquals(2, d.count); assertEquals(70000L, d.size(0)); assertEquals(2, d.priority(1)); assertTrue(d.tags.has(1, 0)); assertEquals(5, d.ekey(0)[0].toInt()); assertEquals(6, d.ekey(1)[15].toInt())
     }
 
     @Test fun archiveIndexReadsItsPages() {
@@ -167,5 +167,13 @@ class TactTest {
             assertEquals("hello", String(cdn.get("data", hash)))
             assertEquals("hello", String(cdn.get("data", hash))) // the second ask goes to the host that answered first
         } finally { server.stop(0) }
+    }
+
+    @Test fun longIntMapHoldsAMillionKeysAndFindsThemBack() {
+        val m = LongIntMap(10)
+        for (i in 0 until 200_000) m[i.toLong() * 7919L + 13] = i
+        assertEquals(200_000, m.size)
+        assertEquals(12345, m[12345L * 7919L + 13]); assertEquals(-1, m[5L]); m[13L] = 42; assertEquals(42, m[13L]); assertEquals(200_000, m.size)
+        assertEquals(0x0102030405060708L, byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9).prefix64())
     }
 }

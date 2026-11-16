@@ -76,7 +76,8 @@ class BlteRandom(private val cdn: Cdn, private val ekey: String, private val raw
     private val frameStart: LongArray   // decoded start of each frame
     private val rawStart: LongArray     // encoded start of each frame
     val size: Long
-    private val cache = object : LinkedHashMap<Int, ByteArray>(16, 0.75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<Int, ByteArray>) = size > 8 }
+    // one decoded frame at a time: the encoding file's frames are about 60 MB each (found on a 256 MB heap, which is a phone's)
+    private val cache = object : LinkedHashMap<Int, ByteArray>(4, 0.75f, true) { override fun removeEldestEntry(e: MutableMap.MutableEntry<Int, ByteArray>) = size > 1 }
 
     init {
         val first = cdn.get("data", ekey, 0, minOf(rawSize, 12L))
@@ -124,6 +125,14 @@ class EncodingFile(private val data: BlteRandom) {
         val index = data.read(indexStart, pageCount * (ckeySize + 16))
         firstKeys = Array(pageCount) { index.copyOfRange(it * (ckeySize + 16), it * (ckeySize + 16) + ckeySize) }
         pagesStart = indexStart + pageCount.toLong() * (ckeySize + 16)
+    }
+
+    /** The encoded keys of [ckeys] (null where there is none), looked up in page order so each page's frame is fetched and decoded once. */
+    fun lookupAll(ckeys: List<ByteArray>): List<ByteArray?> {
+        val order = ckeys.indices.sortedWith { a, b -> CascWriter.compareUnsigned(ckeys[a], ckeys[b]) }
+        val out = arrayOfNulls<ByteArray>(ckeys.size)
+        for (i in order) out[i] = lookup(ckeys[i])
+        return out.toList()
     }
 
     /** The first encoded key of [ckey], or null. */
