@@ -9,17 +9,23 @@ import java.io.Writer
  * Karrz's SQL is MySQL 8 dumps; the phone's database is MariaDB. Two things in them MariaDB can fail on, fixed while the
  * file is streamed to the client (a 600 MB file is never held whole):
  *  - the collation `utf8mb4_0900_ai_ci` (older MariaDB hasn't it) becomes `utf8mb4_unicode_ci`;
+ *  - views' and routines' `DEFINER=` of the dumping user (removed: the importer becomes the definer);
  *  - MySQL-8-only versioned comments (the ones numbered 80000 and up, such as a database's ENCRYPTION option), which MariaDB would run as code, are dropped.
  * Line by line; a statement is never rewritten otherwise. If a MariaDB new enough to know the collation is used, the
  * replacement still works (unicode_ci is always there).
  */
 object SqlCompat {
     private val ENCRYPTION = Regex("""/\*!80\d{3}[^*]*\*/""")
+    // mysqldump writes views and routines with the dumping user as their DEFINER; creating one for a user that isn't the importer needs
+    // privileges the app's database user doesn't have (found importing world.sql: ERROR 1227 at its first view)
+    private val DEFINER = Regex("""/\*!\d{5}\s+DEFINER=[^*]*\*/""")
+    private val DEFINER_PLAIN = Regex("""\sDEFINER\s*=\s*`[^`]*`@`[^`]*`""")
     private val CONDITIONAL_8 = Regex("""/\*!(8\d{4})\s""")
 
     fun line(line: String): String {
         var out = line
         if (out.contains("utf8mb4_0900_ai_ci")) out = out.replace("utf8mb4_0900_ai_ci", "utf8mb4_unicode_ci")
+        if (out.contains("DEFINER")) out = DEFINER_PLAIN.replace(DEFINER.replace(out, ""), "")
         if (out.contains("/*!8")) out = ENCRYPTION.replace(out, "")
         if (out.contains("/*!8") && CONDITIONAL_8.containsMatchIn(out)) {
             // A multi-statement conditional block would need the whole file; the ones in these dumps are single-line.

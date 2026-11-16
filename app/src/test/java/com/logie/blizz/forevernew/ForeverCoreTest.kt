@@ -251,4 +251,11 @@ class ForeverCoreTest {
         File(share, "fill_help_tables.sql").delete()
         assertTrue(runCatching { ForeverDb.bootstrapSql(share) }.exceptionOrNull()!!.message!!.contains("fill_help_tables.sql"))
     }
+
+    @Test fun sqlCompatDropsDefinersOfTheDumpingUser() {
+        assertTrue(SqlCompat.line("/*!50013 DEFINER=`trinity`@`localhost` SQL SECURITY DEFINER */").isBlank())
+        assertFalse(SqlCompat.line("/*!50013 DEFINER=`trinity`@`localhost` SQL SECURITY DEFINER */").contains("trinity"))
+        assertFalse(SqlCompat.line("CREATE DEFINER=`root`@`localhost` PROCEDURE p() BEGIN END").contains("root"))
+        assertTrue(SqlCompat.line("CREATE PROCEDURE p() BEGIN END").contains("PROCEDURE p"))
+    }
 }
