@@ -15,20 +15,22 @@ if WPP_OUT:
 CLIENT_NOTE = "Wrath++'s allied races' changes"
 SQL_NOTE = "Wrath++'s allied races (the ten, and the High Elf), made by realm/warcraft/wrathpp/tools/races_profile.py"
 
-# Ids: the ten allied races take 22 to 31 (3.3.5's own end at 21). The Worgen and Goblins (mod-worgen-goblin) keep 12 and 9, so the High Elf
-# takes 21, the Ice Trolls' (a creatures' race: folded into the Forest Trolls' 18); the Northrend Skeletons' 20 (folded into the Skeletons' 15)
-# is the Goblin creatures' new race, and the Fel Orc creatures' race moves from 12 to 32.
-VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(22, 32)
-HIGHELF = 21
+# Ids: ALL BELOW 22. The client keeps each race's saved choices in CCharacterCreation::m_charPreferences[22][2] (0x00B6B0D0, 176 bytes,
+# m_raceIndex right after it): a race id from 22 up writes past it into the client's other statics (the crash of issue 281, at
+# SetSelectedRace). So, as mod-allied-races does, the new races take the ids of the game's creatures-only races, which move up:
+# the Goblins' row 9 and the creatures' 12 to 21 go to 22 to 32 (MOVED: their rows, looks, hair, features and voices), and the High Elf
+# takes 9, the ten allied races 12 to 21. The Worgen and Goblins (mod-worgen-goblin, ids 12 and 9) need that array enlarged first.
+VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(12, 22)
+HIGHELF = 9
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF)
 ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, KULTIRAN, DARKIRON, MECHAGNOME, HIGHELF)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
-FOLDED = {20: 15, 21: 18}
-MOVED = {12: 32, 9: 20}
+FOLDED = {}
+MOVED = {9: 32, **{old: old + 10 for old in range(12, 22)}}
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
-CLIENT_FILE_STRING = {22: "VoidElf", 23: "Nightborne", 24: "LightforgedDraenei", 25: "ZandalariTroll", 26: "HighmountainTauren",
-                      27: "KulTiran", 28: "DarkIronDwarf", 29: "Vulpera", 30: "MagharOrc", 31: "Mechagnome", 21: "HighElf"}
+CLIENT_FILE_STRING = {12: "VoidElf", 13: "Nightborne", 14: "LightforgedDraenei", 15: "ZandalariTroll", 16: "HighmountainTauren",
+                      17: "KulTiran", 18: "DarkIronDwarf", 19: "Vulpera", 20: "MagharOrc", 21: "Mechagnome", 9: "HighElf"}
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari", HIGHMOUNTAIN: "highmountain",
        KULTIRAN: "kultiran", DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}

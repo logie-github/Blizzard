@@ -15,8 +15,13 @@ the other realms' race modules (ChromieCraft's allied races 15 to 18, murlocs 19
 Goblins 9, 12, and the creatures' races they moved to 22 to 31) are off there, but the module that makes these races must
 not need them off, so the ids are ones no module uses.
 
-3.3.5's race mask holds ids up to 32 (`1 << (id - 1)`), the game's `ChrRaces` has rows up to 21 (creatures' races), so the
-new races take **22 to 31** (ten). The Worgen and Goblins (Cataclysm's starting areas, `CATA_RACES.md`) keep the ids their module has, 12 and 9, so the High Elf takes **21**: the Ice Trolls' row, a creatures' race, folded into the Forest Trolls' 18 (the Northrend Skeletons' 20 folds into the Skeletons' 15 and is the Goblin creatures' new race; the Fel Orc creatures' race moves from 12 to 32). `FOLDED` and `MOVED` in `tools/races_profile.py`.
+3.3.5's race mask holds ids up to 32, but the client keeps each race's saved choices in `CCharacterCreation::m_charPreferences[22][2]`
+(`0x00B6B0D0`, 176 bytes, `m_raceIndex` right after it): a race id from 22 up writes past it into the client's other statics, which
+crashed Wrath++ on tapping a race (issue 281, `SetSelectedRace`; an earlier layout of 22 to 31 had been chosen for that reason
+wrongly). So, as `mod-allied-races` does, the new races take the ids of the game's creatures-only races, which move up: the Void Elf,
+Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Kul Tiran, Dark Iron Dwarf, Vulpera, Mag'har Orc and Mechagnome
+take **12 to 21**, the High Elf **9**; the creatures' races 12 to 21 move to 22 to 31 and the Goblins' row 9 to 32 (`MOVED` in
+`tools/races_profile.py`: their rows, looks, hair, features and voices). The Worgen and Goblins (`CATA_RACES.md`) need the client's array enlarged.
 
 | Race | Side | Start (the start race's quests, gear, standing, camera) | Model |
 |---|---|---|---|
@@ -57,7 +62,7 @@ here, as asked.
 
 ## What each race has
 
-Ids 22 to 31 (Void Elf, Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Kul Tiran, Dark Iron Dwarf, Vulpera,
+Ids 12 to 21 (Void Elf, Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Kul Tiran, Dark Iron Dwarf, Vulpera,
 Mag'har Orc, Mechagnome) and 12 for the High Elf (the Fel Orcs' creature race moves to 32). Starts are the table above: the start
 race's place, quests, standing, gear, action bars, skills, stats (its kin's; Vulpera: the Gnomes') and intro camera.
 
@@ -89,7 +94,7 @@ the Torch; the intros' voices other than the five; the Mechagnome's mechanical l
 
 - **The Mechagnome**: head and torso only (the limbs are the "Modification" and "Upgrade" options' separate models).
 - **The Blood Elf man** (one of the ten races' models) still keeps the game's own look.
-- **Not run anywhere but on these files**: the race ids 22 to 31 and 12 on the client and the core (the core sizes its race table
+- **Not run anywhere but on these files**: the race ids 9 and 12 to 21 on the client and the core (the core sizes its race table
   from the game's own rows, as `mod-allied-races`' 15 to 18 rely on); the creator's new buttons (a mock only); whether an HD
   look's model names are the stock ones (the package's models take the stock paths: where the HD patch names its models
   differently, the Shadowlands ones are not drawn).
