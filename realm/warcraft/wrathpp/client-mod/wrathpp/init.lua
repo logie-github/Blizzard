@@ -181,7 +181,7 @@ WPP.MAX_PARTS = 8
 
 function WPP.loadParts()
     if WPP.parts then return WPP.parts end
-    local parts = { slots = {}, pictures = {}, bodyPictures = {}, hair = {}, skins = {}, pickers = {} }
+    local parts = { slots = {}, pictures = {}, bodyPictures = {}, hair = {}, skins = {}, pickers = {}, soft = {} }
     if not (wxl.storage and wxl.storage.Read) then return parts end
     local ok, text = pcall(wxl.storage.Read, "Wrathpp\\parts.txt")
     if not ok or type(text) ~= "string" then return parts end      -- (a package without parts: asked again next time)
@@ -215,13 +215,30 @@ function WPP.loadParts()
                 local types = {}
                 for t in (f[7] or ""):gmatch("%d+") do types[tonumber(t)] = true end
                 slot(key, { category = tonumber(f[5]), model = f[6], types = types, picker = tonumber(f[8]) or 0, attach = tonumber(f[9]) or 0 })
+            elseif kind == "B" then      -- a woman's breast bones: the native mod's soft body (count, parent, then bone, x, y, z, below for each)
+                parts.soft[#parts.soft + 1] = { count = tonumber(f[4]), parent = tonumber(f[5]), sides = {
+                    { bone = tonumber(f[6]), x = tonumber(f[7]), y = tonumber(f[8]), z = tonumber(f[9]), below = f[10] or "" },
+                    { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } } }
             elseif kind == "H" then parts.hair[key] = f[4]
             elseif kind == "K" then parts.skins[key] = parts.skins[key] or {}; parts.skins[key][tonumber(f[4])] = f[5]
             elseif kind == "Z" then picture(parts.pickers, key, tonumber(f[4]), tonumber(f[5]), "*", f[6])
             end
         end
     end
+    WPP.setSoftBody(parts.soft)
     return parts
+end
+
+-- Tells the native mod where the women's breast bones are (it springs them: WrathPP_SetSoftBody).
+function WPP.setSoftBody(list)
+    if not (wxl.script and wxl.script.Run) then return end
+    for _, c in ipairs(list) do
+        local a, b = c.sides[1], c.sides[2]
+        if c.count and c.parent and a.bone and b.bone then
+            pcall(wxl.script.Run, string.format("if WrathPP_SetSoftBody then WrathPP_SetSoftBody(%d,%d,%d,%.5f,%.5f,%.5f,%q,%d,%.5f,%.5f,%.5f,%q) end",
+                c.count, c.parent, a.bone, a.x or 0, a.y or 0, a.z or 0, a.below, b.bone, b.x or 0, b.y or 0, b.z or 0, b.below), "wrathpp-soft")
+        end
+    end
 end
 
 -- The slots a look names: { { shell, choice, p11, p12, p13 }, ... } (no more than the native mod keeps).

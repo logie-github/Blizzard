@@ -1,0 +1,1 @@
+Wrath++: women's chests now move: they hang, bounce and settle as she moves (Natural; turn it off or up with /run WrathPP_SetSoftBodyLevel(0 to 3)).

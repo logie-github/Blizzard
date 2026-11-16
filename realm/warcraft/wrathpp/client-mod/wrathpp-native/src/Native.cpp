@@ -67,10 +67,16 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <atomic>
+#include <cmath>
 #include <map>
+#include <mutex>
+#include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -707,7 +713,207 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.9.1"); }
+    // ---- Soft body: a woman's breasts hang under gravity and bounce, lag and settle (realm/warcraft/wrathpp/tools/sl_parts.py soft_body
+    // finds her breast bones in the converted model; the add-on tells this their indices from the package's parts.txt: WrathPP_SetSoftBody).
+    // wxl.m2's bone watcher hands each such model's bone matrices every frame, right after the client posed them, to rewrite: each breast
+    // bone (and the bones below it) is moved by a damped spring that is hung on the bone it is a child of and driven by that bone's own
+    // motion (its acceleration in the world), simulated at 120 Hz at most, with gravity. Matrices: 16 floats a bone, row vectors, the
+    // translation at 12 to 14, taking a point of the file to the scene's camera-relative space; view_to_world takes that to the world.
+    // Ideas and numbers: the same spring Wifecraft's softbody.cpp has (freq, damping, sag, a limit), as a bone, not a vertex shader.
+    struct SoftSide
+    {
+        uint32_t bone = 0;
+        float pivot[3] = {0, 0, 0};
+        std::vector<uint32_t> below;
+    };
+    struct SoftConfig
+    {
+        uint32_t parent = 0;
+        SoftSide sides[2];
+    };
+    struct SoftState
+    {
+        bool started = false;
+        uint32_t lastMs = 0;
+        double anchor[2][3] = {}, velocity[2][3] = {}, offset[2][3] = {}, speed[2][3] = {};
+        uint32_t seen = 0;
+    };
+    std::mutex g_softLock;
+    std::map<uint32_t, SoftConfig> g_soft;          // by the model file's bone count (a woman's models: the looks', their variants, their body shapes)
+    std::map<const void*, SoftState> g_softState;   // by model, one each
+    std::atomic<int> g_softLevel{2};                // 0 off, 1 subtle, 2 natural, 3 strong
+    wxl::M2BoneWatch g_boneWatch;
+
+    struct SoftTuning { double freq, damping, sag, limit; };
+    SoftTuning TuningOf(int level)
+    {
+        static const double amount[4] = {0.0, 0.5, 1.0, 1.8};
+        const double a = amount[level < 0 ? 0 : level > 3 ? 3 : level];
+        return {3.2, 0.22, 0.012 * a, 0.035 * a};
+    }
+
+    wxl_bool WXL_CALL SoftFilter(void*, wxl_str path, uint32_t boneCount, void*)
+    {
+        const std::string_view p = wxl::View(path);
+        if (p.size() < 8) return WXL_FALSE;
+        std::string lower(p);
+        for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (lower.find("\\female\\") == std::string::npos || lower.rfind(".m2") != lower.size() - 3) return WXL_FALSE;
+        std::lock_guard<std::mutex> hold(g_softLock);
+        return g_soft.count(boneCount) ? WXL_TRUE : WXL_FALSE;
+    }
+
+    void Row(const float* m, const double p[3], double out[3])
+    {
+        for (int j = 0; j < 3; ++j) out[j] = p[0] * m[0 + j] + p[1] * m[4 + j] + p[2] * m[8 + j] + m[12 + j];
+    }
+
+    void WXL_CALL SoftWatch(const wxl_m2_bones* bones, void*)
+    {
+        const int level = g_softLevel.load();
+        if (level <= 0 || !bones || !bones->matrices) return;
+        std::lock_guard<std::mutex> hold(g_softLock);
+        const auto config = g_soft.find(bones->bone_count);
+        if (config == g_soft.end()) return;
+        const SoftConfig& c = config->second;
+        if (c.parent >= bones->bone_count) return;
+        SoftState& st = g_softState[bones->model];
+        st.seen = bones->time_ms;
+        if (g_softState.size() > 96)                                    // models that left: forgotten
+            for (auto it = g_softState.begin(); it != g_softState.end();)
+                it = (bones->time_ms - it->second.seen > 5000 && it->first != bones->model) ? g_softState.erase(it) : std::next(it);
+        const SoftTuning t = TuningOf(level);
+        const double omega = 6.283185307 * t.freq;
+        const float* parent = bones->matrices + c.parent * 16;
+        const float* toWorld = bones->view_to_world;
+        double dt = (bones->time_ms - st.lastMs) / 1000.0;
+        const bool fresh = !st.started || dt <= 0.0 || dt > 0.25;        // a pause, a hitch or a first frame: held still
+        if (!fresh && dt > 0.1) dt = 0.1;
+        for (int s = 0; s < 2; ++s)
+        {
+            const SoftSide& side = c.sides[s];
+            if (side.bone >= bones->bone_count) continue;
+            const double pivot[3] = {side.pivot[0], side.pivot[1], side.pivot[2]};
+            double cam[3], world[3];
+            Row(parent, pivot, cam);                                    // where the bone's rest point is now, carried by its parent
+            const double camP[3] = {cam[0], cam[1], cam[2]};
+            Row(toWorld, camP, world);
+            double accel[3] = {0, 0, 0};
+            if (!fresh)
+            {
+                for (int k = 0; k < 3; ++k)
+                {
+                    const double v = (world[k] - st.anchor[s][k]) / dt;
+                    accel[k] = (v - st.velocity[s][k]) / dt;
+                    if (accel[k] > 60.0) accel[k] = 60.0; else if (accel[k] < -60.0) accel[k] = -60.0;
+                    st.velocity[s][k] = v;
+                }
+            }
+            else
+                for (int k = 0; k < 3; ++k) { st.velocity[s][k] = 0; st.offset[s][k] = 0; st.speed[s][k] = 0; }
+            for (int k = 0; k < 3; ++k) st.anchor[s][k] = world[k];
+            if (!fresh)
+            {
+                // the spring, in world space: toward gravity's sag at rest, pushed by minus the anchor's acceleration
+                const double rest[3] = {0.0, 0.0, -t.sag};
+                double left = dt;
+                while (left > 1e-6)
+                {
+                    const double h = left > 1.0 / 120.0 ? 1.0 / 120.0 : left;
+                    left -= h;
+                    for (int k = 0; k < 3; ++k)
+                    {
+                        const double a = -omega * omega * (st.offset[s][k] - rest[k]) - 2.0 * t.damping * omega * st.speed[s][k] - accel[k];
+                        st.speed[s][k] += a * h;
+                        st.offset[s][k] += st.speed[s][k] * h;
+                    }
+                }
+                double len = std::sqrt(st.offset[s][0] * st.offset[s][0] + st.offset[s][1] * st.offset[s][1] + st.offset[s][2] * st.offset[s][2]);
+                if (len > t.limit && len > 0.0)                         // softly limited: past the limit it gives less
+                {
+                    const double shown = t.limit + (len - t.limit) * 0.2;
+                    for (int k = 0; k < 3; ++k) st.offset[s][k] *= shown / len;
+                }
+            }
+            // the offset (world) into the camera-relative space: the rows of view_to_world are its axes
+            double cam3[3];
+            for (int i = 0; i < 3; ++i) cam3[i] = st.offset[s][0] * toWorld[i * 4 + 0] + st.offset[s][1] * toWorld[i * 4 + 1] + st.offset[s][2] * toWorld[i * 4 + 2];
+            auto move = [&](uint32_t bone)
+            {
+                if (bone >= bones->bone_count) return;
+                float* m = bones->matrices + bone * 16;
+                m[12] += static_cast<float>(cam3[0]); m[13] += static_cast<float>(cam3[1]); m[14] += static_cast<float>(cam3[2]);
+            };
+            move(side.bone);
+            for (uint32_t below : side.below) move(below);
+        }
+        st.started = true;
+        st.lastMs = bones->time_ms;
+    }
+
+    /// The soft body of a woman's model: WrathPP_SetSoftBody(boneCount, parent, boneL, lx, ly, lz, "below,below", boneR, rx, ry, rz, "below,..").
+    void SetSoftBodyCall(wxl::ScriptCall& call)
+    {
+        const auto count = call.Number(0), parent = call.Number(1);
+        const auto leftBone = call.Number(2), lx = call.Number(3), ly = call.Number(4), lz = call.Number(5);
+        const auto leftBelow = call.String(6);
+        const auto rightBone = call.Number(7), rx = call.Number(8), ry = call.Number(9), rz = call.Number(10);
+        const auto rightBelow = call.String(11);
+        if (!count || !parent || !leftBone || !lx || !ly || !lz || !rightBone || !rx || !ry || !rz)
+        {
+            call.Fail("WrathPP_SetSoftBody(boneCount, parent, boneL, x, y, z, \"below,...\", boneR, x, y, z, \"below,...\")");
+            return;
+        }
+        auto list = [](const std::optional<std::string_view>& text, std::vector<uint32_t>& out)
+        {
+            out.clear();
+            if (!text) return;
+            const std::string s(*text);
+            size_t at = 0;
+            while (at < s.size() && out.size() < 64)
+            {
+                char* end = nullptr;
+                const unsigned long v = std::strtoul(s.c_str() + at, &end, 10);
+                if (end == s.c_str() + at) break;
+                out.push_back(static_cast<uint32_t>(v));
+                at = static_cast<size_t>(end - s.c_str());
+                while (at < s.size() && (s[at] == ',' || s[at] == ' ')) ++at;
+            }
+        };
+        SoftConfig c;
+        c.parent = static_cast<uint32_t>(*parent);
+        c.sides[0].bone = static_cast<uint32_t>(*leftBone);
+        c.sides[0].pivot[0] = static_cast<float>(*lx); c.sides[0].pivot[1] = static_cast<float>(*ly); c.sides[0].pivot[2] = static_cast<float>(*lz);
+        list(leftBelow, c.sides[0].below);
+        c.sides[1].bone = static_cast<uint32_t>(*rightBone);
+        c.sides[1].pivot[0] = static_cast<float>(*rx); c.sides[1].pivot[1] = static_cast<float>(*ry); c.sides[1].pivot[2] = static_cast<float>(*rz);
+        list(rightBelow, c.sides[1].below);
+        {
+            std::lock_guard<std::mutex> hold(g_softLock);
+            g_soft[static_cast<uint32_t>(*count)] = c;
+        }
+        if (!g_boneWatch)
+        {
+            g_boneWatch = wxl::M2BoneWatch(&SoftFilter, &SoftWatch);
+            wxl::Log(g_boneWatch ? WXL_LOG_INFO : WXL_LOG_WARN, kTag, "soft body: bone watcher {}", g_boneWatch ? "started" : "not started");
+        }
+        call.PushBool(true);
+    }
+
+    /// WrathPP_SetSoftBodyLevel(n): 0 off, 1 subtle, 2 natural (the default), 3 strong.
+    void SetSoftBodyLevelCall(wxl::ScriptCall& call)
+    {
+        const auto level = call.Number(0);
+        if (!level || *level < 0 || *level > 3)
+        {
+            call.Fail("WrathPP_SetSoftBodyLevel(n): n is 0 (off), 1, 2 or 3");
+            return;
+        }
+        g_softLevel = static_cast<int>(*level);
+        call.PushBool(true);
+    }
+
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.10.0"); }
 
     class Api final : public wxl::LuaScript
     {
@@ -725,6 +931,8 @@ namespace
                                         std::pair{"WrathPP_SetBodyPreview", script.RegisterFunction<&SetBodyPreviewCall>("WrathPP_SetBodyPreview")},
                                         std::pair{"WrathPP_SetOverlay", script.RegisterFunction<&SetOverlayCall>("WrathPP_SetOverlay")},
                                         std::pair{"WrathPP_ApplyLook", script.RegisterFunction<&ApplyLookCall>("WrathPP_ApplyLook")},
+                                        std::pair{"WrathPP_SetSoftBody", script.RegisterFunction<&SetSoftBodyCall>("WrathPP_SetSoftBody")},
+                                        std::pair{"WrathPP_SetSoftBodyLevel", script.RegisterFunction<&SetSoftBodyLevelCall>("WrathPP_SetSoftBodyLevel")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));

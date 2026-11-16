@@ -527,6 +527,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 layout = json.load(f)
             os.remove(layout_path)
             model["skin_extra"] = bool(layout.get("extra"))       # its skin rows name their extra (table_rows)
+            if int(sex) == 1:                                         # a woman's soft body: where her breast bones are in the converted model
+                import sl_parts
+                soft = sl_parts.soft_body(model_path)
+                if soft:
+                    model["soft"] = soft
             written += textures.build(read, model, layout, client, log)
             if model.get("overlays"):
                 import sl_parts
@@ -571,13 +576,14 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
         sl_parts.write_parts_table(ten, client, ids)
         written.append("Wrathpp\\parts.txt")
         # (the textures the model pieces take, which the creator's options step needs: put in the looks file)
-        if any(m.get("part_types") for e in ten["races"].values() for m in e["models"].values()):
+        if any(m.get("part_types") or m.get("soft") for e in ten["races"].values() for m in e["models"].values()):
             with open(looks_path) as f:
                 saved = json.load(f)
             for key, e in ten["races"].items():
                 for sex, m in e["models"].items():
-                    if m.get("part_types") and key in saved.get("races", {}):
-                        saved["races"][key]["models"][sex]["part_types"] = m["part_types"]
+                    if (m.get("part_types") or m.get("soft")) and key in saved.get("races", {}):
+                        if m.get("part_types"):
+                            saved["races"][key]["models"][sex]["part_types"] = m["part_types"]
             with open(looks_path, "w") as f:
                 json.dump(saved, f, indent=1, sort_keys=True)
     missing = verify(looks, out_dir)

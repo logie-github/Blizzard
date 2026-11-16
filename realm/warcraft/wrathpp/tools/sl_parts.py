@@ -232,6 +232,50 @@ def variant_model(read, model, variant, k, choice, out_dir, log=print):
     return [w for w in written if not w.endswith(".layout.json")]
 
 
+def soft_body(m2_path):
+    """Where a woman's soft body (the native mod's springs, wxl.m2's bone watcher) hangs on a converted model: {"count": bones,
+    "parent": the bone they hang on, "bones": [[bone, pivot x, y, z, [the bones below it]], ...]}, or None for a model without a pair
+    of breast bones (the men's). The breast bones are the two with no key id, the same parent and mirrored pivots, forward of the
+    spine (x over 0.04), 0.04 to 0.14 to each side and at the chest's height (0.6 to 0.8 of the model's, its head's bone at the top):
+    the retail skeletons' L_Breast and R_Breast, which the converter keeps without a key id."""
+    with open(m2_path, "rb") as f:
+        m = f.read()
+    n, o = struct.unpack_from("<II", m, 44)
+    rows = []
+    for i in range(n):
+        key, flags, parent, sub, unk = struct.unpack_from("<iIhHI", m, o + i * 88)
+        rows.append((key, parent, struct.unpack_from("<3f", m, o + i * 88 + 76)))
+    top = max((r[2][2] for r in rows if r[0] == 22), default=0.0)       # key 22: the breath bone, at the head's top
+    if top <= 0:
+        return None
+    best = None
+    for i, a in enumerate(rows):
+        for j in range(i + 1, n):
+            c = rows[j]
+            if a[0] != -1 or c[0] != -1 or a[1] != c[1] or a[1] < 0:
+                continue
+            (ax, ay, az), (cx, cy, cz) = a[2], c[2]
+            if (abs(ax - cx) < 0.01 and abs(ay + cy) < 0.01 and abs(az - cz) < 0.01 and ax > 0.04 and 0.04 < abs(ay) < 0.14
+                    and 0.6 * top < az < 0.8 * top):
+                if best is None or abs(ay) < best[0]:
+                    best = (abs(ay), i, j)
+    if best is None:
+        return None
+
+    def below(b):
+        out, grew = set(), True
+        while grew:
+            grew = False
+            for i, r in enumerate(rows):
+                if i not in out and (r[1] == b or r[1] in out):
+                    out.add(i)
+                    grew = True
+        return sorted(out)
+
+    _, i, j = best
+    return {"count": n, "parent": rows[i][1], "bones": [[b, *[round(x, 5) for x in rows[b][2]], below(b)] for b in (i, j)]}
+
+
 def part_model_name(model, part):
     import re
     return model["name"] + "P" + re.sub(r"[^A-Za-z0-9]", "", part["name"])
@@ -486,6 +530,11 @@ def write_parts_table(looks, out_dir, ids):
                 lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0) + ("\t%d" % HELM if part.get("skinned") else "\t0"))
     for entry in sorted(looks["races"].values(), key=lambda e: e["race"]):
         for sex, model in sorted(entry["models"].items()):
+            soft = model.get("soft")
+            if soft:
+                # a woman's breast bones (the native mod's soft body): B race sex bone count, the bone they hang on, then each: bone, pivot, the bones below
+                lines.append("\t".join(["B", str(entry["race"]), str(int(sex)), str(soft["count"]), str(soft["parent"])] +
+                                        sum(([str(b[0]), "%.5f" % b[1], "%.5f" % b[2], "%.5f" % b[3], ",".join(str(x) for x in b[4])] for b in soft["bones"]), [])))
             for variant in model.get("variants", []):
                 category = ids.get("%d_%d:%s" % (entry["race"], int(sex), variant["name"]))
                 if not category:

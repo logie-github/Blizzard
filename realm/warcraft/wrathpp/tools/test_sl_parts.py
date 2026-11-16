@@ -114,6 +114,35 @@ class PartsTest(unittest.TestCase):
         self.assertEqual(table[11], 0)                                # type 11 is the texture 0
         self.assertEqual(table[:9], tuple(range(9)))                   # the rest as it was
 
+    def test_parts_table_has_the_soft_body(self):
+        model = {"name": "HumanFemale", "folder": "Character\\Human\\Female", "overlays": [],
+                 "soft": {"count": 201, "parent": 16, "bones": [[23, 0.08742, 0.08189, 1.45428, [30]], [26, 0.08742, -0.083, 1.45428, []]]}}
+        looks = {"races": {"1": {"race": 1, "models": {"1": model}}}}
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, {})
+            with open(path, encoding="utf-8") as f:
+                lines = [l.split("\t") for l in f.read().splitlines() if not l.startswith("#")]
+        self.assertEqual(lines, [["B", "1", "1", "201", "16", "23", "0.08742", "0.08189", "1.45428", "30", "26", "0.08742", "-0.08300", "1.45428", ""]])
+
+    def test_the_breast_bones_are_found_in_a_converted_model(self):
+        import struct
+        m = bytearray(304 + 88 * 5)
+        struct.pack_into("<II", m, 44, 5, 304)
+        def bone(i, key, parent, pv):
+            struct.pack_into("<iIhHI", m, 304 + i * 88, key, 0, parent, 0, 0)
+            struct.pack_into("<3f", m, 304 + i * 88 + 76, *pv)
+        bone(0, 22, -1, (0, 0, 2.1))                           # the head's top
+        bone(1, 53, -1, (0, 0, 1.4))                           # the chest's spine
+        bone(2, -1, 1, (0.087, 0.082, 1.45))                   # the breasts
+        bone(3, -1, 1, (0.087, -0.082, 1.45))
+        bone(4, -1, 1, (0.09, 0.156, 1.25))                    # the ribs: too far to the side
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "x.m2")
+            with open(path, "wb") as f:
+                f.write(m)
+            soft = sl_parts.soft_body(path)
+        self.assertEqual((soft["count"], soft["parent"], [b[0] for b in soft["bones"]]), (5, 1, [2, 3]))
+
     def test_parts_table_pairs_a_paint_with_its_style(self):
         model = {"name": "OrcMale", "folder": "Character\\Orc\\Male", "overlays": [
             {"name": "Scars", "choices": [{"id": "1", "name": "None", "files": {}}, {"id": "2", "name": "Cut", "files": {"*": 77}}]},
