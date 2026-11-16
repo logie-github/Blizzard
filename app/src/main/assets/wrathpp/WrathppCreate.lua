@@ -1625,6 +1625,23 @@ local function place()
 	local count = { 0, 0 }
 	local i, total = 1, 0
 	while ( _G["CharacterCreateRaceButton"..i] ) do total = i; i = i + 1 end
+	-- How many lines a column of races holds before it would run into the classes' row at the foot (the row is beside the foot's two
+	-- buttons on a wide screen and over them on a narrower one, as laid out below): the first column five at most, as the game's ten
+	-- fill it; each column after it 68 lower than the one before
+	local shownCount = 0
+	i = 1
+	while ( _G["CharacterCreateClassButton"..i] ) do
+		if ( _G["CharacterCreateClassButton"..i]:IsShown() ) then shownCount = shownCount + 1 end
+		i = i + 1
+	end
+	local screenWidth = (GlueParent and GlueParent:GetWidth()) or 1024
+	local classPitch = u(67 + 15)
+	local classesBeside = (shownCount * classPitch - u(15)) / 2 + u(12) <= screenWidth / 2 - u(46 + 250)
+	local raceLimit = 768 - (classesBeside and u(62) or u(28 + 66 + 50)) - u(67) - u(7)
+	local function raceColumnLines(column)
+		local fit = math.floor((raceLimit - u(106) - u(79 + 22) - column * u(68)) / u(79 + 18)) + 1
+		return math.max(1, column == 0 and math.min(5, fit) or fit)
+	end
 	for index = 1, total do
 		local stock = _G["CharacterCreateRaceButton"..index]
 		stock:SetParent(away)
@@ -1642,7 +1659,8 @@ local function place()
 			local side = alliance and 1 or 2
 			count[side] = count[side] + 1
 			local k = count[side]
-			local column, line = (k > 5) and 1 or 0, (k > 5) and (k - 6) or (k - 1)
+			local column, line = 0, k - 1
+			while ( line >= raceColumnLines(column) and column < 8 ) do line = line - raceColumnLines(column); column = column + 1 end
 			b:ClearAllPoints()
 			local x = column * u(79 + 18) * (alliance and 1 or -1)
 			b:SetPoint(alliance and "TOPLEFT" or "TOPRIGHT", alliance and alliancePanel.races or hordePanel.races, alliance and "TOPLEFT" or "TOPRIGHT", x, -line * u(79 + 18) - column * u(68))
