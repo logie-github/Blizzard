@@ -30,6 +30,32 @@ object WrathppDisplayCheck {
     }
 
 
+    /**
+     * A phone that made the body options' tables the old way (from the game's own, over the looks') has no allied races' rows in its patch
+     * folder's `CreatureDisplayInfo` and `CreatureModelData`, and the rows' own source (the looks' package, 1 GB) is not kept. The server's
+     * copy of the tables the looks carry ([WrathppLooks.SERVER_COPY], in the same patch folder) has them; each row of it whose id the game's
+     * table lacks is added to it (the same columns, the texts written again). Returns how many rows were added (0: none missing or no copy).
+     */
+    fun repair(client: File): Int {
+        val patch = File(client, "Data/${WrathppLooks.PATCH}")
+        val dir = File(patch, "DBFilesClient")
+        var added = 0
+        for ((name, kinds) in listOf("CreatureModelData.dbc" to WrathppBody.MODEL_KINDS, "CreatureDisplayInfo.dbc" to WrathppBody.DISPLAY_KINDS)) {
+            val mine = File(dir, name).takeIf { it.isFile } ?: continue
+            val copy = File(patch, "${WrathppLooks.SERVER_COPY}/$name").takeIf { it.isFile } ?: continue
+            val table = WrathppUndead.Dbc.read(mine.readBytes(), kinds)
+            val have = table.rows.map { it[0] as Int }.toHashSet()
+            val extra = WrathppUndead.Dbc.read(copy.readBytes(), kinds).rows.filter { (it[0] as Int) !in have }
+            if (extra.isEmpty()) continue
+            table.rows.addAll(extra)
+            val tmp = File(mine.path + ".tmp")
+            tmp.writeBytes(table.write())
+            if (!tmp.renameTo(mine)) { mine.delete(); if (!tmp.renameTo(mine)) throw java.io.IOException("${mine.path} couldn't be written") }
+            added += extra.size
+        }
+        return added
+    }
+
     /** The start report's line: what is wrong in [client]'s looks' tables, or that nothing is. */
     fun check(client: File): String {
         val dir = File(client, "Data/${WrathppLooks.PATCH}/DBFilesClient")

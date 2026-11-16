@@ -39,4 +39,21 @@ class WrathppDisplayCheckTest {
         File(dir, "CreatureDisplayInfo.dbc").writeBytes(table(3, listOf(intArrayOf(33014, 3614))))
         assertTrue(WrathppDisplayCheck.check(client).startsWith("1 MISSING"))
     }
+
+    @Test fun rowsTheGamesTableLacksAreAddedFromTheLooksCopy() {
+        val client = tmp.newFolder("client2")
+        val patch = File(client, "Data/${WrathppLooks.PATCH}")
+        val dir = File(patch, "DBFilesClient").also { it.mkdirs() }
+        val copy = File(patch, WrathppLooks.SERVER_COPY).also { it.mkdirs() }
+        fun display(vararg ids: Int) = WrathppUndead.Dbc(WrathppBody.DISPLAY_KINDS, ids.map { id -> Array<Any>(16) { i -> if (WrathppBody.DISPLAY_KINDS[i] == 's') "" else if (i == 0) id else if (i == 1) id - 29400 else 0 } }.toMutableList()).write()
+        fun model(vararg ids: Int) = WrathppUndead.Dbc(WrathppBody.MODEL_KINDS, ids.map { id -> Array<Any>(WrathppBody.MODEL_KINDS.length) { i -> if (WrathppBody.MODEL_KINDS[i] == 's') "x" else if (i == 0) id else 0 } }.toMutableList()).write()
+        File(dir, "CreatureDisplayInfo.dbc").writeBytes(display(1, 2))
+        File(dir, "CreatureModelData.dbc").writeBytes(model(1, 2))
+        File(copy, "CreatureDisplayInfo.dbc").writeBytes(display(1, 2, 33013, 33014))
+        File(copy, "CreatureModelData.dbc").writeBytes(model(1, 2, 3613, 3614))
+        assertEquals(4, WrathppDisplayCheck.repair(client))
+        assertEquals(0, WrathppDisplayCheck.repair(client))
+        assertEquals(setOf(1, 2, 33013, 33014), WrathppDisplayCheck.readDisplays(File(dir, "CreatureDisplayInfo.dbc").readBytes()).keys)
+        assertEquals(setOf(1, 2, 3613, 3614), WrathppDisplayCheck.readModels(File(dir, "CreatureModelData.dbc").readBytes()))
+    }
 }
