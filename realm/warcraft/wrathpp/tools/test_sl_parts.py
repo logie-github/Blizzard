@@ -99,6 +99,21 @@ class PartsTest(unittest.TestCase):
                 lines = [l.split("\t") for l in f.read().splitlines() if not l.startswith("#")]
         self.assertEqual(lines, [["V", "2", "0", "1500", "2", "Character\\Orc\\Male\\OrcMaleV2.m2"]])
 
+    def test_a_short_replaceable_table_grows(self):
+        import struct
+        m = bytearray(400)
+        struct.pack_into("<II", m, 0x50, 1, 304)                   # one texture, of type 1 (the skin's)
+        struct.pack_into("<I", m, 304, 1)
+        struct.pack_into("<II", m, 0x68, 9, 320)                   # a replaceable table of 9
+        struct.pack_into("<9h", m, 320, *range(9))
+        out, types = sl_parts.patch_part_textures(bytes(m))
+        self.assertEqual(types, {11})
+        n, o = struct.unpack_from("<II", out, 0x68)
+        table = struct.unpack_from("<%dh" % n, out, o)
+        self.assertGreater(n, 11)
+        self.assertEqual(table[11], 0)                                # type 11 is the texture 0
+        self.assertEqual(table[:9], tuple(range(9)))                   # the rest as it was
+
     def test_parts_table_pairs_a_paint_with_its_style(self):
         model = {"name": "OrcMale", "folder": "Character\\Orc\\Male", "overlays": [
             {"name": "Scars", "choices": [{"id": "1", "name": "None", "files": {}}, {"id": "2", "name": "Cut", "files": {"*": 77}}]},

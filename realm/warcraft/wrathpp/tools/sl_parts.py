@@ -133,10 +133,17 @@ def patch_part_textures(m2b):
     table = list(struct.unpack_from("<%dh" % rn, m, ro))
     for slot, index in wanted.items():
         if len(table) <= slot:
-            raise ValueError("the part's replaceable table is too short (%d) to carry type %d" % (len(table), slot))
+            table += [-1] * (slot + 1 - len(table))             # (a model with a short table: it grows, at the file's end)
         table[slot] = index
     if wanted:
-        struct.pack_into("<%dh" % rn, m, ro, *table)
+        if len(table) != rn:
+            while len(m) % 16:
+                m.append(0)
+            at = len(m)
+            m += struct.pack("<%dh" % len(table), *table)
+            struct.pack_into("<II", m, REPLACEABLE, len(table), at)
+        else:
+            struct.pack_into("<%dh" % rn, m, ro, *table)
     return bytes(m), set(wanted)
 
 
