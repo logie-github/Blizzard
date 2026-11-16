@@ -24,6 +24,17 @@ class ForeverLeftoversTest {
         assertEquals(ForeverLeftovers.Wait.ENDED, ForeverLeftovers.await(3, { false }, { false }, {}))
     }
 
+    @Test fun theLoginServersOwnLastLinesSayItIsUp() {
+        // The lines the phone showed under "bnetserver did not become ready in 3 minutes" (16 November 2026).
+        val log = "Registered new handler for POST /bnetserver/login/srp/\nRegistered new handler for POST /bnetserver/launcher/remember/\n" +
+            "Registered new handler for POST /bnetserver/refreshLoginTicket/\nAdded realm \"Forever\" at 127.0.0.1 (port 8097).\n"
+        assertTrue(com.logie.blizz.wow.LineWatch(ForeverServer.BNET_READY).feed(log))
+        // its handlers alone (their paths name "bnetserver") are not it
+        assertFalse(com.logie.blizz.wow.LineWatch(ForeverServer.BNET_READY).feed("Registered new handler for POST /bnetserver/login/srp/\n"))
+        assertTrue(com.logie.blizz.wow.LineWatch(ForeverServer.WORLD.ready).feed("World initialized in 2 minutes 39 seconds\n"))
+        assertTrue(com.logie.blizz.wow.LineWatch(ForeverServer.DATABASE.ready).feed("2026-11-16 19:17:50 0 [Note] /x/bin/mariadbd: ready for connections.\n"))
+    }
+
     @Test fun onlyThisServersProgramIsEnded() {
         val bin = File("/data/user/0/com.logie.blizz/files/realms/forever-v2/server/bin")
         val pidFile = tmp.newFile("mariadbd.pid").apply { writeText("4321\n") }
