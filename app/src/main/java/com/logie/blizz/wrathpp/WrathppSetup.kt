@@ -75,6 +75,10 @@ object WrathppSetup {
         runCatching { WrathppBare.apply(layout.wrathppClient) }
             .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }
             .onFailure { e -> notes.append("body option (underwear layer) FAILED: ${e.message}\n") }
+        // The game's creation screen crashes at Create Character when a race's display row is missing (report #272): named here when it is.
+        runCatching { WrathppDisplayCheck.check(layout.wrathppClient) }
+            .onSuccess { notes.append("race displays: $it\n") }
+            .onFailure { e -> notes.append("race displays: not checked (${e.message})\n") }
         // The creator (Shadowlands' two screens), from the app itself, whatever happened to the add-on; with it what it
         // shows: the looks' own list of options (made with them: sl_creator.py) and the undead skins' (written above).
         report.say("Putting in Wrath++'s character creator", null)

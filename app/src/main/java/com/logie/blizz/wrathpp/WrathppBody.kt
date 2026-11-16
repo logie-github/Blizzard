@@ -36,6 +36,7 @@ import java.util.zip.ZipInputStream
 object WrathppBody {
     const val DIR = "wrathpp-body"
     const val STAMP = "wrathpp-body.stamp"
+    private const val TABLES_VERSION = 2
     const val LIST = "wrathpp-body.json"
     private const val SOURCE = "source"
     private const val ORIG = ".body-orig"
@@ -161,7 +162,9 @@ object WrathppBody {
         val serverDbc = File(server, "share/dbc")
         val stamps = listOf(File(patch, STAMP), File(serverDbc, STAMP))
         // what the game's tables are made from: a Reforged part or a realm patch put in or out changes them
-        val want = "$zipSha $looks" + if (zipSha != null) " " + tableSources(File(client, "Data")) else ""
+        // (TABLES_VERSION: the way the tables are made; raised when it changed, so that phones that made them the old way make them again:
+        // 2 = the looks' own CreatureDisplayInfo and CreatureModelData rows kept, which the allied races' displays need)
+        val want = "$zipSha $looks" + if (zipSha != null) " " + tableSources(File(client, "Data")) + " tables$TABLES_VERSION" else ""
         if (stamps.all { it.isFile && it.readLines().firstOrNull()?.trim() == want }) {
             return stamps[0].readLines().drop(1).joinToString("; ").ifEmpty { "as before" }
         }
