@@ -44,11 +44,26 @@ class ForeverSteps(
     }
 
     /** The client, from Blizzard's servers (or carried on where it stopped), into the app's own folder. */
-    override fun downloadClient(say: (String, Float?) -> Unit): String? = try {
-        ForeverClientDownload.download(layout.client, ForeverClientDownload.ALL, supportedBuilds(), say)
-        ForeverClientImport.remember(layout)
-        null
-    } catch (e: IOException) { e.message ?: "The game couldn't be downloaded" }
+    override fun downloadClient(say: (String, Float?) -> Unit): String? {
+        val logs = ForeverLogs(File(layout.logs, "forever-events.log"))
+        var lastKind = ""
+        var lastAt = 0L
+        val logged: (String, Float?) -> Unit = { text, p ->
+            // one line per stage and at most one more every 30 seconds, so a stall shows in the log
+            val kind = text.substringBefore(':').substringBefore('(').trim()
+            val now = System.currentTimeMillis()
+            if (kind != lastKind || now - lastAt > 30_000) { logs.event("client: $text"); lastKind = kind; lastAt = now }
+            say(text, p)
+        }
+        return try {
+            ForeverClientDownload.download(layout.client, ForeverClientDownload.ALL, supportedBuilds(), logged)
+            ForeverClientImport.remember(layout)
+            null
+        } catch (e: IOException) {
+            logs.event("client: FAILED ${e.message}")
+            e.message ?: "The game couldn't be downloaded"
+        }
+    }
 
     // ---- 3: maps, vmaps, mmaps -------------------------------------------------------------------------------------------
     override fun extractData(client: ForeverClient.Result.Ok, say: (String, Float?) -> Unit): String? {

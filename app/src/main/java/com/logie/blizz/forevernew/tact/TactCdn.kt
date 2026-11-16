@@ -14,43 +14,49 @@ interface Cdn {
  * Blizzard's own public content servers, over HTTPS, the hosts their `cdns` file lists (tried in turn). No account is involved:
  * these are the files the Battle.net app itself downloads. Every file is named by its hash, and the caller checks it.
  */
-class HttpCdn(private val hosts: List<String>, private val path: String, private val scheme: String = "https") : Cdn {
+class HttpCdn(hosts: List<String>, private val path: String, private val scheme: String = "https") : Cdn {
+    /** The hosts in the order to try; the one that last answered goes first, so a host that doesn't answer isn't asked again for every piece. */
+    private val order = java.util.concurrent.CopyOnWriteArrayList(hosts)
+
     private fun url(host: String, kind: String, hash: String, suffix: String) = "$scheme://$host/$path/$kind/${hash.substring(0, 2)}/${hash.substring(2, 4)}/$hash$suffix"
 
     private fun <T> eachHost(block: (String) -> T): T {
         var last: Exception? = null
-        for (h in hosts) try { return block(h) } catch (e: IOException) { last = e }
+        for (h in order.toList()) try {
+            val r = block(h)
+            if (order.first() != h) { order.remove(h); order.add(0, h) }
+            return r
+        } catch (e: IOException) { last = e } catch (e: java.net.SocketTimeoutException) { last = IOException(e.message, e) }
         throw IOException("No content server answered (${last?.message})")
     }
 
-    override fun get(kind: String, hash: String, from: Long, length: Long, suffix: String): ByteArray = eachHost { host ->
-        retry(3) {
-            val c = URL(url(host, kind, hash, suffix)).openConnection() as HttpURLConnection
-            c.connectTimeout = 30_000; c.readTimeout = 60_000; c.setRequestProperty("User-Agent", "Blizzard-Launcher")
-            if (from > 0 || length >= 0) c.setRequestProperty("Range", "bytes=$from-" + if (length >= 0) (from + length - 1).toString() else "")
-            try {
-                val code = c.responseCode
-                if (code != 200 && code != 206) throw IOException("HTTP $code for $kind/$hash")
-                val bytes = c.inputStream.use { it.readBytes() }
-                if (length >= 0 && code == 200 && bytes.size.toLong() != length) {
-                    // the server ignored the range
-                    return@retry bytes.copyOfRange(from.toInt(), (from + length).toInt())
-                }
-                bytes
-            } finally { c.disconnect() }
+    override fun get(kind: String, hash: String, from: Long, length: Long, suffix: String): ByteArray {
+        var last: IOException? = null
+        repeat(3) { attempt ->
+            try { return eachHost { host -> fetch(url(host, kind, hash, suffix), kind, hash, from, length) } }
+            catch (e: IOException) { last = e; Thread.sleep(500L * (attempt + 1)) }
         }
+        throw last!!
+    }
+
+    private fun fetch(url: String, kind: String, hash: String, from: Long, length: Long): ByteArray {
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = 12_000; c.readTimeout = 45_000; c.setRequestProperty("User-Agent", "Blizzard-Launcher")
+        if (from > 0 || length >= 0) c.setRequestProperty("Range", "bytes=$from-" + if (length >= 0) (from + length - 1).toString() else "")
+        try {
+            val code = c.responseCode
+            if (code != 200 && code != 206) throw IOException("HTTP $code for $kind/$hash")
+            val bytes = c.inputStream.use { it.readBytes() }
+            // the server ignored the range
+            if (length >= 0 && code == 200 && bytes.size.toLong() != length) return bytes.copyOfRange(from.toInt(), (from + length).toInt())
+            return bytes
+        } finally { c.disconnect() }
     }
 
     override fun size(kind: String, hash: String, suffix: String): Long = eachHost { host ->
         val c = URL(url(host, kind, hash, suffix)).openConnection() as HttpURLConnection
-        c.requestMethod = "HEAD"; c.connectTimeout = 30_000; c.readTimeout = 30_000
+        c.requestMethod = "HEAD"; c.connectTimeout = 12_000; c.readTimeout = 30_000
         try { if (c.responseCode != 200) throw IOException("HTTP ${c.responseCode}"); c.contentLengthLong } finally { c.disconnect() }
-    }
-
-    private fun <T> retry(times: Int, block: () -> T): T {
-        var last: IOException? = null
-        repeat(times) { try { return block() } catch (e: IOException) { last = e; Thread.sleep(400L * (it + 1)) } }
-        throw last!!
     }
 
     companion object {
