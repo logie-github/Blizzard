@@ -81,6 +81,8 @@ unpacked on the desktop rig and run through its own musl loader under `qemu-aarc
 | REST login with `logie@wow.server` / `Logie`, the account made by `ForeverAccount.sql` (SRP v2, in Kotlin) | `login_ticket` returned; a wrong password and `logie` (other case) return no ticket. The verifier for a fixed salt is now a unit test |
 | `worldserver` | connected, applied the world/custom/hotfix updates, `Using World DB: TDB 1210.26091`, `Realm running as realm ID 70`, then stopped on **`Map file .../0000_43_31.map does not exist`**: it needs the extracted map data |
 
+| `mapextractor` (arm64, from the package) on the essential install the app's TACT installer wrote | **opened the storage** (`Opened casc storage .../Data`, `Detected client build 70938 for locale enUS`), then stopped at the first db2 (`AccountStoreCategory.db2: FILE_NOT_FOUND`), which isn't in Blizzard's priority-0 set: the realm needs the full download. It also warns that its online encryption-key list returned `426` here (non-fatal; some encrypted files may not extract) |
+
 What this rig could not do: the maps need the full client (47 GiB) and then the map extraction (about 45 GB at its peak, hours); the rig has 18 GB free.
 So the world server was not brought up, and nothing past the login server's REST login (the Battle.net client handshake on port 1120, the realm list,
 the character screen, a world, an NPC) has been run: no GPU here, and the real client crashes in Wine's network code on this rig.
