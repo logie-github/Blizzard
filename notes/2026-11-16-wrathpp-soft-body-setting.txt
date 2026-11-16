@@ -1,0 +1,1 @@
+Wrath++ has a Soft body setting (Off, Subtle, Natural, Strong) on Settings' Wrath++ page, kept between runs.

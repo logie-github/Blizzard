@@ -229,9 +229,15 @@ function WPP.loadParts()
     return parts
 end
 
--- Tells the native mod where the women's breast bones are (it springs them: WrathPP_SetSoftBody).
+-- Tells the native mod where the women's breast bones are (it springs them: WrathPP_SetSoftBody), and the level the app's Settings chose
+-- (its interface patch's WrathppSoftBody.lua: `WrathppSoftBodyLevel = 2`).
 function WPP.setSoftBody(list)
     if not (wxl.script and wxl.script.Run) then return end
+    if wxl.storage and wxl.storage.Read then
+        local ok, text = pcall(wxl.storage.Read, "Interface\\GlueXML\\WrathppSoftBody.lua")
+        local level = ok and type(text) == "string" and tonumber(text:match("WrathppSoftBodyLevel%s*=%s*(%d)"))
+        if level then pcall(wxl.script.Run, "if WrathPP_SetSoftBodyLevel then WrathPP_SetSoftBodyLevel(" .. level .. ") end", "wrathpp-soft") end
+    end
     for _, c in ipairs(list) do
         local a, b = c.sides[1], c.sides[2]
         if c.count and c.parent and a.bone and b.bone then

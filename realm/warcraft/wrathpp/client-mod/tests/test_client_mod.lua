@@ -119,11 +119,15 @@ check(chunk:find("PHorns.m2|6||||11", 1, true), "  her horns: choice 6 on the he
 check(chunk:find("PEyebrows.m2|3||Character", 1, true) and chunk:find("Hair00_03.blp", 1, true), "  her eyebrows: choice 3 in the third hair colour's texture")
 mock.files["Wrathpp\\parts.txt"] = mock.files["Wrathpp\\parts.txt"] .. "B\t1\t1\t201\t16\t23\t0.08742\t0.08189\t1.45428\t30,31\t26\t0.08742\t-0.08300\t1.45428\t\n"
 WPP.parts = nil
+mock.files["Interface\\GlueXML\\WrathppSoftBody.lua"] = "WrathppSoftBodyLevel = 3\n"
 local before = #mock.ran
 WPP.applyParts("0x00000000000000B6")
 local soft
 for k = before + 1, #mock.ran do if mock.ran[k].chunk:find("WrathPP_SetSoftBody", 1, true) then soft = mock.ran[k].chunk end end
 check(soft and soft:find("WrathPP_SetSoftBody(201,16,23,0.08742,0.08189,1.45428,\"30,31\",26,", 1, true), "  the women's breast bones go to the native mod when the parts table is read")
+local level
+for k = before + 1, #mock.ran do if mock.ran[k].chunk:find("WrathPP_SetSoftBodyLevel(3)", 1, true) then level = true end end
+check(level, "  and the level the app's Settings chose")
 WPP.looks["0x00000000000000B3"] = { race = 10, sex = 0, class = 1, version = 3, entries = {} }
 local before = #mock.ran
 WPP.applyParts("0x00000000000000B3")

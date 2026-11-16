@@ -89,7 +89,9 @@ object WrathppSetup {
             val creator = if (creatorOff) mapOf(OFF_NOTE to offNote(com.logie.blizz.BuildConfig.VERSION_CODE).toByteArray(Charsets.UTF_8))
             else glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead, shots)
             // (the allied races' race buttons, pictures and texts are for the game's own screen as for the creator's: always)
-            val files = creator + ALLIED_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
+            val creator0 = creator + ALLIED_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
+            // (the soft body's level, for the add-on: WrathppSoftBody)
+            val files = creator0 + (WrathppSoftBody.FILE_NAME to WrathppSoftBody.script(WrathppSoftBody.chosen(context.filesDir)))
             WrathppAddon.writeGluePatch(layout.wrathppClient, files)
             files
         }.onSuccess { files ->
