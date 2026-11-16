@@ -14,9 +14,29 @@ import java.nio.ByteOrder
  * Resumable: [open] reads back what an earlier run wrote (the index files and the data files' lengths).
  */
 class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L shl 30) {
-    private class Entry(val key9: ByteArray, val segment: Int, val offset: Long, val size: Int)
+    /** What is stored, in primitive arrays (a million entries as objects and hex strings would not fit a phone's memory). */
+    private var n = 0
+    private var key9s = ByteArray(9 * 1024)
+    private var segs = IntArray(1024)
+    private var offs = LongArray(1024)
+    private var lens = IntArray(1024)
+    private val index = LongIntMap(1024)
 
-    private val entries = HashMap<String, Entry>()
+    private fun find(key9: ByteArray): Int {
+        val j = index[key9.prefix64()]
+        if (j < 0) return -1
+        for (k in 0 until 9) if (key9s[j * 9 + k] != key9[k]) return -1
+        return j
+    }
+
+    private fun put(key9: ByteArray, segment: Int, offset: Long, size: Int) {
+        val at = find(key9).takeIf { it >= 0 } ?: run {
+            if (n == segs.size) { key9s = key9s.copyOf(key9s.size * 2); segs = segs.copyOf(n * 2); offs = offs.copyOf(n * 2); lens = lens.copyOf(n * 2) }
+            System.arraycopy(key9, 0, key9s, n * 9, 9); index[key9.prefix64()] = n
+            n.also { n++ }
+        }
+        segs[at] = segment; offs[at] = offset; lens[at] = size
+    }
     private var segment = 0
     private var raf: RandomAccessFile? = null
     private var indexVersion = 1
@@ -38,14 +58,14 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
                 val key9 = d.copyOfRange(p, p + 9)
                 var off = 0L; for (k in 0 until 5) off = (off shl 8) or (d[p + 9 + k].toLong() and 0xff)
                 val len = ((d[p + 14].toInt() and 0xff) shl 24) or ((d[p + 15].toInt() and 0xff) shl 16) or ((d[p + 16].toInt() and 0xff) shl 8) or (d[p + 17].toInt() and 0xff)
-                entries[key9.hex()] = Entry(key9, (off shr 30).toInt(), off and ((1L shl 30) - 1), len)
+                put(key9, (off shr 30).toInt(), off and ((1L shl 30) - 1), len)
                 if ((off shr 30).toInt() > segment) segment = (off shr 30).toInt()
             }
         }
     }
 
-    fun has(ekey: ByteArray) = entries.containsKey(ekey.copyOf(9).hex())
-    val count get() = entries.size
+    fun has(ekey: ByteArray) = find(ekey.copyOf(9)) >= 0
+    val count get() = n
 
     private fun segmentFile(n: Int) = File(dataDir, "data.%03d".format(n))
 
@@ -58,11 +78,11 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
 
     /** The BLTE bytes stored for [ekey] (what [add] was given), or null. */
     @Synchronized fun read(ekey: ByteArray): ByteArray? {
-        val e = entries[ekey.copyOf(9).hex()] ?: return null
-        raf?.let { if (e.segment == segment) it.fd.sync() }
-        RandomAccessFile(segmentFile(e.segment), "r").use { f ->
-            f.seek(e.offset + HEADER)
-            return ByteArray(e.size - HEADER).also { f.readFully(it) }
+        val j = find(ekey.copyOf(9)).takeIf { it >= 0 } ?: return null
+        raf?.let { if (segs[j] == segment) it.fd.sync() }
+        RandomAccessFile(segmentFile(segs[j]), "r").use { f ->
+            f.seek(offs[j] + HEADER)
+            return ByteArray(lens[j] - HEADER).also { f.readFully(it) }
         }
     }
 
@@ -76,7 +96,7 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
         f.seek(offset)
         f.write(localHeader(ekey, total, offset))
         f.write(blte)
-        entries[ekey.copyOf(9).hex()] = Entry(ekey.copyOf(9), segment, offset, total)
+        put(ekey.copyOf(9), segment, offset, total)
     }
 
     /**
@@ -92,7 +112,7 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
         f.write(localHeader(ekey, total, offset))
         var done = 0L
         while (done < size) { val n = minOf(8L shl 20, size - done).toInt(); f.write(read(done, n)); done += n }
-        entries[ekey.copyOf(9).hex()] = Entry(ekey.copyOf(9), segment, offset, total)
+        put(ekey.copyOf(9), segment, offset, total)
     }
 
     /** Writes the 16 index files (a new version of each, the older ones removed) and closes the data file. */
@@ -100,10 +120,10 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
         raf?.close(); raf = null
         val old = dataDir.listFiles { f -> f.name.endsWith(".idx") }.orEmpty()
         val version = (old.maxOfOrNull { it.name.substring(2, 10).toLongOrNull(16) ?: 0L } ?: 0L).toInt() + 1
-        val buckets = (0 until 16).map { ArrayList<Entry>() }
-        for (e in entries.values) buckets[bucket(e.key9)] += e
+        val buckets = Array(16) { ArrayList<Int>() }
+        for (j in 0 until n) buckets[bucket(key9s.copyOfRange(j * 9, j * 9 + 9))].add(j)
         for (b in 0 until 16) {
-            val list = buckets[b].sortedWith { x, y -> compareUnsigned(x.key9, y.key9) }
+            val list = buckets[b].sortedWith { x, y -> compareRange(key9s, x * 9, y * 9) }
             val tmp = File(dataDir, "%02x%08x.idx.tmp".format(b, version))
             tmp.writeBytes(indexFile(b, list))
             if (!tmp.renameTo(File(dataDir, "%02x%08x.idx".format(b, version)))) throw IOException("an index file couldn't be saved")
@@ -112,16 +132,18 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
         indexVersion = version
     }
 
-    private fun indexFile(bucket: Int, list: List<Entry>): ByteArray {
+    private fun compareRange(a: ByteArray, x: Int, y: Int): Int { for (k in 0 until 9) { val d = (a[x + k].toInt() and 0xff) - (a[y + k].toInt() and 0xff); if (d != 0) return d }; return 0 }
+
+    private fun indexFile(bucket: Int, list: List<Int>): ByteArray {
         val header = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN)
         header.putShort(7).put(bucket.toByte()).put(0).put(4).put(5).put(9).put(30).putLong(segmentSize)
         val body = ByteArray(list.size * ENTRY)
-        for ((i, e) in list.withIndex()) {
+        for ((i, j) in list.withIndex()) {
             val p = i * ENTRY
-            System.arraycopy(e.key9, 0, body, p, 9)
-            val off = (e.segment.toLong() shl 30) or e.offset
+            System.arraycopy(key9s, j * 9, body, p, 9)
+            val off = (segs[j].toLong() shl 30) or offs[j]
             for (k in 0 until 5) body[p + 9 + k] = (off shr (8 * (4 - k))).toByte()
-            for (k in 0 until 4) body[p + 14 + k] = (e.size shr (8 * (3 - k))).toByte()
+            for (k in 0 until 4) body[p + 14 + k] = (lens[j] shr (8 * (3 - k))).toByte()
         }
         // the entries' hash is Blizzard's: hashlittle2 over each entry in turn, the first result chained through
         var hi = 0; var lo = 0
