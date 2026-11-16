@@ -49,11 +49,12 @@ check(MAX_RACES == 21, "the screen counts 21 races")
 do
 	local missing = {}
 	for _, name in ipairs(tokens) do
-		for _, sex in ipairs({ "MALE", "FEMALE" }) do if not RACE_ICON_TCOORDS[strupper(name).."_"..sex] then missing[#missing + 1] = name.."_"..sex end end
+		for _, sex in ipairs({ "MALE", "FEMALE" }) do if not rawget(RACE_ICON_TCOORDS, strupper(name).."_"..sex) then missing[#missing + 1] = name.."_"..sex end end
 	end
 	check(#missing == 0, "every race's icon has its place on the sheet, as the screen's own code looks it up by file string and sex"..(#missing > 0 and (": "..table.concat(missing, ", ")) or ""))
 	check(RACE_ICON_TCOORDS.VOIDELF_MALE[1] == RACE_ICON_TCOORDS.BLOODELF_MALE[1], "  an allied race takes its start race's place for the big icon")
 end
+check(RACE_ICON_TCOORDS.MURLOC_MALE and RACE_ICON_TCOORDS.MURLOC_MALE[2] == 1, "a race the script doesn't know (another patch's tables) gets the whole picture, not nil: the screen's loop over the races doesn't stop")
 check(CharacterCreateRaceButton11 == AlliedRaceButton11 and CharacterCreateRaceButton21 == AlliedRaceButton21, "the xml's buttons have the names the screen looks for")
 check(CharacterCreateRaceButton11NormalTexture == AlliedRaceButton11NormalTexture, "  with their pictures")
 check(CharacterCreateRaceButton11.parent == config, "  and the screen's frame as parent")
