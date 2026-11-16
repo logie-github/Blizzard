@@ -1,0 +1,1 @@
+World of Warcraft: Forever downloads its game from Blizzard's own servers (about 49 GB, no account), or uses a folder you already have.

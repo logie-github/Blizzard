@@ -159,6 +159,7 @@ fun Launcher() {
     var controlsFor by remember { mutableStateOf<Game?>(null) }
     var musicFor by remember { mutableStateOf<Game?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var foreverOpen by remember { mutableStateOf(false) }
     remember { TileSettings.load(context) }
     LaunchedEffect(Unit) { Variants.load(context) }
     // Music: the launcher's track on the shelf, a game's from the moment its page is open (the version chosen: Warcraft III's, StarCraft's).
@@ -177,11 +178,8 @@ fun Launcher() {
     fun play(shown: Game) {
         // The installation of it the page shows (StarCraft: classic or Remastered).
         val game = Variants.effective(shown)
-        // World of Warcraft: Forever: its page is kept; everything behind it was removed (15 November 2026) to be made again from nothing.
-        if (game.id == "wow_forever") {
-            android.widget.Toast.makeText(context, "World of Warcraft: Forever is being rebuilt from the start. It can't be played in this version.", android.widget.Toast.LENGTH_LONG).show()
-            return
-        }
+        // World of Warcraft: Forever: the new integration (forevernew/): Install & Play runs its stages and says plainly what isn't built yet.
+        if (game.id == "wow_forever") { foreverOpen = true; return }
         // Wrath++ (experimental): made from the Wrath+ import, so it plays from that entry ([com.logie.blizz.game.WowPlay] with wrathpp).
         if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) {
             val wrath = GameImportManager.library(context).get("wow")
@@ -243,6 +241,7 @@ fun Launcher() {
         controlsFor?.let { ControlsScreen(it, onDismiss = { controlsFor = null }) }
         musicFor?.let { MusicDialog(it, onDismiss = { musicFor = null }) }
         if (settingsOpen) SettingsDialog(onDismiss = { settingsOpen = false })
+        if (foreverOpen) ForeverDialog(onDismiss = { foreverOpen = false })
         wizardFor?.let { game -> ImportWizard(game, onDismiss = { wizardFor = null }, onPlay = { play(game) }) }
         RuntimeOverlay()
         SelfTestDialog()

@@ -48,6 +48,8 @@ object WowPlay {
     const val OCTO_ID = "wow_octowow"
     /** The imported Legion's library id. */
     const val LEGION_ID = "wow_legion"
+    /** WoW Forever's page ([com.logie.blizz.forevernew.ForeverLaunch]). */
+    const val FOREVER_ID = "wow_forever"
     /** Wrath++'s page (experimental, docs/wrathpp): no import of its own; it is made from Wrath+'s ([play] with wrathpp). */
     const val WRATHPP_ID = "wow_wrathpp"
 
@@ -294,6 +296,7 @@ object WowPlay {
     fun splashIdOf(entry: LibraryEntry): String = if (entry.gameId == GAME_ID) when (entry.clientVersion) {
         OctoClientSetup.VERSION -> OCTO_ID
         LegionClientSetup.VERSION -> LEGION_ID
+        com.logie.blizz.forevernew.ForeverLaunch.VERSION -> FOREVER_ID
         else -> "wow"
     } else when (entry.gameId) { OCTO_ID, LEGION_ID -> entry.gameId; else -> entry.gameId }
 
