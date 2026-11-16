@@ -16,15 +16,26 @@ import java.io.File
 object ForeverDb {
     val DATABASES = listOf("auth", "world", "characters", "hotfixes", "playerbot")
 
-    /** The bootstrap SQL for a fresh data folder: MariaDB's system tables and data, with the install script's variables set. */
+    /**
+     * The bootstrap SQL for a fresh data folder, as the package's own `mariadb-install-db` makes it (its `cat_sql`, with the
+     * "normal" root login: no password, reachable only through the app's own socket and loopback): the system tables, the
+     * performance tables, their data, the help tables, the GIS procedures and the sys schema. One statement per line group, the
+     * way bootstrap mode reads them. Found and fixed by running this against the package's MariaDB 11.4 under qemu.
+     */
     fun bootstrapSql(share: File): String = buildString {
-        append("SET @auth_root_socket=NULL; SET @skip_auth_root_nopasswd=1; SET @current_hostname='localhost';\n")
-        append("create database if not exists mysql;\nuse mysql;\n")
-        for (name in listOf("mysql_system_tables.sql", "mysql_system_tables_data.sql", "fill_help_tables.sql")) {
+        append("create database if not exists mysql;\nuse mysql;\nSET @auth_root_socket=NULL;\n")
+        for (name in BOOTSTRAP_FILES) {
             val f = File(share, name)
-            if (f.isFile) append(f.readText()).append('\n')
+            if (!f.isFile) throw java.io.IOException("MariaDB's $name is missing from the server package")
+            append(f.readText()).append('\n')
         }
     }
+
+    /** MariaDB 11.4's names, in `mariadb-install-db`'s order. */
+    val BOOTSTRAP_FILES = listOf(
+        "mariadb_system_tables.sql", "mariadb_performance_tables.sql", "mariadb_system_tables_data.sql",
+        "fill_help_tables.sql", "maria_add_gis_sp_bootstrap.sql", "mariadb_sys_schema.sql",
+    )
 
     fun needsBootstrap(layout: ForeverLayout) = !File(layout.db, "mysql").isDirectory
 

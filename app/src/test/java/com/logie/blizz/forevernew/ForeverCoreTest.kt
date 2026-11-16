@@ -241,4 +241,14 @@ class ForeverCoreTest {
         val plan = ForeverDb.importPlan(layout, File("w.sql"), File("h.sql"))
         assertEquals(listOf("auth", "characters", "world", "hotfixes", "playerbot", "playerbot"), plan.map { it.first })
     }
+
+    @Test fun bootstrapSqlFollowsInstallDbOrderAndNamesOfMariaDb114() {
+        val share = tmp.newFolder("share")
+        for (n in ForeverDb.BOOTSTRAP_FILES) File(share, n).writeText("-- $n\nSELECT 1;\n")
+        val sql = ForeverDb.bootstrapSql(share)
+        assertTrue(sql.startsWith("create database if not exists mysql;\nuse mysql;\nSET @auth_root_socket=NULL;\n"))
+        assertEquals(ForeverDb.BOOTSTRAP_FILES, ForeverDb.BOOTSTRAP_FILES.sortedBy { sql.indexOf("-- $it") })
+        File(share, "fill_help_tables.sql").delete()
+        assertTrue(runCatching { ForeverDb.bootstrapSql(share) }.exceptionOrNull()!!.message!!.contains("fill_help_tables.sql"))
+    }
 }
