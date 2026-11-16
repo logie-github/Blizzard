@@ -86,7 +86,7 @@ jobs:
           sha=$(sha256sum "$PACKAGE_ASSET" | cut -d' ' -f1)
           unpacked=$(xz -dc "$PACKAGE_ASSET" | wc -c)
           components=$(tar -xJOf "$PACKAGE_ASSET" forever/COMPONENTS.sha256 | jq -R -s 'split("\n") | map(select(length>0) | split("  ") | {(.[1]): .[0]}) | add')
-          builds=$(grep -E '^[0-9]+$' /tmp/client-builds.txt | jq -R -s 'split("\n") | map(select(length>0) | tonumber)')
+          builds=$(tr -d '\r' < /tmp/client-builds.txt | grep -E '^[0-9]+$' | jq -R -s 'split("\n") | map(select(length>0) | tonumber)')
           jq -n --argjson size "$size" --arg sha "$sha" --argjson unpacked "$unpacked" --argjson format "$PACKAGE_FORMAT" \
             --arg source "$CORE_COMMIT" --arg upstream "$UPSTREAM_VERSION" --arg commit "${{ github.sha }}" \
             --argjson components "$components" --argjson builds "$builds" \
