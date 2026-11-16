@@ -23,7 +23,7 @@ check(R.visible("WrathppAlliancePanel") and R.visible("WrathppHordePanel") and R
 check(not R.visible("CharacterCreateConfigurationFrame") and not R.visible("CharacterCreateWoWLogo") and not R.visible("CharacterCreateCharacterRace") and not R.visible("CharCreateOkayButton")
 	and not R.visible("CharacterCreateNameEdit") and not R.visible("CharacterCustomizationButtonFrame1"), "  the game's own panel, its logo, its two texts, its Accept and the name put away")
 check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCreateClassButton3") and not R.visible("CharacterCreateGenderButtonFemale")
-	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace6") and WrathppRace6.__parent == WrathppHordeRaces
+	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace"..#R.G.races) and _G["WrathppRace"..#R.G.races].__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
 check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.9.1, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
