@@ -30,7 +30,17 @@ object ForeverClientDownload {
     fun release(region: String = "us", fetch: (String) -> String = HttpCdn::fetch): Release {
         val v = TactText.table(fetch("${HttpCdn.VERSIONS}/$PRODUCT/versions")).firstOrNull { it["Region"] == region } ?: throw IOException("Blizzard's servers list no $PRODUCT build")
         val c = TactText.table(fetch("${HttpCdn.VERSIONS}/$PRODUCT/cdns")).firstOrNull { it["Name"] == region } ?: throw IOException("Blizzard's servers list no content servers")
-        return Release(v["BuildConfig"]!!, v["CDNConfig"]!!, v["VersionsName"]!!, v["BuildId"]!!.toInt(), c["Hosts"]!!.split(' ').filter { it.isNotEmpty() }, c["Path"]!!)
+        return Release(v["BuildConfig"]!!, v["CDNConfig"]!!, v["VersionsName"]!!, v["BuildId"]!!.toInt(), httpsHosts(c["Servers"].orEmpty(), c["Hosts"].orEmpty()), c["Path"]!!)
+    }
+
+    /**
+     * The hosts to fetch from. The `cdns` file's plain Hosts include servers that only speak HTTP (`level3.blizzard.com`); the app only uses
+     * HTTPS, so the https entries of its Servers column come first (query strings dropped), the Hosts after them. (Asking an HTTP-only host over
+     * HTTPS stalled the first run on a phone, at "Storing the build's metadata".)
+     */
+    fun httpsHosts(servers: String, hosts: String): List<String> {
+        val https = servers.split(' ').filter { it.startsWith("https://") }.map { it.removePrefix("https://").substringBefore('/').substringBefore('?') }
+        return (https + hosts.split(' ').filter { it.isNotEmpty() }).filter { it.isNotEmpty() }.distinct()
     }
 
     /** True if [builds] (the server's supported list) has the build Blizzard currently serves. */

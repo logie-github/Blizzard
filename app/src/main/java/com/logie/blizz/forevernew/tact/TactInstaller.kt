@@ -51,7 +51,10 @@ class TactInstaller(
             if (writer.has(ek.unhex())) continue
             say("Storing the build's metadata (${i + 1} of ${meta.size})", i.toFloat() / meta.size)
             val rawSize = cdn.size("data", ek)
-            writer.addStreamed(ek.unhex(), rawSize) { off, n -> cdn.get("data", ek, off, n.toLong()) }
+            writer.addStreamed(ek.unhex(), rawSize) { off, n ->
+                say("Storing the build's metadata (${i + 1} of ${meta.size}): ${off shr 20} / ${rawSize shr 20} MB", (i + off.toFloat() / rawSize.coerceAtLeast(1)) / meta.size)
+                cdn.get("data", ek, off, n.toLong())
+            }
         }
         writer.finish()
         val install = InstallManifest.parse(Blte.decode(cdn.get("data", installEKey)))

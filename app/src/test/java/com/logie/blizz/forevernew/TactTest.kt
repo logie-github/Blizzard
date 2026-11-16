@@ -150,4 +150,22 @@ class TactTest {
         assertTrue(ForeverClientDownload.supported(r, listOf(70938, 70888))); assertFalse(ForeverClientDownload.supported(r, listOf(70888)))
         assertTrue(ForeverClientDownload.spaceNeeded(ForeverClientDownload.ALL) > 49L shl 30)
     }
+
+    @Test fun httpsHostsComeFirstAndHttpOnlyOnesAreLast() {
+        val servers = "http://level3.blizzard.com/?maxhosts=8 http://us.cdn.blizzard.com/?maxhosts=4&fallback=1 https://level3.ssl.blizzard.com/?maxhosts=4&fallback=1 https://us.cdn.blizzard.com/?maxhosts=4&fallback=1"
+        assertEquals(listOf("level3.ssl.blizzard.com", "us.cdn.blizzard.com", "level3.blizzard.com"), ForeverClientDownload.httpsHosts(servers, "level3.blizzard.com us.cdn.blizzard.com"))
+        assertEquals(listOf("a.example"), ForeverClientDownload.httpsHosts("", "a.example"))
+    }
+
+    @Test fun cdnTriesTheNextHostAndKeepsTheOneThatAnswered() {
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/p") { ex -> val body = "hello".toByteArray(); ex.sendResponseHeaders(200, body.size.toLong()); ex.responseBody.use { it.write(body) } }
+        server.start()
+        try {
+            val cdn = HttpCdn(listOf("127.0.0.1:1", "127.0.0.1:${server.address.port}"), "p", scheme = "http")
+            val hash = "aabbccddeeff00112233445566778899"
+            assertEquals("hello", String(cdn.get("data", hash)))
+            assertEquals("hello", String(cdn.get("data", hash))) // the second ask goes to the host that answered first
+        } finally { server.stop(0) }
+    }
 }
