@@ -26,6 +26,9 @@ RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON,
 ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, DARKIRON, MECHAGNOME, HIGHELF)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
 FOLDED = {}
+# A death knight's face rows need the flag its skins have (0x10; the client's GetSelectionFromContext asks for 0x1 and 0x14), as the ten
+# races' do: 17, not the module's 1 (with 1 a death knight of these races has no valid face: the rig's failures, issue 294's neighbours).
+FACE_ROW_FLAGS = 17
 MOVED = {9: 32, **{old: old + 10 for old in range(12, 22)}}
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
