@@ -39,7 +39,7 @@ jobs:
           git clone -q --depth 1 --filter=blob:none --sparse "$CORE_REPO" core
           git -C core fetch -q --depth 1 origin "$CORE_COMMIT"
           git -C core checkout -q FETCH_HEAD
-          git -C core sparse-checkout set data/sql/base/db_world
+          git -C core sparse-checkout set data/sql/base/db_world data/sql/updates/db_world
           line=$(grep '^mod-worgoblin ' realm/warcraft/server-version.env)
           url=$(echo "$line" | cut -d' ' -f2); commit=$(echo "$line" | cut -d' ' -f3)
           git init -q worgoblin
@@ -47,7 +47,9 @@ jobs:
           git -C worgoblin checkout -q FETCH_HEAD
 
       - name: With ChromieCraft's ids the committed data again
+        shell: bash
         run: |
+          set -eo pipefail
           cd realm/warcraft/modules/mod-worgen-goblin
           python3 tools/build_data.py "$GITHUB_WORKSPACE/server-data/dbc" "$GITHUB_WORKSPACE/worgoblin" "$GITHUB_WORKSPACE/core" | tail -5
           if ! git diff --quiet -- data; then
@@ -59,7 +61,9 @@ jobs:
           git checkout -- data
 
       - name: With Wrath++'s ids
+        shell: bash
         run: |
+          set -eo pipefail
           cd realm/warcraft/modules/mod-worgen-goblin
           WORGEN_GOBLIN_RACES=22,23 WORGEN_GOBLIN_MOVED=none python3 tools/build_data.py "$GITHUB_WORKSPACE/server-data/dbc" "$GITHUB_WORKSPACE/worgoblin" "$GITHUB_WORKSPACE/core" | tail -8
           mkdir -p "$GITHUB_WORKSPACE/out/client" "$GITHUB_WORKSPACE/out/server"
