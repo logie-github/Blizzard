@@ -36,8 +36,7 @@ jobs:
 
       - name: Wrath++'s own tests (protocol, registry, client mod, ctl.sh isolation)
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq luajit > /dev/null
-          pip install -q numpy pillow
+          sudo apt-get update -qq && sudo apt-get install -y -qq luajit python3-numpy python3-pil > /dev/null
           warcraft/wrathpp/protocol/tests/run.sh
           warcraft/wrathpp/client-mod/tests/run.sh
           warcraft/wrathpp/tests/test-isolation.sh
