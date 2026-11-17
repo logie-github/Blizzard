@@ -61,6 +61,18 @@ def unescape(text):
     return "".join(out)
 
 
+def sort_char_sections(table):
+    """CharSections in the order the client's component code needs (BuildComponentArray reads a table in runs of one race, sex,
+    section and variation: a group split over several runs is sized by its last run, and an earlier run's higher variation writes
+    past the array): a stable sort on those four, the order within a group kept. The same sort the app makes at every Play
+    (WrathppSections), done here so the server's tables, the rig's and CI's checks read the table as the game will."""
+    import struct as _s
+    keyed = sorted(range(len(table.records)),
+                   key=lambda i: (_s.unpack_from("<I", table.records[i], 4)[0], _s.unpack_from("<I", table.records[i], 8)[0],
+                                  _s.unpack_from("<I", table.records[i], 12)[0], _s.unpack_from("<I", table.records[i], 32)[0], i))
+    table.records = [table.records[i] for i in keyed]
+
+
 def apply(table, changes):
     """The changes (a file's text) applied to [table]; raises ValueError with the line on anything it can't do."""
     has_ids = table.size >= 4

@@ -45,6 +45,14 @@ def rows(t, kinds="iisf"):
 
 
 class ApplyTest(unittest.TestCase):
+    def test_char_sections_sorted_in_runs_keeping_the_order_within_a_group(self):
+        # id race sex section tex1 tex2 tex3 flags variation colour: race 5's variation 0 split over two runs by a later row
+        rows = [(1, 5, 0, 0, 0, 0, 0, 1, 0, 0), (2, 5, 0, 0, 0, 0, 0, 1, 1, 0), (3, 4, 0, 0, 0, 0, 0, 1, 0, 0), (4, 5, 0, 0, 0, 0, 0, 4, 0, 1),
+                (5, 4, 1, 0, 0, 0, 0, 1, 0, 0), (6, 5, 0, 0, 0, 0, 0, 1, 1, 1)]
+        t = table(rows, "i" * 10)
+        A.sort_char_sections(t)
+        got = [struct.unpack_from("<I", r, 0)[0] for r in t.records]
+        self.assertEqual(got, [3, 5, 1, 4, 2, 6])
     def test_round_trip(self):
         t = table([[1, 2, "Orc", 1.5], [2, 3, "Human\\Male", 2.0]])
         self.assertEqual(rows(A.Table(t.write())), rows(t))

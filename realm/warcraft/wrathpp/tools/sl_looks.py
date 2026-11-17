@@ -689,6 +689,8 @@ def assemble(stock_dbc_dir, out_dir, change_dirs):
             table = apply_client.Table(f.read())
         with open(os.path.join(out_dir, "changes", name), encoding="utf-8") as f:
             apply_client.apply(table, f.read())
+        if table_name == "CharSections":
+            apply_client.sort_char_sections(table)
         with open(os.path.join(out_dir, "dbc", table_name + ".dbc"), "wb") as f:
             f.write(table.write())
     print("assembled %d tables" % len(names))
