@@ -45,6 +45,8 @@ object ForeverPlay {
         val runner = ForeverSteps(layout, Build.SUPPORTED_ABIS.toList(), totalRamMb(app), signal = { pid, sig -> android.os.Process.sendSignal(pid, sig) })
         steps = runner
         _status.value = Status(ForeverState.DOWNLOADING, "Starting", null, true)
+        // Kept alive in the foreground for as long as its programs run (the realm's other versions have such a service).
+        ForeverService.start(app)
         Thread({
             val logs = ForeverLogs(File(layout.logs, "forever-events.log"))
             val installer = ForeverInstaller(layout, runner, ForeverStateStore(layout.stateFile), logs)
