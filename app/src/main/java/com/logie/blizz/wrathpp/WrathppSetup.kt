@@ -75,6 +75,11 @@ object WrathppSetup {
         runCatching { WrathppBare.apply(layout.wrathppClient) }
             .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }
             .onFailure { e -> notes.append("body option (underwear layer) FAILED: ${e.message}\n") }
+        // The character table in the order the game's component code needs (WrathppSections, issue 294): every race, sex, section and
+        // variation one run of rows, after every step above that adds rows.
+        runCatching { WrathppSections.apply(layout.wrathppClient) }
+            .onSuccess { notes.append("character sections: $it\n") }
+            .onFailure { e -> notes.append("character sections FAILED: ${e.message}\n") }
         // The game's creation screen crashes at Create Character when a race's display row is missing (report #272): named here when it is.
         runCatching {
             val added = WrathppDisplayCheck.repair(layout.wrathppClient)
