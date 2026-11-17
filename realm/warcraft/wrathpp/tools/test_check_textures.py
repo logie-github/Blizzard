@@ -64,6 +64,14 @@ class CheckTextures(unittest.TestCase):
         self.assertEqual(code, 1, out)
         self.assertIn("mip levels", out)
 
+    def test_a_skins_extra_texture_is_not_pasted(self):
+        d = self.folder({"Character\\A\\skin.blp": blp.write_palette(rgba(512, 512)), "Character\\A\\extra.blp": blp.write_dxt(rgba(1024, 512))}, [])
+        lines = open(os.path.join(d, "changes", "CharSections.txt")).read()
+        lines += "\t".join(["put", "9", "12", "0", "0", "Character\\A\\skin.blp", "Character\\A\\extra.blp", "", "0", "0", "0"]) + "\n"
+        open(os.path.join(d, "changes", "CharSections.txt"), "w").write(lines)
+        code, out = self.run_check(d)
+        self.assertEqual(code, 0, out)
+
     def test_the_games_own_are_not_missing_problems(self):
         d = self.folder({}, [(0, "Character\\Human\\Male\\HumanMaleSkin00_00.blp")])
         code, out = self.run_check(d)

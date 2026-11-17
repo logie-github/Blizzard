@@ -43,7 +43,8 @@ def textures(changes_text):
         elif f[0] == "put" and len(f) == len(types) + 1 and len(types) == 10:
             v = f[1:]
             section = int(v[3])
-            for i in (4, 5, 6):
+            # (only the pasted ones: a skin's second texture is its model's own 'extra' texture, loaded as it is; the third is unused)
+            for i in ((4,) if section == 0 else (4, 5)):
                 if v[i]:
                     out.append((int(v[1]), int(v[2]), section, v[i].replace("\\\\", "\\")))
     return out
