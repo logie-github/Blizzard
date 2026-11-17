@@ -9,8 +9,8 @@
 --  * Their text.
 -- Loaded after the game's own screens and before WrathppCreate.lua (the file names sort so).
 
-local BACKGROUNDS = { VOIDELF = "BloodElf", LIGHTFORGEDDRAENEI = "Draenei", DARKIRONDWARF = "Dwarf", MECHAGNOME = "Gnome", HIGHELF = "BloodElf", NIGHTBORNE = "NightElf", ZANDALARITROLL = "Orc", HIGHMOUNTAINTAUREN = "Tauren", VULPERA = "Orc", MAGHARORC = "Orc" };
-local SIDES = { VOIDELF = "Alliance", LIGHTFORGEDDRAENEI = "Alliance", DARKIRONDWARF = "Alliance", MECHAGNOME = "Alliance", HIGHELF = "Alliance", NIGHTBORNE = "Horde", ZANDALARITROLL = "Horde", HIGHMOUNTAINTAUREN = "Horde", VULPERA = "Horde", MAGHARORC = "Horde", HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance", ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde" };
+local BACKGROUNDS = { VOIDELF = "BloodElf", LIGHTFORGEDDRAENEI = "Draenei", DARKIRONDWARF = "Dwarf", MECHAGNOME = "Gnome", HIGHELF = "BloodElf", NIGHTBORNE = "NightElf", ZANDALARITROLL = "Orc", HIGHMOUNTAINTAUREN = "Tauren", VULPERA = "Orc", MAGHARORC = "Orc", DARKTROLL = "NightElf" };
+local SIDES = { VOIDELF = "Alliance", LIGHTFORGEDDRAENEI = "Alliance", DARKIRONDWARF = "Alliance", MECHAGNOME = "Alliance", HIGHELF = "Alliance", NIGHTBORNE = "Horde", ZANDALARITROLL = "Horde", HIGHMOUNTAINTAUREN = "Horde", VULPERA = "Horde", MAGHARORC = "Horde", DARKTROLL = "Alliance", HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance", ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde" };
 local ICON_PATH = "Interface\\Glues\\CharacterCreate\\WrathppRaces\\"
 local ICONS = { }
 for token in pairs(BACKGROUNDS) do ICONS[token] = ICON_PATH..token end
@@ -156,6 +156,12 @@ ABILITY_INFO_MECHAGNOME3 = "- Escape Artist: Escape roots and snares.";
 ABILITY_INFO_MECHAGNOME4 = "- Engineering Specialization.";
 MECHAGNOME_DISABLED = "Mechagnome can't be made on this realm.";
 
+RACE_INFO_DARKTROLL = "Grey and violet trolls of the mountain forests under Hyjal, the kin the night elves came from. The Shadowtooth hid from the sun, worshipped the wild gods as loa, and stood beside Tyrande's and Malfurion's people against the Legion. Few remain.";
+ABILITY_INFO_DARKTROLL1 = "- Shadowmeld: Slip into the shadows, harder to see until you move or act.";
+ABILITY_INFO_DARKTROLL2 = "- Nightstalker's Grace: Melee and ranged attackers hit you 2% less often.";
+ABILITY_INFO_DARKTROLL3 = "- Ward of the Wild Gods: Nature spells hit you 10% less often.";
+ABILITY_INFO_DARKTROLL4 = "- Shadowtooth Hush: Enemies find you less easily while shadowmelded or stealthed.";
+DARKTROLL_DISABLED = "Dark Troll can't be made on this realm.";
 RACE_INFO_HIGHELF = "The long-lived elves of Quel'Thalas who kept their old ways and their old loyalties, and stand with the Alliance.";
 ABILITY_INFO_HIGHELF1 = "- Arcane Torrent: Silences nearby enemies and restores resource (by class).";
 ABILITY_INFO_HIGHELF2 = "- Magic Resistance: Reduces magic damage taken.";

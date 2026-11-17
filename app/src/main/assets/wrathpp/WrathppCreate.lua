@@ -46,7 +46,7 @@ local RACE_ID = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUR
 local LEFT_OUT = { MURLOC = true, NAGA = true, NAGA_ = true }
 local ALLIANCE = { HUMAN = true, DWARF = true, NIGHTELF = true, GNOME = true, DRAENEI = true, WORGEN = true, VOIDELF = true,
 	LIGHTFORGEDDRAENEI = true, HIGHORDER = true, PANDAREN = true, KULTIRAN = true, DARKIRONDWARF = true, MECHAGNOME = true,
-	HIGHELF = true }
+	HIGHELF = true, DARKTROLL = true }
 -- Shadowlands lays its creator out for a screen 1080 units high (its CharacterCreateFrame is scaled by 768 over the
 -- display's height, 0.75 at most); 3.3.5's screen is 768 high on any display, so one of Shadowlands' units is
 -- 768/1080 of one here. SIZE draws all of it larger again: at a monitor's proportions a line of a list is 1.6 mm high
@@ -1526,7 +1526,7 @@ local away = make("Frame", "WrathppAway", root)
 away:Hide()
 
 local RACE_ART = { scourge = "undead", highmountaintauren = "highmountain", lightforgeddraenei = "lightforged", zandalaritroll = "zandalari",
-	highelf = "voidelf" }   -- (the High Elf has no art of its own in today's game: the Void Elf's)
+	highelf = "voidelf", darktroll = "troll" }   -- (the High Elf and the Dark Troll have no art of their own in today's game: the Void Elf's and the Troll's)
 -- One of the game's buttons' own picture and its place in its file (the picture without Shadowlands' art).
 local function plainOf(stock)
 	local t = stock and stock.GetNormalTexture and stock:GetNormalTexture()

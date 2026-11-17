@@ -169,6 +169,17 @@ class ChangesTest(unittest.TestCase):
     def test_a_race_without_replace_rows_has_no_changes(self):
         self.assertEqual(sl_looks.looks_changes({"races": {"29": LOOKS["races"]["29"]}}, self.dir.name), {})
 
+    def test_the_dark_troll_is_the_trolls_look_under_its_own_name(self):
+        troll = {"race": 8, "name": "Troll", "replace_rows": True,
+                 "models": {"0": {"folder": "Character\\Troll\\Male", "name": "TrollMale", "skins": [{"index": 0}, {"index": 1}], "faces": [], "hair": []}}}
+        dt = sl_looks.dark_troll(troll)
+        self.assertEqual(dt["alias_of"], "8")
+        self.assertEqual(dt["name"], "DarkTroll")
+        self.assertFalse(dt["replace_rows"])
+        self.assertEqual(dt["models"]["0"]["model_path"], "Character\\Troll\\Male\\TrollMale.mdx")
+        self.assertEqual(dt["models"]["0"]["skins"], troll["models"]["0"]["skins"])
+        self.assertNotIn("model_path", troll["models"]["0"])                       # (the Troll's own entry is left alone)
+
     def test_load_looks_takes_both_shapes(self):
         a = os.path.join(self.dir.name, "a.json"); b = os.path.join(self.dir.name, "b.json")
         import json

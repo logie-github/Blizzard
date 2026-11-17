@@ -488,7 +488,7 @@ def narrations(keys, read, client, log=print):
 # wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
 # app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
 RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
-              "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
+              "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "DARKTROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
 
 
 def race_icons(read, client, log=print):
@@ -731,6 +731,21 @@ def high_elf(void):
     return out
 
 
+def dark_troll(troll):
+    """The Dark Troll (the Alliance's: the Night Elves' ancestors' kin, warcraft.wiki.gg/wiki/Dark_troll), on the Troll's body: the Troll's
+    models, skins, faces, hair and features as they are (the Troll's own files: nothing of its own to convert, "alias_of"). Its voices are the
+    game's Troll's (races_profile.py's VOICE_COPY), so none are fetched. Their own skin and hair colours (the night elves' tints) are
+    made apart: docs/wrathpp/DARK_TROLLS.md."""
+    import copy
+    out = copy.deepcopy(troll)
+    out["alias_of"] = "8"
+    out["name"] = "DarkTroll"
+    out["replace_rows"] = False
+    for sex, m in out["models"].items():
+        m["model_path"] = m["folder"] + "\\" + m["name"] + ".mdx"
+    return out
+
+
 def races_data(csv_dir, out_path):
     """The races data (the format of the allied races module's data/retail/races.json: models, voices, names) for the ten
     allied races and the High Elf: what Wrath++'s race wiring (tools/races_profile.py, the allied races' build_data.py) reads."""
@@ -749,6 +764,12 @@ def races_data(csv_dir, out_path):
     he["voices"] = allied.voices(tables, 10)
     he["names"] = [{"name": n["Name"], "sex": int(n["Sex"])} for n in tables.names if n["RaceID"] == "10"]
     data["highelf"] = he
+    troll = build_races(csv_dir, {8: RACES[8]})["races"]["8"]
+    dt = dark_troll(troll)
+    dt["race"] = 8                                       # its names are the Trolls'
+    dt["voices"] = {"vocal": [], "emotes": []}
+    dt["names"] = [{"name": n["Name"], "sex": int(n["Sex"])} for n in tables.names if n["RaceID"] == "8"]
+    data["darktroll"] = dt
     with open(out_path, "w") as f:
         json.dump(data, f, indent=1, sort_keys=True)
     return data

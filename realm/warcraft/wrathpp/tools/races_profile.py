@@ -22,8 +22,9 @@ SQL_NOTE = "Wrath++'s allied races (the ten, and the High Elf), made by realm/wa
 # takes 9, the ten allied races 12 to 21. The Worgen and Goblins (mod-worgen-goblin, ids 12 and 9) need that array enlarged first.
 VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(12, 21)   # (21 is free)
 HIGHELF = 9
-RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF)
-ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, DARKIRON, MECHAGNOME, HIGHELF)
+DARKTROLL = 21        # the Alliance's dark trolls: the Troll's look and sounds, the Night Elves' start, racials and camera
+RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF, DARKTROLL)
+ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, DARKIRON, MECHAGNOME, HIGHELF, DARKTROLL)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
 FOLDED = {}
 # A death knight's face rows need the flag its skins have (0x10; the client's GetSelectionFromContext asks for 0x1 and 0x14), as the ten
@@ -33,16 +34,16 @@ MOVED = {9: 32, **{old: old + 10 for old in range(12, 22)}}
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
 CLIENT_FILE_STRING = {12: "VoidElf", 13: "Nightborne", 14: "LightforgedDraenei", 15: "ZandalariTroll", 16: "HighmountainTauren",
-                      17: "DarkIronDwarf", 18: "Vulpera", 19: "MagharOrc", 20: "Mechagnome", 9: "HighElf"}
+                      17: "DarkIronDwarf", 18: "Vulpera", 19: "MagharOrc", 20: "Mechagnome", 9: "HighElf", 21: "DarkTroll"}
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari", HIGHMOUNTAIN: "highmountain",
-       DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf"}
+       DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf", DARKTROLL: "darktroll"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}
 ALLIANCE_BITS = sum(BIT[r] for r in ALLIANCE_RACES)
 HORDE_BITS = sum(BIT[r] for r in HORDE_RACES)
 
 # Where they begin, whose quests, standing, gear and intro camera they have: the closest 3.3.5 race (the user: "draenei to
 # draenei and orc to orc").
-START = {VOIDELF: DRAENEI, LIGHTFORGED: DRAENEI, DARKIRON: DWARF, MECHAGNOME: GNOME, HIGHELF: NIGHTELF,
+START = {VOIDELF: DRAENEI, LIGHTFORGED: DRAENEI, DARKIRON: DWARF, MECHAGNOME: GNOME, HIGHELF: NIGHTELF, DARKTROLL: NIGHTELF,
          NIGHTBORNE: BLOODELF, ZANDALARI: TROLL, HIGHMOUNTAIN: TAUREN, VULPERA: ORC, MAGHAR: ORC}
 # The classes of today's races that 3.3.5 has.
 _BLOODELF_CLASSES = (PALADIN, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK)   # (3.3.5's Blood Elves have no warriors)
@@ -57,6 +58,9 @@ CLASSES_OF = {
     MAGHAR: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK, SHAMAN),
     MECHAGNOME: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK),
     HIGHELF: (WARRIOR,) + _BLOODELF_CLASSES,
+    # the dark trolls' classes (warcraft.wiki.gg/wiki/Dark_troll: berserkers, trappers, shadow and high priests, warlords; their shamans; the
+    # druids by the night elves' kin, the user's word)
+    DARKTROLL: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, SHAMAN, DRUID),
 }
 # The races of 3.3.5 that have each class, by side (3.3.5's own: playercreateinfo): where a class's gear, action bar and
 # skills come from when the start race hasn't it: the start race's if it has, else the first of the side's that does.
@@ -73,13 +77,13 @@ for _race in RACE_IDS:
     TEMPLATE[_race] = {c: next(r for r in _order if c in _HAS[r]) for c in CLASSES_OF[_race]}
 EXTRA_CLASSES = {}
 STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL, HIGHMOUNTAIN: TAUREN,
-              DARKIRON: DWARF, VULPERA: GNOME, MAGHAR: ORC, MECHAGNOME: GNOME, HIGHELF: BLOODELF}
+              DARKIRON: DWARF, VULPERA: GNOME, MAGHAR: ORC, MECHAGNOME: GNOME, HIGHELF: BLOODELF, DARKTROLL: TROLL}
 MODEL_FROM = dict(STATS_FROM)                          # whose model rows (scale, collision, sounds) theirs are copied from
 PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb", LIGHTFORGED: "Ld", ZANDALARI: "Za", HIGHMOUNTAIN: "Ht", DARKIRON: "Di",
-          VULPERA: "Vu", MAGHAR: "Mo", MECHAGNOME: "Mg", HIGHELF: "He"}
+          VULPERA: "Vu", MAGHAR: "Mo", MECHAGNOME: "Mg", HIGHELF: "He", DARKTROLL: "Dt"}
 NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne", LIGHTFORGED: "Lightforged Draenei", ZANDALARI: "Zandalari Troll",
         HIGHMOUNTAIN: "Highmountain Tauren", DARKIRON: "Dark Iron Dwarf", VULPERA: "Vulpera",
-        MAGHAR: "Mag'har Orc", MECHAGNOME: "Mechagnome", HIGHELF: "High Elf"}
+        MAGHAR: "Mag'har Orc", MECHAGNOME: "Mechagnome", HIGHELF: "High Elf", DARKTROLL: "Dark Troll"}
 # The intro's narration: the user's own MP3s for the four of Legion's and BfA's the allied races module has, wago.tools' music of
 # the Highmountain's flythrough for theirs (sound/music/legion/mus_735_ar_rtc_highmountaintauren_flythrough.mp3); the rest
 # have the start race's flight without a voice.
@@ -90,8 +94,10 @@ FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEA
                   HIGHMOUNTAIN: ("HORNS", "HORNS", "NORMAL"),
                   DARKIRON: ("FEATURES", "FEATURES", "NORMAL"), VULPERA: ("FEATURES", "FEATURES", "NORMAL"),
                   MAGHAR: ("FEATURES", "FEATURES", "NORMAL"), MECHAGNOME: ("FEATURES", "FEATURES", "NORMAL"),
-                  HIGHELF: ("FEATURES", "FEATURES", "NORMAL")}
+                  HIGHELF: ("FEATURES", "FEATURES", "NORMAL"), DARKTROLL: ("TUSKS", "TUSKS", "NORMAL")}
 CLONED = {}
+# The Troll's own UI voices and emotes (the game's sound entries: no files), so every regular sound is the Troll's.
+VOICE_COPY = {DARKTROLL: TROLL}
 # New rows' ids: Wrath++ has none of the other modules' rows, and eleven races' looks are many.
 ID_SECTIONS_END = 1999999
 _n = len(RACE_IDS)
@@ -106,7 +112,7 @@ ID_MODEL = {r: (3601 + 2 * i, 3602 + 2 * i) for i, r in enumerate(RACE_IDS)}
 # Ids clear of the module's own (98711 to 98734) and Forever's (98800 on).
 NEW = dict(ancestral_call=98760, brawn=98761, forged_in_flames=98762, fireblood=98763, mountaineer=98764, bull_rush=98765,
            brush_it_off=98766, haymaker=98767, bag_of_tricks=98768, nose_for_trouble=98769, rummaging=98770,
-           combat_analysis=98771, skillful_scavenger=98772)
+           combat_analysis=98771, skillful_scavenger=98772, dt_grace=98773, dt_ward=98774, dt_hush=98775)
 _WARRIOR, _PALADIN, _HUNTER, _ROGUE, _PRIEST, _DKM, _SHAMAN, _MAGE, _WARLOCK, _DRUID = 1, 2, 4, 8, 16, 32, 64, 128, 256, 1024
 _MANA = _PALADIN | _HUNTER | _PRIEST | _MAGE | _WARLOCK
 # What each learns at creation: the new spells above and the game's own racials that fit (Hardiness 20573, Command 20576,
@@ -122,6 +128,10 @@ RACIAL_LEARN = [
     (BIT[VULPERA], NEW["rummaging"], "Vulpera - Rummaging"), (BIT[VULPERA], 20589, "Vulpera - Escape Artist"),
     (BIT[MECHAGNOME], NEW["combat_analysis"], "Mechagnome - Combat Analysis"), (BIT[MECHAGNOME], NEW["skillful_scavenger"], "Mechagnome - Skillful Scavenger"),
     (BIT[MECHAGNOME], 20589, "Mechagnome - Escape Artist"), (BIT[MECHAGNOME], 20593, "Mechagnome - Engineering Specialization"),
+    # the Night Elves' racials (the user: "with text rewrite for dark trolls"): Shadowmeld itself (58984: the core scripts it by that id, and
+    # its text names no race) and the three passives as spells of their own (no scripts) with their own names and words
+    (BIT[DARKTROLL], 58984, "Dark Troll - Shadowmeld"), (BIT[DARKTROLL], NEW["dt_grace"], "Dark Troll - Nightstalker's Grace"),
+    (BIT[DARKTROLL], NEW["dt_ward"], "Dark Troll - Ward of the Wild Gods"), (BIT[DARKTROLL], NEW["dt_hush"], "Dark Troll - Shadowtooth Hush"),
     (BIT[HIGHELF], 822, "High Elf - Magic Resistance"), (BIT[HIGHELF], 28877, "High Elf - Arcane Affinity"),
     (BIT[HIGHELF], 28730, "High Elf - Arcane Torrent (mana)", _MANA), (BIT[HIGHELF], 25046, "High Elf - Arcane Torrent (energy)", _ROGUE),
     (BIT[HIGHELF], 50613, "High Elf - Arcane Torrent (runic power)", _DKM),
@@ -164,9 +174,15 @@ def RACIAL_HOOK(spell, no_cost, sql, client, columns, by_id, schools):
         spell(20557, N["combat_analysis"], "Combat Analysis", "Racial Passive", "Critical strike chance increased by 2%.", "",
               SpellIconID=2128, EffectAura_1=52, EffectBasePoints_1=1, EffectDieSides_1=1, EffectMiscValue_1=0,
               Effect_2=6, EffectAura_2=57, EffectBasePoints_2=1, EffectDieSides_2=1, ImplicitTargetA_2=1),
+        spell(20582, N["dt_grace"], "Nightstalker's Grace", "Racial Passive",
+              "The old night walkers of Hyjal slipped blows as they slipped light. Reduces the chance that melee and ranged attackers will hit you by $s1%.", ""),
+        spell(20583, N["dt_ward"], "Ward of the Wild Gods", "Racial Passive",
+              "The wild gods of Hyjal turn the green magics aside. Reduces the chance you will be hit by Nature spells by $s1%.", ""),
+        spell(21009, N["dt_hush"], "Shadowtooth Hush", "Racial Passive",
+              "The Shadowtooth were never found in their own forests. Reduces the chance enemies have to detect you while Shadowmelded or Stealthed.", ""),
         spell(20557, N["skillful_scavenger"], "Skillful Scavenger", "Racial Passive", "Engineering skill increased by 15.", "",
               SpellIconID=2065, EffectAura_1=98, EffectBasePoints_1=14, EffectDieSides_1=1, EffectMiscValue_1=202),
     ]
     sql.comment("Their racials, the new races' (Wrath++, docs/wrathpp/ALLIED_RACES.md): Ancestral Call, Brawn; Fireblood, Forged in Flames;\n"
-                "Mountaineer, Bull Rush; Bag of Tricks, Nose for Trouble, Rummaging; Combat Analysis, Skillful Scavenger.")
+                "Mountaineer, Bull Rush; Bag of Tricks, Nose for Trouble, Rummaging; Combat Analysis, Skillful Scavenger; the Dark Trolls' Nightstalker's Grace, Ward of the Wild Gods, Shadowtooth Hush.")
     return rows

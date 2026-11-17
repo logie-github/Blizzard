@@ -36,6 +36,7 @@ HUMAN, ORC, DWARF, NIGHTELF, UNDEAD, TAUREN, GNOME, TROLL, BLOODELF, DRAENEI = 1
 VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI = 15, 16, 17, 18
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI)
 ALLIANCE_RACES, HORDE_RACES = (VOIDELF, LIGHTFORGED), (NIGHTBORNE, ZANDALARI)
+VOICE_COPY = {}   # a profile's: new race -> the 3.3.5 race whose own UI voices and emotes it takes (rows copied, no files)
 FACE_ROW_FLAGS = 1   # a profile's: the face rows' flags (a death knight's face needs 0x10 as its skin does: Wrath++ sets 17)
 FOLDED = {}   # a profile's: creature-only races given up for a playable one's id (old: the race its creatures take)
 MOVED = {15: 24, 16: 25, 17: 26, 18: 27}       # Skeleton, Vrykul, Tuskarr, Forest Troll: the creatures' races, moved
@@ -514,6 +515,18 @@ def main():
             client.put("EmotesTextSound", "iiiii", row)
             emote_rows.append(row)
             eid += 1
+        if race in VOICE_COPY:
+            # the 3.3.5 race's own rows (its sound entries are the game's: nothing to fetch)
+            for r in D("VocalUISounds").rows:
+                if r[2] == VOICE_COPY[race]:
+                    client.put("VocalUISounds", "iiiiiii", [vid, r[1], race, r[3], r[4], r[5], r[6]])
+                    vid += 1
+            for r in D("EmotesTextSound").rows:
+                if r[2] == VOICE_COPY[race]:
+                    row = [eid, r[1], race, r[3], r[4]]
+                    client.put("EmotesTextSound", "iiiii", row)
+                    emote_rows.append(row)
+                    eid += 1
     sql.comment("Their voices (the game's sound kits of today, as MP3s in the patch) and their emotes.")
     sql.replace("soundentries_dbc", COLUMNS["soundentries_dbc"], snt, sound_sql)
     sql.replace("emotestextsound_dbc", COLUMNS["emotestextsound_dbc"], "iiiii", emote_rows)
