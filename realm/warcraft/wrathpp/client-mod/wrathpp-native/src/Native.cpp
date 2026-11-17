@@ -35,6 +35,8 @@
 //                                draws with (wxl.m2's ObjectModel, WXL_M2_ATTACH_FOLLOW_BONES), each with its picture; "" for none.
 //                                guid: "0x" and sixteen hex digits. Kept every quarter second; let go with the model.
 //   WrathPP_NativeVersion()      -> this mod's version, for the interface to know it is there.
+//   WrathPP_MaxRace()            -> the highest race id the client's creation screen can hold: 21 as it is, 63 where this mod moved
+//                                the saved choices' array (below).
 //
 // And, with no function to call: the body options' layer (realm/warcraft/wrathpp/tools/body_shapes/layer.py) shown on a
 // character with nothing on its legs. The layer is geoset 1901 of the looks' women's models, which the client's
@@ -915,6 +917,89 @@ namespace
 
     void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.10.0"); }
 
+#if defined(_M_IX86)
+    // --- The race ids past 21 ---------------------------------------------------------------------------------------------
+    // The client keeps each race's saved choices in CCharacterCreation::m_charPreferences[22][2] (CharacterPreferences*, 0x00B6B0D0, 176
+    // bytes; m_raceIndex follows at 0x00B6B180): a race id of 22 or more writes past it into the client's other statics (issue 281). Every
+    // function that names it is in CharacterCreation.cpp (0x004DFA50 to 0x004E24E0 at the pinned decompilation). Here, as the mod loads
+    // (before any of them runs), a larger zeroed array is made and the 32-bit operand of each instruction in that stretch of code that
+    // names the old one (an address from 0x00B6B0D0 to 0x00B6B17F) is pointed at the same place in it. Done only when the stretch holds
+    // between 5 and 48 such operands (the decompilation's functions use it in about ten places): a client whose code isn't what the pinned
+    // decompilation has is left as it is, and WrathPP_MaxRace says 21.
+    constexpr uint32_t kPrefsOld = 0x00B6B0D0, kPrefsEnd = 0x00B6B180;
+    constexpr uint32_t kPrefsCodeFrom = 0x004DF800, kPrefsCodeTo = 0x004E3000;
+    constexpr uint32_t kPrefsRaces = 64;
+    uint32_t g_maxRace = 21;
+
+    /// The addresses in the stretch of code whose next four bytes name the old array (into [sites], at most [room]); how many; -1 on a fault.
+    int FindPreferenceOperands(uint32_t* sites, int room)
+    {
+        int count = 0;
+        __try
+        {
+            for (uint32_t at = kPrefsCodeFrom; at + 4 <= kPrefsCodeTo; ++at)
+            {
+                const uint32_t value = *reinterpret_cast<const uint32_t*>(at);
+                if (value >= kPrefsOld && value < kPrefsEnd)
+                {
+                    if (count < room) sites[count] = at;
+                    ++count;
+                }
+            }
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return -1;
+        }
+        return count;
+    }
+
+    bool PatchOperand(uint32_t at, uint32_t to)
+    {
+        DWORD old = 0;
+        if (!VirtualProtect(reinterpret_cast<void*>(at), 4, PAGE_EXECUTE_READWRITE, &old)) return false;
+        *reinterpret_cast<uint32_t*>(at) = to;
+        DWORD ignored = 0;
+        VirtualProtect(reinterpret_cast<void*>(at), 4, old, &ignored);
+        FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(at), 4);
+        return true;
+    }
+
+    void MovePreferences()
+    {
+        uint32_t sites[64];
+        const int found = FindPreferenceOperands(sites, 64);
+        if (found < 5 || found > 48)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "race ids past 21: {} operands of the saved choices' array in the creation code (5 to 48 expected): left as it is", found);
+            return;
+        }
+        void* room = VirtualAlloc(nullptr, kPrefsRaces * 2 * sizeof(uint32_t), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if (!room || reinterpret_cast<uintptr_t>(room) > 0xFFFFF000u - kPrefsRaces * 8)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "race ids past 21: no room for a larger array: left as it is");
+            return;
+        }
+        const uint32_t base = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(room));
+        for (int i = 0; i < found; ++i)
+        {
+            const uint32_t old = *reinterpret_cast<const uint32_t*>(sites[i]);
+            if (!PatchOperand(sites[i], base + (old - kPrefsOld)))
+            {
+                wxl::Log(WXL_LOG_ERROR, kTag, "race ids past 21: operand {} of {} (0x{:08X}) couldn't be written; the first {} are", i + 1, found, sites[i], i);
+                return;
+            }
+        }
+        g_maxRace = static_cast<uint32_t>(kPrefsRaces - 1);
+        wxl::Log(WXL_LOG_INFO, kTag, "race ids past 21: the saved choices' array moved ({} operands), room for race ids to {}", found, g_maxRace);
+    }
+#else
+    uint32_t g_maxRace = 21;
+    void MovePreferences() {}
+#endif
+
+    void MaxRaceCall(wxl::ScriptCall& call) { call.PushNumber(static_cast<double>(g_maxRace)); }
+
     class Api final : public wxl::LuaScript
     {
     public:
@@ -933,7 +1018,8 @@ namespace
                                         std::pair{"WrathPP_ApplyLook", script.RegisterFunction<&ApplyLookCall>("WrathPP_ApplyLook")},
                                         std::pair{"WrathPP_SetSoftBody", script.RegisterFunction<&SetSoftBodyCall>("WrathPP_SetSoftBody")},
                                         std::pair{"WrathPP_SetSoftBodyLevel", script.RegisterFunction<&SetSoftBodyLevelCall>("WrathPP_SetSoftBodyLevel")},
-                                        std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")}})
+                                        std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")},
+                                        std::pair{"WrathPP_MaxRace", script.RegisterFunction<&MaxRaceCall>("WrathPP_MaxRace")}})
             {
                 if (result != WXL_OK) wxl::Log(WXL_LOG_WARN, kTag, "could not register {}: {}", name, wxl::ResultName(result));
             }
@@ -953,6 +1039,7 @@ namespace
             wxl::ScriptMgr::Add(&g_mountWatch);
 #endif
             AttachLayer();
+            MovePreferences();
             wxl::Log(WXL_LOG_INFO, kTag, "Wrath++ native loaded");
             return WXL_OK;
         }
