@@ -512,7 +512,10 @@ def allied_game_ids():
     """The allied races' race ids in the game, by key (tools/races_profile.py's KEY: the ids below 22 the client can hold). That file is
     run by the allied races' build_data with names it gives it; its ids and keys are read from its source."""
     lines = open(os.path.join(HERE, "races_profile.py"), encoding="utf-8").read().splitlines()
-    wanted = [l for l in lines if l.startswith(("VOIDELF, NIGHTBORNE", "HIGHELF ="))]
+    import re
+    # (the race-id lines: "NAME = 9" or "A, B, ... = range(12, 21)", each before KEY)
+    wanted = [l.split("#")[0] for l in lines[:next(n for n, l in enumerate(lines) if l.startswith("KEY ="))]
+              if re.match(r"^[A-Z][A-Z_, ]* = (\d+|range\(\d+, \d+\))\s*(#.*)?$", l)]
     i = next(n for n, l in enumerate(lines) if l.startswith("KEY ="))
     wanted.append(lines[i])
     while not lines[i].rstrip().endswith("}"):
