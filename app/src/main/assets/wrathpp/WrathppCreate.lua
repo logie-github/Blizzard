@@ -44,6 +44,12 @@ local RACE_ID = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUR
 -- The other realms' own races (mod-murloc-naga: ChrRaces' file names Murloc and Naga_), whose buttons the shared game data
 -- brings: not Wrath++'s.
 local LEFT_OUT = { MURLOC = true, NAGA = true, NAGA_ = true }
+-- Shadowlands' race screen: each side's own races in the outer column (the game's and the Worgen and Goblins), the allied races in the
+-- column inside it, lower, in Shadowlands' order (its CharacterCreateRaceButtonTemplate order: Void Elf, Lightforged, Dark Iron, ...)
+local CORE = { HUMAN = 1, DWARF = 2, NIGHTELF = 3, GNOME = 4, DRAENEI = 5, WORGEN = 6,
+	ORC = 1, SCOURGE = 2, TAUREN = 3, TROLL = 4, BLOODELF = 5, GOBLIN = 6 }
+local ALLIED_ORDER = { VOIDELF = 1, LIGHTFORGEDDRAENEI = 2, DARKIRONDWARF = 3, KULTIRAN = 4, MECHAGNOME = 5, HIGHELF = 6, DARKTROLL = 7,
+	NIGHTBORNE = 1, HIGHMOUNTAINTAUREN = 2, MAGHARORC = 3, ZANDALARITROLL = 4, VULPERA = 5 }
 local ALLIANCE = { HUMAN = true, DWARF = true, NIGHTELF = true, GNOME = true, DRAENEI = true, WORGEN = true, VOIDELF = true,
 	LIGHTFORGEDDRAENEI = true, HIGHORDER = true, PANDAREN = true, KULTIRAN = true, DARKIRONDWARF = true, MECHAGNOME = true,
 	HIGHELF = true, DARKTROLL = true }
@@ -1648,10 +1654,32 @@ local function place()
 	local classPitch = u(67 + 15)
 	local classesBeside = (shownCount * classPitch - u(15)) / 2 + u(12) <= screenWidth / 2 - u(46 + 250)
 	local raceLimit = 768 - (classesBeside and u(62) or u(28 + 66 + 50)) - u(67) - u(7)
-	local function raceColumnLines(column)
-		local fit = math.floor((raceLimit - u(106) - u(79 + 22) - column * u(68)) / u(79 + 18)) + 1
-		return math.max(1, column == 0 and math.min(5, fit) or fit)
+	-- Each side: its own races in the outer column, its allied races in the one inside it 68 lower, as Shadowlands has them; the
+	-- buttons made smaller (their names with them) where the longer of the two columns wouldn't fit above the classes' row
+	local slots, lines = {}, 0
+	do
+		local lists = { { {}, {} }, { {}, {} } }
+		for index = 1, total do
+			local stock = _G["CharacterCreateRaceButton"..index]
+			local token = names[(index - 1) * 3 + 2]
+			token = token and string.upper(token) or nil
+			if ( token and not LEFT_OUT[token] and stock:IsShown() ) then
+				local side = ALLIANCE[token] and 1 or 2
+				local list = lists[side][CORE[token] and 1 or 2]
+				list[#list + 1] = { index = index, order = (CORE[token] or ALLIED_ORDER[token] or 50) * 100 + index }
+			end
+		end
+		for side = 1, 2 do
+			for column = 1, 2 do
+				local list = lists[side][column]
+				table.sort(list, function(a, b) return a.order < b.order end)
+				for line, e in ipairs(list) do slots[e.index] = { column = column - 1, line = line - 1 } end
+				if ( #list > lines ) then lines = #list end
+			end
+		end
 	end
+	local needed = (lines - 1) * u(79 + 18) + u(79 + 22) + u(68)
+	local raceScale = math.min(1, math.max(0.55, (raceLimit - u(106)) / math.max(1, needed)))
 	for index = 1, total do
 		local stock = _G["CharacterCreateRaceButton"..index]
 		stock:SetParent(away)
@@ -1669,11 +1697,14 @@ local function place()
 			local side = alliance and 1 or 2
 			count[side] = count[side] + 1
 			local k = count[side]
-			local column, line = 0, k - 1
-			while ( line >= raceColumnLines(column) and column < 8 ) do line = line - raceColumnLines(column); column = column + 1 end
+			local slot = slots[index] or { column = 0, line = k - 1 }
+			local column, line = slot.column, slot.line
 			b:ClearAllPoints()
-			local x = column * u(79 + 18) * (alliance and 1 or -1)
-			b:SetPoint(alliance and "TOPLEFT" or "TOPRIGHT", alliance and alliancePanel.races or hordePanel.races, alliance and "TOPLEFT" or "TOPRIGHT", x, -line * u(79 + 18) - column * u(68))
+			-- (a frame's offsets are in its own scale: the whole column, its places and the button with its name, drawn smaller together)
+			b:SetScale(raceScale)
+			local x = column * u(79 + 18 + 12) * (alliance and 1 or -1)
+			b:SetPoint(alliance and "TOPLEFT" or "TOPRIGHT", alliance and alliancePanel.races or hordePanel.races, alliance and "TOPLEFT" or "TOPRIGHT",
+				x, -line * u(79 + 18) - column * u(68))
 			local art = string.lower(token)
 			local file, coords = plainOf(stock)
 			b:Set("raceicon128-"..(RACE_ART[art] or art).."-"..(female and "female" or "male"), index == chosenRace, not stock:IsEnabled(), file, coords, not alliance)
@@ -1768,7 +1799,13 @@ end
 -- What is on the screen ---------------------------------------------------------------------------------------------------------
 
 local function refresh()
-	if ( W.off or W.step ~= 2 ) then return end
+	if ( W.off ) then return end
+	if ( W.step ~= 2 ) then
+		-- the race and class screen shows the character too: her pieces (a Mechagnome's arms and legs, a Void Elf's tentacles, horns,
+		-- ears) on it as well, or the model stands there without them
+		if ( W.step == 1 ) then W.Look() end
+		return
+	end
 	W.refreshes = (W.refreshes or 0) + 1
 	local model = looks()
 	-- the categories of this race and sex, in a row that ends 20 from the screen's right edge
