@@ -199,5 +199,23 @@ class ChangesTest(unittest.TestCase):
         self.assertEqual(open(os.path.join(out, "T.txt")).read(), "types\tii\nput\t1\t2\nput\t3\t4\n")
 
 
+class BluePortraitTest(unittest.TestCase):
+    def test_green_excess_goes_to_blue_and_eyes_turn_blue(self):
+        import numpy as np
+        icon = np.zeros((64, 64, 4), dtype=np.uint8)
+        icon[..., 3] = 255
+        icon[21, 34] = (0xe6, 0xff, 0x6a, 255)       # an eye
+        icon[40, 10] = (0x20, 0xc0, 0x30, 255)       # fel glow
+        icon[50, 50] = (0xc7, 0xa6, 0x65, 255)       # skin
+        icon[5, 5] = (0xe0, 0xc0, 0x60, 255)         # blond hair
+        out = sl_looks.blue_portrait(icon, sl_looks.BLUE_PORTRAITS["HIGHELF"])
+        for xy in ((21, 34), (40, 10)):
+            r, g, b, a = (int(v) for v in out[xy])
+            self.assertTrue(b > g and b > r and a == 255, xy)
+        self.assertEqual(tuple(out[50, 50]), (0xc7, 0xa6, 0x65, 255))
+        self.assertEqual(tuple(out[5, 5]), (0xe0, 0xc0, 0x60, 255))
+        self.assertEqual(sl_looks.RACE_ICONS["HIGHELF"], 236440)
+
+
 if __name__ == "__main__":
     unittest.main()

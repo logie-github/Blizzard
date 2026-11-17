@@ -493,8 +493,34 @@ def narrations(keys, read, client, log=print):
 
 # wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
 # app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
-RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
+RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 236440,
               "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "DARKTROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
+
+
+# The High Elf wears the Blood Elf man's portrait (achievement_character_bloodelf_male) in blue where the Blood Elf's is fel green.
+# The green a pixel has over its red and blue (the glow, the rim light, the cast in the shadows) is moved into its blue, so shading
+# and skin stay as drawn; the two eyes (boxes x0, x1, y0, y1 of the 64 x 64 icon) are set to a blue of the same brightness.
+BLUE_PORTRAITS = {"HIGHELF": [(32, 37, 19, 23), (15, 21, 26, 29)]}
+
+
+def blue_portrait(rgba, eyes):
+    """A copy of the RGBA icon with its green excess moved to blue and the pixels of green eyes inside the [eyes] boxes made blue."""
+    import colorsys
+    import numpy as np
+    f = rgba.astype(float)
+    r, g, b = f[..., 0], f[..., 1], f[..., 2]
+    excess = np.clip(g - np.maximum(r, b), 0, None)
+    out = f.copy()
+    out[..., 1] = g - excess
+    out[..., 2] = b + excess
+    for x0, x1, y0, y1 in eyes:
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                er, eg, eb = f[y, x, :3]
+                if eg >= er - 12 and eg > eb + 40:
+                    h, sat, val = colorsys.rgb_to_hsv(er / 255, eg / 255, eb / 255)
+                    out[y, x, :3] = [c * 255 for c in colorsys.hsv_to_rgb(0.58, max(0.55, sat), min(1.0, val * 1.05))]
+    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
 
 def race_icons(read, client, log=print):
@@ -508,6 +534,8 @@ def race_icons(read, client, log=print):
     for token, fid in sorted(RACE_ICONS.items()):
         rgba = blp.read(read(fid))
         img = Image.fromarray(rgba).convert("RGBA").resize((64, 64), Image.LANCZOS)
+        if token in BLUE_PORTRAITS:
+            img = Image.fromarray(blue_portrait(np.asarray(img), BLUE_PORTRAITS[token]))
         with open(os.path.join(folder, token + ".blp"), "wb") as f:
             f.write(blp.write_palette(np.ascontiguousarray(np.asarray(img)), alpha=True))
         written.append("Interface\\Glues\\CharacterCreate\\WrathppRaces\\%s.blp" % token)
