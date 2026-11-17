@@ -106,12 +106,22 @@ W.HasCharacter = hasCharacter
 
 -- What a button or the screen runs, once the game has its character: whatever fails in it puts the game's own screen
 -- back (WrathppCreate_Disable). `always`: also without a character (the frame's own ticking, which waits for one).
+-- (An error is logged, once for each different one, and the creator stays: the game's own five-option screen is never put back
+-- for an error in a click or a refresh; the user: "It goes back to 5 options. Never". WrathppCreate_Disable stays for the build's own
+-- failure, where there is no creator to keep, and for a crash of an earlier launch, which the app settles.)
+W.errors = {}
 local function guarded(fn, always)
 	return function(...)
 		if ( W.off ) then return end
 		if ( not always and not hasCharacter() ) then return end
 		local ok, err = pcall(fn, ...)
-		if ( not ok ) then WrathppCreate_Disable(err) end
+		if ( not ok ) then
+			local key = tostring(err)
+			if ( not W.errors[key] ) then
+				W.errors[key] = true
+				log("error kept going: "..key)
+			end
+		end
 	end
 end
 

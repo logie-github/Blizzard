@@ -110,6 +110,19 @@ function SetBackgroundModel(model, name)
 	return setBackgroundModel(model, BACKGROUNDS[strupper(name or "")] or name);
 end
 
+-- The game's PlayGlueAmbience stops with a usage error on a race with no track (nil), and that error went up into the creator's click and
+-- put the game's own screen back (report of 17 November 2026, Mechagnome: GlueParent.lua:384). A race without a track gets the selection
+-- screen's.
+if ( type(PlayGlueAmbience) == "function" ) then
+	local playAmbience = PlayGlueAmbience;
+	function PlayGlueAmbience(sound, ...)
+		if ( sound == nil ) then
+			sound = (type(GlueAmbienceTracks) == "table" and (GlueAmbienceTracks["CHARACTERSELECT"] or GlueAmbienceTracks["HUMAN"])) or "GlueScreenIntro";
+		end
+		return playAmbience(sound, ...);
+	end
+end
+
 if ( type(GlueAmbienceTracks) == "table" ) then
 	for race, background in pairs(BACKGROUNDS) do
 		GlueAmbienceTracks[race] = GlueAmbienceTracks[strupper(background)] or GlueAmbienceTracks["CHARACTERSELECT"] or "GlueScreenIntro";

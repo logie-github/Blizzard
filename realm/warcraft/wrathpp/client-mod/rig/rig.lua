@@ -187,6 +187,10 @@ return function(opts)
 		if ( G.crashed ) then out[#out + 1] = "CRASH: "..G.crashed end
 		for i = R.stockErrors + 1, #E.errors do local e = E.errors[i]; out[#out + 1] = "error in "..tostring(e.frame).." "..tostring(e.handler)..": "..tostring(e.message):match("^[^\n]*") end
 		if ( R.creatorOff() ) then out[#out + 1] = "the creator went off: "..tostring(G.log[#G.log]) end
+		-- (an error in one of the creator's clicks or refreshes no longer turns it off: it is kept and counted here, as the failure it is)
+		if ( WrathppCreator and WrathppCreator.errors ) then
+			for message in pairs(WrathppCreator.errors) do out[#out + 1] = "the creator went through an error: "..tostring(message):match("^[^\n]*") end
+		end
 		return out
 	end
 	-- every frame on the screen: where it is, what it says (for a picture, and for what overlaps)

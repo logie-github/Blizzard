@@ -37,6 +37,8 @@ function CharacterCreateEnumerateRaces(...) seen = { ... } end
 local background
 function SetBackgroundModel(model, name) background = name end
 GlueAmbienceTracks = { CHARACTERSELECT = "select", DRAENEI = "draenei" }
+local played
+function PlayGlueAmbience(sound, fade) if sound == nil then error("Usage: PlayGlueAmbience(\"sound name\", \"(optional)fade in time\")") end played = sound end
 -- the screen's own table of its race icons' places (the game's ten; stock CharacterCreate.lua)
 RACE_ICON_TCOORDS = {}
 for i, t in ipairs({ "HUMAN", "DWARF", "NIGHTELF", "GNOME", "DRAENEI", "ORC", "SCOURGE", "TAUREN", "TROLL", "BLOODELF" }) do
@@ -55,6 +57,8 @@ do
 	check(RACE_ICON_TCOORDS.VOIDELF_MALE[1] == RACE_ICON_TCOORDS.BLOODELF_MALE[1], "  an allied race takes its start race's place for the big icon")
 end
 check(RACE_ICON_TCOORDS.MURLOC_MALE and RACE_ICON_TCOORDS.MURLOC_MALE[2] == 1, "a race the script doesn't know (another patch's tables) gets the whole picture, not nil: the screen's loop over the races doesn't stop")
+check(pcall(PlayGlueAmbience, nil, 4) and played == "select", "a race with no music track gets the selection screen's, not the game's usage error")
+check(pcall(PlayGlueAmbience, "draenei", 4) and played == "draenei", "  and a race with one keeps it")
 check(CharacterCreateRaceButton11 == AlliedRaceButton11 and CharacterCreateRaceButton21 == AlliedRaceButton21, "the xml's buttons have the names the screen looks for")
 check(CharacterCreateRaceButton11NormalTexture == AlliedRaceButton11NormalTexture, "  with their pictures")
 check(CharacterCreateRaceButton11.parent == config, "  and the screen's frame as parent")
