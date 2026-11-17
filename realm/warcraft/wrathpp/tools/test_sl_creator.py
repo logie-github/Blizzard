@@ -135,5 +135,14 @@ class CreatorDataTest(unittest.TestCase):
             sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, bad)
 
 
+class AlliedRaceIdsTest(unittest.TestCase):
+    def test_the_allied_races_take_the_ids_the_game_gives_them(self):
+        ids = sl_creator.game_race_ids()
+        self.assertEqual(ids["voidelf"], 12)
+        self.assertEqual(ids["highelf"], 9)
+        self.assertTrue(all(r < 22 for r in ids.values()))      # (the client holds race ids up to 21)
+        self.assertEqual(len(set(ids.values())), len(ids))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -122,7 +122,7 @@ jobs:
       # with the looks, since it is the key to their tables.
       - name: The creator's options
         run: |
-          python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua | tee -a looks-report.txt
+          python3 realm/warcraft/wrathpp/tools/sl_creator.py data build/sl-csv build/looks.json build/looks/client/Interface/GlueXML/WrathppLooks.lua build/races.json | tee -a looks-report.txt
           echo 'Interface\GlueXML\WrathppLooks.lua' >> build/looks/looks.files
 
       # Shadowlands' creator's own art (the pieces its creation screens are drawn from, cut out of the game's interface

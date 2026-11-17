@@ -18,7 +18,7 @@ options apart again, as Shadowlands does; this file is the key between the two:
               An option with no field is one nothing draws yet (the native mod's work): listed, and not chosen from.
     }
 
-    python3 tools/sl_creator.py data CSV_DIR LOOKS.json OUT.lua
+    python3 tools/sl_creator.py data CSV_DIR LOOKS.json OUT.lua [RACES.json]   (RACES.json: the allied races, sl_looks.py data)
 
 CSV_DIR and LOOKS.json: sl_looks.py's (fetch, races). Made by wrathpp-looks.yml into the looks package
 (client/Interface/GlueXML/WrathppLooks.lua); the app puts it in the creator's patch beside the script.
@@ -234,13 +234,42 @@ def build_model(tables, categories, race_id, sex, model):
     return out
 
 
-def build(csv_dir, looks):
+def game_race_ids():
+    """The allied races' race ids in the game (tools/races_profile.py: the ids below 22 the client can hold), by their key."""
+    # (races_profile is run by the allied races' build_data with its names given; its ids and keys are read here from its source)
+    src = open(os.path.join(HERE, "races_profile.py"), encoding="utf-8").read()
+    wanted = [l for l in src.splitlines() if l.startswith(("VOIDELF, NIGHTBORNE", "HIGHELF =", "KEY ="))]
+    i = src.splitlines().index(next(l for l in src.splitlines() if l.startswith("KEY =")))
+    lines = src.splitlines()
+    while not lines[i].rstrip().endswith("}"):
+        i += 1
+        wanted.append(lines[i])
+    ns = {}
+    exec("\n".join(wanted), {}, ns)
+    return {key: race for race, key in ns["KEY"].items()}
+
+
+def build(csv_dir, looks, allied_races=None):
+    """The creator's data for the races of [looks] (looks.json: the ten of 3.3.5, keyed by their own race id) and, when given, the
+    allied races of [allied_races] (races.json: keyed by name, each with Shadowlands' race id), keyed by the race id the game gives
+    them (races_profile.KEY), which is what the creator asks the game for. The High Elf is the Void Elf's models ("alias_of")."""
     tables = sl_looks.Tables(csv_dir)
     categories = {c["ID"]: c for c in allied.rows(csv_dir, "ChrCustomizationCategory")}
     models = {}
     for race in looks["races"].values():
         for sex, model in sorted(race["models"].items()):
             models["%d_%d" % (race["race"], int(sex))] = build_model(tables, categories, race["race"], int(sex), model)
+    if allied_races:
+        game = game_race_ids()
+        for key, entry in sorted(allied_races.items()):
+            if key not in game:
+                continue
+            source = allied_races.get(entry.get("alias_of")) if entry.get("alias_of") else entry
+            sl_race = int(source["race"])              # Shadowlands' race id: its options, aliases and unlocks
+            for sex, model in sorted(entry["models"].items()):
+                m = build_model(tables, categories, sl_race, int(sex), model)
+                m["race"] = game[key]
+                models["%d_%d" % (game[key], int(sex))] = m
     return {"build": looks.get("build", sl_looks.BUILD), "models": models}
 
 
@@ -275,10 +304,14 @@ def lua(data):
 
 
 def main(argv):
-    if len(argv) == 5 and argv[1] == "data":
+    if len(argv) in (5, 6) and argv[1] == "data":
         with open(argv[3]) as f:
             looks = json.load(f)
-        data = build(argv[2], looks)
+        allied_races = None
+        if len(argv) == 6:
+            with open(argv[5]) as f:
+                allied_races = json.load(f)
+        data = build(argv[2], looks, allied_races)
         os.makedirs(os.path.dirname(os.path.abspath(argv[4])), exist_ok=True)
         with open(argv[4], "w", encoding="utf-8", newline="\n") as f:
             f.write(lua(data))
