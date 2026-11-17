@@ -122,7 +122,8 @@ object WrathppLooksDelta {
 
     private const val LOCAL_SLACK = 512
     private const val GAP = 128L * 1024
-    private const val BATCH = 64L * 1024 * 1024
+    private const val BATCH = 12L * 1024 * 1024
+    private const val PARALLEL = 4
 
     /**
      * Installs the release [r] (its sha [sha]) over what is in [client] and [server] from the installed files and the entries it must
@@ -142,34 +143,52 @@ object WrathppLooksDelta {
         val pack = File(work, "looks-delta.pack")
         val where = HashMap<String, Long>()                       // an entry's local header, in the pack
         try {
-            RandomAccessFile(pack, "rw").use { out ->
-                var done = 0L
-                val sorted = need.sortedBy { it.headerAt }
-                var i = 0
-                while (i < sorted.size) {
-                    var j = i
-                    var end = sorted[i].headerAt + 30 + sorted[i].nameLength + LOCAL_SLACK + sorted[i].compressed
-                    while (j + 1 < sorted.size && sorted[j + 1].headerAt - end <= GAP && end - sorted[i].headerAt < BATCH) {
-                        j++
-                        end = maxOf(end, sorted[j].headerAt + 30 + sorted[j].nameLength + LOCAL_SLACK + sorted[j].compressed)
-                    }
-                    val start = sorted[i].headerAt
-                    val last = minOf(end, r.length) - 1
-                    val base = out.length()
-                    out.seek(base)
-                    r.open(start, last).use { input ->
-                        val buffer = ByteArray(1 shl 16)
-                        var got = 0L
-                        while (true) {
-                            val n = input.read(buffer); if (n < 0) break
-                            out.write(buffer, 0, n); got += n; done += n
-                            say("Downloading what changed in Wrath++'s looks: ${done shr 20} / ${bytes shr 20} MB", if (bytes > 0) minOf(1f, done.toFloat() / bytes) else null)
-                        }
-                        if (got != last - start + 1) throw IOException("A ranged download came short ($got of ${last - start + 1})")
-                    }
-                    for (k in i..j) where[sorted[k].name] = base + (sorted[k].headerAt - start)
-                    i = j + 1
+            // The ranges to fetch, cut into batches of at most BATCH bytes and fetched PARALLEL at a time (one connection is
+            // slow on a phone; each batch has its own place in the pack, worked out beforehand).
+            class Batch(val start: Long, val last: Long, val base: Long, val first: Int, val lastIndex: Int)
+            val sorted = need.sortedBy { it.headerAt }
+            val batches = ArrayList<Batch>()
+            var packLength = 0L
+            var i = 0
+            while (i < sorted.size) {
+                var j = i
+                var end = sorted[i].headerAt + 30 + sorted[i].nameLength + LOCAL_SLACK + sorted[i].compressed
+                while (j + 1 < sorted.size && sorted[j + 1].headerAt - end <= GAP && end - sorted[i].headerAt < BATCH) {
+                    j++
+                    end = maxOf(end, sorted[j].headerAt + 30 + sorted[j].nameLength + LOCAL_SLACK + sorted[j].compressed)
                 }
+                val start = sorted[i].headerAt
+                val last = minOf(end, r.length) - 1
+                batches.add(Batch(start, last, packLength, i, j))
+                packLength += last - start + 1
+                i = j + 1
+            }
+            for (b in batches) for (k in b.first..b.lastIndex) where[sorted[k].name] = b.base + (sorted[k].headerAt - b.start)
+            RandomAccessFile(pack, "rw").use { it.setLength(packLength) }
+            val done = java.util.concurrent.atomic.AtomicLong()
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(minOf(PARALLEL, maxOf(1, batches.size)))
+            try {
+                val jobs = batches.map { b ->
+                    pool.submit {
+                        RandomAccessFile(pack, "rw").use { out ->
+                            out.seek(b.base)
+                            r.open(b.start, b.last).use { input ->
+                                val buffer = ByteArray(1 shl 16)
+                                var got = 0L
+                                while (true) {
+                                    val n = input.read(buffer); if (n < 0) break
+                                    out.write(buffer, 0, n); got += n
+                                    val d = done.addAndGet(n.toLong())
+                                    synchronized(say) { say("Downloading what changed in Wrath++'s looks: ${d shr 20} / ${bytes shr 20} MB", if (bytes > 0) minOf(1f, d.toFloat() / bytes) else null) }
+                                }
+                                if (got != b.last - b.start + 1) throw IOException("A ranged download came short ($got of ${b.last - b.start + 1})")
+                            }
+                        }
+                    }
+                }
+                for (job in jobs) try { job.get() } catch (e: java.util.concurrent.ExecutionException) { throw (e.cause as? IOException) ?: IOException(e.cause?.message ?: "download failed", e.cause) }
+            } finally {
+                pool.shutdownNow()
             }
             RandomAccessFile(pack, "r").use { packFile ->
                 val source: ((String, InputStream) -> Unit) -> Unit = { entry ->

@@ -70,13 +70,18 @@ object WrathppSections {
     fun apply(client: File): String {
         val file = File(client, "Data/${WrathppLooks.PATCH}/DBFilesClient/CharSections.dbc")
         if (!file.isFile) return "no looks' table"
+        // A table already found in order is not read again until it changes (its size and time are written beside it).
+        val stamp = File(file.path + ".ordered")
+        fun now() = "${file.length()}:${file.lastModified()}"
+        if (stamp.isFile && runCatching { stamp.readText() }.getOrNull() == now()) return "in order (as checked before)"
         val t = DbcTable(file.readBytes())
         val (over, split) = overruns(t)
-        if (!order(t)) return "in order ($over overruns, $split split groups)"
+        if (!order(t)) { runCatching { stamp.writeText(now()) }; return "in order ($over overruns, $split split groups)" }
         val tmp = File(file.path + ".tmp")
         tmp.writeBytes(t.write())
         if (!tmp.renameTo(file)) { file.delete(); if (!tmp.renameTo(file)) throw IOException("${file.path} couldn't be written") }
         val (after, splitAfter) = overruns(DbcTable(file.readBytes()))
+        runCatching { stamp.writeText(now()) }
         return "put in order: $over overruns and $split split groups before, $after and $splitAfter now"
     }
 }

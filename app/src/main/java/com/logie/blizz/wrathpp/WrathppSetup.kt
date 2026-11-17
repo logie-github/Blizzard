@@ -19,6 +19,9 @@ object WrathppSetup {
         }
         // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.
         val notes = StringBuilder()
+        // How long each step took (in the start report): what is slow is read from it, not guessed.
+        var lapAt = System.nanoTime()
+        fun lap(name: String) { val now = System.nanoTime(); notes.append("time $name: ${(now - lapAt) / 1_000_000} ms\n"); lapAt = now }
         // Project Reforged's parts chosen on Wrath++'s settings page (Reforged): what finished downloading put in, what was
         // turned off taken out (a shared archive of Wrath+'s it stood in for linked back), the glue screens kept the game's own.
         // Before the creator's patch, whose table of contents is read from the game. Its downloads go on in the background.
@@ -27,17 +30,21 @@ object WrathppSetup {
             WrathppClient.addMissing(layout.client, layout.wrathppClient)
         }.onFailure { e -> notes.append("reforged FAILED: ${e.message}\n") }
         runCatching { ReforgedDownloads.start(context) }
+        lap("reforged")
         runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
             .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
+        lap("add-on")
         // Shadowlands' looks for the ten races (WrathppLooks): without them, the game's own.
         runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
             .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
+        lap("looks")
         // Shadowlands' creator's own art (WrathppArt): without it the creator draws with 3.3.5's pictures in the same places.
         runCatching { WrathppArt.ensure(layout.wrathppClient, report::say) }
             .onSuccess { notes.append("creator art: ${WrathppArt.installedSha(layout.wrathppClient) ?: "none"}\n") }
             .onFailure { e -> notes.append("creator art FAILED: ${e.message}\n") }
+        lap("creator art")
         // Ralia's mod, when you imported it (WrathppRalia): its skins in place of the looks' they are named for.
         // Its zip is looked for by its name where downloads are (ImportFinder), and taken in by itself the first time.
         runCatching {
@@ -49,6 +56,7 @@ object WrathppSetup {
         }
             .onSuccess { notes.append("ralia: $it skins\n") }
             .onFailure { e -> notes.append("ralia FAILED: ${e.message}\n") }
+        lap("ralia")
         // Body options, when you imported their package (WrathppBody): the women's models with the body layer, the body
         // shapes' models, the designs, and the display rows the realm gives each woman by her creator's Body tab choices.
         // The package is looked for by its name too, and taken in by itself the first time.
@@ -61,25 +69,30 @@ object WrathppSetup {
         }
             .onSuccess { notes.append("body options: $it\n") }
             .onFailure { e -> notes.append("body options FAILED: ${e.message}\n") }
+        lap("body options")
         // The undead skins you imported (WrathppUndead): new colours after each race's own in the looks' tables, taken out
         // again when the import is removed. Without the looks there is nothing to add them to.
         val undead = runCatching { WrathppUndead.apply(WrathppUndead.store(context), layout.wrathppClient, layout.wrathppServer) }
             .onSuccess { notes.append("undead skins: ${if (it != null) "in" else "none"}\n") }
             .onFailure { e -> notes.append("undead skins FAILED: ${e.message}\n") }
             .getOrNull()
+        lap("undead")
         // The models the looks' variants give a character (the Orc man's Upright): their display rows, after the body options' tables.
         runCatching { WrathppVariants.apply(layout.wrathppClient, layout.wrathppServer, layout.data) }
             .onSuccess { notes.append("model variants: ${it ?: "none"}\n") }
             .onFailure { e -> notes.append("model variants FAILED: ${e.message}\n") }
+        lap("variants")
         // Body option: the women's underwear layer off (WrathppBare), whatever the three above put into the table.
         runCatching { WrathppBare.apply(layout.wrathppClient) }
             .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }
             .onFailure { e -> notes.append("body option (underwear layer) FAILED: ${e.message}\n") }
+        lap("underwear")
         // The character table in the order the game's component code needs (WrathppSections, issue 294): every race, sex, section and
         // variation one run of rows, after every step above that adds rows.
         runCatching { WrathppSections.apply(layout.wrathppClient) }
             .onSuccess { notes.append("character sections: $it\n") }
             .onFailure { e -> notes.append("character sections FAILED: ${e.message}\n") }
+        lap("sections")
         // The game's creation screen crashes at Create Character when a race's display row is missing (report #272): named here when it is.
         runCatching {
             val added = WrathppDisplayCheck.repair(layout.wrathppClient)
@@ -87,6 +100,7 @@ object WrathppSetup {
         }
             .onSuccess { notes.append("race displays: $it\n") }
             .onFailure { e -> notes.append("race displays: not checked (${e.message})\n") }
+        lap("displays")
         // The creator (Shadowlands' two screens), from the app itself, whatever happened to the add-on; with it what it
         // shows: the looks' own list of options (made with them: sl_creator.py) and the undead skins' (written above).
         report.say("Putting in Wrath++'s character creator", null)
