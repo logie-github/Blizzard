@@ -1,0 +1,1 @@
+WoW Forever: the world server no longer shuts itself down when it is slow or paused for a minute.
