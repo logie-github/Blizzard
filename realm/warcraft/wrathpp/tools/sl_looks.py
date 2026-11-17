@@ -719,6 +719,29 @@ def verify(looks, out_dir):
                 for field in line.rstrip("\n").split("\t")[1:]:
                     if "\\" in field and field.lower().endswith((".blp", ".m2")) and "%" not in field:
                         named.add(field)
+    # every animation a model keeps in a file of its own (3.3.5: <Model>NNNN-VV.anim): one the package lacks is read from the HD pack's
+    # files of that name, made for another skeleton, and the character is drawn torn
+    import re
+    import struct
+    for entry in looks["races"].values():
+        for m in entry["models"].values():
+            folder = os.path.join(client, m["folder"].replace("\\", "/"))
+            if not os.path.isdir(folder):
+                continue
+            # the model and its variants (<Model>V2.m2: the Orc man's Upright, a woman's variants)
+            for f in sorted(os.listdir(folder)):
+                stem = f[:-3]
+                if not f.lower().endswith(".m2") or not re.fullmatch(re.escape(m["name"]) + r"(V\d+)?", stem, re.I):
+                    continue
+                with open(os.path.join(folder, f), "rb") as fh:
+                    data = fh.read()
+                if data[:4] != b"MD20":
+                    continue
+                count, at = struct.unpack_from("<II", data, 28)
+                for i in range(count):
+                    sid, var = struct.unpack_from("<HH", data, at + i * 64)
+                    if not struct.unpack_from("<I", data, at + i * 64 + 12)[0] & 0x20:
+                        named.add("%s\\%s%04d-%02d.anim" % (m["folder"], stem, sid, var))
     return sorted(n for n in named if n.lower() not in have)
 
 
