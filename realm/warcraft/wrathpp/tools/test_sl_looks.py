@@ -199,22 +199,25 @@ class ChangesTest(unittest.TestCase):
         self.assertEqual(open(os.path.join(out, "T.txt")).read(), "types\tii\nput\t1\t2\nput\t3\t4\n")
 
 
-class BluePortraitTest(unittest.TestCase):
-    def test_green_excess_goes_to_blue_and_eyes_turn_blue(self):
+class BlueEyesTest(unittest.TestCase):
+    def test_irises_turn_blue_and_the_green_cast_goes_back_to_skin(self):
         import numpy as np
         icon = np.zeros((64, 64, 4), dtype=np.uint8)
         icon[..., 3] = 255
-        icon[21, 34] = (0xe6, 0xff, 0x6a, 255)       # an eye
-        icon[40, 10] = (0x20, 0xc0, 0x30, 255)       # fel glow
-        icon[50, 50] = (0xc7, 0xa6, 0x65, 255)       # skin
+        icon[21, 34] = (0x40, 0xd0, 0x40, 255)       # an iris
+        icon[25, 36] = (0x60, 0x70, 0x30, 255)       # olive cast beside the eye
+        icon[50, 30] = (0x89, 0x6a, 0x3a, 255)       # olive brown on the lower face
         icon[5, 5] = (0xe0, 0xc0, 0x60, 255)         # blond hair
-        out = sl_looks.blue_portrait(icon, sl_looks.BLUE_PORTRAITS["HIGHELF"])
-        for xy in ((21, 34), (40, 10)):
+        icon[50, 55] = (0x89, 0x6a, 0x3a, 255)       # the same brown in the hair, outside the face's box
+        out = sl_looks.blue_eyes(icon)
+        r, g, b, a = (int(v) for v in out[21, 34])
+        self.assertTrue(b > g and b > r and a == 255)
+        for xy in ((25, 36), (50, 30)):
             r, g, b, a = (int(v) for v in out[xy])
-            self.assertTrue(b > g and b > r and a == 255, xy)
-        self.assertEqual(tuple(out[50, 50]), (0xc7, 0xa6, 0x65, 255))
+            self.assertTrue(r > g > b, xy)
         self.assertEqual(tuple(out[5, 5]), (0xe0, 0xc0, 0x60, 255))
-        self.assertEqual(sl_looks.RACE_ICONS["HIGHELF"], 236440)
+        self.assertEqual(tuple(out[50, 55]), (0x89, 0x6a, 0x3a, 255))
+        self.assertEqual(sl_looks.RACE_ICONS["HIGHELF"], 131152)
 
 
 if __name__ == "__main__":
