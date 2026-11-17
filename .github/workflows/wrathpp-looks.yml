@@ -194,6 +194,13 @@ jobs:
             build/looks/looks.files
             build/art/art.txt
             generated-wrathpp_races_world.sql
+            build/races.json
+            build/looks.json
+            build/looks/client/Interface/GlueXML/WrathppLooks.lua
+            build/looks/client/Wrathpp/parts.txt
+            build/looks/dbc/CharSections.dbc
+            build/looks/dbc/CharBaseInfo.dbc
+            build/looks/dbc/ChrRaces.dbc
 
       # Only main publishes: the app downloads whatever is published.
       - name: Publish (release wrathpp-looks)
