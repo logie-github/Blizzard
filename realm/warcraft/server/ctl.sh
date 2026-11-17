@@ -257,7 +257,12 @@ configure_realm() {
 	# message at every login ("This server is running the Worgoblin module") is off.
 	worgen_conf="$R_ETC/modules/mod_worgen_goblin.conf"
 	if [ -f "$worgen_conf" ]; then
-		if [ "$REALM" != main ]; then
+		if [ "$REALM" = wrathpp ]; then
+			# Wrath++ has the Worgen and Goblins at the module's own ids (9 and 12: its High Elf and Void Elf are at 22 and 23), without the
+			# Cataclysm starting areas for now (no package for its own data folder): they start with the Night Elves and the Orcs.
+			setkey "$worgen_conf" WorgenGoblin.Enable 1
+			setkey "$worgen_conf" WorgenGoblin.StartingAreas 0
+		elif [ "$REALM" != main ]; then
 			setkey "$worgen_conf" WorgenGoblin.Enable 0
 		else
 			setkey "$worgen_conf" WorgenGoblin.Enable 1
@@ -408,8 +413,9 @@ run_dbimport() {
 #   rows OR its races' bits into the rows the other race modules' SQL puts in).
 realm_sql() {
 	if [ "$REALM" = wrathpp ]; then
-		# Wrath++ takes nothing of the other realms' own SQL (its module's is in its db-* folders).
-		set --
+		# Wrath++ takes nothing of the other realms' own SQL (its module's is in its db-* folders) but mod-worgoblin's (the Worgen and Goblins'
+		# starts, outfits and spells at the ids 9 and 12 Wrath++ gives them too: mod-worgen-goblin's package step puts it in this folder).
+		set -- "mod-worgen-goblin/data/sql/chromiecraft/world acore_world_wrathpp"
 	elif [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
