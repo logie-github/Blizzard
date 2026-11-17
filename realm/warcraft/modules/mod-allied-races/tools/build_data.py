@@ -36,6 +36,7 @@ HUMAN, ORC, DWARF, NIGHTELF, UNDEAD, TAUREN, GNOME, TROLL, BLOODELF, DRAENEI = 1
 VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI = 15, 16, 17, 18
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI)
 ALLIANCE_RACES, HORDE_RACES = (VOIDELF, LIGHTFORGED), (NIGHTBORNE, ZANDALARI)
+FACE_ROW_FLAGS = 1   # a profile's: the face rows' flags (a death knight's face needs 0x10 as its skin does: Wrath++ sets 17)
 FOLDED = {}   # a profile's: creature-only races given up for a playable one's id (old: the race its creatures take)
 MOVED = {15: 24, 16: 25, 17: 26, 18: 27}       # Skeleton, Vrykul, Tuskarr, Forest Troll: the creatures' races, moved
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari"}
@@ -416,7 +417,7 @@ def main():
         client.put("CharSections", st, v)
         new_sections.append(v)
 
-    SKIN_FLAGS, FACE_FLAGS = 17, 1
+    SKIN_FLAGS, FACE_FLAGS = 17, FACE_ROW_FLAGS
     for race in RACE_IDS:
         for sex in (0, 1):
             m = models[race][sex]
