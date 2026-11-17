@@ -256,7 +256,11 @@ def build(csv_dir, looks, allied_races=None):
         for key, entry in sorted(allied_races.items()):
             if key not in game:
                 continue
-            source = allied_races.get(entry.get("alias_of")) if entry.get("alias_of") else entry
+            alias = entry.get("alias_of")
+            # (the High Elf is the Void Elf's, an allied race; the Dark Troll the Troll's, one of the ten: race "8" of the looks)
+            source = (allied_races.get(alias) or looks["races"].get(str(alias))) if alias else entry
+            if source is None:
+                raise ValueError("%s: alias_of %r is neither an allied race nor one of the ten" % (key, alias))
             sl_race = int(source["race"])              # Shadowlands' race id: its options, aliases and unlocks
             for sex, model in sorted(entry["models"].items()):
                 m = build_model(tables, categories, sl_race, int(sex), model, key_race=game[key])

@@ -101,6 +101,14 @@
   "20_1:Leg Upgrade": 1364,
   "20_1:Modification": 1362,
   "20_1:Paint": 1365,
+  "21_0:Body Paint": 1374,
+  "21_0:Body Paint Color": 1372,
+  "21_0:Face Paint": 1373,
+  "21_0:Face Paint Color": 1371,
+  "21_1:Body Paint": 1378,
+  "21_1:Body Paint Color": 1376,
+  "21_1:Face Paint": 1377,
+  "21_1:Face Paint Color": 1375,
   "2_0:Earrings": 1240,
   "2_0:Grime": 1206,
   "2_0:Nose Ring": 1241,
@@ -173,5 +181,5 @@
   "9_1:Ears": 1286,
   "9_1:Tentacles": 1287
  },
- "next": 1371
+ "next": 1379
 }
