@@ -88,7 +88,8 @@ NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne", LIGHTFORGED: "Lightforged
 # the Highmountain's flythrough for theirs (sound/music/legion/mus_735_ar_rtc_highmountaintauren_flythrough.mp3); the rest
 # have the start race's flight without a voice.
 NARRATION = {VOIDELF: "VoidElfNarration.mp3", NIGHTBORNE: "NightborneNarration.mp3", LIGHTFORGED: "LightforgedDraeneiNarration.mp3",
-             ZANDALARI: "ZandalariTrollNarration.mp3", HIGHMOUNTAIN: "HighmountainTaurenNarration.mp3"}
+             ZANDALARI: "ZandalariTrollNarration.mp3", HIGHMOUNTAIN: "HighmountainTaurenNarration.mp3",
+             DARKTROLL: "DarkTrollNarration.mp3"}
 FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL"),
                   LIGHTFORGED: ("FEATURES", "HORNS", "NORMAL"), ZANDALARI: ("TUSKS", "TUSKS", "NORMAL"),
                   HIGHMOUNTAIN: ("HORNS", "HORNS", "NORMAL"),

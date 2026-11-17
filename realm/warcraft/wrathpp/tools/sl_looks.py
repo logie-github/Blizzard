@@ -451,6 +451,8 @@ NARRATIONS = {"voidelf": ("voidelf_intro.mp3", "VoidElfNarration.mp3"), "nightbo
               "zandalari": ("zandalari_intro.mp3", "ZandalariTrollNarration.mp3")}
 # wago.tools' music of the Highmountain's flythrough (file id), for the race that has no narration of the user's.
 NARRATION_FILES = {"highmountain": (1862320, "HighmountainTaurenNarration.mp3")}
+# The Dark Troll's: a narration made for it (an AI voice made like the Zandalari intro's, the user's: realm/warcraft/wrathpp/data/darktroll_intro.mp3).
+OWN_NARRATIONS = {"darktroll": (os.path.join(os.path.dirname(HERE), "data", "darktroll_intro.mp3"), "DarkTrollNarration.mp3")}
 
 
 def narrations(keys, read, client, log=print):
@@ -461,7 +463,11 @@ def narrations(keys, read, client, log=print):
     os.makedirs(folder, exist_ok=True)
     written = []
     for key in keys:
-        if key in NARRATIONS:
+        if key in OWN_NARRATIONS:
+            with open(OWN_NARRATIONS[key][0], "rb") as f, open(os.path.join(folder, OWN_NARRATIONS[key][1]), "wb") as out:
+                out.write(f.read())
+            written.append("Sound\\CinematicVoices\\" + OWN_NARRATIONS[key][1])
+        elif key in NARRATIONS:
             src = os.path.join(os.path.dirname(ALLIED_TOOLS), "data", "client", NARRATIONS[key][0])
             with open(src, "rb") as f, open(os.path.join(folder, NARRATIONS[key][1]), "wb") as out:
                 out.write(f.read())
@@ -633,7 +639,7 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 written.append(path)
         if entry.get("voices"):
             written += allied_package.voice_files(entry, read, client, log)
-    written += narrations([e for e in looks["races"] if e in NARRATIONS or e in NARRATION_FILES], read, client, log)
+    written += narrations([e for e in looks["races"] if e in NARRATIONS or e in NARRATION_FILES or e in OWN_NARRATIONS], read, client, log)
     if any(e.get("alias_of") or k in KEYS.values() for k, e in looks["races"].items()):
         written += race_icons(read, client, log)
     changes = looks_changes(looks, dbc_dir)

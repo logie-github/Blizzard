@@ -35,6 +35,6 @@ Status 2026-11-17: **stage 1 is in the generator and the creator's glue; nothing
 ## Still to do
 
 1. **Eyes**: the Troll's 18 eye colours include yellows; the night elves' silver and blue glows are not added.
-2. **Intro**: the Night Elves' camera is the start race's; the narration is a draft (an AI clone of the Zandalari intro's voice, not in the repository) that waits for the user's word.
+2. **Intro**: the Night Elves' camera is the start race's, retimed to the narration's length (the allied races' way); the narration is `realm/warcraft/wrathpp/data/darktroll_intro.mp3` (49 s, an AI voice made like the Zandalari intro's from the user's recording, with the user's words on the pronunciations: High-jall, Ee-loon; the script is in `DARK_TROLLS.md`'s history): in the package as `Sound\CinematicVoices\DarkTrollNarration.mp3`.
 3. **Quests as trolls**: the generator ORs the new race into the Night Elves' quest, item and spell masks; troll-only gates (none known) are not touched.
 4. **The first run**: CI's looks run is the first to make these files; the Dark Troll's counts (skins, colours) are checked by `sl_creator`'s own consistency errors and the rig.
