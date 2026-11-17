@@ -3,7 +3,7 @@
 option of each race and sex that is drawn, so that the realm keeps a character's choice of it, sends it to the clients that
 see her and the add-on gives it to the native mod.
 
-    python3 tools/registry_parts.py LOOKS.json              rewrites registry/registry.json (the categories from 1190) and
+    python3 tools/registry_parts.py LOOKS.json [RACES.json] rewrites registry/registry.json (the categories from 1190) and
                                                             registry/parts_ids.json when what is drawn changed
 
 A category's id is the next free one from 1200 the first time an option is drawn and the same ever after (parts_ids.json:
@@ -68,17 +68,19 @@ def build(looks, doc, ids):
                         "eligibility": [{"race": r, "sexes": [sx], "classes": []} for r, sx, _ in sorted(skin_models)],
                         "options": [{"id": i + 1, "name": str(i + 1), "value": i} for i in range(max(n for _, _, n in skin_models))]})
     cats.insert(0, {"id": HAIR_COLOUR, "key": "HAIR_COLOUR", "name": "Hair colour", "kind": "texture_layer", "default": 1, "origin": ORIGIN,
-                    "eligibility": [{"race": r, "sexes": ["male", "female"], "classes": []} for r in RACES],
+                    "eligibility": [{"race": r, "sexes": ["male", "female"], "classes": []} for r in sorted(set(RACES) | {int(e["race"]) for e in looks["races"].values()})],
                     "options": [{"id": i + 1, "name": str(i + 1), "value": i} for i in range(colours)]})
     return kept + cats
 
 
 def main(argv):
-    if len(argv) != 2:
+    if len(argv) not in (2, 3):
         print(__doc__, file=sys.stderr)
         return 2
-    with open(argv[1]) as f:
-        looks = json.load(f)
+    import sl_looks
+    looks = sl_looks.load_looks(argv[1])
+    if len(argv) == 3:                     # the allied races (sl_looks.py data), by the race ids the game gives them
+        looks = {"races": dict(looks["races"], **sl_looks.drawn_looks(sl_looks.load_looks(argv[2]))["races"])}
     with open(REGISTRY, encoding="utf-8") as f:
         doc = json.load(f)
     ids = json.load(open(IDS)) if os.path.exists(IDS) else {}

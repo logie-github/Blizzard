@@ -283,13 +283,14 @@ inline uint32_t BodyDisplay(const Registry& reg, const Appearance& resolved, uin
     return kBodyDisplayBase + uint32_t(slot) * 260 + uint32_t(shape) * 65 + uint32_t(layer);
 }
 
-// Model variants (registry categories 1500 to 1504, parts_ids.json): options that give a character another model of the game's, each
+// Model variants (registry categories 1500 to 1505, parts_ids.json): options that give a character another model of the game's, each
 // a display the app (WrathppVariants) writes into the game's and the server's tables: kVariantDisplayBase + (category - 1500) * 16 +
 // the option's value. 1500 the Orc man's Upright, 1501 and 1502 the Human man's and woman's Face Shape, 1503 and 1504 the Forsaken's
-// Skin Type. 0: nothing to change (no such display in the tables: the race's own stays).
-constexpr uint16_t kFirstVariant = 1500, kVariantCount = 5;
-constexpr uint8_t kVariantRace[kVariantCount] = {2, 1, 1, 5, 5};
-constexpr uint8_t kVariantSex[kVariantCount] = {0, 0, 1, 0, 1};
+// Skin Type, 1505 the Mag'har man's Hunched (race 19: races_profile.py). 0: nothing to change (no such display in the tables: the
+// race's own stays).
+constexpr uint16_t kFirstVariant = 1500, kVariantCount = 6;
+constexpr uint8_t kVariantRace[kVariantCount] = {2, 1, 1, 5, 5, 19};
+constexpr uint8_t kVariantSex[kVariantCount] = {0, 0, 1, 0, 1, 0};
 constexpr uint32_t kVariantDisplayBase = 44000;
 
 inline uint32_t VariantDisplay(const Registry& reg, const Appearance& resolved, uint8_t race, uint8_t sex) {

@@ -27,7 +27,7 @@ object WrathppVariants {
     data class Variant(val race: Int, val sex: Int, val category: Int, val choice: Int, val model: String)
 
     const val FIRST_CATEGORY = 1500
-    const val CATEGORIES = 5
+    const val CATEGORIES = 6
 
     /** wrathpp_appearance.h: kVariantDisplayBase + (category - 1500) * 16 + the option's value (the choice's number less one). */
     fun displayId(variant: Variant) = DISPLAY_BASE + (variant.category - FIRST_CATEGORY) * 16 + variant.choice - 1

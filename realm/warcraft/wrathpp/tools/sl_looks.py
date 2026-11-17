@@ -508,6 +508,34 @@ def race_icons(read, client, log=print):
     return written
 
 
+def allied_game_ids():
+    """The allied races' race ids in the game, by key (tools/races_profile.py's KEY: the ids below 22 the client can hold). That file is
+    run by the allied races' build_data with names it gives it; its ids and keys are read from its source."""
+    lines = open(os.path.join(HERE, "races_profile.py"), encoding="utf-8").read().splitlines()
+    wanted = [l for l in lines if l.startswith(("VOIDELF, NIGHTBORNE", "HIGHELF ="))]
+    i = next(n for n, l in enumerate(lines) if l.startswith("KEY ="))
+    wanted.append(lines[i])
+    while not lines[i].rstrip().endswith("}"):
+        i += 1
+        wanted.append(lines[i])
+    ns = {}
+    exec("\n".join(wanted), {}, ns)
+    return {key: race for race, key in ns["KEY"].items()}
+
+
+def drawn_looks(looks):
+    """The races whose parts the add-on draws, as write_parts_table and registry_parts take them: the ten as they are (their own race
+    id), the allied races by the race id the game gives them. The High Elf's models are the Void Elf's ("alias_of")."""
+    game = allied_game_ids()
+    out = {}
+    for key, entry in looks["races"].items():
+        if entry.get("replace_rows"):
+            out[key] = entry
+        elif key in game:
+            out[str(game[key])] = dict(entry, race=game[key])
+    return {"races": out}
+
+
 def load_looks(path):
     """A looks file: sl_looks.py races' ({"races": ...}) or the allied races' data (sl_looks.py data: the races by key)."""
     with open(path) as f:
@@ -581,7 +609,14 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     for name, text in changes.items():
         with open(os.path.join(out_dir, "changes", name + ".txt"), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
-    ten = {"races": {k: v for k, v in looks["races"].items() if v.get("replace_rows")}}
+    ten = drawn_looks(looks)
+    # (the High Elf is the Void Elf's files: the textures its pieces take are the Void Elf's)
+    for entry in looks["races"].values():
+        if entry.get("alias_of") and entry["alias_of"] in looks["races"]:
+            for sex, m in entry["models"].items():
+                other = looks["races"][entry["alias_of"]]["models"].get(sex, {})
+                if other.get("part_types"):
+                    m["part_types"] = other["part_types"]
     if ten["races"]:
         import sl_parts
         ids_path = os.path.join(os.path.dirname(HERE), "registry", "parts_ids.json")
@@ -592,11 +627,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
         if any(m.get("part_types") or m.get("soft") for e in ten["races"].values() for m in e["models"].values()):
             with open(looks_path) as f:
                 saved = json.load(f)
-            for key, e in ten["races"].items():
+            races = saved["races"] if "races" in saved and "build" in saved else saved
+            for key, e in looks["races"].items():
                 for sex, m in e["models"].items():
-                    if (m.get("part_types") or m.get("soft")) and key in saved.get("races", {}):
-                        if m.get("part_types"):
-                            saved["races"][key]["models"][sex]["part_types"] = m["part_types"]
+                    if m.get("part_types") and key in races:
+                        races[key]["models"][sex]["part_types"] = m["part_types"]
             with open(looks_path, "w") as f:
                 json.dump(saved, f, indent=1, sort_keys=True)
     missing = verify(looks, out_dir)

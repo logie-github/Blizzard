@@ -558,6 +558,12 @@ def write_parts_table(looks, out_dir, ids):
                         lines.append("V\t%d\t%d\t%d\t%d\t%s" % (entry["race"], int(sex), category, k, variant_model_path(model, k)))
     path = os.path.join(out_dir, "Wrathpp", "parts.txt")
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # (the ten races' run and the allied races' write the same file: the lines of races this one doesn't have are kept)
+    mine = {str(e["race"]) for e in looks["races"].values()}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            kept = [l.rstrip("\n") for l in f if l.strip() and not l.startswith("#") and len(l.split("\t")) > 1 and l.split("\t")[1] not in mine]
+        lines = kept + lines
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("# Wrath++'s parts (sl_parts.py): S/P race sex slot category [style category] shell; C race sex category option colour picture\n")
         f.write("".join(line + "\n" for line in lines))

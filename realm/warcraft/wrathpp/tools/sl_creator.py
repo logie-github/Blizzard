@@ -137,7 +137,7 @@ def _parts_ids():
 PARTS_IDS = _parts_ids()
 
 
-def build_model(tables, categories, race_id, sex, model):
+def build_model(tables, categories, race_id, sex, model, key_race=None):
     chr_model = model["chr_model"]
     for asked, today in sl_looks.ALIASES.get(race_id, {}).items():
         tables.aliases[(str(chr_model), asked)] = today
@@ -181,7 +181,7 @@ def build_model(tables, categories, race_id, sex, model):
                     option["bodyoverlay"] = names.body_shell(model)
                 if overlay.get("depends"):
                     option["depends"] = list(overlay["depends"])
-            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
             if reg:
                 option["reg"] = reg                    # the registry's category: the realm keeps the character's choice (registry_parts.py)
         # A model piece (ears, headdress, vines, a tail...): the native mod hangs its model (sl_parts.geoset_part) and shows the chosen
@@ -191,7 +191,7 @@ def build_model(tables, categories, race_id, sex, model):
         variant = next((x for x in model.get("variants", []) if x["name"] == o["Name_lang"]), None)
         if variant is not None and "field" not in option:
             option["variant"] = True                  # another model: kept for the character and shown in the world (not in the creator's preview)
-            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
             if reg:
                 option["reg"] = reg
         if "field" in option and part is not None and part.get("feature"):
@@ -200,11 +200,11 @@ def build_model(tables, categories, race_id, sex, model):
             option["types"] = list(model.get("part_types", {}).get(part["name"], []))
             if 13 in option["types"] and model.get("pickers"):
                 option["picker"] = model["pickers"][0]["name"]
-            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
             if reg:
                 option["reg"] = reg
         if "field" not in option and "overlay" not in option and "style" not in option and (part is not None or picker is not None):
-            reg = PARTS_IDS.get("%d_%d:%s" % (race_id, sex, o["Name_lang"]))
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
             if part is not None and any(c["geosets"] for c in part["choices"]):
                 option["geoset"] = sl_parts.part_model_path(model, part)
                 if part.get("skinned"):
@@ -235,18 +235,8 @@ def build_model(tables, categories, race_id, sex, model):
 
 
 def game_race_ids():
-    """The allied races' race ids in the game (tools/races_profile.py: the ids below 22 the client can hold), by their key."""
-    # (races_profile is run by the allied races' build_data with its names given; its ids and keys are read here from its source)
-    src = open(os.path.join(HERE, "races_profile.py"), encoding="utf-8").read()
-    wanted = [l for l in src.splitlines() if l.startswith(("VOIDELF, NIGHTBORNE", "HIGHELF =", "KEY ="))]
-    i = src.splitlines().index(next(l for l in src.splitlines() if l.startswith("KEY =")))
-    lines = src.splitlines()
-    while not lines[i].rstrip().endswith("}"):
-        i += 1
-        wanted.append(lines[i])
-    ns = {}
-    exec("\n".join(wanted), {}, ns)
-    return {key: race for race, key in ns["KEY"].items()}
+    """The allied races' race ids in the game, by key (sl_looks.allied_game_ids)."""
+    return sl_looks.allied_game_ids()
 
 
 def build(csv_dir, looks, allied_races=None):
@@ -267,7 +257,7 @@ def build(csv_dir, looks, allied_races=None):
             source = allied_races.get(entry.get("alias_of")) if entry.get("alias_of") else entry
             sl_race = int(source["race"])              # Shadowlands' race id: its options, aliases and unlocks
             for sex, model in sorted(entry["models"].items()):
-                m = build_model(tables, categories, sl_race, int(sex), model)
+                m = build_model(tables, categories, sl_race, int(sex), model, key_race=game[key])
                 m["race"] = game[key]
                 models["%d_%d" % (game[key], int(sex))] = m
     return {"build": looks.get("build", sl_looks.BUILD), "models": models}

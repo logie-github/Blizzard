@@ -172,5 +172,27 @@ class PartsTest(unittest.TestCase):
         self.assertEqual([c[0] for c in colours], ["s2", "s3"])                 # the style's choices by number: Ghost 2, Beast 3
 
 
+class PartsTableOfTwoRunsTest(unittest.TestCase):
+    def test_the_allied_races_run_keeps_the_ten_races_lines(self):
+        import sl_looks
+        with tempfile.TemporaryDirectory() as out:
+            ten = {"races": {"2": {"race": 2, "replace_rows": True, "models": {"0": {"name": "OrcMale", "folder": "Character\\Orc\\Male",
+                "variants": [{"name": "Upright", "choices": [{"file": 1}, {"file": 2}]}]}}}}}
+            sl_parts.write_parts_table(sl_looks.drawn_looks(ten), out, {"2_0:Upright": 1500})
+            allied = {"races": {"maghar": {"race": 36, "models": {"0": {"name": "MagharMale", "folder": "Character\\Maghar\\Male",
+                "variants": [{"name": "Hunched", "choices": [{"file": 1}, {"file": 2}]}]}}}}}
+            drawn = sl_looks.drawn_looks(allied)
+            self.assertEqual(list(drawn["races"]), ["19"])          # by the race id the game gives the Mag'har (races_profile.py)
+            sl_parts.write_parts_table(drawn, out, {"19_0:Hunched": 1505})
+            lines = open(os.path.join(out, "Wrathpp", "parts.txt")).read().splitlines()
+            self.assertTrue(any(l.startswith("V\t2\t0\t1500\t2\t") for l in lines), lines)
+            self.assertTrue(any(l.startswith("V\t19\t0\t1505\t2\t") for l in lines), lines)
+            # and the ten's run again replaces only its own
+            sl_parts.write_parts_table(sl_looks.drawn_looks(ten), out, {"2_0:Upright": 1500})
+            lines = open(os.path.join(out, "Wrathpp", "parts.txt")).read().splitlines()
+            self.assertEqual(sum(1 for l in lines if l.startswith("V\t2\t")), 2)      # (its two choices, once each)
+            self.assertEqual(sum(1 for l in lines if l.startswith("V\t19\t")), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
