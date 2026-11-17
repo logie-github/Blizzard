@@ -20,8 +20,11 @@ SQL_NOTE = "Wrath++'s allied races (the ten, and the High Elf), made by realm/wa
 # SetSelectedRace). So, as mod-allied-races does, the new races take the ids of the game's creatures-only races, which move up:
 # the Goblins' row 9 and the creatures' 12 to 21 go to 22 to 32 (MOVED: their rows, looks, hair, features and voices), and the High Elf
 # takes 9, the ten allied races 12 to 21. The Worgen and Goblins (mod-worgen-goblin, ids 12 and 9) need that array enlarged first.
-VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(12, 21)   # (21 is free)
-HIGHELF = 9
+NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(13, 21)
+HIGHELF = 22          # (ids 22 and up need the native mod's larger saved choices' array: wrathpp-native, WrathPP_MaxRace)
+VOIDELF = 23
+# (9 and 12 are the Goblins' and the Worgen's, mod-worgen-goblin's own ids, which mod-worgoblin's code and SQL name: the module is
+# not changed for Wrath++. The creatures' races it moves itself: 9 to 28, 12 to 29.)
 DARKTROLL = 21        # the Alliance's dark trolls: the Troll's look and sounds, the Night Elves' start, racials and camera
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF, DARKTROLL)
 ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, DARKIRON, MECHAGNOME, HIGHELF, DARKTROLL)
@@ -30,11 +33,11 @@ FOLDED = {20: 15, 21: 18}                              # (the Northrend Skeleton
 # A death knight's face rows need the flag its skins have (0x10; the client's GetSelectionFromContext asks for 0x1 and 0x14), as the ten
 # races' do: 17, not the module's 1 (with 1 a death knight of these races has no valid face: the rig's failures, issue 294's neighbours).
 FACE_ROW_FLAGS = 17
-MOVED = {9: 32, **{old: old + 12 for old in range(12, 20)}}          # (the creatures' races 9 to 32, 12 to 19 up by twelve: 22 and 23 stay free for the Goblins and Worgen)
+MOVED = {13: 24, 14: 25, 15: 26, 16: 27, 17: 30, 18: 31, 19: 32}          # (the creatures' races 13 to 19 up, clear of 22 and 23 (the High Elf's and Void Elf's) and 28 and 29 (where mod-worgen-goblin moves the Goblins' and the Fel Orcs'))
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
-CLIENT_FILE_STRING = {12: "VoidElf", 13: "Nightborne", 14: "LightforgedDraenei", 15: "ZandalariTroll", 16: "HighmountainTauren",
-                      17: "DarkIronDwarf", 18: "Vulpera", 19: "MagharOrc", 20: "Mechagnome", 9: "HighElf", 21: "DarkTroll"}
+CLIENT_FILE_STRING = {23: "VoidElf", 13: "Nightborne", 14: "LightforgedDraenei", 15: "ZandalariTroll", 16: "HighmountainTauren",
+                      17: "DarkIronDwarf", 18: "Vulpera", 19: "MagharOrc", 20: "Mechagnome", 22: "HighElf", 21: "DarkTroll"}
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari", HIGHMOUNTAIN: "highmountain",
        DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf", DARKTROLL: "darktroll"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}

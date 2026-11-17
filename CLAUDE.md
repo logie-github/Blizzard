@@ -61,6 +61,11 @@
   and rig sessions don't edit them. Before every push to `main`: `git diff --name-only origin/main HEAD | grep -i forever` must list
   nothing you did not mean to change; after a merge, `git diff <your commit>~1 <your commit> --stat` for those paths is empty.
 - Never commit build outputs, downloaded tools, or any game files.
+- **The phone's Wrath++ runs on ChromieCraft's HD pack** (the user, 17 November 2026: "Remember under that I'm using
+  chromiecrafts hd pack"; the start report's "HD look", its patches in Wrath++'s copy of the game). The looks' `patch-Z` sits
+  over it, so everything Wrath++'s looks name (models, textures, `CharSections` rows) is drawn beside and over the HD pack's own
+  files and tables, not stock 3.3.5's: check a look, a table change or a texture name against that base, and read a phone
+  picture as the HD pack plus the looks.
 
 ## Wrath++: the whole Shadowlands creator, every option, every race (the user's standing rule)
 

@@ -493,8 +493,34 @@ def narrations(keys, read, client, log=print):
 
 # wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
 # app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
-RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
+RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 236440,
               "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "DARKTROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
+
+
+# The High Elf wears the Blood Elf man's portrait (achievement_character_bloodelf_male) in blue where the Blood Elf's is fel green.
+# The green a pixel has over its red and blue (the glow, the rim light, the cast in the shadows) is moved into its blue, so shading
+# and skin stay as drawn; the two eyes (boxes x0, x1, y0, y1 of the 64 x 64 icon) are set to a blue of the same brightness.
+BLUE_PORTRAITS = {"HIGHELF": [(32, 37, 19, 23), (15, 21, 26, 29)]}
+
+
+def blue_portrait(rgba, eyes):
+    """A copy of the RGBA icon with its green excess moved to blue and the pixels of green eyes inside the [eyes] boxes made blue."""
+    import colorsys
+    import numpy as np
+    f = rgba.astype(float)
+    r, g, b = f[..., 0], f[..., 1], f[..., 2]
+    excess = np.clip(g - np.maximum(r, b), 0, None)
+    out = f.copy()
+    out[..., 1] = g - excess
+    out[..., 2] = b + excess
+    for x0, x1, y0, y1 in eyes:
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                er, eg, eb = f[y, x, :3]
+                if eg >= er - 12 and eg > eb + 40:
+                    h, sat, val = colorsys.rgb_to_hsv(er / 255, eg / 255, eb / 255)
+                    out[y, x, :3] = [c * 255 for c in colorsys.hsv_to_rgb(0.58, max(0.55, sat), min(1.0, val * 1.05))]
+    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
 
 def race_icons(read, client, log=print):
@@ -508,6 +534,8 @@ def race_icons(read, client, log=print):
     for token, fid in sorted(RACE_ICONS.items()):
         rgba = blp.read(read(fid))
         img = Image.fromarray(rgba).convert("RGBA").resize((64, 64), Image.LANCZOS)
+        if token in BLUE_PORTRAITS:
+            img = Image.fromarray(blue_portrait(np.asarray(img), BLUE_PORTRAITS[token]))
         with open(os.path.join(folder, token + ".blp"), "wb") as f:
             f.write(blp.write_palette(np.ascontiguousarray(np.asarray(img)), alpha=True))
         written.append("Interface\\Glues\\CharacterCreate\\WrathppRaces\\%s.blp" % token)
@@ -630,6 +658,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                     written += files
                     model["part_types"][part["name"]] = sorted(types)
                 written += sl_parts.write_pickers(read, model, client, log)
+            if model.get("overlays"):
+                # the pictures laid over the head and body (eyebrows, makeup, scars...): every model with overlays, pieces or none (inside
+                # the pieces' step they were written only for a model that has pieces: the Human, Orc and Dwarf women's, the Trolls',
+                # the Dark Iron man's were not in the package, and the game drew them bright green)
+                import sl_parts
                 written += sl_parts.write_overlays(mread, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
@@ -703,6 +736,40 @@ def verify(looks, out_dir):
     for entry in looks["races"].values():
         for m in entry["models"].values():
             named.add(m["folder"] + "\\" + m["name"] + ".m2")
+    # every file the add-on's parts table names (the pieces' models, the pictures over the head and body, skins, colours): a picture
+    # missing from the package is drawn bright green
+    parts = os.path.join(client, "Wrathpp", "parts.txt")
+    if os.path.exists(parts):
+        with open(parts, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("#"):
+                    continue
+                for field in line.rstrip("\n").split("\t")[1:]:
+                    if "\\" in field and field.lower().endswith((".blp", ".m2")) and "%" not in field:
+                        named.add(field)
+    # every animation a model keeps in a file of its own (3.3.5: <Model>NNNN-VV.anim): one the package lacks is read from the HD pack's
+    # files of that name, made for another skeleton, and the character is drawn torn
+    import re
+    import struct
+    for entry in looks["races"].values():
+        for m in entry["models"].values():
+            folder = os.path.join(client, m["folder"].replace("\\", "/"))
+            if not os.path.isdir(folder):
+                continue
+            # the model and its variants (<Model>V2.m2: the Orc man's Upright, a woman's variants)
+            for f in sorted(os.listdir(folder)):
+                stem = f[:-3]
+                if not f.lower().endswith(".m2") or not re.fullmatch(re.escape(m["name"]) + r"(V\d+)?", stem, re.I):
+                    continue
+                with open(os.path.join(folder, f), "rb") as fh:
+                    data = fh.read()
+                if data[:4] != b"MD20":
+                    continue
+                count, at = struct.unpack_from("<II", data, 28)
+                for i in range(count):
+                    sid, var = struct.unpack_from("<HH", data, at + i * 64)
+                    if not struct.unpack_from("<I", data, at + i * 64 + 12)[0] & 0x20:
+                        named.add("%s\\%s%04d-%02d.anim" % (m["folder"], stem, sid, var))
     return sorted(n for n in named if n.lower() not in have)
 
 

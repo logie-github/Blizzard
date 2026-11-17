@@ -114,7 +114,7 @@ jobs:
           fi
           # The change files merged (the ten races' rows and the allied races'), and the server's tables with them applied: the package
           # carries the changes (the app applies them to the client's own tables), not tables.
-          python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client
+          python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client realm/warcraft/modules/mod-worgen-goblin/data/client/dbc
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/looks.json build/looks
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/races.json build/looks
 

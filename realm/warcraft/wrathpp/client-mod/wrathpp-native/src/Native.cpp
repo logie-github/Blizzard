@@ -70,6 +70,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <atomic>
+#include <cctype>
 #include <cmath>
 #include <map>
 #include <mutex>
@@ -741,7 +742,8 @@ namespace
         uint32_t seen = 0;
     };
     std::mutex g_softLock;
-    std::map<uint32_t, SoftConfig> g_soft;          // by the model file's bone count (a woman's models: the looks', their variants, their body shapes)
+    std::map<uint32_t, SoftConfig> g_soft;          // by the model file's bone count (an add-on that names no model: the older way)
+    std::map<std::string, SoftConfig> g_softByName; // by the model's name, lower case ("humanfemale"): that model, its variants (V1...) and body shapes (Wpp1...)
     std::map<const void*, SoftState> g_softState;   // by model, one each
     std::atomic<int> g_softLevel{2};                // 0 off, 1 subtle, 2 natural, 3 strong
     wxl::M2BoneWatch g_boneWatch;
@@ -754,15 +756,48 @@ namespace
         return {3.2, 0.22, 0.012 * a, 0.035 * a};
     }
 
-    wxl_bool WXL_CALL SoftFilter(void*, wxl_str path, uint32_t boneCount, void*)
+    /// The name a model file is sprung by: its file name, lower case, without ".m2" and without a variant's ("V2") or a body shape's
+    /// ("Wpp1") ending; "" for a file that isn't a woman's model. The head's and body's shells ("...Face", "...Body") and the pieces
+    /// ("...P<Name>") keep their endings, so no name matches them: they are posed by her bones and aren't sprung again.
+    std::string SoftName(std::string_view p)
     {
-        const std::string_view p = wxl::View(path);
-        if (p.size() < 8) return WXL_FALSE;
         std::string lower(p);
         for (char& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (lower.find("\\female\\") == std::string::npos || lower.rfind(".m2") != lower.size() - 3) return WXL_FALSE;
+        const bool m2 = lower.size() > 3 && lower.compare(lower.size() - 3, 3, ".m2") == 0;
+        const bool mdx = lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".mdx") == 0;     // (the tables' own name for it)
+        if (lower.find("\\female\\") == std::string::npos || (!m2 && !mdx)) return {};
+        const size_t slash = lower.find_last_of("\\/");
+        std::string name = lower.substr(slash == std::string::npos ? 0 : slash + 1);
+        name.resize(name.size() - (m2 ? 3 : 4));
+        size_t end = name.size();
+        while (end > 0 && std::isdigit(static_cast<unsigned char>(name[end - 1]))) --end;
+        if (end < name.size())
+        {
+            if (end >= 3 && name.compare(end - 3, 3, "wpp") == 0) name.resize(end - 3);
+            else if (end >= 1 && name[end - 1] == 'v') name.resize(end - 1);
+        }
+        return name;
+    }
+
+    /// The soft body for a model: by its name where the add-on named models, else by its bone count. nullptr for none.
+    const SoftConfig* SoftFor(wxl_str path, uint32_t boneCount)
+    {
+        if (!g_softByName.empty())
+        {
+            const std::string name = SoftName(wxl::View(path));
+            if (name.empty()) return nullptr;
+            const auto it = g_softByName.find(name);
+            return it == g_softByName.end() ? nullptr : &it->second;
+        }
+        if (SoftName(wxl::View(path)).empty()) return nullptr;
+        const auto it = g_soft.find(boneCount);
+        return it == g_soft.end() ? nullptr : &it->second;
+    }
+
+    wxl_bool WXL_CALL SoftFilter(void*, wxl_str path, uint32_t boneCount, void*)
+    {
         std::lock_guard<std::mutex> hold(g_softLock);
-        return g_soft.count(boneCount) ? WXL_TRUE : WXL_FALSE;
+        return SoftFor(path, boneCount) ? WXL_TRUE : WXL_FALSE;
     }
 
     void Row(const float* m, const double p[3], double out[3])
@@ -775,9 +810,9 @@ namespace
         const int level = g_softLevel.load();
         if (level <= 0 || !bones || !bones->matrices) return;
         std::lock_guard<std::mutex> hold(g_softLock);
-        const auto config = g_soft.find(bones->bone_count);
-        if (config == g_soft.end()) return;
-        const SoftConfig& c = config->second;
+        const SoftConfig* config = SoftFor(bones->path, bones->bone_count);
+        if (!config) return;
+        const SoftConfig& c = *config;
         if (c.parent >= bones->bone_count) return;
         SoftState& st = g_softState[bones->model];
         st.seen = bones->time_ms;
@@ -853,7 +888,10 @@ namespace
         st.lastMs = bones->time_ms;
     }
 
-    /// The soft body of a woman's model: WrathPP_SetSoftBody(boneCount, parent, boneL, lx, ly, lz, "below,below", boneR, rx, ry, rz, "below,..").
+    /// The soft body of a woman's model: WrathPP_SetSoftBody(boneCount, parent, boneL, lx, ly, lz, "below,below", boneR, rx, ry, rz, "below,..",
+    /// "ModelName"). The name (the package's parts.txt has it since 17 November 2026) makes it that model's only: by the bone count
+    /// alone, another race's model of the same count (the Troll's, the Zandalari's and the Dark Troll's women: 200) took the last one's
+    /// bones, and the head's shell, of her bones, was sprung too.
     void SetSoftBodyCall(wxl::ScriptCall& call)
     {
         const auto count = call.Number(0), parent = call.Number(1);
@@ -861,6 +899,7 @@ namespace
         const auto leftBelow = call.String(6);
         const auto rightBone = call.Number(7), rx = call.Number(8), ry = call.Number(9), rz = call.Number(10);
         const auto rightBelow = call.String(11);
+        const auto modelName = call.String(12);
         if (!count || !parent || !leftBone || !lx || !ly || !lz || !rightBone || !rx || !ry || !rz)
         {
             call.Fail("WrathPP_SetSoftBody(boneCount, parent, boneL, x, y, z, \"below,...\", boneR, x, y, z, \"below,...\")");
@@ -893,6 +932,12 @@ namespace
         {
             std::lock_guard<std::mutex> hold(g_softLock);
             g_soft[static_cast<uint32_t>(*count)] = c;
+            if (modelName && !modelName->empty())
+            {
+                std::string name(*modelName);
+                for (char& ch : name) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                g_softByName[name] = c;
+            }
         }
         if (!g_boneWatch)
         {

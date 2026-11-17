@@ -265,5 +265,14 @@ check(not decimate.sink_lifts(ring, ring, tri_list, tri_list), "nothing is lifte
 locked_lifts = decimate.sink_lifts(ring, ring, tri_list, cut_tris, locked=set(lifts), cap=1.0)
 check(not locked_lifts, "a vertex that is locked is never lifted")
 
+# A collection's bones put on a character's skeleton by their names' hashes; one the character hasn't goes to its nearest parent it has
+class _Bones:
+    def __init__(self, rows):          # rows: (name hash, parent index)
+        self.bones = [(struct.pack("<iIhHI", -1, 0, parent, 0, crc), None, None) for crc, parent in rows]
+
+
+_char = _Bones([(10, -1), (20, 0), (30, 1), (40, 1)])
+_coll = _Bones([(10, -1), (40, 0), (99, 1), (30, 0)])
+check(m2.map_bones(_coll, _char) == [0, 3, 3, 2], "a collection's bones on the character's: by name, an unknown one on its parent's")
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)

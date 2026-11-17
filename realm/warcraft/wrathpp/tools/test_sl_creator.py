@@ -138,9 +138,9 @@ class CreatorDataTest(unittest.TestCase):
 class AlliedRaceIdsTest(unittest.TestCase):
     def test_the_allied_races_take_the_ids_the_game_gives_them(self):
         ids = sl_creator.game_race_ids()
-        self.assertEqual(ids["voidelf"], 12)
-        self.assertEqual(ids["highelf"], 9)
-        self.assertTrue(all(r < 22 for r in ids.values()))      # (the client holds race ids up to 21)
+        self.assertEqual(ids["voidelf"], 23)
+        self.assertEqual(ids["highelf"], 22)
+        self.assertTrue(all(r < 64 for r in ids.values()))      # (the native mod's moved saved choices' array holds race ids up to 63)
         self.assertEqual(len(set(ids.values())), len(ids))
 
 

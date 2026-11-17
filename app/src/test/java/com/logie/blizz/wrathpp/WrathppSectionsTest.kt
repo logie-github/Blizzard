@@ -45,6 +45,9 @@ class WrathppSectionsTest {
         val file = File(client, "Data/${WrathppLooks.PATCH}/DBFilesClient/CharSections.dbc").apply { parentFile!!.mkdirs() }
         file.writeBytes(table(row(1, 1, 1, 1, 0, 0), row(2, 1, 1, 1, 3, 0), row(3, 2, 0, 1, 0, 0), row(4, 1, 1, 1, 0, 1)).write())
         assertEquals("put in order: 1 overruns and 1 split groups before, 0 and 0 now", WrathppSections.apply(client))
+        assertEquals("in order (as checked before)", WrathppSections.apply(client))
+        // a table that changed since is looked at again
+        file.delete(); file.writeBytes(table(row(1, 1, 0, 0, 0, 0), row(2, 1, 0, 0, 0, 1)).write())
         assertTrue(WrathppSections.apply(client).startsWith("in order (0 overruns"))
     }
 }

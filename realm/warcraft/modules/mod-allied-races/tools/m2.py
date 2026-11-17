@@ -672,6 +672,25 @@ def bone_sources(files, policy, child, parent):
     return out
 
 
+def map_bones(own, host):
+    """For each of [own]'s bones, the index of [host]'s bone of the same name (its name's hash), else of the nearest of its parents
+    that [host] has (the root's for none)."""
+    by_crc = {}
+    for i, (head, _t, _p) in enumerate(host.bones):
+        by_crc.setdefault(struct.unpack_from("<I", head, 12)[0], i)
+    out = []
+    for i, (head, _t, _p) in enumerate(own.bones):
+        b, found = i, None
+        while b >= 0 and found is None:
+            h = own.bones[b][0]
+            found = by_crc.get(struct.unpack_from("<I", h, 12)[0])
+            b = struct.unpack_from("<h", h, 8)[0] if found is None else b
+            if b >= len(own.bones):
+                b = -1
+        out.append(found if found is not None else 0)
+    return out
+
+
 class MixedBuilds(ValueError):
     """A model whose .skin files are of another build than the model file."""
 
@@ -685,8 +704,25 @@ def convert(files, policy, out_dir, log=print):
     chunks = chunks_of(m2_data)
     # A model with a skeleton file (today's allied races), else its own bones (the ten races of 3.3.5's, Wrath++)
     child = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0])) if "SKID" in chunks else OwnSkeleton(m2_data)
+    bone_map = None
+    if policy.get("skeleton_of"):
+        # A collection's model (a Mechagnome's limbs, horns) made on a character's skeleton: its bones are named as the character's
+        # (each bone's name hash), so its vertices go on the character's bones and the model has the character's bones in the
+        # character's order, which a part posed by the character's bones every frame (WXL_M2_ATTACH_FOLLOW_BONES) needs.
+        own = child
+        host_data = files(policy["skeleton_of"])
+        host = chunks_of(host_data)
+        child = Skeleton(files(struct.unpack_from("<I", host["SKID"])[0])) if "SKID" in host else OwnSkeleton(host_data)
+        bone_map = map_bones(own, child)
+        if max(bone_map) > 255:
+            raise ValueError("%s: a bone of the character's past 255, which a vertex can't name" % name)
     parent = Skeleton(files(child.parent)) if child.parent else None
     merged = Merged(child, parent)
+    own_loops = 0
+    if bone_map is not None:
+        # (the collection's own global sequences, its texture animations', after the character's)
+        own_loops = len(merged.loops)
+        merged.loops = list(merged.loops) + list(own.loops)
     if policy.get("stand_only"):
         # A part a mod hangs on a character (wxl.m2's WXL_M2_ATTACH_FOLLOW_BONES) is posed by the character's own bones every
         # frame: its model has the bones and the one sequence, Stand, and no animation of its own.
@@ -698,6 +734,17 @@ def convert(files, policy, out_dir, log=print):
         merged.child_index = {i0: 0} if which0 else {}
         merged.parent_index = {i0: 0} if not which0 else {}
     model = Model(m2_data, child)
+    if bone_map is not None:
+        moved = []
+        for v in model.vertices:
+            v = bytearray(v)
+            for j in range(4):
+                v[16 + j] = bone_map[v[16 + j]] if v[12 + j] else 0
+            moved.append(bytes(v))
+        model.vertices = moved
+        for track in model.weights + [t for ts in model.transforms for t in ts]:
+            if track.gseq >= 0:
+                track.gseq += own_loops
     parent_model = Model(files(policy["parent_model"]), parent) if parent and policy.get("parent_model") else None
     parent_map = {i: parent_model.index_of.get(parent.key(i), -1) for i in range(len(parent.seqs))} if parent_model else None
     skin = Skin(files(model.skin_ids[0]))
