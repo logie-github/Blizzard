@@ -32,10 +32,22 @@ USER_AGENT = "YeaBwoi-build/1.0 (+https://github.com/logie-github/YeaBwoi)"   # 
 MANIFEST = "alliedraces.files"
 
 
-def wago(file_id):
+# A build of retail's to fetch a model at when the newest copies don't fit together (wago.tools' plain /api/casc/ID gives a file's
+# newest copy in any of its products: the Blood Elf man's .m2 came from "wowf" 1.60.1 and his .skin files from retail 12.1.5, 253,309
+# vertices where the skins name 256,979: m2.MixedBuilds). Only such a model is fetched at it (sl_looks.py package).
+PINNED_BUILD = os.environ.get("WAGO_BUILD", "12.1.5.70783")
+
+
+def wago_at(build):
+    """wago for one build's copies of the files."""
+    return lambda file_id: wago(file_id, build)
+
+
+def wago(file_id, build=None):
+    url = "https://wago.tools/api/casc/%d?download" % file_id + ("&version=%s" % build if build else "")
     for attempt in range(4):
         try:
-            with urllib.request.urlopen(urllib.request.Request("https://wago.tools/api/casc/%d?download" % file_id,
+            with urllib.request.urlopen(urllib.request.Request(url,
                                         headers={"User-Agent": USER_AGENT}), timeout=120) as response:
                 return response.read()
         except Exception as error:  # a network hiccup: once more, a little later

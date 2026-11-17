@@ -47,7 +47,10 @@ ops = [op for op, _ in sent]
 check(ops == [wp.CMSG_HELLO, wp.CMSG_SET_APPEARANCE, wp.CMSG_SET_APPEARANCE, wp.CMSG_QUERY], f"the mod sent hello, two choices and a query ({[hex(o) for o in ops]})")
 magic, proto, h, caps = struct.unpack("<IHII", sent[0][1])
 check(magic == wp.MAGIC and proto == 1 and h == digest and caps == wp.CAP_GEOSET, "  its hello: the magic, protocol 1, the registry's hash, geosets")
-check(decode_set(sent[1][1]) == (0, 0, 10, 0, 2, version, {1002: 2, 1003: 2, 1190: 1}), "  the new character's: pending, blood elf man paladin, horns 2, blindfold 2, the hair colour's default")
+new = decode_set(sent[1][1])
+check(new[:6] == (0, 0, 10, 0, 2, version) and {1002: 2, 1003: 2, 1190: 1}.items() <= new[6].items()
+      and all(v == 1 for k, v in new[6].items() if k not in (1002, 1003)),
+      "  the new character's: pending, blood elf man paladin, horns 2, blindfold 2, the hair colour's default and every other of his categories at its default")
 check(decode_set(sent[2][1]) == (1, 0x42, 10, 0, 2, version, {1002: 3, 1003: 2}), "  the change: that character, horns 3, blindfold kept at 2 (the fixture's looks had no hair colour)")
 check(sent[3][1] == struct.pack("<BQ", 1, 0xAA), "  the query: one guid, 0xAA")
 print("decoded as the server does:", "all passed" if not fails else f"{fails} failed")

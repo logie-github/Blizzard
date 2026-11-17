@@ -102,7 +102,7 @@ UNLOCKED_ACHIEVEMENTS = {10: {"15579"}}
 SEXES = ("Male", "Female")
 # Models that don't convert yet: the game's own (Alternative HD) look stays for them, rows and all. The Blood Elf man's
 # arms and legs come out shredded (his skeleton file's 252 bones; the other nineteen models are right): open.
-SKIP = {(10, 0)}
+SKIP = set()           # (the Blood Elf man was here until his files were fetched of one build: m2.MixedBuilds)
 
 
 class Tables(allied.Tables):
@@ -558,7 +558,15 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
         if entry.get("alias_of"):
             continue
         for sex, model in sorted(entry["models"].items()):
-            written += m2.convert(read, dict(model, geosets=None), client, log)
+            # the model's own files (its .m2, .skin, skeleton, animations): the newest copies, or one retail build's where the newest
+            # don't fit together (m2.MixedBuilds: the Blood Elf man's), for the model and every piece made from it
+            mread = read
+            try:
+                written += m2.convert(mread, dict(model, geosets=None), client, log)
+            except m2.MixedBuilds as mixed:
+                log("%s; its files fetched at %s" % (mixed, allied_package.PINNED_BUILD))
+                mread = allied_package.cached(os.path.join(cache, allied_package.PINNED_BUILD), allied_package.wago_at(allied_package.PINNED_BUILD))
+                written += m2.convert(mread, dict(model, geosets=None), client, log)
             model_path = os.path.join(client, model["folder"].replace("\\", "/"), model["name"] + ".m2")
             problems = check_m2.check(model_path)
             if problems:
@@ -576,23 +584,23 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             written += textures.build(read, model, layout, client, log)
             if model.get("overlays"):
                 import sl_parts
-                written += sl_parts.head_shell(read, model, client, log)
+                written += sl_parts.head_shell(mread, model, client, log)
                 if any(c.get("body") for o in model["overlays"] for c in o["choices"]):
-                    written += sl_parts.body_shell(read, model, client, log)
+                    written += sl_parts.body_shell(mread, model, client, log)
             for variant in model.get("variants", []):
                 import sl_parts
                 for k, choice in enumerate(variant["choices"], 1):
                     if (choice["file"] or choice.get("geosets")) and not (k == 1 and variant.get("geoset")):     # (the first choice of a geoset variant is the model as it is)
-                        written += sl_parts.variant_model(read, model, variant, k, choice, client, log)
+                        written += sl_parts.variant_model(mread, model, variant, k, choice, client, log)
             if model.get("parts"):
                 import sl_parts
                 model["part_types"] = {}
                 for part in model["parts"]:
-                    files, types = sl_parts.geoset_part(read, model, part, client, log)
+                    files, types = sl_parts.geoset_part(mread, model, part, client, log)
                     written += files
                     model["part_types"][part["name"]] = sorted(types)
                 written += sl_parts.write_pickers(read, model, client, log)
-                written += sl_parts.write_overlays(read, model, layout, client, log)
+                written += sl_parts.write_overlays(mread, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
                 os.makedirs(os.path.dirname(full), exist_ok=True)

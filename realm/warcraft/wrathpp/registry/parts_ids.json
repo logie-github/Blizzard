@@ -1,5 +1,10 @@
 {
  "keys": {
+  "10_0:Blindfold": 1370,
+  "10_0:Ears": 1368,
+  "10_0:Horns": 1369,
+  "10_0:Tattoo": 1367,
+  "10_0:Tattoo Color": 1366,
   "10_1:Armbands": 1268,
   "10_1:Blindfold": 1281,
   "10_1:Ears": 1267,
@@ -168,5 +173,5 @@
   "9_1:Ears": 1286,
   "9_1:Tentacles": 1287
  },
- "next": 1366
+ "next": 1371
 }

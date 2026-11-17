@@ -37,7 +37,7 @@ check(#mock.sent == 1 and mock.sent[1].op == 0x522, "the client's hello sent")
 local state, _, version, renderer = mock.functions.WrathPP_Status()
 check(state == "ready" and version == F.version and renderer == false, "status: ready, the registry's version, renderer false (no seam yet)")
 
-check(mock.functions.WrathPP_GetNumCategories(10, 0, 2) == 3, "a blood elf man paladin: 3 categories (the two of the demon hunter look and the hair colour)")
+check(mock.functions.WrathPP_GetNumCategories(10, 0, 2) == 9, "a blood elf man paladin: 9 categories (the two of the demon hunter look, his horns, blindfold, ears, tattoo and its colour, the hair and the skin colour)")
 check(mock.functions.WrathPP_GetNumCategories(4, 1, 1) == 19, "a night elf woman warrior: 19 (the two, the three body options, her scars, markings, tattoos, vines, ears, eyebrows, headdress, horns and blindfold with their colours, the hair and the skin colour)")
 check(mock.functions.WrathPP_GetNumCategories(1, 0, 1) == 3, "a human man: his eyebrows and face shape and the hair colour")
 check(mock.functions.WrathPP_GetNumCategories(1, 1, 1) == 7, "a human woman: the three body options, her eyebrows, makeup and face shape and the hair colour")

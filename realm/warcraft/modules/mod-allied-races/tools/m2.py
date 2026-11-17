@@ -672,6 +672,10 @@ def bone_sources(files, policy, child, parent):
     return out
 
 
+class MixedBuilds(ValueError):
+    """A model whose .skin files are of another build than the model file."""
+
+
 def convert(files, policy, out_dir, log=print):
     """[files]: file id -> bytes (a function). [policy]: the model's description (see the module's
     tools/races.py for how one is made). Writes the model into [out_dir] and returns the list of
@@ -697,6 +701,15 @@ def convert(files, policy, out_dir, log=print):
     parent_model = Model(files(policy["parent_model"]), parent) if parent and policy.get("parent_model") else None
     parent_map = {i: parent_model.index_of.get(parent.key(i), -1) for i in range(len(parent.seqs))} if parent_model else None
     skin = Skin(files(model.skin_ids[0]))
+    # Each .skin draws a range of the model's vertices (its header's offset 44: where the range starts), one after the other: the last
+    # ends at the model's vertex count. A model and skins of two builds don't match, and every triangle past the first difference joins
+    # other vertices (the Blood Elf man's shredded arms and legs): MixedBuilds, which the caller can answer by fetching one build's files.
+    last = files(model.skin_ids[-1]) if len(model.skin_ids) > 1 else None
+    if last is not None and last[:4] == b"SKIN":
+        start, count = struct.unpack_from("<I", last, 44)[0], struct.unpack_from("<I", last, 4)[0]
+        if start and start + count != len(model.vertices):
+            raise MixedBuilds("%s: model %d has %d vertices, its skins name %d: the files are of two builds"
+                              % (name, policy["model"], len(model.vertices), start + count))
     # A batch whose textures lie past the model's texture lookup (the blood elves' own model has some: parts drawn with
     # another model's texture) can't be drawn by 3.3.5: left out.
     kept = [b for b in skin.batches if b[9] + max(b[8], 1) <= len(model.texture_lookup) and b[6] < len(model.materials)]
