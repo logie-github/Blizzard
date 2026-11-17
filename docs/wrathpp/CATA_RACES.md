@@ -40,3 +40,12 @@ a larger one (every instruction that names `0x00B6B0D0` to `0x00B6B17F` pointed 
   their bits: those need a map from the old ids and bits to the new ones, and the data regenerated (it needs the mod-worgoblin source and the core's base
   SQL). The creature races that move (`MOVED` in `races_profile.py`) would have to leave 22 and 23 free: 9 to 32, 12 to 24, 13 to 25 ... 19 to 31 and the
   two folded (20 into 15, 21 into 18).
+
+## Update (2026-11-17, later)
+
+- The module's data builder takes the two races' ids (`WORGEN_GOBLIN_RACES=22,23`, goblin then worgen) and gives mod-worgoblin's rows, race fields and mask bits
+  the new ids; with its own ids it still makes the committed data byte for byte (CI: `wrathpp-cata-data.yml`, which also makes Wrath++'s: an artifact).
+- Wrath++'s creature races now move so that 22 and 23 stay free: 9 to 32, 12 to 19 up by twelve (24 to 31), and the Northrend Skeletons (20) and Ice Trolls (21)
+  fold into the Skeletons and Forest Trolls (`races_profile.py`).
+- Still to do: the zone data (`tools/zones`) for these ids; the module's client changes merged into the looks package and its SQL into the Wrath++ server; the
+  realm's config (`WorgenGoblin.Enable 1`, `GoblinRace 22`, `WorgenRace 23`) and data folder; the app's zone download; the creator's buttons; all after the phone's check of the array move.

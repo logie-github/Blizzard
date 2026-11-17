@@ -26,11 +26,11 @@ DARKTROLL = 21        # the Alliance's dark trolls: the Troll's look and sounds,
 RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF, DARKTROLL)
 ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, DARKIRON, MECHAGNOME, HIGHELF, DARKTROLL)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
-FOLDED = {}
+FOLDED = {20: 15, 21: 18}                              # (the Northrend Skeletons into the Skeletons, the Ice Trolls into the Forest Trolls: their ids are the Mechagnome's and the Dark Troll's)
 # A death knight's face rows need the flag its skins have (0x10; the client's GetSelectionFromContext asks for 0x1 and 0x14), as the ten
 # races' do: 17, not the module's 1 (with 1 a death knight of these races has no valid face: the rig's failures, issue 294's neighbours).
 FACE_ROW_FLAGS = 17
-MOVED = {9: 32, **{old: old + 10 for old in range(12, 22)}}
+MOVED = {9: 32, **{old: old + 12 for old in range(12, 20)}}          # (the creatures' races 9 to 32, 12 to 19 up by twelve: 22 and 23 stay free for the Goblins and Worgen)
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
 CLIENT_FILE_STRING = {12: "VoidElf", 13: "Nightborne", 14: "LightforgedDraenei", 15: "ZandalariTroll", 16: "HighmountainTauren",
