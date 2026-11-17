@@ -43,6 +43,11 @@ namespace
 {
     fs::path ModuleData()
     {
+        // (WorgenGoblin.DataDirectory: a realm's own generated data, made for its race ids (tools/build_data.py's WORGEN_GOBLIN_RACES: Wrath++'s);
+        // else the module's own, ChromieCraft's)
+        std::string own = sConfigMgr->GetOption<std::string>("WorgenGoblin.DataDirectory", "");
+        if (!own.empty())
+            return fs::path(own);
         return fs::path(sConfigMgr->GetOption<std::string>("SourceDirectory", "")) / "modules" / "mod-worgen-goblin" / "data";
     }
 
