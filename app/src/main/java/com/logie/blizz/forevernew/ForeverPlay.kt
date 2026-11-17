@@ -54,9 +54,31 @@ object ForeverPlay {
             when (result.outcome) {
                 ForeverInstaller.Outcome.READY -> launchGame(app, layout, runner, logs)
                 ForeverInstaller.Outcome.AWAITING_CLIENT -> _status.value = Status(ForeverState.AWAITING_CLIENT, result.message, null, false)
-                ForeverInstaller.Outcome.FAILED -> _status.value = Status(ForeverState.FAILED, result.message, null, false)
+                ForeverInstaller.Outcome.FAILED -> {
+                    _status.value = Status(ForeverState.FAILED, result.message, null, false)
+                    sendFailure(app, layout, result.message)
+                }
             }
         }, "forever-install").also { it.isDaemon = true; it.start() }
+    }
+
+    /**
+     * A failed install or start, as a report (until now only on the person's screen): the step's message, the event log, the last of
+     * each server's own log, and the phone's memory and processes (`attach`). A crash that takes the whole app with it leaves
+     * nothing to send; the system's record of how the last run ended goes in the next start's report ([com.logie.blizz.reports.Diagnostics]).
+     */
+    private fun sendFailure(app: Context, layout: ForeverLayout, message: String) {
+        runCatching {
+            fun tail(name: String, bytes: Int = 3000) = ForeverLogs.tailOf(File(layout.logs, name), bytes).trim().takeIf { it.isNotEmpty() }
+            val log = buildString {
+                append("[events]\n").append(tail("forever-events.log", 4000) ?: "(none)")
+                for (name in listOf("worldserver.log", "bnetserver.log", "mariadbd.err")) tail(name)?.let { append("\n\n[").append(name).append("]\n").append(it) }
+            }
+            com.logie.blizz.reports.BugReports.report(
+                app, "WoW Forever", message.take(300), listOf("Build" to com.logie.blizz.BuildConfig.VERSION_CODE.toString(), "RAM MB" to totalRamMb(app).toString()),
+                log = log, attach = true, force = true,
+            )
+        }
     }
 
     private fun launchGame(app: Context, layout: ForeverLayout, runner: ForeverSteps, logs: ForeverLogs) {
