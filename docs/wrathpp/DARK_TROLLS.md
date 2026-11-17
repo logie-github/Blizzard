@@ -27,7 +27,8 @@ Status 2026-11-17: **stage 1 is in the generator and the creator's glue; nothing
    pale yellow eyes). Needs the Troll's converted textures and the night elves' measured colours (`textures.py`).
 2. **Hair**: the night elves' hair colours as a recolour of the Troll's hair textures.
 3. **No warts**: the Troll's feature choices without the warty ones (Shadowlands' own table names them; read at the next packaging).
-4. **Customize**: the creator's options for the new race are the Troll's (alias); the parts session's `sl_creator.py` keys them by the ten races.
+4. **Customize** (the creator's side is done: the Troll's options for race 21, registry 16; the package step now also gives the Dark Troll the Troll's
+   model-piece types: `sl_looks.alias_target` reads the ten races' `looks.json` beside `races.json`): the creator's options for the new race are the Troll's (alias); the parts session's `sl_creator.py` keys them by the ten races.
 5. **Intro**: the Night Elves' camera is the start race's; the narration is a draft (an AI clone of the Zandalari intro's voice, not in the repository).
 6. **Quests as trolls**: the quest, item and spell race masks the Night Elves have get the new race's bit (the generator's start-race rule); troll-only
    gates (none known) are not touched.

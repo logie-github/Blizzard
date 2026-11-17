@@ -180,6 +180,18 @@ class ChangesTest(unittest.TestCase):
         self.assertEqual(dt["models"]["0"]["skins"], troll["models"]["0"]["skins"])
         self.assertNotIn("model_path", troll["models"]["0"])                       # (the Troll's own entry is left alone)
 
+    def test_an_alias_finds_its_target_among_the_ten_beside_the_file(self):
+        import json, tempfile, os
+        d = tempfile.mkdtemp()
+        json.dump({"build": "x", "races": {"8": {"race": 8, "models": {"0": {"part_types": {"Horns": [1, 2]}}}}}}, open(os.path.join(d, "looks.json"), "w"))
+        races = os.path.join(d, "races.json")
+        json.dump({"darktroll": {"alias_of": "8", "models": {"0": {}}}}, open(races, "w"))
+        looks = sl_looks.load_looks(races)
+        target = sl_looks.alias_target(looks, races, looks["races"]["darktroll"])
+        self.assertEqual(target["models"]["0"]["part_types"], {"Horns": [1, 2]})
+        self.assertIsNone(sl_looks.alias_target(looks, races, {"alias_of": "99"}))
+        self.assertIsNone(sl_looks.alias_target(looks, races, {}))
+
     def test_load_looks_takes_both_shapes(self):
         a = os.path.join(self.dir.name, "a.json"); b = os.path.join(self.dir.name, "b.json")
         import json

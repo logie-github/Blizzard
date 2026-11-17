@@ -543,6 +543,20 @@ def load_looks(path):
     return looks if "races" in looks and isinstance(looks["races"], dict) and "build" in looks else {"races": looks}
 
 
+def alias_target(looks, looks_path, entry):
+    """The entry [entry] ("alias_of") has its files of: in [looks], else in the ten races' looks.json beside [looks_path] (the Dark Troll's
+    "8" is the Troll's), else None."""
+    key = entry.get("alias_of")
+    if not key:
+        return None
+    if key in looks["races"]:
+        return looks["races"][key]
+    ten = os.path.join(os.path.dirname(os.path.abspath(looks_path)), "looks.json")
+    if os.path.abspath(ten) != os.path.abspath(looks_path) and os.path.isfile(ten):
+        return load_looks(ten)["races"].get(key)
+    return None
+
+
 def package(looks_path, cache, dbc_dir, out_dir, log=print):
     """The models, textures, voices and narrations of [looks_path]'s races into OUT/client (the game's paths), and the ten
     races' rows as change files into OUT/changes. A race with "alias_of" (the High Elf) has the other's files."""
@@ -619,10 +633,12 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             f.write(text)
     ten = drawn_looks(looks)
     # (the High Elf is the Void Elf's files: the textures its pieces take are the Void Elf's)
+    # (and the Dark Troll's the Troll's, one of the ten: in looks.json beside this file, whose package step ran first and saved its pieces' types)
     for entry in looks["races"].values():
-        if entry.get("alias_of") and entry["alias_of"] in looks["races"]:
+        other_race = alias_target(looks, looks_path, entry)
+        if other_race:
             for sex, m in entry["models"].items():
-                other = looks["races"][entry["alias_of"]]["models"].get(sex, {})
+                other = other_race["models"].get(sex, {})
                 if other.get("part_types"):
                     m["part_types"] = other["part_types"]
     if ten["races"]:
