@@ -5,8 +5,8 @@ the closest 3.3.5 race for those that have none ("draenei to draenei, orc to orc
 the intro's camera the start race's own.
 
 Status 2026-11-15: built and tested here as far as the files go (tables, SQL, packaging, the app's installer, the creator's
-glue on a mock); **nothing has run in the game or on a phone**. Two models are not right (below): the Mechagnome's limbs are
-missing, and the converted Blood Elf man was left out.
+glue on a mock); **nothing has run in the game or on a phone**. The converted Blood Elf man was left out (below). The Mechagnome's limbs were missing until 17
+November 2026 (now on the character's skeleton: the table).
 
 ## Races, ids and starts
 
@@ -28,7 +28,7 @@ take **12 to 20** (21 is free; the Kul Tiran was taken out at the user's word, 2
 | Void Elf | Alliance | Draenei (Ammen Vale) | Shadowlands, `LEGACY` |
 | Lightforged Draenei | Alliance | Draenei | `LEGACY` |
 | Dark Iron Dwarf | Alliance | Dwarf (Coldridge Valley) | converted, renders right |
-| Mechagnome | Alliance | Gnome (Coldridge Valley) | converted, **limbs missing**: head and torso only; the legs and arms are the "Modification" and "Upgrade" options' separate models (skinned models), which the converter doesn't add yet |
+| Mechagnome | Alliance | Gnome (Coldridge Valley) | converted; the arms and legs are the "Arm Upgrade" and "Leg Upgrade" options' collection model (2628212 / 2628213), made on the character's own skeleton (every bone named as the character's) and posed by its bones (17 November 2026; before, hung still on the head's attachment point, they were not where the arms are). Not seen in the game yet |
 | High Elf | Alliance | Night Elf (Shadowglen) | to be made (see below) |
 | Nightborne | Horde | Blood Elf (Sunstrider Isle) | `LEGACY` |
 | Highmountain Tauren | Horde | Tauren (Camp Narache) | converted, renders right |
@@ -86,11 +86,11 @@ Racials (3.3.5 has no Monk, and its auras are fewer than retail's: the retail on
 | High Elf | the Blood Elves': Arcane Torrent by class, Magic Resistance, Arcane Affinity |
 
 Left out (3.3.5 can't or it was too much blind): Mole Machine, Hyper Organic Light Originator, Emergency Failsafe, Make Camp, Pass
-the Torch; the intros' voices other than the five; the Mechagnome's mechanical limbs.
+the Torch; the intros' voices other than the five.
 
 ## Open
 
-- **The Mechagnome**: head and torso only (the limbs are the "Modification" and "Upgrade" options' separate models).
+- **The Mechagnome**: its limbs are the options' collection model on the character's bones (17 November 2026); not seen in the game yet.
 - **The Blood Elf man** (one of the ten races' models) still keeps the game's own look.
 - **Not run anywhere but on these files**: the race ids 9 and 12 to 21 on the client and the core (the core sizes its race table
   from the game's own rows, as `mod-allied-races`' 15 to 18 rely on); the creator's new buttons (a mock only); whether an HD

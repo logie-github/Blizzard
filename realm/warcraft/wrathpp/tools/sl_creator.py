@@ -213,8 +213,6 @@ def build_model(tables, categories, race_id, sex, model, key_race=None):
             reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
             if part is not None and any(c["geosets"] for c in part["choices"]):
                 option["geoset"] = sl_parts.part_model_path(model, part)
-                if part.get("skinned"):
-                    option["attach"] = sl_parts.HELM          # horns and blindfolds hang on the head's attachment point
                 types = model.get("part_types", {}).get(part["name"], [])
                 option["types"] = list(types)
                 if 13 in types and model.get("pickers"):

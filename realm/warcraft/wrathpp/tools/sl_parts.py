@@ -308,17 +308,16 @@ def geoset_part(read, model, part, out_dir, log=print):
     name = part_model_name(model, part)
     spec = dict(model, name=name, geosets=None, stand_only=True, geoset_policy=policy, drop_groups=list(range(0, 100)), keep_types=[8, 10, 20])
     if part.get("skinned"):
-        spec["model"] = part["skinned"]                 # a collection's model (today's horns, blindfolds), in the character's bind pose
+        # A collection's model (horns, blindfolds, the Mechagnome's limbs) on the character's own skeleton: its bones are named as the
+        # character's, so the converter puts its vertices on the character's bones and the native mod poses it by them every frame
+        # as it does the other pieces (an arm moves with the arm). (Hung rigidly on the head's attachment point before, the
+        # Mechagnome's arms and legs stood still at the head.)
+        spec["model"] = part["skinned"]
+        spec["skeleton_of"] = model["model"]
     written = m2.convert(read, spec, out_dir, lambda *a: None)
     path = os.path.join(out_dir, model["folder"].replace("\\", "/"), name + ".m2")
     with open(path, "rb") as f:
         raw = f.read()
-    if part.get("skinned"):
-        # Hung on the head's attachment point (the helm's, 11), not on the bones: the model's own bones aren't the character's. Its
-        # vertices move so that the point is their origin.
-        raw = move_to_origin(raw, helm_point(read, model))
-        with open(path, "wb") as f:
-            f.write(raw)
     with open(path[:-3] + "00.skin", "rb") as f:
         used = used_types(raw, f.read())
     if part.get("feature"):
@@ -541,7 +540,7 @@ def write_parts_table(looks, out_dir, ids):
                 # (a picker of the texture type the part takes: types 13 are the customization's: 10 or 20 today)
                 picker = next(iter(pickers.values()), None) if 13 in types else None
                 picker_category = ids.get("%d_%d:%s" % (race, int(sex), picker["name"])) if picker else 0
-                lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0) + ("\t%d" % HELM if part.get("skinned") else "\t0"))
+                lines.append("G\t%d\t%d\t%d\t%d\t%s\t%s\t%d" % (race, int(sex), slot, category, sl_parts_model(model, part), ",".join(str(t) for t in types), picker_category or 0) + "\t0")       # (0: posed by the character's bones, the collections' models too)
     for entry in sorted(looks["races"].values(), key=lambda e: e["race"]):
         for sex, model in sorted(entry["models"].items()):
             soft = model.get("soft")
