@@ -24,6 +24,7 @@
  */
 
 #include "WorgenGoblinZonesIds.h"
+#include "Config.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
@@ -35,7 +36,12 @@ bool WorgenGoblinStartingAreasOn();
 
 namespace
 {
-    constexpr uint8 WORGEN = 12;
+    // (the Worgen's race id: WorgenGoblin.WorgenRace, 12 where the realm hasn't another)
+    uint8 WorgenRace()
+    {
+        static uint8 const race = static_cast<uint8>(sConfigMgr->GetOption<uint32>("WorgenGoblin.WorgenRace", 12));
+        return race;
+    }
     constexpr uint32 SPELL_TWO_FORMS = 68996, SPELL_DARKFLIGHT = 68992;
     constexpr uint32 QUEST_LAST_STAND = WorgenGoblinZones::Id(14222);
     constexpr uint32 QUEST_LAST_CHANCE_AT_HUMANITY = WorgenGoblinZones::Id(14375);
@@ -118,7 +124,7 @@ namespace
         }
         else
         {
-            player->SetByteValue(UNIT_FIELD_BYTES_0, 0, WORGEN);
+            player->SetByteValue(UNIT_FIELD_BYTES_0, 0, WorgenRace());
             player->InitDisplayIds();
         }
         // (a shapeshift or a transformation shown over it as before)
@@ -133,7 +139,7 @@ namespace
 
     bool IsWorgen(Player* player)
     {
-        return player->getRace(true) == WORGEN;
+        return player->getRace(true) == WorgenRace();
     }
 }
 

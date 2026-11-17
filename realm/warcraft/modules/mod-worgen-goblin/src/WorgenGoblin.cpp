@@ -73,7 +73,19 @@ namespace
         return Enabled() && sConfigMgr->GetOption<bool>("WorgenGoblin.StartingAreas", false) && !ZonesPackage().empty() && zonesInGame;
     }
 
-    constexpr uint8 GOBLIN = 9, WORGEN = 12;
+    // The two races' ids: ChromieCraft's (9 and 12), or the realm's own where those are taken (Wrath++: WorgenGoblin.GoblinRace and .WorgenRace,
+    // its generated data made for the same ids: tools/build_data.py's WORGEN_GOBLIN_RACES).
+    uint8 GoblinRace()
+    {
+        static uint8 const race = static_cast<uint8>(sConfigMgr->GetOption<uint32>("WorgenGoblin.GoblinRace", 9));
+        return race;
+    }
+
+    uint8 WorgenRace()
+    {
+        static uint8 const race = static_cast<uint8>(sConfigMgr->GetOption<uint32>("WorgenGoblin.WorgenRace", 12));
+        return race;
+    }
 
     // The starting areas' maps: the two races' alone.
     bool IsZoneMap(uint32 map)
@@ -222,7 +234,7 @@ public:
 
     static bool Allowed(Player* player)
     {
-        return player->getRace() == GOBLIN || player->getRace() == WORGEN || player->GetSession()->GetSecurity() > SEC_PLAYER;
+        return player->getRace() == GoblinRace() || player->getRace() == WorgenRace() || player->GetSession()->GetSecurity() > SEC_PLAYER;
     }
 
     bool OnPlayerBeforeTeleport(Player* player, uint32 mapid, float, float, float, float, uint32, Unit*) override

@@ -30,3 +30,13 @@ a larger one (every instruction that names `0x00B6B0D0` to `0x00B6B17F` pointed 
    the zone package in `WOW_ZONES_DIR`.
 4. **The app**: the zone package downloaded for Wrath++, the creator's Worgen and Goblin buttons (`WrathppAlliedRaces`).
 5. **Tests**: `test-isolation.sh` for the new paths, the rig with 23 races.
+
+## Where the module's race ids stand (2026-11-17)
+
+- **C++**: the two races' ids are now config keys, `WorgenGoblin.GoblinRace` (default 9) and `WorgenGoblin.WorgenRace` (default 12), read in
+  `WorgenGoblin.cpp` and `WorgenGoblinForms.cpp`; ChromieCraft's behaviour is unchanged. Wrath++ would set them to 22 and 23.
+- **Not yet**: `tools/build_data.py` and `tools/zones/quests.py` take the ids and masks (`GOBLIN, WORGEN = 9, 12`; `1 << 8`, `1 << 11`) as constants, and the
+  rows they copy from mod-worgoblin (ChrRaces, CharStartOutfit, CharBaseInfo, the races' bits in reputation, skill and spell masks) carry 9 and 12 and
+  their bits: those need a map from the old ids and bits to the new ones, and the data regenerated (it needs the mod-worgoblin source and the core's base
+  SQL). The creature races that move (`MOVED` in `races_profile.py`) would have to leave 22 and 23 free: 9 to 32, 12 to 24, 13 to 25 ... 19 to 31 and the
+  two folded (20 into 15, 21 into 18).
