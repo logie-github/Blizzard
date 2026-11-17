@@ -4,7 +4,7 @@ Wanted (the user, 2026-11-15): "Add the fix and the cata files to wrath++": Giln
 Goblins playable and starting there, as on ChromieCraft (`realm/warcraft/modules/mod-worgen-goblin`), and the black-batch fix
 (fires, waterfalls and rain drawn black; `tools/zones/package.py`, `single_textures`, in the zone package from 2026-11-15).
 
-Status: **in progress; nothing here has run in the game or on a phone.**
+Status 2026-11-17: **blocked on the native mod.** Race ids 1 to 21 are all taken (the High Elf 9, the allied races 12 to 20, the Dark Troll 21), and the client's creation screen holds ids to 21 only (`m_charPreferences[22][2]`), so the Worgen (12) and Goblin (9) cannot be added until the native mod moves that array (every instruction naming `0x00B6B0D0..0x00B6B17F` pointed at a larger one; only to be done where the patch can be checked against the real client, as a bad patch would stop every race), and the module's own ids (9, 12 in its C++, SQL and quest masks) are re-numbered. The Cataclysm zone package (YeaBwoi's `cata-zones`, with the black-batch fix of 2026-11-15) is ready for it.
 
 ## Races playable in Wrath++ (21 today, 23 with these)
 

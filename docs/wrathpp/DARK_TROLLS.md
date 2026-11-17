@@ -6,7 +6,7 @@ the Night Elves' hair colours as a recolour of the current hair); the Night Elve
 do the Alliance's quests as trolls ("basically fully trolls coded"); lore-accurate classes including druid and shaman; the narrator's voice
 for a custom intro; every regular sound covered.
 
-Status 2026-11-17: **stage 1 is in the generator and the creator's glue; nothing has run in the game or on a phone.**
+Status 2026-11-17: **built and published (looks `8a44af8`, server and app `4891e3e`); the CI rig passes (0 problems) and the phone's own start report shows the creator opening Customize for the Dark Troll, man and woman, without a crash; nothing else of it has been seen in the game.**
 
 ## Stage 1 (done in the files)
 
@@ -34,7 +34,7 @@ Status 2026-11-17: **stage 1 is in the generator and the creator's glue; nothing
 
 ## Still to do
 
-1. **Eyes**: the Troll's 18 eye colours include yellows; the night elves' silver and blue glows are not added.
+1. **Eyes**: the Troll's 18 eye colours include yellows (the wiki's pale yellow). The night elves' eye colours are NOT added: 3.3.5 holds 255 face numbers a race and sex, a face number being a face and an eye colour (10 faces x 18 eyes = 180 now; the Night Elf's 17 more would make 350).
 2. **Intro**: the Night Elves' camera is the start race's, retimed to the narration's length (the allied races' way); the narration is `realm/warcraft/wrathpp/data/darktroll_intro.mp3` (49 s, an AI voice made like the Zandalari intro's from the user's recording, with the user's words on the pronunciations: High-jall, Ee-loon; the script is in `DARK_TROLLS.md`'s history): in the package as `Sound\CinematicVoices\DarkTrollNarration.mp3`.
 3. **Quests as trolls**: the generator ORs the new race into the Night Elves' quest, item and spell masks; troll-only gates (none known) are not touched.
 4. **The first run**: CI's looks run is the first to make these files; the Dark Troll's counts (skins, colours) are checked by `sl_creator`'s own consistency errors and the rig.
