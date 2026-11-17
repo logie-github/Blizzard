@@ -21,16 +21,16 @@ function Frame:SetTexture(t) self.texture = t end
 function Frame:SetTexCoord(a, b, c, d) self.coords = { a, b, c, d } end
 
 local config = frame("CharacterCreateConfigurationFrame")
-for i = 1, 21 do
+for i = 1, 20 do
 	local name = i <= 10 and "CharacterCreateRaceButton"..i or "AlliedRaceButton"..i
 	frame(name, config)
 	frame(name.."NormalTexture"); frame(name.."PushedTexture"); frame(name.."Text"); frame(name.."Shadow")
 end
-CharacterCreate = { numRaces = 21 }
+CharacterCreate = { numRaces = 20 }
 MAX_RACES = 10
 local tokens = { "Human", "Dwarf", "NightElf", "Gnome", "Draenei", "Orc", "Scourge", "Tauren", "Troll", "BloodElf",
-	"VoidElf", "LightforgedDraenei", "KulTiran", "DarkIronDwarf", "Mechagnome", "HighElf", "Nightborne", "ZandalariTroll", "HighmountainTauren", "Vulpera", "MagharOrc" }
-local alliance = { Human = 1, Dwarf = 1, NightElf = 1, Gnome = 1, Draenei = 1, VoidElf = 1, LightforgedDraenei = 1, KulTiran = 1, DarkIronDwarf = 1, Mechagnome = 1, HighElf = 1 }
+	"VoidElf", "LightforgedDraenei", "DarkIronDwarf", "Mechagnome", "HighElf", "Nightborne", "ZandalariTroll", "HighmountainTauren", "Vulpera", "MagharOrc" }
+local alliance = { Human = 1, Dwarf = 1, NightElf = 1, Gnome = 1, Draenei = 1, VoidElf = 1, LightforgedDraenei = 1, DarkIronDwarf = 1, Mechagnome = 1, HighElf = 1 }
 function GetFactionForRace(i) return nil, alliance[tokens[i]] and "Alliance" or "Horde" end
 local seen
 function CharacterCreateEnumerateRaces(...) seen = { ... } end
@@ -45,7 +45,7 @@ end
 
 dofile(script)
 
-check(MAX_RACES == 21, "the screen counts 21 races")
+check(MAX_RACES == 20, "the screen counts 20 races")
 do
 	local missing = {}
 	for _, name in ipairs(tokens) do
@@ -55,7 +55,7 @@ do
 	check(RACE_ICON_TCOORDS.VOIDELF_MALE[1] == RACE_ICON_TCOORDS.BLOODELF_MALE[1], "  an allied race takes its start race's place for the big icon")
 end
 check(RACE_ICON_TCOORDS.MURLOC_MALE and RACE_ICON_TCOORDS.MURLOC_MALE[2] == 1, "a race the script doesn't know (another patch's tables) gets the whole picture, not nil: the screen's loop over the races doesn't stop")
-check(CharacterCreateRaceButton11 == AlliedRaceButton11 and CharacterCreateRaceButton21 == AlliedRaceButton21, "the xml's buttons have the names the screen looks for")
+check(CharacterCreateRaceButton11 == AlliedRaceButton11 and CharacterCreateRaceButton20 == AlliedRaceButton20, "the xml's buttons have the names the screen looks for")
 check(CharacterCreateRaceButton11NormalTexture == AlliedRaceButton11NormalTexture, "  with their pictures")
 check(CharacterCreateRaceButton11.parent == config, "  and the screen's frame as parent")
 
@@ -65,19 +65,18 @@ for i, t in ipairs(tokens) do args[#args + 1] = t; args[#args + 1] = t; args[#ar
 for i, t in ipairs(tokens) do args[i * 3 - 1] = t end
 CharacterCreateEnumerateRaces(unpack(args))
 check(seen ~= nil, "the screen's own layout still runs")
-local x = function(i) return CharacterCreateRaceButton21.points[1] and CharacterCreateRaceButton21.points[1][4] end
+local x = function(i) return CharacterCreateRaceButton20.points[1] and CharacterCreateRaceButton20.points[1][4] end
 local left, right = 0, 0
-for i = 1, 21 do
+for i = 1, 20 do
 	local p = _G["CharacterCreateRaceButton"..i].points[1]
 	if alliance[tokens[i]] then if p[4] < 0 then left = left + 1 end else if p[4] > 0 then right = right + 1 end end
 end
-check(left == 11 and right == 10, "the Alliance's eleven on the left, the Horde's ten on the right")
-check(CharacterCreateRaceButton21.points[1][5] > -400 and CharacterCreateRaceButton11.points[1][5] <= -50, "the rows fit above the gender buttons")
-check(CharacterCreateRaceButton21NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\MAGHARORC", "Mag'har's picture is on its button")
-check(CharacterCreateRaceButton16NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\HIGHELF", "the High Elf's too")
+check(left == 10 and right == 10, "the Alliance's ten on the left, the Horde's ten on the right")
+check(CharacterCreateRaceButton20.points[1][5] > -400 and CharacterCreateRaceButton11.points[1][5] <= -50, "the rows fit above the gender buttons")
+check(CharacterCreateRaceButton20NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\MAGHARORC", "Mag'har's picture is on its button")
+check(CharacterCreateRaceButton15NormalTexture.texture == "Interface\\Glues\\CharacterCreate\\WrathppRaces\\HIGHELF", "the High Elf's too")
 check(rawget(CharacterCreateRaceButton1NormalTexture, "texture") == nil, "the game's own ten keep the screen's atlas")
 SetBackgroundModel("m", "MagharOrc"); check(background == "Orc", "Mag'har's scene is the Orcs'")
-SetBackgroundModel("m", "KulTiran"); check(background == "Human", "the Kul Tirans' the Humans'")
 SetBackgroundModel("m", "HighElf"); check(background == "BloodElf", "the High Elf's the Blood Elves'")
 SetBackgroundModel("m", "Human"); check(background == "Human", "a game race's own")
 check(GlueAmbienceTracks.MAGHARORC == "GlueScreenIntro" or GlueAmbienceTracks.MAGHARORC ~= nil, "their selection music")

@@ -19,15 +19,14 @@ not need them off, so the ids are ones no module uses.
 (`0x00B6B0D0`, 176 bytes, `m_raceIndex` right after it): a race id from 22 up writes past it into the client's other statics, which
 crashed Wrath++ on tapping a race (issue 281, `SetSelectedRace`; an earlier layout of 22 to 31 had been chosen for that reason
 wrongly). So, as `mod-allied-races` does, the new races take the ids of the game's creatures-only races, which move up: the Void Elf,
-Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Kul Tiran, Dark Iron Dwarf, Vulpera, Mag'har Orc and Mechagnome
-take **12 to 21**, the High Elf **9**; the creatures' races 12 to 21 move to 22 to 31 and the Goblins' row 9 to 32 (`MOVED` in
+Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Dark Iron Dwarf, Vulpera, Mag'har Orc and Mechagnome
+take **12 to 20** (21 is free; the Kul Tiran was taken out at the user's word, 2026-11-17), the High Elf **9**; the creatures' races 12 to 21 move to 22 to 31 and the Goblins' row 9 to 32 (`MOVED` in
 `tools/races_profile.py`: their rows, looks, hair, features and voices). The Worgen and Goblins (`CATA_RACES.md`) need the client's array enlarged.
 
 | Race | Side | Start (the start race's quests, gear, standing, camera) | Model |
 |---|---|---|---|
 | Void Elf | Alliance | Draenei (Ammen Vale) | Shadowlands, `LEGACY` |
 | Lightforged Draenei | Alliance | Draenei | `LEGACY` |
-| Kul Tiran | Alliance | Human (Northshire) | converted, renders right |
 | Dark Iron Dwarf | Alliance | Dwarf (Coldridge Valley) | converted, renders right |
 | Mechagnome | Alliance | Gnome (Coldridge Valley) | converted, **limbs missing**: head and torso only; the legs and arms are the "Modification" and "Upgrade" options' separate models (skinned models), which the converter doesn't add yet |
 | High Elf | Alliance | Night Elf (Shadowglen) | to be made (see below) |
@@ -62,13 +61,13 @@ here, as asked.
 
 ## What each race has
 
-Ids 12 to 21 (Void Elf, Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Kul Tiran, Dark Iron Dwarf, Vulpera,
+Ids 12 to 20 (Void Elf, Nightborne, Lightforged Draenei, Zandalari Troll, Highmountain Tauren, Dark Iron Dwarf, Vulpera,
 Mag'har Orc, Mechagnome) and 12 for the High Elf (the Fel Orcs' creature race moves to 32). Starts are the table above: the start
 race's place, quests, standing, gear, action bars, skills, stats (its kin's; Vulpera: the Gnomes') and intro camera.
 
 Classes (3.3.5's; retail's Monk, Demon Hunter and Evoker don't exist): Void Elf, Nightborne: Warrior, Hunter, Rogue, Priest, Death
 Knight, Mage, Warlock. Lightforged: Warrior, Paladin, Hunter, Priest, Death Knight, Mage. Zandalari: all but Warlock. Highmountain:
-Warrior, Hunter, Death Knight, Shaman, Druid. Kul Tiran: Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Shaman, Druid. Dark Iron:
+Warrior, Hunter, Death Knight, Shaman, Druid. Dark Iron:
 Warrior, Paladin, Hunter, Rogue, Priest, Death Knight, Mage, Warlock, Shaman. Vulpera, Mag'har: Warrior, Hunter, Rogue, Priest, Death
 Knight, Mage, Warlock, Shaman. Mechagnome: Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock. High Elf: Warrior, Paladin,
 Hunter, Rogue, Priest, Death Knight, Mage, Warlock. A class the start race hasn't takes the gear, bars and skills of the first race
@@ -81,7 +80,6 @@ Racials (3.3.5 has no Monk, and its auras are fewer than retail's: the retail on
 | Void Elf, Nightborne, Lightforged, Zandalari | the allied races module's own (spells and C++ scripts, built into the Wrath++ server): Spatial Rift, Entropic Embrace, Chill of Night, Preternatural Calm, Cantrips; Arcane Pulse, Arcane Resistance, Magical Affinity, Ancient History; Light's Judgment, Forge of Light, Light's Reckoning, Holy Resistance, Demonbane; Regeneratin', Embrace of Pa'ku, Pterrordax Swoop, City of Gold |
 | Mag'har Orc | Ancestral Call (+10% damage 12 sec), Brawn (+2% crit damage and healing), the Orcs' Hardiness and Command |
 | Dark Iron Dwarf | Fireblood (Stoneform's effects), Forged in Flames (-10% Fire damage) |
-| Kul Tiran | Brush It Off (-2% damage), Haymaker (a War Stomp), the Humans' Diplomacy, the Undead's Underwater Breathing (Child of the Sea) |
 | Highmountain Tauren | Mountaineer (+3% Stamina), Bull Rush (+30% speed 3 sec), the Tauren's Endurance |
 | Vulpera | Bag of Tricks (Physical damage around you), Nose for Trouble (stealth detection), Rummaging (Skinning +10), the Gnomes' Escape Artist |
 | Mechagnome | Combat Analysis (+2% crit), Skillful Scavenger (Engineering +15), Escape Artist, Engineering Specialization |
