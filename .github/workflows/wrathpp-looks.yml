@@ -118,6 +118,14 @@ jobs:
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/looks.json build/looks
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/races.json build/looks
 
+      # The character textures and tables as 3.3.5's component code reads them (issue 294: a heap overflow at Customize).
+      # Reported for now, not yet holding the release back: the first run says what is wrong.
+      - name: The character textures and tables checked
+        continue-on-error: true
+        run: |
+          python3 realm/warcraft/wrathpp/tools/check_textures.py build/looks 2>&1 | tee -a looks-report.txt
+          python3 realm/warcraft/modules/mod-allied-races/tools/check_looks.py build/looks/dbc 2>&1 | tail -40 | tee -a looks-report.txt
+
       # What the creator shows a race and sex (Shadowlands' options, their choices, their place in 3.3.5's five numbers):
       # with the looks, since it is the key to their tables.
       - name: The creator's options
