@@ -1,0 +1,1 @@
+Wrath++'s looks are checked for missing animations before release, so the HD pack's own can't tear a character.
