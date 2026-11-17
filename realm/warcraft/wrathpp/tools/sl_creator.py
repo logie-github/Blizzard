@@ -97,7 +97,9 @@ def digits_of(tables, model, chr_model):
                 skin_parts.append(len(digits))
                 break
     base = model["base_skins"]
-    out["Skin Color"] = ("skin", len(skin_parts), {s["choice"]: s["base"] for s in model["skins"][:base]})
+    # (a colour's digit is its place among the base skins: the table's colour number. It is the skin's "base" for the ten races; the
+    # High Elf's skins are the Void Elf's less the void ones, numbered again, their "base" the Void Elf's, which the face textures go by)
+    out["Skin Color"] = ("skin", len(skin_parts), {s["choice"]: k for k, s in enumerate(model["skins"][:base])})
     skin_parts.append(base)
     out["Face"] = ("face", 0, {f["choice"]: i for i, f in enumerate(model["faces"])})
     out["Eye Color"] = ("face", 1, {e["choice"]: e["index"] for e in model["eyes"]})

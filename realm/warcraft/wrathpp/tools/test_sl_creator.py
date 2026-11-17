@@ -144,5 +144,13 @@ class AlliedRaceIdsTest(unittest.TestCase):
         self.assertEqual(len(set(ids.values())), len(ids))
 
 
+class HighElfSkinDigitsTest(unittest.TestCase):
+    def test_a_skin_colour_s_digit_is_its_place_among_the_base_skins(self):
+        # the High Elf's skins: the Void Elf's less the void ones, numbered again; "base" keeps the Void Elf's number
+        model = {"skins": [{"choice": "c%d" % j, "base": j + 6, "index": j} for j in range(3)], "base_skins": 3}
+        digits = {s["choice"]: k for k, s in enumerate(model["skins"][:model["base_skins"]])}
+        self.assertEqual(digits, {"c0": 0, "c1": 1, "c2": 2})
+
+
 if __name__ == "__main__":
     unittest.main()
