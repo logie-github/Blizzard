@@ -20,15 +20,21 @@ Status 2026-11-17: **stage 1 is in the generator and the creator's glue; nothing
 | Racials | Shadowmeld itself (58984: the core scripts it by that id, its words name no race), and three spells of their own with their own names and words: Nightstalker's Grace (the Night Elves' Quickness), Ward of the Wild Gods (Nature Resistance), Shadowtooth Hush (Elusiveness). Wisp Spirit is left out (the core makes a night elf's wisp by race) |
 | Creator | the race button (`WrathppAlliedRaces`: Alliance, the Night Elves' scene, its texts), the Troll's art (`RACE_ART`) |
 
-## Not done yet
+## Stage 2 (in the files, not run)
 
-1. **Skins and eyes**: the night elves' colours as extra skins of the Troll's body (the Troll's skin textures tinted to each night elf skin's colour,
-   faces, underwear and scalps with them), and the dark trolls' own greys and violets (the wiki: grey to black skin; the RPG book's royal purple,
-   pale yellow eyes). Needs the Troll's converted textures and the night elves' measured colours (`textures.py`).
-2. **Hair**: the night elves' hair colours as a recolour of the Troll's hair textures.
-3. **No warts**: the Troll's feature choices without the warty ones (Shadowlands' own table names them; read at the next packaging).
-4. **Customize** (the creator's side is done: the Troll's options for race 21, registry 16; the package step now also gives the Dark Troll the Troll's
-   model-piece types: `sl_looks.alias_target` reads the ten races' `looks.json` beside `races.json`): the creator's options for the new race are the Troll's (alias); the parts session's `sl_creator.py` keys them by the ten races.
-5. **Intro**: the Night Elves' camera is the start race's; the narration is a draft (an AI clone of the Zandalari intro's voice, not in the repository).
-6. **Quests as trolls**: the quest, item and spell race masks the Night Elves have get the new race's bit (the generator's start-race rule); troll-only
-   gates (none known) are not touched.
+- **Own files, tinted colours** (`tools/dark_troll.py`, `sl_looks.dark_troll_entry`): the Dark Troll is built as a race of its own under `Character\DarkTroll\...` (its model
+  and textures are the Troll's by content), so its colours can differ. Added to the Troll's 22 skins: the Night Elf's skin colours and four of the dark trolls' own (Ash
+  Grey, Slate, Charcoal, Royal Purple: the wiki's grey to black and the RPG book's purple), each a tint of the Troll skin nearest in colour (a per-channel factor to the
+  wanted mean colour, the detail kept), the same factor on the body, underwear, extra, every face and every scalp of that skin. The Night Elf's hair colours likewise on
+  the Troll's hair. The data names such a texture by a made-up file id (2000000000 and up) with its spec; the package step's reader makes it when asked
+  (`dark_troll.Resolver`): no pixel is read when the data is made.
+- **The creator** lists the new colours with their swatches (`sl_creator`: the model's `extra_choices`).
+- **Warts**: no option or choice in Shadowlands' Troll tables is named for warts (the options are Face, Skin Color, Hair Style and Color, Tusks, Eye Color, Face and Body
+  Paint with colours, Earrings, Piercing); if warts are drawn in a face texture they are the Troll's own and can't be told apart by the tables.
+
+## Still to do
+
+1. **Eyes**: the Troll's 18 eye colours include yellows; the night elves' silver and blue glows are not added.
+2. **Intro**: the Night Elves' camera is the start race's; the narration is a draft (an AI clone of the Zandalari intro's voice, not in the repository) that waits for the user's word.
+3. **Quests as trolls**: the generator ORs the new race into the Night Elves' quest, item and spell masks; troll-only gates (none known) are not touched.
+4. **The first run**: CI's looks run is the first to make these files; the Dark Troll's counts (skins, colours) are checked by `sl_creator`'s own consistency errors and the rig.

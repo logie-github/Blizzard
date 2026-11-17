@@ -569,6 +569,13 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     import textures
     looks = load_looks(looks_path)
     read = allied_package.cached(cache, allied_package.wago)
+    specs = {}
+    for entry in looks["races"].values():
+        for model in entry["models"].values():
+            specs.update(model.get("synth", {}))
+    if specs:                                            # (the Dark Troll's tinted colours: made-up file ids, made when asked for)
+        import dark_troll
+        read = dark_troll.Resolver(read, specs)
     client = os.path.join(out_dir, "client")
     written = []
     for key, entry in looks["races"].items():
@@ -750,18 +757,26 @@ def high_elf(void):
     return out
 
 
-def dark_troll(troll):
-    """The Dark Troll (the Alliance's: the Night Elves' ancestors' kin, warcraft.wiki.gg/wiki/Dark_troll), on the Troll's body: the Troll's
-    models, skins, faces, hair and features as they are (the Troll's own files: nothing of its own to convert, "alias_of"). Its voices are the
-    game's Troll's (races_profile.py's VOICE_COPY), so none are fetched. Their own skin and hair colours (the night elves' tints) are
-    made apart: docs/wrathpp/DARK_TROLLS.md."""
+def dark_troll_entry(troll, night_elf, choice_rows=None):
+    """The Dark Troll (the Alliance's: the Night Elves' ancestors' kin, warcraft.wiki.gg/wiki/Dark_troll): the Troll's body built under its own
+    folder ([troll]: build_races of ChrModels 15 and 16 named "DarkTroll": its own model and texture files, the Troll's by their content), with the
+    Night Elf's skin and hair colours and the dark trolls' own skins added (dark_troll.py: made-up file ids and their specs, the creator's extra
+    choices). [choice_rows]: today's choices by id, for the swatches of the borrowed colours."""
     import copy
+    import dark_troll
     out = copy.deepcopy(troll)
-    out["alias_of"] = "8"
     out["name"] = "DarkTroll"
     out["replace_rows"] = False
     for sex, m in out["models"].items():
-        m["model_path"] = m["folder"] + "\\" + m["name"] + ".mdx"
+        specs, extra = dark_troll.extend(m, night_elf["models"][sex])
+        for row in extra["Skin Color"] + extra["Hair Color"]:
+            if choice_rows and row["ID"] in choice_rows:
+                row["SwatchColor_0"] = choice_rows[row["ID"]].get("SwatchColor_0", "0")
+                row["SwatchColor_1"] = choice_rows[row["ID"]].get("SwatchColor_1", "0")
+        for row, (_, rgb) in zip(extra["Skin Color"][-len(dark_troll.OWN_SKINS):], dark_troll.OWN_SKINS):
+            row["SwatchColor_0"] = str(rgb[0] << 16 | rgb[1] << 8 | rgb[2])
+        m["synth"] = specs
+        m["extra_choices"] = extra
     return out
 
 
@@ -783,8 +798,10 @@ def races_data(csv_dir, out_path):
     he["voices"] = allied.voices(tables, 10)
     he["names"] = [{"name": n["Name"], "sex": int(n["Sex"])} for n in tables.names if n["RaceID"] == "10"]
     data["highelf"] = he
-    troll = build_races(csv_dir, {8: RACES[8]})["races"]["8"]
-    dt = dark_troll(troll)
+    troll = build_races(csv_dir, {8: ("DarkTroll", RACES[8][1])})["races"]["8"]
+    night = build_races(csv_dir, {4: RACES[4]})["races"]["4"]
+    rows = {c["ID"]: c for cs in tables.choices.values() for c in cs}
+    dt = dark_troll_entry(troll, night, rows)
     dt["race"] = 8                                       # its names are the Trolls'
     dt["voices"] = {"vocal": [], "emotes": []}
     dt["names"] = [{"name": n["Name"], "sex": int(n["Sex"])} for n in tables.names if n["RaceID"] == "8"]

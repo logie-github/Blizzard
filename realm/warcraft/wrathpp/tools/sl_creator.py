@@ -109,6 +109,8 @@ def digits_of(tables, model, chr_model):
     for c in tables.option_choices(chr_model, "Hair Color"):
         if [f for _, fs in tables.choice_materials(c, allied.TARGET_HAIR) for f in fs]:
             colours[c["ID"]] = len(colours)
+    for c in model.get("extra_choices", {}).get("Hair Color", []):          # (the Dark Troll's: the Night Elves' colours, added)
+        colours[c["ID"]] = len(colours)
     if len(colours) != len(model["hair_colors"]):
         raise ValueError("%s: %d hair colours here, %d in the looks" % (model["name"], len(colours), len(model["hair_colors"])))
     colour_name = next(today for today, asked in aliases.items() if asked == "Hair Color")
@@ -157,7 +159,9 @@ def build_model(tables, categories, race_id, sex, model, key_race=None):
         if o["Name_lang"] in drawn:
             field, part, digits = drawn[o["Name_lang"]]
             option["field"], option["part"] = field, part + 1
-            option["choices"] = [entry(tables, c, digits[c["ID"]]) for c in choices if c["ID"] in digits]
+            have = [c for c in choices if c["ID"] in digits]
+            have += [c for c in model.get("extra_choices", {}).get(o["Name_lang"], []) if c["ID"] in digits and c["ID"] not in {x["ID"] for x in have}]
+            option["choices"] = [entry(tables, c, digits[c["ID"]]) for c in have]
         else:
             option["choices"] = [entry(tables, c, i) for i, c in enumerate(c for c in choices if tables.available(c))]
         # A picture laid over the head (eyebrows, makeup, scars...): its choices name their picture (a path of the game's, for any
