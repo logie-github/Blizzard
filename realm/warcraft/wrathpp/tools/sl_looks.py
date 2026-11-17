@@ -48,7 +48,7 @@ RACES = {1: ("Human", {0: 1, 1: 2}), 2: ("Orc", {0: 3, 1: 4}), 3: ("Dwarf", {0: 
 # The allied races and the Pandaren (Shadowlands' own race ids), which 3.3.5 hasn't: made the same way, for the races
 # module that gives them a race id of 3.3.5's (docs/wrathpp/ALLIED_RACES.md). race id: (folder name, ChrModel ids by sex)
 ALLIED = {27: ("Nightborne", {0: 53, 1: 54}), 28: ("Highmountain", {0: 55, 1: 56}), 29: ("VoidElf", {0: 57, 1: 58}),
-          30: ("Lightforged", {0: 59, 1: 60}), 31: ("Zandalari", {0: 61, 1: 62}), 32: ("KulTiran", {0: 63, 1: 64}),
+          30: ("Lightforged", {0: 59, 1: 60}), 31: ("Zandalari", {0: 61, 1: 62}),
           34: ("DarkIron", {0: 67, 1: 68}), 35: ("Vulpera", {0: 69, 1: 70}), 36: ("Maghar", {0: 71, 1: 72}),
           37: ("Mechagnome", {0: 73, 1: 74})}
 # The four the allied races module already makes (its own policy: parent skeletons, the eye colours that fit, the
@@ -487,7 +487,7 @@ def narrations(keys, read, client, log=print):
 
 # wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
 # app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
-RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "KULTIRAN": 2447785, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
+RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 1786422,
               "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
 
 
@@ -663,7 +663,7 @@ def fetch(csv_dir):
 
 
 # The allied races' keys in the races data (the allied races module's own for its four).
-KEYS = {27: "nightborne", 28: "highmountain", 29: "voidelf", 30: "lightforged", 31: "zandalari", 32: "kultiran",
+KEYS = {27: "nightborne", 28: "highmountain", 29: "voidelf", 30: "lightforged", 31: "zandalari",
         34: "darkiron", 35: "vulpera", 36: "maghar", 37: "mechagnome"}
 
 

@@ -76,6 +76,11 @@ class ForeverClientConfigTest {
         assertTrue(c.contains("WorldServerPort = ${ForeverPorts.WORLD}\n"))
         assertTrue(c.contains("Realm.AlsoAcceptBuilds = \"70888,70862\""))
         assertTrue(c.contains("\"127.0.0.1;${ForeverPorts.DATABASE};u;pw;world\""))
+        // The freeze watch is off, and in the package's own file its line is changed in place, once (not left at 60 beside a second line).
+        assertTrue(c.contains("MaxCoreStuckTime = 0\n"))
+        val edited = ForeverConfig.edit("#    MaxCoreStuckTime\n#        Default:     60 - (Enabled, Recommended 10+)\n\nMaxCoreStuckTime = 60\n", ForeverConfig.worldserverValues(params))
+        assertEquals(1, Regex("(?m)^MaxCoreStuckTime = (\\d+)$").findAll(edited).count())
+        assertTrue(edited.contains("\nMaxCoreStuckTime = 0\n"))
         val b = ForeverConfig.bnetserverConf(params)
         assertTrue(b.contains("BattlenetPort = ${ForeverPorts.BNET}\n"))
         assertTrue(b.contains("LoginREST.ExternalAddress = trinity.actual.battle.net\n"))

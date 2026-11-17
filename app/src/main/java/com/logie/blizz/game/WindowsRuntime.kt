@@ -226,8 +226,16 @@ object WindowsRuntime {
         paths.saves.mkdirs()
         paths.staging.mkdirs()
         // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
-        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
+        return drivesOf(paths.games.path, paths.saves.path, paths.staging.path, File(context.applicationContext.filesDir, "realms").apply { mkdirs() }.path)
     }
+
+    /**
+     * The drives as Winlator keeps them: D: the games, S: the saves, T: the importers' work folder, and F: the realms' folder
+     * (`files/realms`: World of Warcraft: Forever's game is there, in `forever-v2/client`, not among the games). A program whose
+     * folder is on no drive has no Windows path: Winlator then starts nothing and shows its file manager, which is what Forever's
+     * Play ended in on the phone once its realm was up (16 November 2026: a window named "Computer" with C:, D:, S:, T:, X:, Z:).
+     */
+    fun drivesOf(games: String, saves: String, staging: String, realms: String): String = "D:" + games + "S:" + saves + "T:" + staging + "F:" + realms
 
     /**
      * cnc-ddraw's settings for the classic games (Diablo II, StarCraft, Warcraft II), which draw with

@@ -20,26 +20,26 @@ SQL_NOTE = "Wrath++'s allied races (the ten, and the High Elf), made by realm/wa
 # SetSelectedRace). So, as mod-allied-races does, the new races take the ids of the game's creatures-only races, which move up:
 # the Goblins' row 9 and the creatures' 12 to 21 go to 22 to 32 (MOVED: their rows, looks, hair, features and voices), and the High Elf
 # takes 9, the ten allied races 12 to 21. The Worgen and Goblins (mod-worgen-goblin, ids 12 and 9) need that array enlarged first.
-VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(12, 22)
+VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME = range(12, 21)   # (21 is free)
 HIGHELF = 9
-RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, KULTIRAN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF)
-ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, KULTIRAN, DARKIRON, MECHAGNOME, HIGHELF)
+RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI, HIGHMOUNTAIN, DARKIRON, VULPERA, MAGHAR, MECHAGNOME, HIGHELF)
+ALLIANCE_RACES = (VOIDELF, LIGHTFORGED, DARKIRON, MECHAGNOME, HIGHELF)
 HORDE_RACES = (NIGHTBORNE, ZANDALARI, HIGHMOUNTAIN, VULPERA, MAGHAR)
 FOLDED = {}
 MOVED = {9: 32, **{old: old + 10 for old in range(12, 22)}}
 # ChrRaces' file string, the name the creation screen (its texts, scenes, pictures, Shadowlands' art) knows a race by: today's own
 # (the models' folders are another matter; the High Elf's files are the Void Elf's)
 CLIENT_FILE_STRING = {12: "VoidElf", 13: "Nightborne", 14: "LightforgedDraenei", 15: "ZandalariTroll", 16: "HighmountainTauren",
-                      17: "KulTiran", 18: "DarkIronDwarf", 19: "Vulpera", 20: "MagharOrc", 21: "Mechagnome", 9: "HighElf"}
+                      17: "DarkIronDwarf", 18: "Vulpera", 19: "MagharOrc", 20: "Mechagnome", 9: "HighElf"}
 KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari", HIGHMOUNTAIN: "highmountain",
-       KULTIRAN: "kultiran", DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf"}
+       DARKIRON: "darkiron", VULPERA: "vulpera", MAGHAR: "maghar", MECHAGNOME: "mechagnome", HIGHELF: "highelf"}
 BIT = {r: 1 << (r - 1) for r in RACE_IDS}
 ALLIANCE_BITS = sum(BIT[r] for r in ALLIANCE_RACES)
 HORDE_BITS = sum(BIT[r] for r in HORDE_RACES)
 
 # Where they begin, whose quests, standing, gear and intro camera they have: the closest 3.3.5 race (the user: "draenei to
 # draenei and orc to orc").
-START = {VOIDELF: DRAENEI, LIGHTFORGED: DRAENEI, KULTIRAN: HUMAN, DARKIRON: DWARF, MECHAGNOME: GNOME, HIGHELF: NIGHTELF,
+START = {VOIDELF: DRAENEI, LIGHTFORGED: DRAENEI, DARKIRON: DWARF, MECHAGNOME: GNOME, HIGHELF: NIGHTELF,
          NIGHTBORNE: BLOODELF, ZANDALARI: TROLL, HIGHMOUNTAIN: TAUREN, VULPERA: ORC, MAGHAR: ORC}
 # The classes of today's races that 3.3.5 has.
 _BLOODELF_CLASSES = (PALADIN, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK)   # (3.3.5's Blood Elves have no warriors)
@@ -49,7 +49,6 @@ CLASSES_OF = {
     LIGHTFORGED: (WARRIOR, PALADIN, HUNTER, PRIEST, DK, MAGE),
     ZANDALARI: (WARRIOR, PALADIN, HUNTER, ROGUE, PRIEST, DK, SHAMAN, MAGE, DRUID),
     HIGHMOUNTAIN: (WARRIOR, HUNTER, DK, SHAMAN, DRUID),
-    KULTIRAN: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, SHAMAN, DRUID),
     DARKIRON: (WARRIOR, PALADIN, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK, SHAMAN),
     VULPERA: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK, SHAMAN),
     MAGHAR: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK, SHAMAN),
@@ -70,13 +69,13 @@ for _race in RACE_IDS:
     _order = [START[_race]] + [r for r in (_ALLIANCE_ORDER if _race in ALLIANCE_RACES else _HORDE_ORDER) if r != START[_race]]
     TEMPLATE[_race] = {c: next(r for r in _order if c in _HAS[r]) for c in CLASSES_OF[_race]}
 EXTRA_CLASSES = {}
-STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL, HIGHMOUNTAIN: TAUREN, KULTIRAN: HUMAN,
+STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL, HIGHMOUNTAIN: TAUREN,
               DARKIRON: DWARF, VULPERA: GNOME, MAGHAR: ORC, MECHAGNOME: GNOME, HIGHELF: BLOODELF}
 MODEL_FROM = dict(STATS_FROM)                          # whose model rows (scale, collision, sounds) theirs are copied from
-PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb", LIGHTFORGED: "Ld", ZANDALARI: "Za", HIGHMOUNTAIN: "Ht", KULTIRAN: "Kt", DARKIRON: "Di",
+PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb", LIGHTFORGED: "Ld", ZANDALARI: "Za", HIGHMOUNTAIN: "Ht", DARKIRON: "Di",
           VULPERA: "Vu", MAGHAR: "Mo", MECHAGNOME: "Mg", HIGHELF: "He"}
 NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne", LIGHTFORGED: "Lightforged Draenei", ZANDALARI: "Zandalari Troll",
-        HIGHMOUNTAIN: "Highmountain Tauren", KULTIRAN: "Kul Tiran", DARKIRON: "Dark Iron Dwarf", VULPERA: "Vulpera",
+        HIGHMOUNTAIN: "Highmountain Tauren", DARKIRON: "Dark Iron Dwarf", VULPERA: "Vulpera",
         MAGHAR: "Mag'har Orc", MECHAGNOME: "Mechagnome", HIGHELF: "High Elf"}
 # The intro's narration: the user's own MP3s for the four of Legion's and BfA's the allied races module has, wago.tools' music of
 # the Highmountain's flythrough for theirs (sound/music/legion/mus_735_ar_rtc_highmountaintauren_flythrough.mp3); the rest
@@ -85,7 +84,7 @@ NARRATION = {VOIDELF: "VoidElfNarration.mp3", NIGHTBORNE: "NightborneNarration.m
              ZANDALARI: "ZandalariTrollNarration.mp3", HIGHMOUNTAIN: "HighmountainTaurenNarration.mp3"}
 FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL"),
                   LIGHTFORGED: ("FEATURES", "HORNS", "NORMAL"), ZANDALARI: ("TUSKS", "TUSKS", "NORMAL"),
-                  HIGHMOUNTAIN: ("HORNS", "HORNS", "NORMAL"), KULTIRAN: ("FEATURES", "FEATURES", "NORMAL"),
+                  HIGHMOUNTAIN: ("HORNS", "HORNS", "NORMAL"),
                   DARKIRON: ("FEATURES", "FEATURES", "NORMAL"), VULPERA: ("FEATURES", "FEATURES", "NORMAL"),
                   MAGHAR: ("FEATURES", "FEATURES", "NORMAL"), MECHAGNOME: ("FEATURES", "FEATURES", "NORMAL"),
                   HIGHELF: ("FEATURES", "FEATURES", "NORMAL")}
@@ -114,8 +113,6 @@ RACIAL_LEARN = [
     (BIT[MAGHAR], NEW["ancestral_call"], "Mag'har Orc - Ancestral Call"), (BIT[MAGHAR], NEW["brawn"], "Mag'har Orc - Brawn"),
     (BIT[MAGHAR], 20573, "Mag'har Orc - Hardiness"), (BIT[MAGHAR], 20576, "Mag'har Orc - Command"),
     (BIT[DARKIRON], NEW["fireblood"], "Dark Iron Dwarf - Fireblood"), (BIT[DARKIRON], NEW["forged_in_flames"], "Dark Iron Dwarf - Forged in Flames"),
-    (BIT[KULTIRAN], NEW["brush_it_off"], "Kul Tiran - Brush It Off"), (BIT[KULTIRAN], NEW["haymaker"], "Kul Tiran - Haymaker"),
-    (BIT[KULTIRAN], 20599, "Kul Tiran - Diplomacy"), (BIT[KULTIRAN], 5227, "Kul Tiran - Child of the Sea (Underwater Breathing)"),
     (BIT[HIGHMOUNTAIN], NEW["mountaineer"], "Highmountain Tauren - Mountaineer"), (BIT[HIGHMOUNTAIN], NEW["bull_rush"], "Highmountain Tauren - Bull Rush"),
     (BIT[HIGHMOUNTAIN], 20550, "Highmountain Tauren - Endurance"),
     (BIT[VULPERA], NEW["bag_of_tricks"], "Vulpera - Bag of Tricks"), (BIT[VULPERA], NEW["nose_for_trouble"], "Vulpera - Nose for Trouble"),
@@ -150,10 +147,6 @@ def RACIAL_HOOK(spell, no_cost, sql, client, columns, by_id, schools):
         spell(130, N["bull_rush"], "Bull Rush", "Racial", "Charge ahead, increasing run speed by 30% for 3 sec. 3 min cooldown.", "Run speed increased by 30%.",
               SpellIconID=1337, Effect_1=6, EffectAura_1=31, EffectBasePoints_1=29, EffectDieSides_1=1,
               DurationIndex=27, RecoveryTime=180000, **dict(no_cost, Attributes=0x10)),
-        spell(20557, N["brush_it_off"], "Brush It Off", "Racial Passive", "All damage taken reduced by 2%.", "",
-              SpellIconID=2058, EffectAura_1=87, EffectBasePoints_1=-3, EffectDieSides_1=1, EffectMiscValue_1=127),
-        spell(20549, N["haymaker"], "Haymaker", "Racial", "Wind up a mighty swing, stunning up to 5 enemies within 8 yards for 2 sec. 2 min cooldown.", "",
-              SpellIconID=1038),
         spell(20549, N["bag_of_tricks"], "Bag of Tricks", "Racial",
               "Throw a bag of tricks that bursts over nearby enemies, dealing Physical damage to those within 8 yards. 3 min cooldown.", "",
               SpellIconID=2018, Effect_1=2, EffectAura_1=0, EffectBasePoints_1=29, EffectDieSides_1=1, EffectRealPointsPerLevel_1=3.0,
@@ -172,5 +165,5 @@ def RACIAL_HOOK(spell, no_cost, sql, client, columns, by_id, schools):
               SpellIconID=2065, EffectAura_1=98, EffectBasePoints_1=14, EffectDieSides_1=1, EffectMiscValue_1=202),
     ]
     sql.comment("Their racials, the new races' (Wrath++, docs/wrathpp/ALLIED_RACES.md): Ancestral Call, Brawn; Fireblood, Forged in Flames;\n"
-                "Mountaineer, Bull Rush; Brush It Off, Haymaker; Bag of Tricks, Nose for Trouble, Rummaging; Combat Analysis, Skillful Scavenger.")
+                "Mountaineer, Bull Rush; Bag of Tricks, Nose for Trouble, Rummaging; Combat Analysis, Skillful Scavenger.")
     return rows

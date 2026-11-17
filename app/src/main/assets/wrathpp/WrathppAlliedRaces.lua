@@ -9,8 +9,8 @@
 --  * Their text.
 -- Loaded after the game's own screens and before WrathppCreate.lua (the file names sort so).
 
-local BACKGROUNDS = { VOIDELF = "BloodElf", LIGHTFORGEDDRAENEI = "Draenei", KULTIRAN = "Human", DARKIRONDWARF = "Dwarf", MECHAGNOME = "Gnome", HIGHELF = "BloodElf", NIGHTBORNE = "NightElf", ZANDALARITROLL = "Orc", HIGHMOUNTAINTAUREN = "Tauren", VULPERA = "Orc", MAGHARORC = "Orc" };
-local SIDES = { VOIDELF = "Alliance", LIGHTFORGEDDRAENEI = "Alliance", KULTIRAN = "Alliance", DARKIRONDWARF = "Alliance", MECHAGNOME = "Alliance", HIGHELF = "Alliance", NIGHTBORNE = "Horde", ZANDALARITROLL = "Horde", HIGHMOUNTAINTAUREN = "Horde", VULPERA = "Horde", MAGHARORC = "Horde", HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance", ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde" };
+local BACKGROUNDS = { VOIDELF = "BloodElf", LIGHTFORGEDDRAENEI = "Draenei", DARKIRONDWARF = "Dwarf", MECHAGNOME = "Gnome", HIGHELF = "BloodElf", NIGHTBORNE = "NightElf", ZANDALARITROLL = "Orc", HIGHMOUNTAINTAUREN = "Tauren", VULPERA = "Orc", MAGHARORC = "Orc" };
+local SIDES = { VOIDELF = "Alliance", LIGHTFORGEDDRAENEI = "Alliance", DARKIRONDWARF = "Alliance", MECHAGNOME = "Alliance", HIGHELF = "Alliance", NIGHTBORNE = "Horde", ZANDALARITROLL = "Horde", HIGHMOUNTAINTAUREN = "Horde", VULPERA = "Horde", MAGHARORC = "Horde", HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance", ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde" };
 local ICON_PATH = "Interface\\Glues\\CharacterCreate\\WrathppRaces\\"
 local ICONS = { }
 for token in pairs(BACKGROUNDS) do ICONS[token] = ICON_PATH..token end
@@ -143,12 +143,6 @@ ABILITY_INFO_LIGHTFORGEDDRAENEI3 = "- Light's Reckoning: When you die, Holy ener
 ABILITY_INFO_LIGHTFORGEDDRAENEI4 = "- Holy Resistance, Demonbane.";
 LIGHTFORGEDDRAENEI_DISABLED = "Lightforged Draenei can't be made on this realm.";
 
-RACE_INFO_KULTIRAN = "Seafaring humans of Boralus and Kul Tiras, hardened by storms, tides and long wars. Stubborn, loyal and strong.";
-ABILITY_INFO_KULTIRAN1 = "- Brush It Off: All damage taken reduced by 2%.";
-ABILITY_INFO_KULTIRAN2 = "- Haymaker: Stun nearby enemies with a mighty swing.";
-ABILITY_INFO_KULTIRAN3 = "- Diplomacy: 10% more reputation gained.";
-ABILITY_INFO_KULTIRAN4 = "- Child of the Sea: Breathe underwater far longer.";
-KULTIRAN_DISABLED = "Kul Tiran can't be made on this realm.";
 
 RACE_INFO_DARKIRONDWARF = "Dwarves of the Dark Iron clan, forged by the fires of Blackrock and long bound to Ragnaros. Now they have a place in the Alliance.";
 ABILITY_INFO_DARKIRONDWARF1 = "- Fireblood: Removes poison, disease, curse, magic and bleeds, and reduces damage taken for 8 sec.";

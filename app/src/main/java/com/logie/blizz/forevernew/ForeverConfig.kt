@@ -63,6 +63,11 @@ object ForeverConfig {
         line("Network.EnterEncryptedModeRegionGroup", "8")
         line("Network.SkipBuildAuthKeyCheck", "1")
         line("Expansion", "0")
+        // The core's own freeze watch off: it ends the server ("World Thread hangs for 60029 ms, forcing a crash!", SIGSEGV) when the
+        // world's loop has not turned for a minute. On a phone that minute passes without a fault: Android stops the app's programs
+        // while the app is out of sight, and the bots' first set-up holds the loop for long (the phone, 16 November 2026: the world
+        // loaded, its console up, then that line).
+        line("MaxCoreStuckTime", "0")
         // Comma-separated; bnetserver.conf must hold the same list, and each build needs a row in auth.build_info.
         p.realmAlsoAccept.takeIf { it.isNotEmpty() }?.let { line("Realm.AlsoAcceptBuilds", q(it.joinToString(","))) }
     }
