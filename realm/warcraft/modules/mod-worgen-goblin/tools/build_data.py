@@ -47,9 +47,26 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MODULE = os.path.dirname(HERE)
 TYPES = json.load(open(os.path.join(HERE, "dbc_types.json")))
 
-GOBLIN, WORGEN = 9, 12
-RACES = (GOBLIN, WORGEN)
-MOVED = {GOBLIN: 28, WORGEN: 29}       # the game's own goblin and fel orc creatures' race, out of the way
+# mod-worgoblin's own ids for the two races (its rows name them) and the ids made here: ChromieCraft's are the same (9 and 12); a realm where those
+# are taken (Wrath++'s are 22 and 23: its allied races have them) sets WORGEN_GOBLIN_RACES="22,23" (goblin, worgen) and the rows and masks of
+# mod-worgoblin's are given the new ids and bits. WORGEN_GOBLIN_MOVED=none: the realm moves the game's own creatures of races 9 and 12 itself.
+GOBLIN_OLD, WORGEN_OLD = 9, 12
+GOBLIN, WORGEN = (int(x) for x in os.environ.get("WORGEN_GOBLIN_RACES", "9,12").split(","))
+RACES = (GOBLIN_OLD, WORGEN_OLD)       # (mod-worgoblin's: what its rows are matched by)
+NEW_OF = {GOBLIN_OLD: GOBLIN, WORGEN_OLD: WORGEN}
+MOVED = {} if os.environ.get("WORGEN_GOBLIN_MOVED") == "none" else {GOBLIN_OLD: 28, WORGEN_OLD: 29}   # the game's own goblin and fel orc creatures' race, out of the way
+
+
+def remap_id(race):
+    return NEW_OF.get(race, race)
+
+
+def remap_mask(mask):
+    """A race mask with mod-worgoblin's two races' bits at the ids made here."""
+    for old, new in NEW_OF.items():
+        if old != new and mask & (1 << (old - 1)):
+            mask = (mask & ~(1 << (old - 1))) | (1 << (new - 1))
+    return mask & 0xFFFFFFFF
 
 # Where the race is in the character tables (an int field's index, or a byte's offset for the raw
 # ones): only these races' new rows are put in.
@@ -249,7 +266,7 @@ def main():
         if raw:
             # CharStartOutfit (an id, then bytes) and CharBaseInfo (two bytes): their two races' rows.
             at = RACE_BYTE[name]
-            mine = [r for r in theirs.raw if r[at] in RACES]
+            mine = [r[:at] + bytes([remap_id(r[at])]) + r[at + 1:] for r in theirs.raw if r[at] in RACES]
             stock_keys = {r[at:at + 3] if name == "CharStartOutfit" else r for r in stock.raw}
             new = [r for r in mine if (r[at:at + 3] if name == "CharStartOutfit" else r) not in stock_keys]
             if name == "CharStartOutfit":
@@ -272,6 +289,10 @@ def main():
             values = theirs.values(r, types)
             if name in RACE_FIELD and values[RACE_FIELD[name]] not in RACES:
                 continue
+            if name in RACE_FIELD:
+                values[RACE_FIELD[name]] = remap_id(values[RACE_FIELD[name]])
+            for i in MASKS.get(name, ()):
+                values[i] = remap_mask(values[i])
             if not keyed:
                 key = tuple(values[:3])
                 if key in {tuple(stock.values(s, types)[:3]) for s in stock.raw}:
@@ -284,6 +305,7 @@ def main():
                 continue
             if name == "ChrRaces":
                 if rid in RACES:
+                    values[0] = remap_id(rid)
                     new_rows.append(values)       # the race's row as mod-worgoblin has it, whole
                 continue
             if name in CHARACTER_TABLES:

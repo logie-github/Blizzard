@@ -1,0 +1,74 @@
+name: Wrath++ Cataclysm races data
+
+# The Worgen and Goblins' data for Wrath++'s race ids (docs/wrathpp/CATA_RACES.md): realm/warcraft/modules/mod-worgen-goblin/tools/build_data.py
+# run twice on mod-worgoblin at its pin and the core's table columns, as the module's committed data was made: once with ChromieCraft's ids (9 and 12:
+# the output must be the committed data, byte for byte), once with Wrath++'s (WORGEN_GOBLIN_RACES=22,23, the realm moving the creatures' races
+# itself) whose output is the artifact. Blizzard's files: the artifact is for the realm's build, never committed with them.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/wrathpp-cata-data.yml
+      - realm/warcraft/modules/mod-worgen-goblin/tools/build_data.py
+      - realm/warcraft/modules/mod-worgen-goblin/tools/zones/quests.py
+
+concurrency:
+  group: wrathpp-cata-data
+  cancel-in-progress: true
+
+jobs:
+  data:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The server's tables (data.zip's dbc)
+        run: |
+          . realm/warcraft/server-data.env
+          curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"
+          echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -
+          unzip -q -o data.zip 'dbc/*' -d server-data
+          rm data.zip
+
+      - name: The core's table columns and mod-worgoblin at its pin
+        run: |
+          . realm/warcraft/server-version.env
+          git clone -q --depth 1 --filter=blob:none --sparse "$CORE_REPO" core
+          git -C core fetch -q --depth 1 origin "$CORE_COMMIT"
+          git -C core checkout -q FETCH_HEAD
+          git -C core sparse-checkout set data/sql/base/db_world
+          line=$(grep '^mod-worgoblin ' realm/warcraft/server-version.env)
+          url=$(echo "$line" | cut -d' ' -f2); commit=$(echo "$line" | cut -d' ' -f3)
+          git init -q worgoblin
+          git -C worgoblin fetch -q --depth 1 "$url" "$commit"
+          git -C worgoblin checkout -q FETCH_HEAD
+
+      - name: With ChromieCraft's ids the committed data again
+        run: |
+          cd realm/warcraft/modules/mod-worgen-goblin
+          python3 tools/build_data.py "$GITHUB_WORKSPACE/server-data/dbc" "$GITHUB_WORKSPACE/worgoblin" "$GITHUB_WORKSPACE/core" | tail -5
+          if ! git diff --quiet -- data; then
+            echo "::warning::the data with the module's own ids is not the committed data (the generator changed it)"
+            git diff --stat -- data | tail -5
+          else
+            echo "the data with the module's own ids is the committed data"
+          fi
+          git checkout -- data
+
+      - name: With Wrath++'s ids
+        run: |
+          cd realm/warcraft/modules/mod-worgen-goblin
+          WORGEN_GOBLIN_RACES=22,23 WORGEN_GOBLIN_MOVED=none python3 tools/build_data.py "$GITHUB_WORKSPACE/server-data/dbc" "$GITHUB_WORKSPACE/worgoblin" "$GITHUB_WORKSPACE/core" | tail -8
+          mkdir -p "$GITHUB_WORKSPACE/out/client" "$GITHUB_WORKSPACE/out/server"
+          cp -r data/client/dbc "$GITHUB_WORKSPACE/out/client/"
+          cp data/server/*.sql "$GITHUB_WORKSPACE/out/server/"
+          git checkout -- data
+          grep -c ' 22,' "$GITHUB_WORKSPACE/out/server/worgen_goblin_dbc.sql" || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wrathpp-cata-data
+          path: out
