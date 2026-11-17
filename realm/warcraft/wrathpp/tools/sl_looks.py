@@ -44,7 +44,10 @@ TABLES_MORE = ("TextureFileData", "CreatureModelData", "CreatureDisplayInfo", "V
 # race id: (folder name, ChrModel ids by sex)
 RACES = {1: ("Human", {0: 1, 1: 2}), 2: ("Orc", {0: 3, 1: 4}), 3: ("Dwarf", {0: 5, 1: 6}), 4: ("NightElf", {0: 7, 1: 8}),
          5: ("Scourge", {0: 9, 1: 10}), 6: ("Tauren", {0: 11, 1: 12}), 7: ("Gnome", {0: 13, 1: 14}),
-         8: ("Troll", {0: 15, 1: 16}), 10: ("BloodElf", {0: 19, 1: 20}), 11: ("Draenei", {0: 21, 1: 22})}
+         8: ("Troll", {0: 15, 1: 16}), 10: ("BloodElf", {0: 19, 1: 20}), 11: ("Draenei", {0: 21, 1: 22}),
+         # the Goblins and Worgen (Wrath++'s race ids 9 and 12, mod-worgen-goblin's; Shadowlands' Goblin ChrModels 17/18, its Worgen's
+         # 43/44, the wolf form): made as the ten are, their rows replacing the module's own (the looks' change files go last for them)
+         9: ("Goblin", {0: 17, 1: 18}), 12: ("Worgen", {0: 43, 1: 44})}
 # The allied races and the Pandaren (Shadowlands' own race ids), which 3.3.5 hasn't: made the same way, for the races
 # module that gives them a race id of 3.3.5's (docs/wrathpp/ALLIED_RACES.md). race id: (folder name, ChrModel ids by sex)
 ALLIED = {27: ("Nightborne", {0: 53, 1: 54}), 28: ("Highmountain", {0: 55, 1: 56}), 29: ("VoidElf", {0: 57, 1: 58}),
@@ -77,6 +80,10 @@ FEATURES = {
     (10, 1): (["Earrings", "Necklace"], {35: 3, 36: 2}),                                # 14 x 4
     (11, 0): (["Facial Hair", "Tendrils", "Circlet"], {37: 3}),                         # 11 x 8 x 2
     (11, 1): (["Horns", "Tendrils", "Tail"], {24: 3, 38: 16}),                          # 12 x 2 x 6
+    (9, 0): (["Earrings", "Nose Ring"], {35: 3}),                                        # the Goblins' (Wrath++'s 9)
+    (9, 1): (["Earrings", "Nose Ring"], {35: 3}),
+    (12, 0): (["Facial Hair"], {}),                                                     # the Worgen's (Wrath++'s 12)
+    (12, 1): ([], {}),
 }
 FEATURES.update({
     (28, 0): (["Horn Style", "Beard"], {24: 3}), (28, 1): (["Horn Style", "Earrings"], {24: 3, 35: 1}),
@@ -91,7 +98,7 @@ AVAILABLE_ONLY = {(6, 0): {"Horn Style"}}
 # Today's names for an option the allied races' reading asks for by another (the Tauren's mane is their hair style,
 # their horns' colour their hair colour: the hair texture).
 ALIASES = {6: {"Hair Style": "Foremane", "Hair Color": "Horn Color"}, 28: {"Hair Style": "Foremane", "Hair Color": "Horn Color"},
-           35: {"Skin Color": "Fur Color"}}
+           35: {"Skin Color": "Fur Color"}, 12: {"Skin Color": "Fur Color"}}
 # Looks today's game opens by an achievement, open to everyone on Wrath++ from the start: the Blood Elves' Dark Ranger
 # skin and red eyes (achievement 15579; the user: "unlock the dark ranger skin by default for blood elves"). The skin
 # was among the skins already (a choice any class may pick once it is unlocked); the eye colour is marked as one the
@@ -168,6 +175,7 @@ def overlays_of(tables, chr_model, model):
     option_of = {c["ID"]: o for o in tables.options.values() for c in tables.choices[o["ID"]]}
     out = []
     skip = set(SLIDERS) | set(model.get("feature_options", []))
+    skip |= {today for (cm, asked), today in getattr(tables, "aliases", {}).items() if cm == str(chr_model)}    # (the Worgen's Fur Color is its skin's slider)
     for o in sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"])):
         if o["Name_lang"] in skip or (len(model.get("tattoos", [])) > 1 and o["Name_lang"] in allied.BODY_TATTOOS):
             continue                                # (the skin's own tattoos are painted into the skins already)
@@ -429,17 +437,30 @@ def looks_changes(looks, stock_dbc_dir):
     return out
 
 
+# The character tables whose rows the looks replace race by race (drop, then put): the first dir's (the looks' own) go last, after
+# every other dir's, so that a module that makes a race the looks redo (mod-worgen-goblin's Worgen and Goblins: Cataclysm's models
+# and textures) has its rows of that race dropped and the looks' put instead; its other races' rows stay.
+LOOKS_LAST = ("CharSections.txt", "CharHairGeosets.txt", "CharacterFacialHairStyles.txt")
+
+
 def merge_changes(out_dir, *dirs):
-    """The change files of [dirs] (a table's, in the order of the dirs) one file a table in [out_dir]."""
+    """The change files of [dirs] (a table's, in the order of the dirs; LOOKS_LAST's of the first dir after the others') one file a
+    table in [out_dir]."""
     os.makedirs(out_dir, exist_ok=True)
-    merged = {}
-    for d in dirs:
+    merged, last = {}, {}
+    for at, d in enumerate(dirs):
         if not os.path.isdir(d):
             continue
         for name in sorted(os.listdir(d)):
             if name.endswith(".txt"):
                 with open(os.path.join(d, name), encoding="utf-8") as f:
-                    merged.setdefault(name, []).append(f.read().rstrip("\n"))
+                    text = f.read().rstrip("\n")
+                if at == 0 and name in LOOKS_LAST:
+                    last[name] = text
+                else:
+                    merged.setdefault(name, []).append(text)
+    for name, text in last.items():
+        merged.setdefault(name, []).append(text)
     for name, parts in merged.items():
         with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="\n") as f:
             f.write("\n".join(parts) + "\n")

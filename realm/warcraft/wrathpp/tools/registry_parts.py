@@ -23,7 +23,7 @@ REGISTRY = os.path.join(os.path.dirname(HERE), "registry", "registry.json")
 IDS = os.path.join(os.path.dirname(HERE), "registry", "parts_ids.json")
 HAIR_COLOUR = 1190
 FIRST = 1200
-RACES = (1, 2, 3, 4, 5, 6, 7, 8, 10, 11)
+RACES = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)          # (9 and 12: the Goblins and Worgen, made as the ten are)
 SEXES = {0: "male", 1: "female"}
 ORIGIN = "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part"
 

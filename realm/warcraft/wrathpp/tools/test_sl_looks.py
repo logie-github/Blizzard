@@ -40,6 +40,23 @@ LOOKS = {"races": {"4": {"race": 4, "replace_rows": True, "models": {"0": model(
                    "29": {"race": 29, "models": {"0": model("VoidElfMale", "Character\\VoidElf\\Male")}}}}
 
 
+class LooksLastTest(unittest.TestCase):
+    def test_the_looks_character_rows_go_after_a_module_s(self):
+        """the first dir's CharSections (the looks' drop and put of a race) after the other dirs', so a module's rows of that race are
+        dropped; its other tables in the dirs' order"""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            looks, module, out = (os.path.join(d, x) for x in ("looks", "module", "out"))
+            for where, text in ((looks, "looks"), (module, "module")):
+                os.makedirs(where)
+                for name in ("CharSections.txt", "ChrRaces.txt"):
+                    with open(os.path.join(where, name), "w") as f:
+                        f.write(text + "\n")
+            sl_looks.merge_changes(out, looks, module)
+            self.assertEqual(open(os.path.join(out, "CharSections.txt")).read(), "module\nlooks\n")
+            self.assertEqual(open(os.path.join(out, "ChrRaces.txt")).read(), "looks\nmodule\n")
+
+
 class ChangesTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()

@@ -1104,7 +1104,7 @@ function W.ApplyZoom()
 	if ( not w or not h or w <= 0 or h <= 0 ) then return end
 	root:ClearAllPoints(); root:SetAllPoints(screen)
 	model:ClearAllPoints()
-	if ( W.zoom <= 1.001 ) then model:SetAllPoints(screen); return end
+	if ( math.abs(W.zoom - 1) <= 0.001 ) then model:SetAllPoints(screen); return end
 	local fx, fy = w * 0.5, h * W.focusY
 	model:SetPoint("BOTTOMLEFT", screen, "BOTTOMLEFT", fx - fx * W.zoom, fy - fy * W.zoom)
 	model:SetPoint("TOPRIGHT", screen, "BOTTOMLEFT", fx + (w - fx) * W.zoom, fy + (h - fy) * W.zoom)
@@ -1120,8 +1120,18 @@ function W.SyncZoomSlider()
 	W.syncingZoom = false
 end
 
+-- The whole character in view: the screen's own frame, or for a race taller than the game's camera allows for (the Zandalari, whose
+-- head the race screen cut off at the top) the model's frame made smaller than the screen round the view's middle.
+local TALL = { [15] = 0.8 }
+function W.FullZoom()
+	local race = GetSelectedRace and GetSelectedRace()
+	return TALL[race] or 1
+end
+
 function W.SetZoom(zoom, focusY)
-	W.zoomTarget = math.max(1, math.min(zoom, ZOOM_MAX))
+	local full = W.FullZoom()
+	if ( zoom <= 1 ) then zoom = full end
+	W.zoomTarget = math.max(full, math.min(zoom, ZOOM_MAX))
 	if ( focusY ) then W.focusTarget = focusY end
 	W.SyncZoomSlider()
 end
@@ -1803,7 +1813,10 @@ local function refresh()
 	if ( W.step ~= 2 ) then
 		-- the race and class screen shows the character too: her pieces (a Mechagnome's arms and legs, a Void Elf's tentacles, horns,
 		-- ears) on it as well, or the model stands there without them
-		if ( W.step == 1 ) then W.Look() end
+		if ( W.step == 1 ) then
+			W.Look()
+			if ( math.abs((W.zoomTarget or W.zoom) - W.FullZoom()) > 0.001 ) then W.SetZoom(1, 0.6) end     -- (another race: its whole view)
+		end
 		return
 	end
 	W.refreshes = (W.refreshes or 0) + 1
