@@ -109,6 +109,14 @@
   "21_1:Body Paint Color": 1376,
   "21_1:Face Paint": 1377,
   "21_1:Face Paint Color": 1375,
+  "22_0:Ears": 1379,
+  "22_0:Tentacles": 1380,
+  "22_1:Ears": 1381,
+  "22_1:Tentacles": 1382,
+  "23_0:Ears": 1383,
+  "23_0:Tentacles": 1384,
+  "23_1:Ears": 1385,
+  "23_1:Tentacles": 1386,
   "2_0:Earrings": 1240,
   "2_0:Grime": 1206,
   "2_0:Nose Ring": 1241,
@@ -181,5 +189,5 @@
   "9_1:Ears": 1286,
   "9_1:Tentacles": 1287
  },
- "next": 1379
+ "next": 1387
 }

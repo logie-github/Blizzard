@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 16,
+  "version": 17,
   "comment": "Wrath++ customization registry. Engineering seed for the first vertical slice (docs/wrathpp/MILESTONES.md, phase 3): two geoset categories of Legion 7.3.5's demon hunter looks. Every geoset group and option count here is UNVERIFIED until tools/legion_inventory.py has read the user's own 7.3.5 tables and tools/probe_geosets.py the Wrath++ client's models (docs/wrathpp/LEGION_OPTIONS_735.md). Stable ids: never reuse a category or option id for another look.",
   "classes": {
     "warrior": 1,
@@ -567,14 +567,6 @@
           "classes": []
         },
         {
-          "race": 9,
-          "sexes": [
-            "male",
-            "female"
-          ],
-          "classes": []
-        },
-        {
           "race": 10,
           "sexes": [
             "male",
@@ -584,14 +576,6 @@
         },
         {
           "race": 11,
-          "sexes": [
-            "male",
-            "female"
-          ],
-          "classes": []
-        },
-        {
-          "race": 12,
           "sexes": [
             "male",
             "female"
@@ -664,6 +648,22 @@
         },
         {
           "race": 21,
+          "sexes": [
+            "male",
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 22,
+          "sexes": [
+            "male",
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 23,
           "sexes": [
             "male",
             "female"
@@ -949,20 +949,6 @@
           "classes": []
         },
         {
-          "race": 9,
-          "sexes": [
-            "female"
-          ],
-          "classes": []
-        },
-        {
-          "race": 9,
-          "sexes": [
-            "male"
-          ],
-          "classes": []
-        },
-        {
           "race": 10,
           "sexes": [
             "female"
@@ -985,20 +971,6 @@
         },
         {
           "race": 11,
-          "sexes": [
-            "male"
-          ],
-          "classes": []
-        },
-        {
-          "race": 12,
-          "sexes": [
-            "female"
-          ],
-          "classes": []
-        },
-        {
-          "race": 12,
           "sexes": [
             "male"
           ],
@@ -1097,6 +1069,34 @@
         },
         {
           "race": 20,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        },
+        {
+          "race": 22,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 22,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        },
+        {
+          "race": 23,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 23,
           "sexes": [
             "male"
           ],
@@ -4925,132 +4925,6 @@
       ]
     },
     {
-      "id": 1284,
-      "key": "PART_9_0_EARS",
-      "name": "Ears",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 9,
-          "sexes": [
-            "male"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        },
-        {
-          "id": 3,
-          "name": "3",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "id": 1285,
-      "key": "PART_9_0_TENTACLES",
-      "name": "Tentacles",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 9,
-          "sexes": [
-            "male"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "id": 1286,
-      "key": "PART_9_1_EARS",
-      "name": "Ears",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 9,
-          "sexes": [
-            "female"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        },
-        {
-          "id": 3,
-          "name": "3",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "id": 1287,
-      "key": "PART_9_1_TENTACLES",
-      "name": "Tentacles",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 9,
-          "sexes": [
-            "female"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        }
-      ]
-    },
-    {
       "id": 1366,
       "key": "PART_10_0_TATTOO_COLOR",
       "name": "Tattoo Color",
@@ -6054,132 +5928,6 @@
           "id": 15,
           "name": "15",
           "value": 14
-        }
-      ]
-    },
-    {
-      "id": 1288,
-      "key": "PART_12_0_EARS",
-      "name": "Ears",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 12,
-          "sexes": [
-            "male"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        },
-        {
-          "id": 3,
-          "name": "3",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "id": 1289,
-      "key": "PART_12_0_TENTACLES",
-      "name": "Tentacles",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 12,
-          "sexes": [
-            "male"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        }
-      ]
-    },
-    {
-      "id": 1290,
-      "key": "PART_12_1_EARS",
-      "name": "Ears",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 12,
-          "sexes": [
-            "female"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
-        },
-        {
-          "id": 3,
-          "name": "3",
-          "value": 2
-        }
-      ]
-    },
-    {
-      "id": 1291,
-      "key": "PART_12_1_TENTACLES",
-      "name": "Tentacles",
-      "kind": "texture_layer",
-      "default": 1,
-      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
-      "eligibility": [
-        {
-          "race": 12,
-          "sexes": [
-            "female"
-          ],
-          "classes": []
-        }
-      ],
-      "options": [
-        {
-          "id": 1,
-          "name": "1",
-          "value": 0
-        },
-        {
-          "id": 2,
-          "name": "2",
-          "value": 1
         }
       ]
     },
@@ -9748,6 +9496,258 @@
           "id": 4,
           "name": "4",
           "value": 3
+        }
+      ]
+    },
+    {
+      "id": 1379,
+      "key": "PART_22_0_EARS",
+      "name": "Ears",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 22,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": 1380,
+      "key": "PART_22_0_TENTACLES",
+      "name": "Tentacles",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 22,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": 1381,
+      "key": "PART_22_1_EARS",
+      "name": "Ears",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 22,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": 1382,
+      "key": "PART_22_1_TENTACLES",
+      "name": "Tentacles",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 22,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": 1383,
+      "key": "PART_23_0_EARS",
+      "name": "Ears",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 23,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": 1384,
+      "key": "PART_23_0_TENTACLES",
+      "name": "Tentacles",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 23,
+          "sexes": [
+            "male"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": 1385,
+      "key": "PART_23_1_EARS",
+      "name": "Ears",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 23,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
+        },
+        {
+          "id": 3,
+          "name": "3",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": 1386,
+      "key": "PART_23_1_TENTACLES",
+      "name": "Tentacles",
+      "kind": "texture_layer",
+      "default": 1,
+      "origin": "Wrath++'s own: a Shadowlands option a character keeps (tools/registry_parts.py); the native mod draws it as a part",
+      "eligibility": [
+        {
+          "race": 23,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        }
+      ],
+      "options": [
+        {
+          "id": 1,
+          "name": "1",
+          "value": 0
+        },
+        {
+          "id": 2,
+          "name": "2",
+          "value": 1
         }
       ]
     }

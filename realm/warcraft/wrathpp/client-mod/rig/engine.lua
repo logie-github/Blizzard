@@ -163,6 +163,13 @@ function Region:GetAlpha() return self.__alpha end
 
 -- where a region is: left, bottom, width, height on the screen (nil: it has no place)
 local resolving = {}
+-- A region's scale on the screen: its own and its parents' (a frame's size and its anchors' offsets are in it, as the game has them)
+local function effective(r)
+	local s, a = 1, r
+	while ( a ) do s = s * (a.__scale or 1); a = a.__parent end
+	return s
+end
+E.effective = effective
 function E.rect(r)
 	if ( r == nil ) then return nil end
 	if ( r.__isScreen ) then return 0, 0, E.screen.w, E.screen.h end
@@ -176,12 +183,13 @@ function E.rect(r)
 		if ( sl ) then w, h = r.__w or sw, r.__h or sh; l = sl - (r.__scrollOwner.__hscroll or 0); b = sb + sh - h + (r.__scrollOwner.__vscroll or 0) end
 	elseif ( #r.__points > 0 ) then
 		local xs, ys = {}, {}
+		local k = effective(r)
 		for _, p in ipairs(r.__points) do
 			local rl, rb, rw, rh = E.rect(p.rel)
 			if ( not rl ) then rl, rb, rw, rh = 0, 0, E.screen.w, E.screen.h end
 			local rp, sp = POINTS[p.relPoint], POINTS[p.point]
-			xs[sp[1]] = rl + rw * rp[1] + p.x
-			ys[sp[2]] = rb + rh * rp[2] + p.y
+			xs[sp[1]] = rl + rw * rp[1] + p.x * k
+			ys[sp[2]] = rb + rh * rp[2] + p.y * k
 		end
 		local function span(t, given)
 			local lo, hi
@@ -195,17 +203,18 @@ function E.rect(r)
 			tw = tw or (#tostring(r.__text or "") * 7)
 			th = th or 12
 		end
+		tw, th = tw and tw * k, th and th * k
 		l, w = span(xs, tw); b, h = span(ys, th)
 	end
 	resolving[r] = nil
 	return l, b, w, h
 end
-function Region:GetLeft() local l = E.rect(self); return l end
-function Region:GetBottom() local _, b = E.rect(self); return b end
-function Region:GetRight() local l, _, w = E.rect(self); return l and l + w end
-function Region:GetTop() local _, b, _, h = E.rect(self); return b and b + h end
-function Region:GetWidth() local _, _, w = E.rect(self); return w or self.__w or 0 end
-function Region:GetHeight() local _, _, _, h = E.rect(self); return h or self.__h or 0 end
+function Region:GetLeft() local l = E.rect(self); return l and l / E.effective(self) end
+function Region:GetBottom() local _, b = E.rect(self); return b and b / E.effective(self) end
+function Region:GetRight() local l, _, w = E.rect(self); return l and (l + w) / E.effective(self) end
+function Region:GetTop() local _, b, _, h = E.rect(self); return b and (b + h) / E.effective(self) end
+function Region:GetWidth() local _, _, w = E.rect(self); return w and w / E.effective(self) or self.__w or 0 end
+function Region:GetHeight() local _, _, _, h = E.rect(self); return h and h / E.effective(self) or self.__h or 0 end
 function Region:GetCenter() local l, b, w, h = E.rect(self); if l then return l + w / 2, b + h / 2 end end
 
 -- Showing and hiding: children first, then the frame's own script (CSimpleFrame::ShowThis / HideThis)
@@ -277,7 +286,7 @@ function Frame:SetBackdropColor(r, g, b, a) colour("SetBackdropColor", r, g, b);
 function Frame:SetBackdropBorderColor(r, g, b, a) colour("SetBackdropBorderColor", r, g, b); self.__backdropBorder = { r, g, b, a or 1 } end
 function Frame:SetScale(s) if ( type(s) ~= "number" or s <= 0 ) then fail("SetScale: a number above 0") end; self.__scale = s end
 function Frame:GetScale() return self.__scale or 1 end
-function Frame:GetEffectiveScale() return 1 end
+function Frame:GetEffectiveScale() return E.effective(self) end
 function Frame:SetID(id) self.__id = id end
 function Frame:GetID() return self.__id or 0 end
 function Frame:RegisterEvent(e) self.__events = self.__events or {}; self.__events[e] = true end

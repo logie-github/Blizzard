@@ -493,34 +493,41 @@ def narrations(keys, read, client, log=print):
 
 # wago.tools' race icons (the allied races' achievement icons), the creation screen's pictures of the new races (tokens as
 # app/src/main/assets/wrathpp/WrathppAlliedRaces.lua has them): file id.
-RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 236440,
+RACE_ICONS = {"VOIDELF": 1786422, "LIGHTFORGEDDRAENEI": 1786420, "DARKIRONDWARF": 1851464, "MECHAGNOME": 3208032, "HIGHELF": 131152,
               "NIGHTBORNE": 1786421, "ZANDALARITROLL": 1851465, "DARKTROLL": 1851465, "HIGHMOUNTAINTAUREN": 1786419, "VULPERA": 3208033, "MAGHARORC": 1989713}
 
 
-# The High Elf wears the Blood Elf man's portrait (achievement_character_bloodelf_male) in blue where the Blood Elf's is fel green.
-# The green a pixel has over its red and blue (the glow, the rim light, the cast in the shadows) is moved into its blue, so shading
-# and skin stay as drawn; the two eyes (boxes x0, x1, y0, y1 of the 64 x 64 icon) are set to a blue of the same brightness.
-BLUE_PORTRAITS = {"HIGHELF": [(32, 37, 19, 23), (15, 21, 26, 29)]}
+# The High Elf wears the Blood Elf man's portrait, the creator's own (the Shadowlands atlas, file 131152, its cell at ICON_CROPS:
+# left, top, right, bottom), with the fel green taken out: the irises (saturated green, hue 75 degrees and up) become blue, brighter
+# and stronger so they read at 64 x 64, and the green-olive cast around the eyes, on the nose, mouth and chin (hue 36 to 75 degrees
+# in the darker pixels; the blond hair is brighter, and the browner olive of the face's lower middle) goes back to the skin's orange (hue 20).
+ICON_CROPS = {"HIGHELF": (1027, 256, 1284, 509)}
+BLUE_EYES = ("HIGHELF",)
 
 
-def blue_portrait(rgba, eyes):
-    """A copy of the RGBA icon with its green excess moved to blue and the pixels of green eyes inside the [eyes] boxes made blue."""
-    import colorsys
+def blue_eyes(rgba):
+    """A copy of the 64 x 64 RGBA icon with the green irises turned blue and the green cast on the skin turned to skin."""
     import numpy as np
-    f = rgba.astype(float)
-    r, g, b = f[..., 0], f[..., 1], f[..., 2]
-    excess = np.clip(g - np.maximum(r, b), 0, None)
-    out = f.copy()
-    out[..., 1] = g - excess
-    out[..., 2] = b + excess
-    for x0, x1, y0, y1 in eyes:
-        for y in range(y0, y1 + 1):
-            for x in range(x0, x1 + 1):
-                er, eg, eb = f[y, x, :3]
-                if eg >= er - 12 and eg > eb + 40:
-                    h, sat, val = colorsys.rgb_to_hsv(er / 255, eg / 255, eb / 255)
-                    out[y, x, :3] = [c * 255 for c in colorsys.hsv_to_rgb(0.58, max(0.55, sat), min(1.0, val * 1.05))]
-    return np.clip(np.rint(out), 0, 255).astype(np.uint8)
+    from PIL import Image
+    hsv = np.asarray(Image.fromarray(rgba[..., :3]).convert("HSV")).astype(float)
+    hue = hsv[..., 0] * 360 / 255
+    sat = hsv[..., 1] / 255
+    val = hsv[..., 2] / 255
+    iris = (hue >= 75) & (hue <= 175) & (sat > 0.25)
+    cast = (hue >= 36) & (hue < 75) & (val < 0.8) & (sat > 0.25)
+    # the olive of the nose, mouth and chin is a brown a few degrees from the skin's: inside that part of the face only
+    face = np.zeros(hue.shape, dtype=bool)
+    face[30:61, 20:47] = True
+    cast |= face & (hue >= 26) & (val < 0.88) & (sat > 0.3)
+    hsv[..., 0][iris] = 212 * 255 / 360
+    hsv[..., 1][iris] = np.minimum(255, hsv[..., 1][iris] * 1.15)
+    hsv[..., 2][iris] = np.minimum(255, hsv[..., 2][iris] * 1.1)
+    hsv[..., 0][cast] = 18 * 255 / 360
+    out = rgba.copy()
+    rgb = np.asarray(Image.fromarray(np.rint(hsv).astype(np.uint8), "HSV").convert("RGB"))
+    changed = iris | cast
+    out[..., :3][changed] = rgb[changed]
+    return out
 
 
 def race_icons(read, client, log=print):
@@ -533,9 +540,12 @@ def race_icons(read, client, log=print):
     written = []
     for token, fid in sorted(RACE_ICONS.items()):
         rgba = blp.read(read(fid))
+        if token in ICON_CROPS:
+            left, top, right, bottom = ICON_CROPS[token]
+            rgba = np.ascontiguousarray(rgba[top:bottom, left:right])
         img = Image.fromarray(rgba).convert("RGBA").resize((64, 64), Image.LANCZOS)
-        if token in BLUE_PORTRAITS:
-            img = Image.fromarray(blue_portrait(np.asarray(img), BLUE_PORTRAITS[token]))
+        if token in BLUE_EYES:
+            img = Image.fromarray(blue_eyes(np.asarray(img)))
         with open(os.path.join(folder, token + ".blp"), "wb") as f:
             f.write(blp.write_palette(np.ascontiguousarray(np.asarray(img)), alpha=True))
         written.append("Interface\\Glues\\CharacterCreate\\WrathppRaces\\%s.blp" % token)
