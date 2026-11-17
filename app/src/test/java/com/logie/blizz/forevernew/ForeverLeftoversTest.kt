@@ -35,6 +35,13 @@ class ForeverLeftoversTest {
         assertTrue(com.logie.blizz.wow.LineWatch(ForeverServer.DATABASE.ready).feed("2026-11-16 19:17:50 0 [Note] /x/bin/mariadbd: ready for connections.\n"))
     }
 
+    @Test fun theServiceKeepsTheAppAliveWhileForeverWorksOrIsUpForTheGame() {
+        fun st(state: ForeverState, running: Boolean = false) = ForeverPlay.Status(state, "", null, running)
+        for (s in listOf(ForeverState.DOWNLOADING, ForeverState.BUILDING_MAPS, ForeverState.STARTING_WORLD, ForeverState.STOPPING, ForeverState.READY, ForeverState.PLAYING)) assertTrue("$s", ForeverService.keepAlive(st(s)))
+        assertTrue(ForeverService.keepAlive(st(ForeverState.AWAITING_CLIENT, running = true))) // copying the game in
+        for (s in listOf(ForeverState.FAILED, ForeverState.NOT_INSTALLED, ForeverState.AWAITING_CLIENT)) assertFalse("$s", ForeverService.keepAlive(st(s)))
+    }
+
     @Test fun onlyThisServersProgramIsEnded() {
         val bin = File("/data/user/0/com.logie.blizz/files/realms/forever-v2/server/bin")
         val pidFile = tmp.newFile("mariadbd.pid").apply { writeText("4321\n") }

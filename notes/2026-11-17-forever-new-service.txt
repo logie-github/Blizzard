@@ -1,0 +1,1 @@
+WoW Forever: its servers are kept running while the app is away, as the other realms are, so Android no longer stops them mid-start.
