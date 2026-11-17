@@ -545,9 +545,11 @@ def write_parts_table(looks, out_dir, ids):
         for sex, model in sorted(entry["models"].items()):
             soft = model.get("soft")
             if soft:
-                # a woman's breast bones (the native mod's soft body): B race sex bone count, the bone they hang on, then each: bone, pivot, the bones below
+                # a woman's breast bones (the native mod's soft body): B race sex bone count, the bone they hang on, then each: bone, pivot, the bones
+                # below; last the model's name
                 lines.append("\t".join(["B", str(entry["race"]), str(int(sex)), str(soft["count"]), str(soft["parent"])] +
-                                        sum(([str(b[0]), "%.5f" % b[1], "%.5f" % b[2], "%.5f" % b[3], ",".join(str(x) for x in b[4])] for b in soft["bones"]), [])))
+                                        sum(([str(b[0]), "%.5f" % b[1], "%.5f" % b[2], "%.5f" % b[3], ",".join(str(x) for x in b[4])] for b in soft["bones"]), []) +
+                                        [model["name"]]))     # (the model the bones are of: the native mod springs that model's, its variants' and body shapes' only)
             for variant in model.get("variants", []):
                 category = ids.get("%d_%d:%s" % (entry["race"], int(sex), variant["name"]))
                 if not category:

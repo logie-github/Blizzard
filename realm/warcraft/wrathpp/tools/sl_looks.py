@@ -630,6 +630,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                     written += files
                     model["part_types"][part["name"]] = sorted(types)
                 written += sl_parts.write_pickers(read, model, client, log)
+            if model.get("overlays"):
+                # the pictures laid over the head and body (eyebrows, makeup, scars...): every model with overlays, pieces or none (inside
+                # the pieces' step they were written only for a model that has pieces: the Human, Orc and Dwarf women's, the Trolls',
+                # the Dark Iron man's were not in the package, and the game drew them bright green)
+                import sl_parts
                 written += sl_parts.write_overlays(mread, model, layout, client, log)
             for path, fid in model["hardcoded_files"].items():
                 full = os.path.join(client, path.replace("\\", "/"))
@@ -703,6 +708,17 @@ def verify(looks, out_dir):
     for entry in looks["races"].values():
         for m in entry["models"].values():
             named.add(m["folder"] + "\\" + m["name"] + ".m2")
+    # every file the add-on's parts table names (the pieces' models, the pictures over the head and body, skins, colours): a picture
+    # missing from the package is drawn bright green
+    parts = os.path.join(client, "Wrathpp", "parts.txt")
+    if os.path.exists(parts):
+        with open(parts, encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("#"):
+                    continue
+                for field in line.rstrip("\n").split("\t")[1:]:
+                    if "\\" in field and field.lower().endswith((".blp", ".m2")) and "%" not in field:
+                        named.add(field)
     return sorted(n for n in named if n.lower() not in have)
 
 

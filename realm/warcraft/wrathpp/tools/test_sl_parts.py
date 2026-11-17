@@ -133,7 +133,7 @@ class PartsTest(unittest.TestCase):
             path = sl_parts.write_parts_table(looks, out, {})
             with open(path, encoding="utf-8") as f:
                 lines = [l.split("\t") for l in f.read().splitlines() if not l.startswith("#")]
-        self.assertEqual(lines, [["B", "1", "1", "201", "16", "23", "0.08742", "0.08189", "1.45428", "30", "26", "0.08742", "-0.08300", "1.45428", ""]])
+        self.assertEqual(lines, [["B", "1", "1", "201", "16", "23", "0.08742", "0.08189", "1.45428", "30", "26", "0.08742", "-0.08300", "1.45428", "", "HumanFemale"]])
 
     def test_the_breast_bones_are_found_in_a_converted_model(self):
         import struct

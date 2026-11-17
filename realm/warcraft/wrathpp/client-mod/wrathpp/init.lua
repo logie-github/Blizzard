@@ -218,7 +218,7 @@ function WPP.loadParts()
             elseif kind == "B" then      -- a woman's breast bones: the native mod's soft body (count, parent, then bone, x, y, z, below for each)
                 parts.soft[#parts.soft + 1] = { count = tonumber(f[4]), parent = tonumber(f[5]), sides = {
                     { bone = tonumber(f[6]), x = tonumber(f[7]), y = tonumber(f[8]), z = tonumber(f[9]), below = f[10] or "" },
-                    { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } } }
+                    { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } }, name = f[16] }
             elseif kind == "H" then parts.hair[key] = f[4]
             elseif kind == "K" then parts.skins[key] = parts.skins[key] or {}; parts.skins[key][tonumber(f[4])] = f[5]
             elseif kind == "Z" then picture(parts.pickers, key, tonumber(f[4]), tonumber(f[5]), "*", f[6])
@@ -241,8 +241,10 @@ function WPP.setSoftBody(list)
     for _, c in ipairs(list) do
         local a, b = c.sides[1], c.sides[2]
         if c.count and c.parent and a.bone and b.bone then
-            pcall(wxl.script.Run, string.format("if WrathPP_SetSoftBody then WrathPP_SetSoftBody(%d,%d,%d,%.5f,%.5f,%.5f,%q,%d,%.5f,%.5f,%.5f,%q) end",
-                c.count, c.parent, a.bone, a.x or 0, a.y or 0, a.z or 0, a.below, b.bone, b.x or 0, b.y or 0, b.z or 0, b.below), "wrathpp-soft")
+            -- (the model's name last: the native mod springs that model and its variants and body shapes only, not another race's
+            -- model of the same bone count, nor the head's shell or a piece hung on her, which have her bones)
+            pcall(wxl.script.Run, string.format("if WrathPP_SetSoftBody then WrathPP_SetSoftBody(%d,%d,%d,%.5f,%.5f,%.5f,%q,%d,%.5f,%.5f,%.5f,%q,%q) end",
+                c.count, c.parent, a.bone, a.x or 0, a.y or 0, a.z or 0, a.below, b.bone, b.x or 0, b.y or 0, b.z or 0, b.below, c.name or ""), "wrathpp-soft")
         end
     end
 end
