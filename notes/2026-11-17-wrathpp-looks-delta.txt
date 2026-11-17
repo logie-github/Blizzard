@@ -1,0 +1,1 @@
+A new Wrath++ looks update downloads only the files that changed, not the whole 1 GB again.

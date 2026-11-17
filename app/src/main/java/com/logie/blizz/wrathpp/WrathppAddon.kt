@@ -137,16 +137,25 @@ object WrathppAddon {
         c.disconnect()
     }
 
-    private fun connect(url: String): HttpURLConnection {
+    /** The bytes [start] to [endInclusive] of [url]'s file (a ranged request, through the redirects); an [IOException] where the server doesn't do ranges. */
+    internal fun openRange(url: String, start: Long, endInclusive: Long): java.io.InputStream {
+        val c = connect(url, "bytes=$start-$endInclusive")
+        if (c.responseCode != HttpURLConnection.HTTP_PARTIAL) { c.disconnect(); throw IOException("The server doesn't answer a range") }
+        return c.inputStream
+    }
+
+    private fun connect(url: String, range: String? = null): HttpURLConnection {
         var current = URL(url)
         repeat(6) {
             val c = (current.openConnection() as HttpURLConnection).apply {
                 connectTimeout = 30_000; readTimeout = 60_000; instanceFollowRedirects = false
                 setRequestProperty("User-Agent", "Blizzard-Launcher")
+                if (range != null) setRequestProperty("Range", range)
             }
             when (c.responseCode) {
                 in 300..399 -> { current = URL(current, c.getHeaderField("Location")); c.disconnect() }
                 HttpURLConnection.HTTP_OK -> return c
+                HttpURLConnection.HTTP_PARTIAL -> if (range != null) return c else { c.disconnect(); throw IOException("Download failed (206)") }
                 else -> { val code = c.responseCode; c.disconnect(); throw IOException("Download failed ($code)") }
             }
         }

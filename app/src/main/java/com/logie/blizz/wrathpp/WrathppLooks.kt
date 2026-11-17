@@ -74,6 +74,12 @@ object WrathppLooks {
         if (free in 1 until published.size * 3) {
             throw IOException("Not enough space for Wrath++'s looks: about ${published.size * 3 shr 20} MB is needed, ${free shr 20} MB is free.")
         }
+        // Only what changed since the installed looks, where there are some and the server does ranges (WrathppLooksDelta); else the whole.
+        val viaDelta = runCatching {
+            WrathppLooksDelta.update(client, server, WrathppLooksDelta.HttpRanges("$BASE/wrathpp-looks.zip", published.size), published.sha256.lowercase(),
+                File(client.parentFile, "wrathpp-looks.delta"), say)
+        }.getOrDefault(false)
+        if (viaDelta) return
         say("Downloading Shadowlands' looks for Wrath++", 0f)
         WrathppAddon.download("$BASE/wrathpp-looks.zip", zip) { done, total ->
             say("Downloading Shadowlands' looks for Wrath++: ${done shr 20} / ${total shr 20} MB", if (total > 0) done.toFloat() / total else null)
@@ -103,6 +109,23 @@ object WrathppLooks {
      * the tables the game reads ([tables]: the client's own, the HD look's patches' included) into the patch's DBFilesClient.
      */
     fun install(client: File, server: File, zip: File, sha: String, progress: (Int) -> Unit = {}, tables: ((String) -> ByteArray?)? = null) {
+        installFrom(client, server, { entry ->
+            ZipInputStream(zip.inputStream().buffered()).use { z ->
+                while (true) {
+                    val e = z.nextEntry ?: break
+                    if (e.isDirectory) continue
+                    entry(e.name, object : java.io.FilterInputStream(z) { override fun close() {} })
+                }
+            }
+        }, sha, progress, tables)
+    }
+
+    /**
+     * [install]'s work over any source of the package's entries: [source] calls its argument once for each file entry (a name and
+     * a stream that is read whole before the next entry; closing it does nothing). [WrathppLooksDelta] gives it the unchanged files
+     * from the installed patch and only the changed ones from the release.
+     */
+    internal fun installFrom(client: File, server: File, source: ((String, java.io.InputStream) -> Unit) -> Unit, sha: String, progress: (Int) -> Unit = {}, tables: ((String) -> ByteArray?)? = null) {
         val data = File(client, "Data")
         if (!data.isDirectory) throw IOException("Wrath++'s copy of the game has no Data folder")
         val changesNew = File(data, "$PATCH.changes").apply { deleteRecursively() }
@@ -111,20 +134,18 @@ object WrathppLooks {
         val dbcNew = File(server, "share/dbc.new").apply { deleteRecursively() }
         var count = 0
         try {
-            ZipInputStream(zip.inputStream().buffered()).use { z ->
-                while (true) {
-                    val entry = z.nextEntry ?: break
-                    if (entry.isDirectory) continue
-                    val name = entry.name.replace('\\', '/')
-                    if (name.startsWith("/") || name.split('/').any { it == ".." || it.isEmpty() }) throw IOException("Bad path in the looks: ${entry.name}")
-                    val out = when {
-                        name.startsWith("client/") -> File(patchNew, name.removePrefix("client/"))
-                        name.startsWith("dbc/") && !name.removePrefix("dbc/").contains('/') -> File(dbcNew, name.removePrefix("dbc/"))
-                        name.startsWith("changes/") && name.endsWith(".txt") && !name.removePrefix("changes/").contains('/') -> File(changesNew, name.removePrefix("changes/"))
-                        else -> continue
-                    }
+            source { entryName, input ->
+                val name = entryName.replace('\\', '/')
+                if (name.startsWith("/") || name.split('/').any { it == ".." || it.isEmpty() }) throw IOException("Bad path in the looks: $entryName")
+                val out = when {
+                    name.startsWith("client/") -> File(patchNew, name.removePrefix("client/"))
+                    name.startsWith("dbc/") && !name.removePrefix("dbc/").contains('/') -> File(dbcNew, name.removePrefix("dbc/"))
+                    name.startsWith("changes/") && name.endsWith(".txt") && !name.removePrefix("changes/").contains('/') -> File(changesNew, name.removePrefix("changes/"))
+                    else -> null
+                }
+                if (out != null) {
                     out.parentFile?.mkdirs()
-                    out.outputStream().use { z.copyTo(it) }
+                    out.outputStream().use { input.copyTo(it) }
                     if (++count % 500 == 0) progress(count)
                 }
             }
