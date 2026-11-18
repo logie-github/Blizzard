@@ -28,11 +28,10 @@ What cannot be made code (and so is a flag in the report, never a silent gap) is
 
 ## 1. Evidence gathered (and what could not be)
 
-1. **wago.tools was down** (HTTP 500 on `/`, `/db2/Map/csv?build=4.4.2.60895`, `/api/builds`, `/api/casc/<id>`) on 18 November 2026,
-   22:10 to 22:35 UTC, from this machine, repeated; the same text of 6.5 KB ("Server Error"). So **the build list, `Map.db2` and
-   per-build counts could not be fetched**; the counts in section 2 come from the community listfile (below) and the existing
-   zones code, and are labelled. This is also the first design requirement: a run must survive its source being down for
-   hours (section 6, "Source outage").
+1. **wago.tools was down for the first half hour** (HTTP 500 on `/`, `/db2/Map/csv?build=4.4.2.60895`, `/api/builds`, `/api/casc/<id>`) on 18 November 2026,
+   22:10 to about 22:30 UTC, from this machine, repeated; the same 6.5 KB "Server Error" page every time. It then came back, and the numbers in 2.2 and 2.3
+   are from the real `Map` and `AreaTable` tables of build 4.4.2.60895 and real files (the first proof, section 8). The outage is also the first design
+   requirement: a run must survive its source being down for hours (section 6.1, "Source outage"); the code treats a body that is an HTML page as a failure and retries.
 2. **The community listfile** (`github.com/wowdev/wow-listfile`, release `community-listfile.csv`, 154 MB, 2,278,323 lines,
    fetched through the proxy) is the union of every build's names. It names 1,293 directories under `world/maps/`. It was used for the tile counts below. It
    is a union: a directory's count is an **upper bound** for any one build.
@@ -73,35 +72,33 @@ What cannot be made code (and so is a flag in the report, never a silent gap) is
   (`pins.json`: `build`). `inventory` also lists the builds wago offers, when it is up, in the report, so a newer Cata Classic build is
   a one-line change, never an AI's job.
 
-### 2.2 What the maps are
-The real list is `Map.db2` at the pinned build (`inventory` writes it into `manifest.json`: id, directory, name, `InstanceType`, `ParentMapID`,
-`ExpansionID`, tiles from the WDT, and the files the tiles name). This machine could not read it (item 1), so the following is the part the listfile shows
-(root tiles and the number of listfile lines under the directory; **union over builds, upper bounds**):
+### 2.2 What the maps are (measured: the real `Map` table of 4.4.2.60895, `inventory`, 2 min 30 s)
+`Map` has columns `ID, Directory, MapName_lang, InstanceType, ExpansionID, ParentMapID, ...` (WoWDBDefs `Map.dbd`; wago's CSV). The inventory read it,
+fetched every map's WDT (the tiles are its MAIN chunk: 149 of 155 maps; the other 6 from the listfile's names) and found **155 maps with a directory, a WDT
+and `ExpansionID <= 3`** (Cataclysm Classic's client carries every old map too: it is the whole game up to Cataclysm). They are not all Cataclysm's: the tool
+says what each one is next to 3.3.5a (`origin`, from the stock `Map.dbc` ids and one pinned list, `data/overrides.json`):
 
-| Group | Directories (listfile) | Root tiles | Listed files | Notes |
-|---|---|---|---|---|
-| Revamped continents | `azeroth` 1,368, `kalimdor` 1,043 (+`kalimdor 2`, 215) | up to 2,626 | 10,271 + 9,527 | These hold Hyjal, Vashj'ir, Twilight Highlands, Uldum, the Thousand Needles flood, the Barrens split. Cataclysm's zones are **areas of these maps**, not maps of their own |
-| Old continents | `expansion01` 826, `northrend` 1,131 | | 4,994 | changed little in 4.x; **not converted by default** (Wrath++ has them) |
-| New maps | `deephome` 100 (Deepholm), `lostisles` 149, `gilneas2` 60, `tolbarad` 42 + `tolbarad1` 51, `abyssalmaw` 25 (+ interior 9) | | | Deepholm is probably `Deephome` (the listfile has no `deepholm` directory; **UNVERIFIED**), which only the table can say (the zones code was given `Gilneas2`/`LostIsles` by hand) |
-| Phased/terrain swaps | `gilneas`, `gilneasphase1/2`, `lostislesphase1/2`, `mounthyjalphase1`, `uldumphase*`, `twilighthighlands*phase*`, `hyjalpast` 30 | 1 to 30 each | | "made whole" by `package.maps` (3.3.5a cannot swap terrain) |
-| Dungeons (4.0 to 4.3) | `deadminesinstance` 36, `shadowfang` 25, `grimbatoldungeon` 16, `deepholmedungeon` 16 (probably the Stonecore), `uldumdungeon` 16, `skywalldungeon` 25, `abyssalmaw` 25, `hyjal instance` 9, `zulaman` 25, `zul_gurub5man` 25, `blackrockspire_4_0` 9, `endtime`/`wellofeternity`/`hourof twilight` (names to be taken from the table) | 9 to 36 | 60 to 270 | small: the best proof maps |
-| Raids | `blackwinglair` 16, `blackwingdescent` 9, `baradinhold` 9, `skywallraid` 9, `grimbatolraid` 16, `firelands1` 24 / `firelands2` 16, `dragonsoul`-era dirs (by table), `thehouroftwilight` 56 | 9 to 56 | | |
-| Battlegrounds | `gilneas_bg_2` 16, `arathibasin2` 72 (the Cataclysm revamp), `warsonggulch2` 64, `tolbarad` (above) | | | |
-| Scenario-like / later (not Cataclysm) | `azerothswarningscenario`, `hallsofvalor*scenario`, `*artifact`, `*classmount`, `islands_*`, numeric directories (modern) | | | **excluded**: `inventory` keeps only maps with `ExpansionID <= 3` at the pinned build and an existing WDT |
+| origin | what | maps | root tiles |
+|---|---|---|---|
+| `new` | a map 3.3.5a has not: 18 dungeons, 6 raids, 5 battlegrounds, 16 world maps (Deepholm `Deephome` 100 tiles, Tol Barad 42, Firelands Dailies 80, Mount Hyjal phases, Maelstrom, Darkmoon Faire...), 3 terrain swaps (the Uldum phases) | 48 | 1,297 |
+| `revamped` | a map 3.3.5a has, made over: **Azeroth 839 tiles and Kalimdor 1,002** (the revamped continents: Hyjal, Vashj'ir, Twilight Highlands, Uldum, the flooded Barrens are *areas* of these), Shadowfang Keep, the Deadmines, Zul'Gurub, Zul'Aman (the pinned list; **UNVERIFIED** against the build's tiles) | 6 | 1,952 |
+| `stock` | 3.3.5a has it and Cataclysm did not touch it (the other dungeons and raids, Outland, Northrend, the old battlegrounds) | 99 | not redone |
 
-Developer maps in the listfile (`development` 1,838 tiles, `leveldesignland-devonly` 1,870) are named in no `Map.db2` row and are never taken.
+So the job is **54 maps and 3,249 root tiles**: by group, dungeons 22 (495 tiles), raids 6 (302), battlegrounds 5 (127), world 16 (475), swaps 3 (9), continents 2 (1,841).
+Already in `cata-zones` (the seven starting-area maps: `done_elsewhere`) and developer maps (`development*`, `unused`, `leveldesign*`) are not redone. The old continents
+(`Expansion01` 826, `Northrend` 1,131) are `stock`. Facts that only the table gave: Deepholm's directory is `Deephome`; Ahn'Qiraj Terrace (map 734, 4 tiles) is the smallest map
+and is the proof map; 5 maps have no WDT in the build (`Transport*` and `ElevatorSpawnTest` have none either; they are listed in `inventory-report.txt` with the reason).
+The listfile alone (1,293 directories, union of every build) would have said azeroth 1,368 / kalimdor 1,043: the real build's WDTs say 839 and 1,002.
 
-### 2.3 Size and time, honestly
-From item 5 (3 MB packed, 7 MB unpacked per root tile, 241 tiles took the zones package a Gilneas/Lost Isles CI job of about one build):
-- A **small dungeon** (9 to 25 tiles): 30 to 75 MB packed; minutes.
-- **Azeroth + Kalimdor as the revamped continents** (about 1,000 to 1,800 tiles with data in a Cataclysm build, **UNVERIFIED**; the listfile's 2,411 is the union of
-  all builds): 3 to 5 GB packed, 7 to 12 GB unpacked, **above one release asset (2 GB)** and the cache (10 GB): split by tile row (section 6).
-- Everything (continents, Deepholm, Tol Barad, about 14 dungeons, 8 raids, 4 battlegrounds): **6 to 10 GB packed**, 20 to 40 GB unpacked in total, but
-  never more than one shard (about 1 to 3 GB) unpacked on a runner at a time.
-- **Time**: the zones' conversion and extraction (`wotlkconv` at `-j4`, then `map_extractor`, `vmap4_extractor`, `vmap4_assembler`, `mmaps_generator`) was
-  measured only in the zones' CI (build log, in YeaBwoi: not in this repository; **UNVERIFIED**). Planning figure: 2 to 6 core-hours per 100 tiles
-  (mmaps dominate); the whole expansion is **60 to 150 runner-hours**, across about 40 to 120 jobs of under 3 hours: a day of wall time on free runners with a
-  parallel limit of 20, and well inside the 6 h job limit. Fetching (about 20 to 60 k files over wago.tools) is the part that depends on the source's speed.
+### 2.3 Size and time, honestly (measured on one map, estimated for the rest)
+**Measured**, map 734 (4 tiles, `fetch,convert,tables,validate,pack`, this machine, 4 cores): 232 files, 79.6 MB fetched in 52 s (0 not in the build);
+`wotlkconv` 102 s, 0 failures in 52 inputs; validate 219 files ok; pack 14.9 MB (xz), 30.7 MB unpacked: **3.7 MB packed and 7.7 MB unpacked per tile** (the zones package: 3 and 7).
+**Estimated** from that, for 3,249 tiles: **10 to 13 GB packed, 25 to 30 GB unpacked** (continents share models between tiles, so the continents' share is smaller per tile; a small
+dungeon's is larger). A continent pack is cut by tile rows into blocks of at most 450 tiles (about 1.5 GB packed, under the 2 GB asset limit): Azeroth 2 blocks, Kalimdor 3.
+**Time**: client files only about 40 s per tile for a tiny map (fetch + convert, 4 cores): 3,249 tiles is 10 to 36 core-hours, split in about 6 to 12 shards of 600 tiles
+(`--budget-tiles`); the extractors and mmaps are **not measured** (no AzerothCore tools here: planning figure 2 to 6 core-hours per 100 tiles, mmaps dominate), so the whole
+expansion is **60 to 150 runner-hours**, a day or two of wall time at 20 jobs in parallel, every job well under the 6 h limit. The fetch is the part that depends on wago.tools.
+
 
 ## 3. Client side: class by class
 
@@ -110,7 +107,7 @@ From item 5 (3 MB packed, 7 MB unpacked per root tile, 241 tiles took the zones 
 | Class | Converter does | 3.3.5a cannot take | Handled |
 |---|---|---|---|
 | **ADT** (split `_tex0/_obj0/_lod`, `_tex1`/`_obj1`) | Merges root + `_tex0` + `_obj0` into the monolithic v18 tile with `MCIN`; names FileDataID placements; re-encodes liquid | 4 texture layers per chunk, 8x8 holes folded to 4x4, `_lod`, `_tex1/_obj1` (Legion); Cataclysm's 8-bit-alpha layers are fine | automatic. `files.map_files` filter (`.pm4 .h2o _tex1 _lod _obj1`) is reused. Liquid types missing from 3.3.5a's `LiquidType.dbc` are mapped to the kind (`package.fix_liquids`, `LIQUIDS_335`); not-fixable tiles: reported |
-| **WDT** | v17, drops `MAID`, big-alpha flag; names a global WMO | `_lgt/_occ/_fogs/_mpv` sidecars | automatic; `package.fix_wdt`/`set_wdt_tiles` for swaps; the Tool verifies WDT tile set == tiles written |
+| **WDT** | v18 (the Converter's README says 17; the first real run showed 18, which is 3.3.5a's own), drops `MAID`, big-alpha flag; names a global WMO | `_lgt/_occ/_fogs/_mpv` sidecars | automatic; `package.fix_wdt`/`set_wdt_tiles` for swaps; the Tool verifies WDT tile set == tiles written |
 | **WDL** | keeps the low-detail heightmap | | automatic; a missing WDL is copied from the base map (swaps) or reported |
 | **WMO** (root, groups) | v17, rebuilds name tables, splits groups over 65,535 vertices, rebuilds BSP | shader > 6, blend > 6, > 2 UV/colour layers | automatic, lossy notes land in the report as `wmo.*` codes |
 | **M2/skin/anim/skel** | MD21 to MD20 264, merges `.skel`, 4 profiles, `.anim` merge | > 65,535 vertices after compaction (`--split-models` makes new unplaced files), 4 texture units, bones > 256, Cata+ particle types, multi-texture emitters, packed gravity | automatic for the common case; `m2.limit.*` failures are **reported and the model is replaced by the zone's placeholder** list (`placeholders.json`, a small cube) so the tile still loads; never a crash |
@@ -151,11 +148,24 @@ the id rule. The rules are the same ones, made data:
   allocated by `inventory`/`world-index` from CPP's row counts per map, in the manifest (sorted by map id, stable).
 - **Columns**: by name where the same; AzerothCore-only columns get their default; CPP-only columns are listed in the report (`dropped columns`); bit fields masked (`NPCFLAG_MASK 0x03FFFFFF`, `UNIT_FLAGS2_MASK`), races mapped through `RACES`, models through the display map.
 - **Rows of 3.3.5a's own are never changed**: all rows are new, in ranges (the zones' rule, which makes a pack removable whole: `<map>_off.sql`).
-- **SmartAI**: `smart_scripts` rows move with the new ids; actions/events AzerothCore's `SmartScriptMgr` lacks are looked up by the numeric id from a table (`smart_support.json`, built from `SmartScriptMgr.h` of the pinned core by `world-index`); a script using one is **dropped with a report line** and the creature keeps its template (it just does less).
-- **Spells**: the zones' `spells.py` builds a 3.3.5a `Spell.dbc` row from Cataclysm's split tables (`Spell`, `SpellEffect`, `SpellAuraOptions`...) for the spells that content names; the tool takes the **closure of spell ids** named by a map's creatures, quests, auras, vendors, SmartAI and loot and calls that logic read-only for them (`world.py` imports `zones/spells.py`). Spell effects and auras 3.3.5a lacks: reported with a count per effect id (`spell.unsupported.<effect>`), the spell becomes a dummy.
-- **Loot**: `*_loot_template` rows by entry; items by id: an item missing in AzerothCore's `item_template` is built from `Item-sparse` through `items.py` (read-only import), else the loot row is dropped and counted.
-- **Phasing**: CPP's `phase_area`/`PhaseId`/`PhaseGroup` → 3.3.5a `phaseMask` bits (up to 31 plus the default per map) with `spell_area` auras (zones' `PHASES`, `GILNEAS_PHASES`): per map, the distinct phase ids are numbered into bits in order of first use; **more than 31 distinct phases on one map is a report line** and the excess merge into the default phase. `scripts.py` supplies the quest-gated phase auras generically as `quest_start/quest_end` of `phase_area`.
-- **Vehicles**: `vehicles.py` (read-only) for the vehicle ids the closure names.
+- **SmartAI**: `smart_scripts` rows move with the new ids; actions/events AzerothCore's `SmartScriptMgr` lacks are looked up by the numeric id from a table (`smart_support.json`, built from `SmartScriptMgr.h` of the pinned core by `world-index`); a script using one is **dropped with a report line** and the creature keeps its template (it just does less). **(design only: not built in v1, see 9)**
+- **Spells**: the zones' `spells.py` builds a 3.3.5a `Spell.dbc` row from Cataclysm's split tables (`Spell`, `SpellEffect`, `SpellAuraOptions`...) for the spells that content names; the tool takes the **closure of spell ids** named by a map's creatures, quests, auras, vendors, SmartAI and loot and calls that logic read-only for them (`world.py` imports `zones/spells.py`). Spell effects and auras 3.3.5a lacks: reported with a count per effect id (`spell.unsupported.<effect>`), the spell becomes a dummy. **(design only: not built in v1, see 9)**
+- **Loot**: `*_loot_template` rows by entry; items by id: an item missing in AzerothCore's `item_template` is built from `Item-sparse` through `items.py` (read-only import), else the loot row is dropped and counted. **(design only: not built in v1, see 9)**
+- **Phasing**: CPP's `phase_area`/`PhaseId`/`PhaseGroup` → 3.3.5a `phaseMask` bits (up to 31 plus the default per map) with `spell_area` auras (zones' `PHASES`, `GILNEAS_PHASES`): per map, the distinct phase ids are numbered into bits in order of first use; **more than 31 distinct phases on one map is a report line** and the excess merge into the default phase. `scripts.py` supplies the quest-gated phase auras generically as `quest_start/quest_end` of `phase_area`. **(design only: not built in v1, see 9)**
+- **Vehicles**: `vehicles.py` (read-only) for the vehicle ids the closure names. **(design only: not built in v1, see 9)**
+
+### 4.2a The mapping checked against the real schemas (done, and run in a real MariaDB 10.11 here)
+`world.py` and `data/world_plan.json` were checked against **CPP's `sql/base/dev/world_database.sql`** (194 tables) and **the realm's core's `data/sql/base/db_world`
+at its pin** (`4ce7da0`: 309 tables), and the generated script was run on both schemas in MariaDB with a few made-up CPP rows. What the schemas showed (each is a rule in the plan now):
+- `creature`: AzerothCore's own is `id1, id2, id3` where CPP has `id`, and `wander_distance` where CPP has `spawndist`; CPP's `PhaseId/PhaseGroup/terrainSwapMap/phaseUseFlags` have no column here (phasing is not built, section 4.3).
+- `creature_addon`, `creature_template_addon`: `path_id` here, `waypointPathId` there (and CPP's `cyclicSplinePathId`, anim kits are dropped).
+- Creature looks: CPP keeps `modelid1..4` in `creature_template`; AzerothCore has `creature_template_model` rows. A Cataclysm look that 3.3.5a's own `CreatureDisplayInfo` lacks is replaced by the invisible stalker's (11686) so the client never meets a display it cannot find (the zones' crash reports #88 to #99); a creature in a *new* look is invisible until the displays are made (**not built**: the zones' `ItemDisplayInfo`/`CreatureDisplayInfo` converter rules are the starting point).
+- `quest_template`: the quest chain links (`PrevQuestID`, `NextQuestID`, `ExclusiveGroup`) are `quest_template_addon`'s in both; `AllowableRaces` and `TimeAllowed` are `quest_template`'s here, CPP's addon. A link to a quest that is not ported becomes 0 (it would make the quest unobtainable); a quest for races this realm does not have (Worgen, Goblin: the races session's) gets a race mask no player has.
+- `gossip_menu_option`: CPP's `MenuId/OptionIndex/OptionBroadcastTextId/OptionNpcflag` are AzerothCore's `MenuID/OptionID/...` (MySQL names are case-free; `OptionIndex` is `OptionID`); `ActionMenuID` is in CPP's table `gossip_menu_option_action` (not built: 0).
+- `npc_text`: emotes are `Emote0_0...` there, `em0_0...` here: dropped (a line of the report).
+Result of the run: 0 SQL errors, the rows land renumbered (entries +6,000,000, spawns from 10,000,000 in a per-map block by `ROW_NUMBER()`, paths +600,000,000), a creature of another map is left out, a Worgen-only quest is closed.
+Still **not run**: against CPP's real data (the TDB is a release asset: the workflow downloads it; the row counts and the first real errors come from the first `world` run).
+
 
 ### 4.3 What a *faithful* whole expansion needs and AzerothCore lacks
 Not automatable by a converter (it is C++ in the core or a design decision); the tool **detects and reports**, never claims done:
@@ -207,7 +217,7 @@ One command per stage (`python3 -m catabackport <stage> ...` from `realm/warcraf
 | `tables` | CSVs, DBDs | `maps/<dir>/tables/*.txt` | generic 3.3.5a rows (section 3) |
 | `extract` | converted maps, AzerothCore tools | `maps/<dir>/server/{maps,vmaps,mmaps}` | `server_data` of the zones' package, for one map (needs the tools built from the pinned core: Actions only, or a prebuilt tools release) |
 | `world` | CPP DB, AC DB (MariaDB) | `maps/<dir>/world.sql`, `world_off.sql`, `world-report.json` | table plan; `core` pack (shared templates) is its own unit |
-| `validate` | everything | `validate.json` | structural checks (ADT v18 + MCIN, WDT tile set, M2 version 264 + skins, WMO v17 groups, BLP, DBC header/size, SQL syntax by a parser pass), every referenced file exists, ids in range, no id clashes with 3.3.5a's tables; a map is `ok`, `partial` (some files replaced by placeholders/dropped) or `failed` |
+| `validate` | everything | `validate.json` | structural checks (ADT v18 + MCIN, WDT v18 tile set, M2 version 264 + skins, WMO v17 groups, BLP, DBC header/size, SQL syntax by a parser pass), every referenced file exists, ids in range, no id clashes with 3.3.5a's tables; a map is `ok`, `partial` (some files replaced by placeholders/dropped) or `failed` |
 | `pack` | validated map | `cata-<dir>.tar.xz`, `cata-<dir>.json` | the layout of `cata-zones` (`TAG`, `client/files/..`, `client/files.txt`, `client/same.txt`, `client/minimap.txt`, `server/maps|vmaps|mmaps|cameras`, `server/same.txt`) + `server/world.sql` + `pack.json`; the app's `zones_data_realm` already knows that layout |
 | `assemble` | all packs' json | `index.json`, `summary.txt`, `report.json` | the release's index: pack, size, sha256, maps, `status`, what it needs (`requires: ["core"]`), dependencies between packs (a swap map requires its base) |
 | `publish` | assembled dir | the release `cata-backport` | uploaded with `gh release upload --clobber`, per-asset; the previous good asset is never deleted until its replacement is complete |
@@ -237,8 +247,20 @@ ids allocated, time per stage, the pins, the source used, `deferred` and `failed
 
 ## 8. Testing and what the proof can show
 - Unit tests use tiny synthetic fixtures (a made WDT, one ADT with an MTEX chunk, an M2 stub, a CSV `Map` with 3 maps), no game files: manifest, plan/shard split, closure, retry/back-off against a local HTTP server that fails N times, resume, determinism, id allocation, table row mapping, SQL plan generation, pack layout, index, summary.
-- A dry run (`--source-dir tests/fixture`) runs `inventory -> pack` with no network.
-- Real proof on this machine is limited by (1) wago.tools being down at the time (item 1), (2) no AzerothCore extractors built here and 6.7 GB of disk, (3) no MariaDB here. See the report for what ran.
+- A dry run (`run --dry-run`) lists what each stage would do without touching anything; `--source dir:PATH` (the zones' cache layout: `files/<id>`, `tables/<Name>.csv`) runs the whole pipeline offline from a folder, which is how the tests run it.
+- The real proof (map 734, Ahn'Qiraj Terrace, 4 tiles) ran every client stage on Cataclysm Classic 4.4.2.60895 through wago.tools with the real Converter (numbers in 2.3). It stops where this machine does: no AzerothCore extractors (building the core needs more disk and time than the 6.7 GB free here allows), no CPP data (a 150+ MB release asset behind a page the proxy blocks); MariaDB was installed to run the world script on the real schemas with made-up rows (4.2a).
 
-## 9. What is built, what is not
-Filled in by the commits (see the final section of this file, kept current).
+## 9. What is built, what is not (kept current by the commits)
+**Built and tested here** (python3 -m unittest discover -s catabackport/tests -t ., from `realm/warcraft/tools`; 26 tests on a synthetic build, no game files):
+source with retries, back-off, Retry-After, truncation and HTML-error detection, time budget, chain and cache; id allocation (maps, areas, explore bits); inventory (origin, swaps, groups,
+tiles from WDT or listfile, proof map); plan (units, row blocks, shards, matrix, skip_done, swaps co-located); fetch (closure with the zones' parsers, resume); convert (wotlkconv, zones' fixes,
+swaps made whole, minimaps, ADT area-id remap); tables (Map, AreaTable); validate; pack and assemble (cata-zones layout, byte-identical reruns); world (schema-driven SQL, run in MariaDB); CLI with
+exit codes (75 = source down).
+**Run for real here** (proof, section 8): inventory, fetch, convert, tables, validate, pack on map 734.
+**Not run**: `extract` (no AzerothCore tools here; the workflow builds them, UNVERIFIED on Actions), `world` against CPP's data, the workflow on Actions, the packs in the app/game.
+**Not built** (each is a line in the report of every run, never silent):
+- tables beyond `Map` and `AreaTable`: `Light*`, `WMOAreaTable`, `WorldMapArea/Overlay`, `LoadingScreens`, `ZoneMusic`, `SoundEntries`, the displays (`CreatureDisplayInfo*`, `ItemDisplayInfo`), and the server's `*_dbc` SQL twin of the rows; the sound and interface art of the zones;
+- in `world`: `smart_scripts`, `conditions`, loot templates, items, spells, `spell_area` phases, graveyards, area triggers, vehicles, formations, `creature_model_info` (the plan's `not_built`); the zones' `build_world.py` does these for two maps and is the model;
+- phasing, level scaling, raid/dungeon mechanics, the Cataclysm systems of 4.3;
+- `mode: replace` (section 5.1); a swap of a split continent; a `collision` report for files 3.3.5a has with other bytes;
+- the app side (`WrathppBackport.kt` reading `index.json`) and the README/patch note (the lead adds them).

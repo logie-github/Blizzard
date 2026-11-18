@@ -240,22 +240,22 @@ class AreaRemapTests(unittest.TestCase):
 
 
 class WorldTests(unittest.TestCase):
-    CPP = """CREATE TABLE `creature` (\n  `guid` int unsigned NOT NULL,\n  `id` int NOT NULL,\n  `map` smallint NOT NULL,\n  `phaseMask` int,\n  `npcflag` int,\n  `curmana` int,\n  PRIMARY KEY (`guid`)\n) ENGINE=InnoDB;\n"""
-    AC = """CREATE TABLE `creature` (\n  `guid` int unsigned NOT NULL,\n  `id` int NOT NULL,\n  `map` smallint NOT NULL,\n  `phaseMask` int,\n  `npcflag` int,\n  `Comment` text,\n  PRIMARY KEY (`guid`)\n) ENGINE=InnoDB;\n"""
+    CPP = """CREATE TABLE `creature` (\n  `guid` int unsigned NOT NULL,\n  `id` int NOT NULL,\n  `map` smallint NOT NULL,\n  `phaseMask` int,\n  `npcflag` int,\n  `curmana` int,\n  `spawndist` float,\n  PRIMARY KEY (`guid`)\n) ENGINE=InnoDB;\n"""
+    AC = """CREATE TABLE `creature` (\n  `guid` int unsigned NOT NULL,\n  `id1` int NOT NULL,\n  `map` smallint NOT NULL,\n  `phaseMask` int,\n  `npcflag` int,\n  `wander_distance` float,\n  `Comment` text,\n  PRIMARY KEY (`guid`)\n) ENGINE=InnoDB;\n"""
 
     def test_schema_and_sql(self):
         cpp, ac = world.parse_schema(self.CPP), world.parse_schema(self.AC)
-        self.assertEqual(cpp["creature"], ["guid", "id", "map", "phaseMask", "npcflag", "curmana"])
+        self.assertEqual(cpp["creature"], ["guid", "id", "map", "phaseMask", "npcflag", "curmana", "spawndist"])
         m = {"id": 654, "new_id": 5654, "dir": "X", "name": "X"}
         sql, off, rep = world.generate(m, cpp, ac, 2000, 1000)
         self.assertIn("CREATE TABLE cb_out.`creature` LIKE ac_world.`creature`", sql)
-        self.assertIn("INSERT IGNORE INTO cb_out.`creature` (`guid`, `id`, `map`, `phaseMask`, `npcflag`)", sql)
+        self.assertIn("INSERT IGNORE INTO cb_out.`creature` (`guid`, `id1`, `map`, `phaseMask`, `npcflag`, `wander_distance`)", sql)
         self.assertIn("`id` + 6000000", sql)
         self.assertIn("5654", sql)
         self.assertIn("`npcflag` & 67108863", sql)
         self.assertIn("ROW_NUMBER() OVER (ORDER BY `guid`)", sql)
         step = next(s for s in rep["steps"] if s["table"] == "creature")
-        self.assertEqual(step["dropped"], ["curmana"])
+        self.assertEqual(step["dropped"], ["id", "curmana", "spawndist"])
         self.assertEqual(step["defaulted"], ["Comment"])
         self.assertTrue(any("creature_template" in s for s in rep["skipped"]))
         self.assertIn("smart_scripts", rep["not_built"])

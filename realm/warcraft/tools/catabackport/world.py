@@ -58,24 +58,29 @@ def step_sql(step, cpp_cols, ac_cols, ctx):
     """(sql, report) for one step; sql is None when a side lacks the table."""
     t = step["table"]
     rep = {"table": t, "dropped": [], "defaulted": [], "missing_table": None}
-    if t not in cpp_cols:
+    if t not in cpp_cols and not step.get("custom"):
         rep["missing_table"] = "cpp"
         return None, rep
     if t not in ac_cols:
         rep["missing_table"] = "ac"
         return None, rep
-    sets = step.get("set", {})
+    if step.get("custom"):                      # (a statement written out: its selects come from another CPP table)
+        return render(step["custom"], ctx) + "\n", rep
+    # Column names are matched without regard to case (MySQL's own rule: CPP's `MenuId` and AzerothCore's `MenuID` are one column).
+    sets = {k.lower(): v for k, v in step.get("set", {}).items()}
+    cpp_lc = {c.lower(): c for c in cpp_cols[t]}
     dest, expr = [], []
     for col in ac_cols[t]:
-        if col in sets:
+        if col.lower() in sets:
             dest.append(col)
-            expr.append(render(sets[col], ctx))
-        elif col in cpp_cols[t]:
+            expr.append(render(sets[col.lower()], ctx))
+        elif col.lower() in cpp_lc:
             dest.append(col)
-            expr.append(f"`{col}`")
+            expr.append(f"`{cpp_lc[col.lower()]}`")
         else:
             rep["defaulted"].append(col)
-    rep["dropped"] = [c for c in cpp_cols[t] if c not in ac_cols[t]]
+    ac_lc = {c.lower() for c in ac_cols[t]}
+    rep["dropped"] = [c for c in cpp_cols[t] if c.lower() not in ac_lc]
     cols = ", ".join(f"`{c}`" for c in dest)
     sql = (f"INSERT IGNORE INTO {ctx['ac']}.`{t}` ({cols})\nSELECT {', '.join(expr)}\nFROM {ctx['cpp']}.`{t}`\n"
            f"WHERE {render(step['where'], ctx)};\n")
@@ -102,6 +107,12 @@ def generate(map_entry, cpp_cols, ac_cols, guid_base, guid_span, plan=None, cpp_
         out.append(f"CREATE TABLE {ac_db}.`{t}` LIKE {ac_src}.`{t}`;\n")
     for s in plan["scratch"]:
         out.append(f"DROP TABLE IF EXISTS cb_tmp.`{s['name']}`;\nCREATE TABLE cb_tmp.`{s['name']}` AS {render(s['sql'], ctx)};\n")
+    # The displays 3.3.5a's own CreatureDisplayInfo has: a Cataclysm look it has not is replaced in creature_template_model (a display the
+    # client cannot find crashed it in the zones' work: crash reports #88 to #99).
+    stock = util.load_json(os.path.join(util.HERE, "data", "stock_ids.json"), {}).get("display_ids", [])
+    out.append("DROP TABLE IF EXISTS cb_tmp.`cb_stock_display`;\nCREATE TABLE cb_tmp.`cb_stock_display` (`id` int unsigned NOT NULL PRIMARY KEY);\n")
+    for i in range(0, len(stock), 2000):
+        out.append("INSERT INTO cb_tmp.`cb_stock_display` VALUES " + ",".join(f"({x})" for x in stock[i:i + 2000]) + ";\n")
     reports, skipped = [], []
     for step in plan["steps"]:
         sql, rep = step_sql(step, cpp_cols, ac_cols, ctx)
@@ -112,6 +123,7 @@ def generate(map_entry, cpp_cols, ac_cols, guid_base, guid_span, plan=None, cpp_
         out.append(sql)
     for s in plan["scratch"]:
         out.append(f"DROP TABLE IF EXISTS cb_tmp.`{s['name']}`;\n")
+    out.append("DROP TABLE IF EXISTS cb_tmp.`cb_stock_display`;\n")
     lo = GUID + guid_base
     off = [f"-- {map_entry['dir']}: its spawns out again (templates and quests are shared with other maps and stay).\n"]
     for t in ("creature_addon", "creature", "gameobject_addon", "gameobject"):

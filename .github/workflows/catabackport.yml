@@ -85,7 +85,7 @@ jobs:
           [ -d build/inputs/server-data ] || { curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"; echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -; unzip -q -o data.zip 'dbc/*' -d build/inputs/server-data; rm data.zip; }
           ls -la build/inputs; git -C build/inputs/Converter log --format='converter %H' -1
 
-      - name: The Converter's own tests (it is pinned code: it must run here)
+      - name: "The Converter's own tests (it is pinned code, it must run here)"
         run: cd build/inputs/Converter && PYTHONPATH=src python3 -m unittest discover -s tests -q 2>&1 | tail -3 || true
 
       - name: Unit tests of the tool
