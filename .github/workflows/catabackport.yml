@@ -200,7 +200,11 @@ jobs:
           sudo mariadb -e "CREATE DATABASE cpp_world; CREATE DATABASE ac_world; CREATE USER 'cb'@'localhost' IDENTIFIED BY 'cb'; GRANT ALL ON *.* TO 'cb'@'localhost';"
           printf '[client]\nuser=cb\npassword=cb\n' > ~/.my.cnf
           mkdir -p build/tdb
-          gh release download -R The-Cataclysm-Preservation-Project/TrinityCore -p 'TDB_full_world_434*' -D build/tdb
+          # (the asset's release is not "latest": the first release, newest first, that carries it; UNVERIFIED which tag, the run's log says)
+          for tag in $(gh release list -R The-Cataclysm-Preservation-Project/TrinityCore --limit 60 --json tagName -q '.[].tagName'); do
+            if gh release download "$tag" -R The-Cataclysm-Preservation-Project/TrinityCore -p 'TDB_full_world_434*' -D build/tdb 2>/dev/null; then echo "TDB from release $tag"; break; fi
+          done
+          [ -n "$(ls build/tdb)" ] || { echo "::error::no release of the Cataclysm Preservation Project carries TDB_full_world_434*"; exit 1; }
           ls -la build/tdb
           cd build/tdb && for f in *.7z; do [ -e "$f" ] && 7z x -y "$f" > /dev/null; done; cd "$GITHUB_WORKSPACE"
           sha256sum build/tdb/* | tee build/tdb.sha256
