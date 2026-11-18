@@ -193,7 +193,15 @@ check "world wrathpp runs Wrath++'s own world server" grep -qx 'server=wrathpp' 
 check "  with its own config" grep -q "args=-c $F/etc-wrathpp/worldserver.conf" <<< "$out"
 check "  in run/wrathpp" grep -qx "cwd=$F/run/wrathpp" <<< "$out"
 check "  its game folder is client-wrathpp" grep -qx 'WOW_CLIENT_DIR=FILES/client-wrathpp' <<< "$out"
-check "  no starting areas of main's" bash -c "! grep -q WOW_ZONES_DIR <<< '$out'"
+check "  no starting areas without the package" bash -c "! grep -q WOW_ZONES_DIR <<< '$out'"
+# with the starting areas' package the app downloaded (files/zones), Wrath++ takes them in, its maps in its own data folder (zones_data_realm)
+mkdir -p "$F/zones/client" "$F/zones/server/maps"
+: > "$F/zones/client/files.txt"; : > "$F/zones/TAG"; : > "$F/zones/server/maps/zone.map"
+before_zones=$(shared_manifest "$F")
+out=$(run "$CTL" "$F" world wrathpp)
+check "  the starting areas' package is its own too" grep -qx 'WOW_ZONES_DIR=FILES/zones' <<< "$out"
+check "  and the shared data is unchanged by it" [ "$before_zones" = "$(shared_manifest "$F")" ]
+rm -rf "$F/zones"
 check "  its own libraries" grep -q 'LD_PRELOAD=FILES/server-wrathpp/lib/' <<< "$out"
 
 rm -f "$F/stub/sql.log"
