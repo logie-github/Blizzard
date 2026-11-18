@@ -51,6 +51,12 @@ object WrathppSetup {
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
             .onFailure { e -> partsOk = false; notes.append("looks FAILED: ${e.message}\n") }
         lap("looks")
+        // Each race's model in the looks' patch, held to the package (WrathppModelCheck, report #332): one missing, cut short or not the
+        // package's is fetched again (once per looks), before the steps below put their own into the patch.
+        runCatching { WrathppModelCheck.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
+            .onSuccess { notes.append(it) }
+            .onFailure { e -> notes.append("race models: not checked (${e.message})\n") }
+        lap("race models")
         // Shadowlands' creator's own art (WrathppArt): without it the creator draws with 3.3.5's pictures in the same places.
         runCatching { WrathppArt.ensure(layout.wrathppClient, report::say, update = refresh) }
             .onSuccess { notes.append("creator art: ${WrathppArt.installedSha(layout.wrathppClient) ?: "none"}\n") }
