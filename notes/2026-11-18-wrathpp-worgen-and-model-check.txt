@@ -1,0 +1,1 @@
+The Worgen have their necks, manes and hair styles; the Tauren keep their manes; the start report now checks that every race's model is the new one.
