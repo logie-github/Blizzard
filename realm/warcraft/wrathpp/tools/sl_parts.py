@@ -550,6 +550,12 @@ def write_parts_table(looks, out_dir, ids):
                 lines.append("\t".join(["B", str(entry["race"]), str(int(sex)), str(soft["count"]), str(soft["parent"])] +
                                         sum(([str(b[0]), "%.5f" % b[1], "%.5f" % b[2], "%.5f" % b[3], ",".join(str(x) for x in b[4])] for b in soft["bones"]), []) +
                                         [model["name"]]))     # (the model the bones are of: the native mod springs that model's, its variants' and body shapes' only)
+                seat = soft.get("seat")
+                if seat:
+                    # her seat's bones (soft_weights.py): S, the same fields, the bone they hang on her pelvis
+                    lines.append("\t".join(["S", str(entry["race"]), str(int(sex)), str(soft["count"]), str(seat["parent"])] +
+                                            sum(([str(b[0]), "%.5f" % b[1], "%.5f" % b[2], "%.5f" % b[3], ",".join(str(x) for x in b[4])] for b in seat["bones"]), []) +
+                                            [model["name"]]))
             for variant in model.get("variants", []):
                 category = ids.get("%d_%d:%s" % (entry["race"], int(sex), variant["name"]))
                 if not category:

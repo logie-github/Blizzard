@@ -876,11 +876,17 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 layout = json.load(f)
             os.remove(layout_path)
             model["skin_extra"] = bool(layout.get("extra"))       # its skin rows name their extra (table_rows)
-            if int(sex) == 1:                                         # a woman's soft body: where her breast bones are in the converted model
-                import sl_parts
-                soft = sl_parts.soft_body(model_path)
+            if int(sex) == 1:
+                # a woman's soft body: four bones of the model's own, weighted at the bottom of the chest's and the seat's curve
+                # (soft_weights.py; until 18 November 2026 the retail breast bones found by their height, sl_parts.soft_body, which
+                # on eleven races were bones of the face)
+                import soft_weights
+                soft = soft_weights.soften(model_path, log=log)
                 if soft:
                     model["soft"] = soft
+                    problems = check_m2.check(model_path)
+                    if problems:
+                        raise ValueError("%s with its soft body: %s" % (model["name"], "; ".join(problems[:20])))
             written += textures.build(read, model, layout, client, log)
             if model.get("overlays"):
                 import sl_parts
@@ -891,7 +897,17 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 import sl_parts
                 for k, choice in enumerate(variant["choices"], 1):
                     if (choice["file"] or choice.get("geosets")) and not (k == 1 and variant.get("geoset")):     # (the first choice of a geoset variant is the model as it is)
-                        written += sl_parts.variant_model(mread, model, variant, k, choice, client, log)
+                        files = sl_parts.variant_model(mread, model, variant, k, choice, client, log)
+                        written += files
+                        if model.get("soft"):                         # her variants' models have her soft body: the same bones at the same places
+                            import soft_weights
+                            for path in files:
+                                if path.lower().endswith(".m2"):
+                                    full = path if os.path.isabs(path) else os.path.join(client, path.replace("\\", "/"))
+                                    if os.path.isfile(full):
+                                        got = soft_weights.soften(full, log=log)
+                                        if not got or [b[0] for b in got["bones"]] != [b[0] for b in model["soft"]["bones"]]:
+                                            log("%s: its soft bones are not %s's (%s)" % (os.path.basename(full), model["name"], got and [b[0] for b in got["bones"]]))
             if model.get("parts"):
                 import sl_parts
                 model["part_types"] = {}
