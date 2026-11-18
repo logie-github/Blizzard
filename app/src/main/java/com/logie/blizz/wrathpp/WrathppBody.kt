@@ -36,7 +36,7 @@ import java.util.zip.ZipInputStream
 object WrathppBody {
     const val DIR = "wrathpp-body"
     const val STAMP = "wrathpp-body.stamp"
-    private const val TABLES_VERSION = 2
+    private const val TABLES_VERSION = 3
     const val LIST = "wrathpp-body.json"
     private const val SOURCE = "source"
     private const val ORIG = ".body-orig"
@@ -44,10 +44,18 @@ object WrathppBody {
     private const val HEADER = 0x138
     val NAMES = arrayOf("wrathpp-body.zip", "body.zip")
 
-    /** The realm's numbering (wrathpp_appearance.h): race slots, 4 shapes, 65 layers (none, 16 styles x 4 densities). */
-    const val DISPLAY_BASE = 42000
+    /**
+     * The realm's numbering (wrathpp_appearance.h): race slots, 4 shapes, 65 layers (none, 16 styles x 4 densities). Every
+     * race's women (18 November 2026): the ten of 3.3.5 in their slots of before, then the Goblin, the Worgen and the allied
+     * races by their Wrath++ ids (22, the High Elf, is drawn with the Void Elf's files: the package's `files`). The base
+     * was 42000 until then, whose eighth slot (the Troll's, 43820 to 44079) ran into the model variants' displays (44000:
+     * WrathppVariants); [LEGACY] is what an earlier build's rows are taken out by.
+     */
+    const val DISPLAY_BASE = 45000
     const val MODEL_BASE = 4200
-    val RACES = intArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 10, 11)
+    val RACES = intArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)
+    private val LEGACY = listOf(42000 until 44000, 44096 until 44600)
+    private fun ours(display: Int) = display in DISPLAY_BASE until DISPLAY_BASE + RACES.size * 260 || LEGACY.any { display in it }
     const val SHAPES = 4
     const val STYLES = 16
     const val DENSITIES = 4
@@ -178,6 +186,7 @@ object WrathppBody {
         // the models: the race's own with the layer in place of the looks', the shapes' beside it
         val models = list.getJSONArray("models")
         val shapesOf = HashMap<String, MutableSet<Int>>()
+        val remade = HashMap<String, MutableList<Int>>()
         for (i in 0 until models.length()) {
             val m = models.getJSONObject(i)
             val race = m.getString("race")
@@ -192,11 +201,32 @@ object WrathppBody {
             // older package names the bytes.
             val byStructure = m.has("looks_struct_sha256")
             val rightLooks = if (byStructure) structSha256(base) == m.getString("looks_struct_sha256") else sha256(base) == m.getString("looks_sha256")
-            if (!rightLooks) { if (shape == 0) done.add("$race: made for other looks, left as drawn"); continue }
-            val out = withPatch(base, File(files, m.getJSONObject("patch").getString("file")).readBytes())
-            val madeRight = if (byStructure) structSha256(out, base) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
-            if (!madeRight) throw IOException("$race: the package's model doesn't make what it says")
-            val skin = File(files, m.getJSONObject("skin_file").getString("file")).readBytes()
+            val out: ByteArray
+            val skin: ByteArray
+            if (rightLooks) {
+                out = withPatch(base, File(files, m.getJSONObject("patch").getString("file")).readBytes())
+                val madeRight = if (byStructure) structSha256(out, base) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
+                if (!madeRight) throw IOException("$race: the package's model doesn't make what it says")
+                skin = File(files, m.getJSONObject("skin_file").getString("file")).readBytes()
+            } else {
+                // Looks the package was not made for (a looks release changed her model): made here on the looks' own model
+                // and skin ([WrathppBodyLayer]), so one import lasts; a shape's vertices carried onto the looks' own mesh.
+                val looksSkin = File(patch, if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin")
+                    .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
+                val made = try {
+                    if (!looksSkin.isFile) throw IOException("the looks have no skin for her")
+                    onTheseLooks(list, files, m, base, looksSkin.readBytes())
+                } catch (e: WrathppBodyLayer.NoRoom) {
+                    if (shape == 0) done.add("$race: made for other looks, and these leave the layer no room (${e.free} indices free, ${e.needed} needed): left as drawn")
+                    null
+                } catch (e: IOException) {
+                    if (shape == 0) done.add("$race: made for other looks, left as drawn (${e.message})")
+                    null
+                } ?: continue
+                out = made.model
+                skin = made.skin
+                remade.getOrPut(race) { ArrayList() }.add(shape)
+            }
             val model = File(patch, m.getString("model"))
             val skinFile = File(patch, m.getString("skin"))
             if (shape == 0) {
@@ -223,7 +253,7 @@ object WrathppBody {
         val styles = list.getJSONObject("styles")
         for (i in 0 until raceList.length()) {
             val r = raceList.getJSONObject(i)
-            if (0 !in shapesOf[r.getString("race")].orEmpty()) continue
+            if (0 !in shapesOf[filesOf(r)].orEmpty()) continue
             val folder = File(patch, r.getString("folder"))
             val names = styles.getJSONArray(r.getString("faction"))
             byDesign["" to 0]?.let { link(it, File(folder, "$EMPTY.blp"), made) }
@@ -244,7 +274,7 @@ object WrathppBody {
             val races = ArrayList<RaceRows>()
             for (i in 0 until raceList.length()) {
                 val r = raceList.getJSONObject(i)
-                val have = shapesOf[r.getString("race")].orEmpty()
+                val have = shapesOf[filesOf(r)].orEmpty()       // (a race drawn with another's files: that one's models, its own displays)
                 if (0 !in have) continue
                 val slot = RACES.indexOf(r.getInt("race_id")).takeIf { it >= 0 } ?: continue
                 val own = female[r.getInt("race_id")] ?: continue
@@ -261,7 +291,7 @@ object WrathppBody {
             val serverBase = serverTable.takeIf { it.isFile } ?: File(data, "dbc/CreatureDisplayInfo.dbc")
             if (serverBase.isFile) {
                 val table = WrathppUndead.Dbc.read(serverBase.readBytes(), DISPLAY_KINDS)
-                table.rows.removeAll { (it[0] as Int) in DISPLAY_BASE until DISPLAY_BASE + RACES.size * 260 }
+                table.rows.removeAll { ours(it[0] as Int) }
                 addRows(table, null, races, game = false)
                 if (serverTable.isFile) over(serverTable, table.write()) else write(serverTable, table.write(), made)
             } else done.add("the realm's table not found: the realm leaves every woman as drawn")
@@ -272,8 +302,51 @@ object WrathppBody {
         File(patch, MADE).writeText(made.joinToString("\n") { it.path } + "\n")
         val summary = shapesOf.entries.sortedBy { it.key }.joinToString(", ") { (race, s) -> if (s.size > 1) "$race (${s.size - 1} shapes)" else race }
         done.add(0, "$summary; $withRows races' displays")
+        if (remade.isNotEmpty()) done.add(1, "made here for these looks (the package was made for others): " + remade.entries.sortedBy { it.key }
+            .joinToString(", ") { (race, s) -> if (s.any { it != 0 }) "$race (its shapes on the looks' own mesh)" else race })
         stamps.forEach { it.parentFile?.mkdirs(); it.writeText("$want\n" + done.joinToString("\n") + "\n") }
         return done.joinToString("; ")
+    }
+
+    /** The race whose models and designs a race of the package's list is drawn with (its own, but for the High Elf: `files`). */
+    private fun filesOf(race: JSONObject): String = race.optString("files").ifEmpty { race.getString("race") }
+
+    /**
+     * A model of the package made here on the looks' own [base] and [looksSkin], for looks the package's patch does not
+     * fit: the layer by the package's numbers for the race (`races[].layer`: [WrathppBodyLayer.add]); for a body shape, its
+     * vertices first carried from the package's models onto the looks' own ([WrathppBodyLayer.carried]: the package's two
+     * vertex arrays, which its `base_size` and `looks_vertices` find in the patches). Throws when the package has not what
+     * this needs (an older one), the shape is not for these looks' body, or the skin has no room.
+     */
+    private fun onTheseLooks(list: JSONObject, files: File, m: JSONObject, base: ByteArray, looksSkin: ByteArray): WrathppBodyLayer.Made {
+        val race = m.getString("race")
+        val races = list.getJSONArray("races")
+        val entry = (0 until races.length()).map { races.getJSONObject(it) }.firstOrNull { it.optString("race") == race && !it.has("files") }
+        val l = entry?.optJSONObject("layer") ?: throw IOException("the package doesn't say how her layer lies: a newer package is needed")
+        val body = l.getJSONArray("body").let { a -> (0 until a.length()).map { a.getInt(it) }.toSet() }
+        val block = l.optJSONArray("hair_block")
+        val params = WrathppBodyLayer.Params(l.getDouble("k"), l.getDouble("fold"), body, intArrayOf(block?.optInt(0) ?: 0, block?.optInt(1) ?: 0),
+            l.optInt("texture", 6), l.optDouble("x", 0.0))
+        var vertices: ByteArray? = null
+        if (m.getInt("shape") != 0) {
+            val models = list.getJSONArray("models")
+            val zero = (0 until models.length()).map { models.getJSONObject(it) }.firstOrNull { it.optString("race") == race && it.optInt("shape") == 0 }
+            if (zero == null || !zero.has("base_size") || !m.has("base_size")) throw IOException("the package's shapes can't be carried: a newer package is needed")
+            val was = patchVertices(File(files, zero.getJSONObject("patch").getString("file")).readBytes(), zero.getInt("base_size"), zero.getInt("looks_vertices"))
+            val shape = patchVertices(File(files, m.getJSONObject("patch").getString("file")).readBytes(), m.getInt("base_size"), m.getInt("looks_vertices"))
+            vertices = WrathppBodyLayer.carried(WrathppBodyLayer.verticesOf(base), was, shape) ?: throw IOException("the shape is for another body")
+        }
+        return WrathppBodyLayer.add(base, looksSkin, vertices, params, entry.getString("folder").replace('/', '\\'))
+    }
+
+    /** The first [count] vertex records of the model a [patch] makes of a base of [baseSize] bytes: read out of the patch itself. */
+    internal fun patchVertices(patch: ByteArray, baseSize: Int, count: Int): ByteArray {
+        if (patch.size < HEADER) throw IOException("the package's patch is too short")
+        val head = ByteBuffer.wrap(patch).order(ByteOrder.LITTLE_ENDIAN)
+        val n = head.getInt(60)
+        val at = head.getInt(64).toLong() - (baseSize + 15) / 16 * 16 + HEADER
+        if (count <= 0 || count > n || at < HEADER || at + count.toLong() * 48 > patch.size) throw IOException("the package's patch doesn't hold its vertices")
+        return patch.copyOfRange(at.toInt(), at.toInt() + count * 48)
     }
 
     // CreatureDisplayInfo: ID, ModelID, SoundID, ExtendedDisplayInfoID, CreatureModelScale, CreatureModelAlpha,
@@ -381,7 +454,7 @@ object WrathppBody {
         val serverTable = File(serverDbc, "CreatureDisplayInfo.dbc")
         if (serverTable.isFile && File(serverDbc, STAMP).isFile) {
             val table = WrathppUndead.Dbc.read(serverTable.readBytes(), DISPLAY_KINDS)
-            if (table.rows.removeAll { (it[0] as Int) in DISPLAY_BASE until DISPLAY_BASE + RACES.size * 260 }) over(serverTable, table.write(), keep = false)
+            if (table.rows.removeAll { ours(it[0] as Int) }) over(serverTable, table.write(), keep = false)
         }
     }
 
