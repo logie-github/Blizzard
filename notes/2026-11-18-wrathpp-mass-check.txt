@@ -1,0 +1,1 @@
+Wrath++: a new check reads every race and zone of the package and lists what is missing.
