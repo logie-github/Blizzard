@@ -26,20 +26,6 @@ class ExecPathTest {
         assertEquals("D:\\diablo", FileUtils.getDirname(dos))
     }
 
-    /** World of Warcraft: Forever's game is in the realms' folder, which has a drive of its own ([WindowsRuntime.drivesOf]). */
-    @Test fun foreversProgramHasAWindowsPath() {
-        val files = "/data/user/0/com.logie.blizz/files"
-        val program = "$files/realms/forever-v2/client/_forever_/foreverkey.exe"
-        // without the drive (as it was): no drive letter, no folder; Winlator starts nothing and shows its file manager
-        assertEquals("", FileUtils.getDirname(WineUtils.unixToDOSPath(program, container)).substringBefore('\\').filter { it == ':' })
-        val withRealms = Container(0).apply { setDrives(WindowsRuntime.drivesOf("$files/games", "$files/saves", "$files/staging", "$files/realms")) }
-        val dos = WineUtils.unixToDOSPath(program, withRealms)
-        assertEquals("F:\\forever-v2\\client\\_forever_\\foreverkey.exe", dos)
-        assertEquals("F:\\forever-v2\\client\\_forever_", FileUtils.getDirname(dos))
-        // the games stay where they were
-        assertEquals("D:\\diablo\\devilutionx.exe", WineUtils.unixToDOSPath("$files/games/diablo/devilutionx.exe", withRealms))
-    }
-
     @Test fun argumentsInThePathBrokeIt() {
         val dos = WineUtils.unixToDOSPath("/data/user/0/com.logie.blizz/files/games/diablo/devilutionx.exe --save-dir S:\\diablo", container)
         assertEquals("diablo", FileUtils.getName(dos))

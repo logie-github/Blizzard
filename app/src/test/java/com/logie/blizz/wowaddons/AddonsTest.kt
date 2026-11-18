@@ -142,7 +142,6 @@ class AddonsTest {
         assertEquals("70300", WowAddonGames.of("wow_legion")?.interfaceVersion)
         assertEquals(Warperia.Flavor.VANILLA, WowAddonGames.of("wow_octowow")?.flavor)
         assertEquals("11200", WowAddonGames.of("wow_octowow")?.interfaceVersion)
-        assertNull(WowAddonGames.of("wow_forever"))
         assertNotNull(WowAddonStores.of("wow_octowow"))
         assertNull(WowAddonStores.of("diablo2"))
         assertTrue("wowtouch" in WowAddonGames.WRATH.ownFolders)

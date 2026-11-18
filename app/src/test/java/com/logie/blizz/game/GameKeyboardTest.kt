@@ -47,7 +47,7 @@ class BorderlessTest {
             assertTrue(id, Borderless.frames(id))
             assertEquals("C:\\windows\\borderless.exe", Borderless.command(id))
         }
-        for (id in listOf("wow-client", "wow", "wow_forever", "installer", null)) {
+        for (id in listOf("wow-client", "wow", "installer", null)) {
             assertFalse(id ?: "null", Borderless.frames(id))
             assertEquals("C:\\windows\\borderless.exe /noframes", Borderless.command(id))
         }

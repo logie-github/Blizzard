@@ -120,9 +120,7 @@ object WindowsRuntime {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
         if (!installed) throw IllegalStateException(context.getString(R.string.game_error_runtime))
-        // WoW Forever: its login portal is this phone ([com.logie.blizz.forevernew.ForeverLaunch]); the hosts file is the runtime's, not Android's.
-        val forever = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == com.logie.blizz.forevernew.ForeverLaunch.VERSION
-        withContext(Dispatchers.IO) { keepOffline(context, if (forever) listOf(com.logie.blizz.forevernew.ForeverConfig.PORTAL) else emptyList()) }
+        withContext(Dispatchers.IO) { keepOffline(context) }
 
         _state.value = State.Preparing(Step.WINDOWS, gameId = WowPlay.splashIdOf(entry))
         val (width, height) = size
@@ -137,20 +135,6 @@ object WindowsRuntime {
             val env = EsyncSetting.apply(container.getEnvVars(), on = true)
             if (env != container.getEnvVars()) { container.setEnvVars(env); container.saveData() }
         }
-        // WoW Forever: the realm's own root CA is trusted by the games' Windows (its login is TLS to the portal).
-        if (forever) {
-            withContext(Dispatchers.IO) {
-                val root = com.logie.blizz.forevernew.ForeverAuth.rootCertificate(com.logie.blizz.forevernew.ForeverLayout.of(context))
-                val added = runCatching { com.logie.blizz.forevernew.ForeverLaunch.trustRealm(root, File(container.rootDir, ".wine/system.reg")) }.getOrDefault(false)
-                com.logie.blizz.reports.SessionLog.event("windows", "forever: realm root ${if (root.isFile) (if (added) "added to" else "already in") else "MISSING from"} the games' root store")
-            }
-        }
-        if (legion) {
-            withContext(Dispatchers.IO) {
-                val layout = com.logie.blizz.wow.WowLayout.legion(context)
-                LegionClientSetup.installCertificateBundle(com.logie.blizz.wow.RealmSpecsAccess.certBundle(layout), File(container.rootDir, ".wine/drive_c"))
-            }
-        }
         // Diablo II: Windows 98 for Game.exe before 1.14, 800x600 in game ([Diablo2Setup]).
         if (entry.gameId == "diablo2") withContext(Dispatchers.IO) { runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) } }
         // borderless.exe (tools/borderless): the session's keeper, put into the games' Windows at every start (the app's copy
@@ -163,12 +147,6 @@ object WindowsRuntime {
         Borderless.dialogFlag = if (keeper) Borderless.dialogFile(container.rootDir) else null
         // A game that dies of a fault ends without Wine's "Program Error" box: the launcher is back and the app reports it ([WineCrashDialog]).
         withContext(Dispatchers.IO) { runCatching { WineCrashDialog.apply(container.rootDir, entry.gameId) } }
-        // Wine's GetAdaptersAddresses walks an empty adapter list as a full one here (this Wine lists no adapters), which ends
-        // World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one known
-        // iphlpapi.dll only, in every game's Wine alike so they all run the same one).
-        withContext(Dispatchers.IO) {
-            runCatching { WineAdapterFix.apply(RootFS.find(context).rootDir, container.rootDir) }.onSuccess { n -> if (n > 0) com.logie.blizz.reports.SessionLog.event("windows", "Wine's adapter listing fixed in $n file(s)") }
-        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
@@ -218,11 +196,26 @@ object WindowsRuntime {
     }
 
     /** The runtime's hosts file: Blizzard's names nowhere ([Offline]). */
-    private fun keepOffline(context: Context, local: List<String> = emptyList()) {
+    private fun keepOffline(context: Context) {
         val etc = File(RootFS.find(context).rootDir, "etc")
         etc.mkdirs()
-        File(etc, "hosts").writeText(Offline.hosts(true, local))
+        File(etc, "hosts").writeText(Offline.hosts(true))
         File(etc, "nsswitch.conf").writeText(Offline.nsswitch())
+    }
+
+    /**
+     * Removes what World of Warcraft: Forever left on the phone ([LeftoverData]), off the main thread as the app starts; says
+     * in the run's log what went. Not while a game runs (its Windows' registry is then Wine's to write).
+     */
+    fun wipeForeverLeftovers(context: Context) {
+        if (_state.value !is State.Idle) return
+        val app = context.applicationContext
+        val containers = runCatching { ContainerManager(app).containers.map { it.rootDir } }.getOrDefault(emptyList())
+        val result = LeftoverData.wipe(app.filesDir, containers) { pid -> android.os.Process.killProcess(pid) } ?: return
+        runCatching { app.getSharedPreferences("wow_login", Context.MODE_PRIVATE).edit().remove("wow_forever_name").remove("wow_forever_password").apply() }
+        runCatching { (app.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).deleteNotificationChannel("wow-forever") }
+        com.logie.blizz.reports.SessionLog.event("windows", "World of Warcraft: Forever's leftovers removed: ${result.bytes shr 20} MB in ${result.folders.joinToString()}; " +
+            "${result.processes} of its programs ended; ${result.certificates} certificate keys out of the games' Windows")
     }
 
     /** The drives: D: the games, S: their saves (the app's folders). */
@@ -232,16 +225,8 @@ object WindowsRuntime {
         paths.saves.mkdirs()
         paths.staging.mkdirs()
         // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
-        return drivesOf(paths.games.path, paths.saves.path, paths.staging.path, File(context.applicationContext.filesDir, "realms").apply { mkdirs() }.path)
+        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
     }
-
-    /**
-     * The drives as Winlator keeps them: D: the games, S: the saves, T: the importers' work folder, and F: the realms' folder
-     * (`files/realms`: World of Warcraft: Forever's game is there, in `forever-v2/client`, not among the games). A program whose
-     * folder is on no drive has no Windows path: Winlator then starts nothing and shows its file manager, which is what Forever's
-     * Play ended in on the phone once its realm was up (16 November 2026: a window named "Computer" with C:, D:, S:, T:, X:, Z:).
-     */
-    fun drivesOf(games: String, saves: String, staging: String, realms: String): String = "D:" + games + "S:" + saves + "T:" + staging + "F:" + realms
 
     /**
      * cnc-ddraw's settings for the classic games (Diablo II, StarCraft, Warcraft II), which draw with

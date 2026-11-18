@@ -84,16 +84,16 @@ internal fun HoldMenu(game: Game, onDismiss: () -> Unit) {
             if (hasAddons(effective.id)) HoldItem(Icons.Default.Extension, "Add-ons") { onDismiss(); openAddons(game) }
             if (hasModules(effective.id)) HoldItem(Icons.Default.Storage, "Modules") { onDismiss(); openModules() }
             val openPorter = LocalOpenPorter.current
-            if (isWow && effective.id != "wow_forever") HoldItem(Icons.Default.PersonSearch, "Character Porter") { onDismiss(); openPorter() }
+            if (isWow) HoldItem(Icons.Default.PersonSearch, "Character Porter") { onDismiss(); openPorter() }
             // Wrath++: the undead skins you import (UndeadSkinsDialog), new skins under its creator's Undead switch.
             var undeadSkins by remember { mutableStateOf(false) }
-            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+            if (isWow && effective.id != "wow_legion" && effective.id != "wow_octowow") {
                 HoldItem(Icons.Default.Face, "Undead skins (Wrath++)") { undeadSkins = true }
             }
             if (undeadSkins) UndeadSkinsDialog { undeadSkins = false; onDismiss() }
             // Wrath++: Ralia's mod from your zip of it (RaliaDialog: looked for as ralia.zip, or picked).
             var ralia by remember { mutableStateOf(false) }
-            if (isWow && effective.id != "wow_forever" && effective.id != "wow_legion" && effective.id != "wow_octowow") {
+            if (isWow && effective.id != "wow_legion" && effective.id != "wow_octowow") {
                 HoldItem(Icons.Default.Face, "Ralia's mod (Wrath++)") { ralia = true }
             }
             if (ralia) RaliaDialog { ralia = false; onDismiss() }

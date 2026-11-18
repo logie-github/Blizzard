@@ -24,7 +24,6 @@ object WowLogin {
     const val WRATH = "wow"
     const val OCTO = "wow_octowow"
     const val LEGION = "wow_legion"
-    const val FOREVER = "wow_forever"
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences("wow_login", Context.MODE_PRIVATE)
 
@@ -48,8 +47,6 @@ object WowLogin {
     fun exported(context: Context, version: String): Login? = when (version) {
         OCTO -> octo(context)
         LEGION -> legion(context)
-        // Forever's account is the one the app made itself ([com.logie.blizz.forevernew.ForeverPlay] sets it); nothing is exported.
-        FOREVER -> null
         else -> get(context)
     }
 
@@ -60,7 +57,6 @@ object WowLogin {
     fun versionOf(clientVersion: String?): String = when (clientVersion) {
         com.logie.blizz.game.OctoClientSetup.VERSION -> OCTO
         com.logie.blizz.game.LegionClientSetup.VERSION -> LEGION
-        com.logie.blizz.forevernew.ForeverLaunch.VERSION -> FOREVER
         else -> WRATH
     }
 

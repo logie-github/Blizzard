@@ -61,11 +61,6 @@
             android:name=".wow.WowRealmService"
             android:exported="false" />
 
-        <!-- World of Warcraft: Forever's database, login and world servers (and the map tools), kept alive the same way. -->
-        <service
-            android:name=".forevernew.ForeverService"
-            android:exported="false" />
-
         <!-- Warcraft I and II, native: Stratagus on SDL's screen, in a process of its own that ends
              with the game (the engine keeps its state in the process). -->
         <activity

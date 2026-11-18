@@ -358,8 +358,6 @@ private fun PlayCta(game: Game, modifier: Modifier, onClick: () -> Unit) {
     val state = states[shown.id]
     val importable = GameImportManager.importable(shown.id)
     val (label, icon) = when {
-        // World of Warcraft: Forever runs its own offline realm on the phone (its own Play flow, not an importer).
-        shown.id == "wow_forever" -> "Install & Play" to Icons.Default.PlayArrow
         !importable -> "Play" to Icons.Default.PlayArrow
         state?.running == true -> "Importing…" to Icons.Default.Download
         state?.entry != null -> "Play" to Icons.Default.PlayArrow

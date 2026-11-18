@@ -55,11 +55,9 @@
 - **A fault in a game's clicks or keys is reproduced on Winlator's own X server** (`tools/xrig/README.md`: the server in a unit
   test, the phone's Wine connected to it), where the phone's input differs from Xvfb: pointer grabs, the stretch, which window
   gets the event. A change to the input path, the keeper or Winlator's server is run there before it is pushed.
-- **Never overwrite Forever** (the user: "Be sure neither of these sessions overwrite forever"). WoW: Forever is another session's
-  work: `app/src/main/java/com/logie/blizz/forever/`, its tests, `realm/forever/`, `forever-arm64/`, `scripts/mirror-forever-arm64.sh`,
-  `tools/forevergo/`, `.github/workflows/*forever*`, `notes/*forever*` and its page in the launcher. The races, Wrath++, Cataclysm
-  and rig sessions don't edit them. Before every push to `main`: `git diff --name-only origin/main HEAD | grep -i forever` must list
-  nothing you did not mean to change; after a merge, `git diff <your commit>~1 <your commit> --stat` for those paths is empty.
+- **World of Warcraft: Forever is removed** (the user, 18 November 2026: "Delete it all. Then make it so the app wipes any leftover
+  downloaded data like the 50gb file"). Don't build it again unless the user asks; `game/LeftoverData` deletes what it left on the
+  phone and stays. (`mod-forever-quests` and the Forever racials of the Wrath realms are other work and stay.)
 - Never commit build outputs, downloaded tools, or any game files.
 - **The phone's Wrath++ runs on ChromieCraft's HD pack** (the user, 17 November 2026: "Remember under that I'm using
   chromiecrafts hd pack"; the start report's "HD look", its patches in Wrath++'s copy of the game). The looks' `patch-Z` sits
