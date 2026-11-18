@@ -157,7 +157,7 @@ object WrathppServerPackage {
         return File(base, clean)
     }
 
-    private fun unpack(archive: File, dest: File, onBytes: (Long) -> Unit) {
+    internal fun unpack(archive: File, dest: File, onBytes: (Long) -> Unit) {
         dest.mkdirs()
         var written = 0L
         var reported = 0L
@@ -235,7 +235,7 @@ object WrathppServerPackage {
         throw IOException("Too many redirects")
     }
 
-    private fun sha256(file: File, onRead: (Long) -> Unit = {}): String {
+    internal fun sha256(file: File, onRead: (Long) -> Unit = {}): String {
         val digest = MessageDigest.getInstance("SHA-256")
         var read = 0L
         file.inputStream().buffered().use { input ->

@@ -36,6 +36,12 @@ object WrathppSetup {
         }.onFailure { e -> notes.append("reforged FAILED: ${e.message}\n") }
         runCatching { ReforgedDownloads.start(context) }
         lap("reforged")
+        // The Worgen's and Goblins' starting areas (WrathppZones): downloaded once (735 MB) and kept; without them (offline, no space) the two
+        // races start with the Night Elves and the Orcs as before. The realm turns them on when the package is in (ctl.sh).
+        runCatching { WrathppZones.ensure(layout, report::say) }
+            .onSuccess { notes.append("starting areas: ${WrathppZones.installedSha(layout)?.take(8) ?: "none"}\n") }
+            .onFailure { e -> notes.append("starting areas FAILED: ${e.message}\n") }
+        lap("starting areas")
         runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say, update = refresh) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
             .onFailure { e -> partsOk = false; notes.append("add-on FAILED: ${e.message}\n") }

@@ -20,6 +20,7 @@ on:
       - realm/warcraft/wrathpp/tools/races_profile.py
       - realm/warcraft/wrathpp/tools/apply_client.py
       - realm/warcraft/modules/mod-allied-races/tools/build_data.py
+      - realm/warcraft/modules/mod-worgen-goblin/data/zones/client/dbc/**
       - realm/warcraft/modules/mod-allied-races/tools/package.py
       - app/src/main/assets/wrathpp/WrathppAlliedRaces.lua
       - app/src/main/assets/wrathpp/WrathppAlliedRaces.xml
@@ -114,7 +115,14 @@ jobs:
           fi
           # The change files merged (the ten races' rows and the allied races'), and the server's tables with them applied: the package
           # carries the changes (the app applies them to the client's own tables), not tables.
-          python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client realm/warcraft/modules/mod-worgen-goblin/data/client/dbc
+          # The starting areas' table rows (mod-worgen-goblin/data/zones/client/dbc: maps, areas, lights, their creatures' displays, items, spells) are in the
+          # looks too: the realm's own patch-U carries them, but a table this package changes comes after it (patch-Z), so a creature of Gilneas would
+          # have no display row. Not ChrRaces: its 'set' puts the Cataclysm intro cinematics on the two races, which exist only with the package.
+          mkdir -p build/zones-dbc
+          for f in realm/warcraft/modules/mod-worgen-goblin/data/zones/client/dbc/*.txt; do
+            [ "$(basename "$f")" = ChrRaces.txt ] || cp "$f" build/zones-dbc/
+          done
+          python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client realm/warcraft/modules/mod-worgen-goblin/data/client/dbc build/zones-dbc
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/looks.json build/looks
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/races.json build/looks
 

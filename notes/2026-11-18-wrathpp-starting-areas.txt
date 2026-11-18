@@ -1,0 +1,1 @@
+Wrath++: the Worgen and Goblins start in Gilneas and Kezan; the app downloads their areas by itself (735 MB, once).
