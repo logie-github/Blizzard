@@ -79,6 +79,21 @@ class DarkTroll(unittest.TestCase):
         # a file id of today's passes through
         self.assertEqual(r(11), read(11))
 
+    def test_a_recolour_keeps_the_shading_and_leaves_what_is_not_skin(self):
+        base = np.zeros((4, 4, 4), dtype=np.uint8)
+        base[..., 3] = 255
+        base[0, 0] = (40, 100, 200, 255)      # blue skin, shaded
+        base[0, 1] = (20, 50, 100, 255)       # the same skin in shadow
+        base[1, 0] = (235, 228, 210, 255)     # a tusk (not the skin's hue)
+        base[1, 1] = (250, 250, 250, 255)     # an eye's white
+        ref = D.skin_reference(base)
+        out = D.recolored(base, (60, 60, 70), ref)
+        lit, dark = out[0, 0, :3].astype(int), out[0, 1, :3].astype(int)
+        self.assertLess(abs(int(lit[0]) - int(lit[2])), 40)             # no longer blue: near the grey wanted
+        self.assertGreater(lit.sum(), dark.sum() * 1.5)                # the shading kept
+        self.assertEqual(tuple(out[1, 0]), (235, 228, 210, 255))        # tusk and eye white as they were
+        self.assertEqual(tuple(out[1, 1]), (250, 250, 250, 255))
+
     def test_the_entry_has_its_own_name_specs_and_extra_choices(self):
         import sl_looks
         troll = {"race": 8, "name": "Troll", "replace_rows": True, "models": {"0": model()}}
@@ -92,6 +107,16 @@ class DarkTroll(unittest.TestCase):
         self.assertEqual(m["extra_choices"]["Skin Color"][0]["SwatchColor_0"], "8421631")
         self.assertEqual(int(m["extra_choices"]["Skin Color"][-1]["SwatchColor_0"]), 112 << 16 | 74 << 8 | 150)
         self.assertEqual(troll["models"]["0"]["base_skins"], 2)                    # (the Troll's own entry is left alone)
+
+    def test_the_sexes_made_up_ids_never_meet(self):
+        import sl_looks
+        troll = {"race": 8, "name": "Troll", "replace_rows": True, "models": {"0": model(), "1": model()}}
+        night = {"race": 4, "name": "NightElf", "models": {"0": ne(), "1": ne()}}
+        dt = sl_looks.dark_troll_entry(troll, night, {})
+        man, woman = dt["models"]["0"]["synth"], dt["models"]["1"]["synth"]
+        # (package() merges the sexes' specs by id: one id for two specs made the man's skins from the woman's, a face for a body)
+        self.assertTrue(man and woman)
+        self.assertFalse(set(man) & set(woman))
 
     def test_extend_leaves_the_night_elf_alone(self):
         n = ne(); before = copy.deepcopy(n)

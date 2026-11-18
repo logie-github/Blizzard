@@ -1,0 +1,401 @@
+name: Cataclysm backport
+
+# Cataclysm's maps, client files and world data made for Wrath++ (docs/wrathpp/CATA_BACKPORT.md), by realm/warcraft/tools/catabackport:
+# no AI, no usage credits, started by hand (workflow_dispatch) only; never on a push. Safe to run again: packs of an earlier run
+# that were made from the same inputs are kept (skip_done), a failed or deferred shard is run alone (input `shards`), a download that
+# fails is retried and, past its time budget, the map is deferred (the job stays green; run again later). Published as the release
+# `cata-backport`: index.json, summary.txt, report.json and a cata-<zone>.tar.xz + .json per zone, which the app takes piece by piece.
+#
+# A first run on one small map is the default (maps: proof, stages: client only): it costs a few minutes and says whether wago.tools
+# answers, the Converter's pin works and what a map weighs. Then maps: all, with extract/world on.
+on:
+  workflow_dispatch:
+    inputs:
+      maps:
+        description: "Maps: proof (one small dungeon), all, or a list: ids, directories, group:dungeon|raid|battleground|continent|world|swap"
+        default: proof
+      shards:
+        description: "Shards to run (a comma list, e.g. 3,7: a failed or deferred shard alone) or all"
+        default: all
+      shard_count:
+        description: "Number of shards (empty: by weight, at most 256)"
+        default: ""
+      stages:
+        description: "Stages: fetch,convert,tables,validate,pack (client files) and optionally extract (server maps: builds AzerothCore's tools, about an hour) and world (CPP's world: MariaDB)"
+        default: "fetch,convert,tables,validate,pack"
+      skip_done:
+        description: "Skip units whose pack in the release was made from the same inputs"
+        type: boolean
+        default: true
+      publish:
+        description: "Publish the release cata-backport"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write          # the release
+
+concurrency:
+  group: catabackport
+  cancel-in-progress: false
+
+env:
+  TOOL: realm/warcraft/tools
+  PYTHONPATH: realm/warcraft/tools
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      units: ${{ steps.plan.outputs.units }}
+      proof: ${{ steps.plan.outputs.proof }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pins
+        id: pins
+        run: |
+          df -h / | tail -1
+          echo "hash=$(sha256sum $TOOL/catabackport/pins.json | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: build/inputs
+          key: catabackport-inputs-${{ steps.pins.outputs.hash }}
+          restore-keys: catabackport-inputs-
+
+      - name: Inputs (listfile, WoWDBDefs, the Converter at its pin, the server's tables)
+        run: |
+          set -e
+          mkdir -p build/inputs
+          cd build/inputs
+          pin() { python3 -c "import json,sys; d=json.load(open('$GITHUB_WORKSPACE/$TOOL/catabackport/pins.json')); print(eval(sys.argv[1]))" "$1"; }
+          [ -s listfile.csv ] || curl -fsSL --retry 6 --retry-delay 10 -o listfile.csv "$(pin "d['listfile']['url']")"
+          if [ ! -d WoWDBDefs ]; then git clone -q --depth 1 https://github.com/wowdev/WoWDBDefs; fi
+          if [ ! -d Converter ]; then
+            git init -q Converter
+            git -C Converter fetch -q --depth 1 "$(pin "d['converter']['repo']")" "$(pin "d['converter']['commit']")"
+            git -C Converter checkout -q FETCH_HEAD
+          fi
+          cd "$GITHUB_WORKSPACE"
+          . realm/warcraft/server-data.env
+          [ -d build/inputs/server-data ] || { curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"; echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -; unzip -q -o data.zip 'dbc/*' -d build/inputs/server-data; rm data.zip; }
+          ls -la build/inputs; git -C build/inputs/Converter log --format='converter %H' -1
+
+      - name: "The Converter's own tests (it is pinned code, it must run here)"
+        run: cd build/inputs/Converter && PYTHONPATH=src python3 -m unittest discover -s tests -q 2>&1 | tail -3 || true
+
+      - name: Unit tests of the tool
+        run: cd $TOOL && python3 -m unittest discover -s catabackport/tests -t .
+
+      - name: The last release's index (what is done)
+        run: |
+          mkdir -p build/prev
+          gh release download cata-backport -R "${{ github.repository }}" -p index.json -D build/prev --clobber 2>/dev/null || echo "no release yet"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Inventory
+        run: |
+          python3 -m catabackport inventory --work build/work --source wago --cache build/inputs/cache --listfile build/inputs/listfile.csv --stage-budget 3000
+        continue-on-error: false
+
+      - name: Plan
+        id: plan
+        run: |
+          python3 -m catabackport plan --work build/work --maps "${{ inputs.maps }}" ${{ inputs.shard_count && format('--shards {0}', inputs.shard_count) || '' }} \
+            ${{ inputs.skip_done && '--done build/prev/index.json' || '' }} --matrix build/work/matrix.json
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          mx = json.load(open("build/work/matrix.json"))
+          want = "${{ inputs.shards }}".strip()
+          inc = mx["include"] if want in ("", "all") else [i for i in mx["include"] if str(i["shard"]) in want.split(",")]
+          plan = json.load(open("build/work/plan.json"))
+          print("matrix=" + json.dumps({"include": inc}))
+          print("units=" + str(sum(len(i["units"].split(",")) for i in inc)))
+          print("proof=" + str(json.load(open("build/work/manifest.json")).get("proof")))
+          EOF
+          cat build/work/inventory-report.txt | head -40
+          python3 -c "import json; p=json.load(open('build/work/plan.json')); print(len(p['units']),'units;',p['shards'],'shards; skipped:',p['skipped'][:20])"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catabackport-plan
+          path: |
+            build/work/manifest.json
+            build/work/plan.json
+            build/work/matrix.json
+            build/work/inventory-report.txt
+            build/prev/index.json
+          if-no-files-found: warn
+
+  # The core's extractors (only when the stage `extract` is asked for): map_extractor, vmap4_extractor, vmap4_assembler, mmaps_generator
+  # from the realm's core at its pin, and zones_mkmpq (mod-worgen-goblin/tools/zones/mkmpq.cpp). UNVERIFIED on Actions: built the way
+  # realm/scripts/compile-azerothcore.sh builds them for the phone, here for x86_64 with TOOLS_BUILD=maps-only.
+  tools:
+    if: contains(inputs.stages, 'extract')
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core pin
+        id: core
+        run: |
+          . realm/warcraft/server-version.env
+          echo "commit=$CORE_COMMIT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: build/tools
+          key: catabackport-tools-${{ steps.core.outputs.commit }}-${{ hashFiles('realm/warcraft/modules/mod-worgen-goblin/tools/zones/mkmpq.cpp') }}
+      - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          sudo apt-get update -q
+          sudo apt-get install -y -q cmake g++ make libboost-all-dev libssl-dev libmysqlclient-dev libreadline-dev zlib1g-dev libbz2-dev
+          . realm/warcraft/server-version.env
+          git init -q core
+          git -C core fetch -q --depth 1 "$CORE_REPO" "$CORE_COMMIT"
+          git -C core checkout -q FETCH_HEAD
+          for p in realm/warcraft/patches/azerothcore/*.patch; do git -C core apply "$GITHUB_WORKSPACE/$p" || echo "patch $p did not apply (kept going)"; done
+          cmake -S core -B core/build -DAPPS_BUILD=none -DTOOLS_BUILD=maps-only -DSCRIPTS=none -DMODULES=none -DCMAKE_BUILD_TYPE=Release
+          cmake --build core/build -j"$(nproc)" --target map_extractor vmap4_extractor vmap4_assembler mmaps_generator
+          mkdir -p build/tools
+          for t in map_extractor vmap4_extractor vmap4_assembler mmaps_generator; do cp "$(find core/build -type f -name $t | head -1)" build/tools/; done
+          cp core/src/tools/mmaps_generator/mmaps-config.yaml build/tools/
+          Z=realm/warcraft/modules/mod-worgen-goblin
+          g++ -std=c++17 -O2 -I$Z/../mod-skyborne/src $Z/tools/zones/mkmpq.cpp $Z/../mod-skyborne/src/SkyborneFiles.cpp -lz -o build/tools/zones_mkmpq
+          ls -la build/tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catabackport-tools
+          path: build/tools
+          retention-days: 7
+
+  # CPP's world in MariaDB, the transform of every planned map, the rows dumped (only when the stage `world` is asked for).
+  world:
+    if: contains(inputs.stages, 'world')
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: catabackport-plan
+          path: build/work-in
+      - name: MariaDB, the CPP world (TDB 434 and its updates) and AzerothCore's schema
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          sudo apt-get update -q
+          sudo apt-get install -y -q mariadb-server p7zip-full
+          sudo systemctl start mariadb
+          sudo mariadb -e "CREATE DATABASE cpp_world; CREATE DATABASE ac_world; CREATE USER 'cb'@'localhost' IDENTIFIED BY 'cb'; GRANT ALL ON *.* TO 'cb'@'localhost';"
+          printf '[client]\nuser=cb\npassword=cb\n' > ~/.my.cnf
+          mkdir -p build/tdb
+          # (the asset's release is not "latest": the first release, newest first, that carries it; UNVERIFIED which tag, the run's log says)
+          for tag in $(gh release list -R The-Cataclysm-Preservation-Project/TrinityCore --limit 60 --json tagName -q '.[].tagName'); do
+            if gh release download "$tag" -R The-Cataclysm-Preservation-Project/TrinityCore -p 'TDB_full_world_434*' -D build/tdb 2>/dev/null; then echo "TDB from release $tag"; break; fi
+          done
+          [ -n "$(ls build/tdb)" ] || { echo "::error::no release of the Cataclysm Preservation Project carries TDB_full_world_434*"; exit 1; }
+          ls -la build/tdb
+          cd build/tdb && for f in *.7z; do [ -e "$f" ] && 7z x -y "$f" > /dev/null; done; cd "$GITHUB_WORKSPACE"
+          sha256sum build/tdb/* | tee build/tdb.sha256
+          mariadb cpp_world < "$(ls build/tdb/TDB_full_world_434*.sql | head -1)"
+          git init -q cpp
+          git -C cpp fetch -q --depth 1 https://github.com/The-Cataclysm-Preservation-Project/TrinityCore master
+          git -C cpp checkout -q FETCH_HEAD
+          for f in $(ls cpp/sql/updates/world/4.3.4/*.sql | sort); do mariadb cpp_world < "$f" || echo "update $f failed (kept going)"; done
+          . realm/warcraft/server-version.env
+          git init -q core
+          git -C core fetch -q --depth 1 "$CORE_REPO" "$CORE_COMMIT"
+          git -C core checkout -q FETCH_HEAD
+          for f in $(ls core/data/sql/base/db_world/*.sql | sort); do mariadb ac_world < "$f"; done
+          cat core/data/sql/base/db_world/*.sql > build/ac_schema.sql
+          cat cpp/sql/base/*.sql > build/cpp_schema.sql 2>/dev/null || true
+          mariadb-dump --no-data --skip-comments cpp_world > build/cpp_schema.sql
+          mariadb -N -e "SELECT 'creatures', COUNT(*) FROM cpp_world.creature UNION SELECT 'quests', COUNT(*) FROM cpp_world.quest_template"
+      - name: World SQL for every planned map
+        run: |
+          python3 -m catabackport world-index --work build/work-in
+          python3 -m catabackport world --work build/work-in --release build/unused --shard all --cpp-schema build/cpp_schema.sql --ac-schema build/ac_schema.sql --run-sql --stage-budget 60 --source dir:/nonexistent
+          mkdir -p build/world-out
+          for d in build/work-in/*/out; do u=$(basename $(dirname "$d")); mkdir -p "build/world-out/$u"; cp "$d"/world*.sql "build/world-out/$u/" 2>/dev/null || true; cp "$(dirname "$d")/world-report.json" "build/world-out/$u/" 2>/dev/null || true; done
+          cp build/tdb.sha256 build/world-out/
+          du -sh build/world-out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catabackport-world
+          path: build/world-out
+
+  shard:
+    needs: [plan, tools, world]
+    # (tools and world are skipped when their stage is not asked for: the shards still run)
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.units != '0' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: shard ${{ matrix.shard }} (${{ matrix.units }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Disk
+        run: df -h / | tail -1
+
+      - uses: actions/cache@v4
+        with:
+          path: build/inputs
+          key: catabackport-inputs-${{ hashFiles('realm/warcraft/tools/catabackport/pins.json') }}
+          restore-keys: catabackport-inputs-
+
+      - name: Inputs again if the cache missed (they are small next to a shard)
+        run: |
+          set -e
+          mkdir -p build/inputs; cd build/inputs
+          pin() { python3 -c "import json,sys; d=json.load(open('$GITHUB_WORKSPACE/$TOOL/catabackport/pins.json')); print(eval(sys.argv[1]))" "$1"; }
+          [ -s listfile.csv ] || curl -fsSL --retry 6 --retry-delay 10 -o listfile.csv "$(pin "d['listfile']['url']")"
+          if [ ! -d WoWDBDefs ]; then git clone -q --depth 1 https://github.com/wowdev/WoWDBDefs; fi
+          if [ ! -d Converter ]; then
+            git init -q Converter
+            git -C Converter fetch -q --depth 1 "$(pin "d['converter']['repo']")" "$(pin "d['converter']['commit']")"
+            git -C Converter checkout -q FETCH_HEAD
+          fi
+          cd "$GITHUB_WORKSPACE"
+          . realm/warcraft/server-data.env
+          [ -d build/inputs/server-data ] || { curl -fsSL --retry 4 -o data.zip "$SERVER_DATA_URL"; echo "$SERVER_DATA_SHA256  data.zip" | sha256sum -c -; unzip -q -o data.zip 'dbc/*' -d build/inputs/server-data; rm data.zip; }
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: catabackport-plan
+          path: build/work
+
+      - uses: actions/download-artifact@v4
+        if: contains(inputs.stages, 'extract')
+        with:
+          name: catabackport-tools
+          path: build/tools
+
+      - uses: actions/download-artifact@v4
+        if: contains(inputs.stages, 'world')
+        with:
+          name: catabackport-world
+          path: build/world-out
+
+      # The files of this shard by file id are kept for a rerun of the same shard (a failed or deferred one): the key is the
+      # shard's units. The 10 GB cache is not a store for packs (they are artifacts and the release).
+      - uses: actions/cache@v4
+        with:
+          path: build/work/cache
+          key: catabackport-files-${{ hashFiles('realm/warcraft/tools/catabackport/pins.json') }}-${{ matrix.units }}
+          restore-keys: catabackport-files-${{ hashFiles('realm/warcraft/tools/catabackport/pins.json') }}-
+
+      - name: Run the stages for this shard
+        id: run
+        run: |
+          set -o pipefail
+          chmod +x build/tools/* 2>/dev/null || true
+          args=""
+          [ -d build/tools ] && args="$args --tools $PWD/build/tools --stock-dbc build/inputs/server-data/dbc"
+          [ -d build/world-out ] && args="$args --world-dir build/world-out"
+          # (exit 75: the source was down for the whole shard: not a failure, the next run does it)
+          set +e
+          python3 -m catabackport run --work build/work --release build/release --shard "${{ matrix.shard }}/${{ matrix.of }}" \
+            --stages "${{ inputs.stages }}" --source wago --cache build/work/cache --listfile build/inputs/listfile.csv \
+            --converter-src build/inputs/Converter/src --dbd build/inputs/WoWDBDefs/definitions --jobs 8 --stage-budget 5400 $args 2>&1 | tee shard.log
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          [ "$code" = 0 ] || [ "$code" = 75 ]
+        timeout-minutes: 330
+
+      - name: What this shard made
+        if: always()
+        run: |
+          mkdir -p build/release
+          ls -la build/release | head -40
+          df -h / | tail -1
+          cp build/work/status-*.json build/release/ 2>/dev/null || true
+          cp shard.log build/release/shard-${{ matrix.shard }}.log 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: catabackport-shard-${{ matrix.shard }}
+          path: build/release
+          if-no-files-found: warn
+
+  publish:
+    needs: [plan, shard]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && inputs.publish }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: catabackport-shard-*
+          path: build/shards
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: catabackport-plan
+          path: build/plan
+      - name: Assemble
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          mkdir -p build/release
+          # the packs of earlier runs stay (their json says what they were made from); this run's replace them
+          gh release download cata-backport -R "${{ github.repository }}" -p 'cata-*.json' -D build/release --clobber 2>/dev/null || true
+          cp build/shards/cata-*.tar.xz build/shards/cata-*.json build/release/ 2>/dev/null || true
+          python3 -m catabackport assemble --release build/release
+          cp build/shards/status-*.json build/shards/shard-*.log build/release/ 2>/dev/null || true
+          # the plain-text summary: what is in, what failed, what was deferred
+          {
+            cat build/release/summary.txt
+            echo
+            echo "this run: maps=${{ inputs.maps }} stages=${{ inputs.stages }}"
+            cat build/plan/inventory-report.txt | head -30
+            for f in build/shards/status-*.json; do [ -e "$f" ] && python3 -c "
+          import json,sys
+          for r in json.load(open('$f'))['results']:
+              print(f\"{r['status']:9} {r['unit']}\", '; '.join(r['problems'][:3]))"; done
+          } > build/release/run-summary.txt
+          cat build/release/run-summary.txt
+          cp build/release/run-summary.txt "$GITHUB_STEP_SUMMARY"
+      - name: Publish (release cata-backport)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          repo="${{ github.repository }}"
+          if ! gh release view cata-backport -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/cata-backport" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create cata-backport -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Cataclysm backport: per-zone packs (experimental)" \
+              --notes "Cataclysm's maps, files and world for Wrath++, one pack per zone and an index.json (docs/wrathpp/CATA_BACKPORT.md). Downloaded by the app; not an app release."
+          fi
+          # a pack is replaced only by a finished one: each asset is uploaded whole with --clobber; index.json last, so it never names a missing pack
+          for f in build/release/cata-*.tar.xz build/release/cata-*.json; do [ -e "$f" ] && gh release upload cata-backport "$f" -R "$repo" --clobber; done
+          gh release upload cata-backport build/release/index.json build/release/summary.txt build/release/report.json build/release/run-summary.txt -R "$repo" --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: catabackport-release
+          path: |
+            build/release/index.json
+            build/release/summary.txt
+            build/release/report.json
+            build/release/run-summary.txt
+            build/release/cata-*.json

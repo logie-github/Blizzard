@@ -494,5 +494,36 @@ class BlueEyesTest(unittest.TestCase):
         self.assertEqual(sl_looks.RACE_ICONS["HIGHELF"], 131152)
 
 
+class AnimationFallbackGuard(unittest.TestCase):
+    """The CI guard on sequences drawn as another animation (m2.convert's files that fit none of the skeletons)."""
+
+    def test_counts_only_ids_the_game_knows(self):
+        fallbacks = {"A": [(67, 0), (500, 0), (900, 0)], "B": [], "C": [(97, 0)]}
+        self.assertEqual(sl_looks.fallback_counts(fallbacks, {67, 97, 500}), {"A": 2, "B": 0, "C": 1})
+        self.assertEqual(sl_looks.fallback_counts(fallbacks, None)["A"], 3)
+
+    def test_guard_fails_when_a_count_rises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = os.path.join(tmp, "base.json")
+            with open(base, "w") as f:
+                f.write('{"A": 2}')
+            quiet = lambda *a: None
+            sl_looks.check_fallbacks({"A": [(1, 0), (2, 0)], "B": []}, tmp, tmp, quiet, base)       # no AnimationData.dbc: all ids count
+            self.assertTrue(os.path.exists(os.path.join(tmp, "anim_fallbacks.json")))
+            with self.assertRaises(ValueError) as caught:
+                sl_looks.check_fallbacks({"A": [(1, 0), (2, 0), (3, 0)]}, tmp, tmp, quiet, base)
+            self.assertIn("A: 3 (baseline 2", str(caught.exception))
+            with self.assertRaises(ValueError):                                                      # a model with no baseline starts at 0
+                sl_looks.check_fallbacks({"New": [(1, 0)]}, tmp, tmp, quiet, base)
+
+    def test_reads_the_ids_of_animation_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            rows = [(0, 1), (4, 2), (67, 3)]
+            with open(os.path.join(tmp, "AnimationData.dbc"), "wb") as f:
+                f.write(b"WDBC" + struct.pack("<4I", len(rows), 2, 8, 1) + b"".join(struct.pack("<2I", *r) for r in rows) + b"\0")
+            self.assertEqual(sl_looks.game_animations(tmp), {0, 4, 67})
+            self.assertIsNone(sl_looks.game_animations(os.path.join(tmp, "none")))
+
+
 if __name__ == "__main__":
     unittest.main()

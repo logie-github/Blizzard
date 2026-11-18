@@ -172,12 +172,15 @@ def build(read, model, layout, out_dir, log=print):
                 w.write(path, b"")
 
     # The skin extra (m2.py: the sections whose art lies where 3.3.5 composes the face): each skin's whole texture of
-    # today, for that skin's colour, palettized at its own size.
+    # today, for that skin's colour, at its own size, DXT1 (it was palettized: the Forsaken man's chest, upper arms and shins are the
+    # only sections drawn with a hardcoded texture that is both palettized and over 512 across, and on the phone (build 391) they were
+    # the engine's bright green, its picture for a texture that did not load, with the file in the package; every hardcoded texture of
+    # the other races, DXT, drew. A guess at the cause, not seen in the game.)
     if layout.get("extra"):
         for s in model["skins"]:
             path = names.skin_extra(model, s["index"])
             if not w.exists(path):
-                w.write(path, blp.write_palette(np.ascontiguousarray(texture(s["body"]))))
+                w.write(path, blp.write_dxt(np.ascontiguousarray(texture(s["body"]))))
             else:
                 w.write(path, b"")
 

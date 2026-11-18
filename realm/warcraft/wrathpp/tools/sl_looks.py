@@ -958,6 +958,7 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
         read = dark_troll.Resolver(read, specs)
     client = os.path.join(out_dir, "client")
     written = []
+    fallbacks = {}                                       # model name -> the (id, variation) of its sequences drawn as another animation
     for key, entry in looks["races"].items():
         if entry.get("alias_of"):
             continue
@@ -966,11 +967,14 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
             # don't fit together (m2.MixedBuilds: the Blood Elf man's), for the model and every piece made from it
             mread = read
             try:
-                written += m2.convert(mread, dict(model, geosets=None), client, log)
+                written += m2.convert(mread, dict(model, geosets=None, retry_on_fallback=True), client, log)
             except m2.MixedBuilds as mixed:
+                # (also a model whose animation files fit none of its skeletons, m2.FallbackAnimations: 385 sequences of 17 models played
+                # as another animation, the emotes, sitting and sleeping among them, until their files were fetched of one build)
                 log("%s; its files fetched at %s" % (mixed, allied_package.PINNED_BUILD))
                 mread = allied_package.cached(os.path.join(cache, allied_package.PINNED_BUILD), allied_package.wago_at(allied_package.PINNED_BUILD))
                 written += m2.convert(mread, dict(model, geosets=None), client, log)
+            fallbacks[model["name"]] = list(m2.last_fallbacks)
             model_path = os.path.join(client, model["folder"].replace("\\", "/"), model["name"] + ".m2")
             problems = check_m2.check(model_path)
             if problems:
@@ -1055,6 +1059,7 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                         races[key]["models"][sex]["part_types"] = m["part_types"]
             with open(looks_path, "w") as f:
                 json.dump(saved, f, indent=1, sort_keys=True)
+    check_fallbacks(fallbacks, dbc_dir, out_dir, log)
     missing = verify(looks, out_dir)
     if missing:
         raise ValueError("%d files the tables name are not in the package, e.g. %s" % (len(missing), ", ".join(missing[:5])))
@@ -1065,6 +1070,43 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     with open(listing, "w") as out:
         out.write("".join(p + "\n" for p in sorted(set(written))))
     log("looks: %d files" % len(set(written)))
+
+
+ANIM_BASELINE = os.path.join(os.path.dirname(HERE), "data", "anim_fallbacks.json")
+
+
+def game_animations(dbc_dir):
+    """The animation ids 3.3.5 knows (its AnimationData): the ones a player's model can be asked to play, all of them for a character."""
+    path = os.path.join(dbc_dir, "AnimationData.dbc")
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        data = f.read()
+    count, _fields, size = struct.unpack_from("<3I", data, 4)
+    return {struct.unpack_from("<I", data, 20 + i * size)[0] for i in range(count)}
+
+
+def fallback_counts(fallbacks, known):
+    """Per model, how many of its sequences play as another animation that a player meets (an id 3.3.5 knows: the animation ids
+    of the sequences m2.convert drew as another because their files fit none of the model's skeletons)."""
+    return {name: sum(1 for anim, _var in keys if known is None or anim in known) for name, keys in sorted(fallbacks.items())}
+
+
+def check_fallbacks(fallbacks, dbc_dir, out_dir, log=print, baseline_path=None):
+    """The CI guard on animations: the count per model of gameplay-relevant sequences that fall back may not rise above the
+    baseline (data/anim_fallbacks.json: model name -> count, a model not in it 0). Writes the run's counts to OUT/anim_fallbacks.json
+    (copy it over the baseline to lower it)."""
+    counts = fallback_counts(fallbacks, game_animations(dbc_dir))
+    with open(os.path.join(out_dir, "anim_fallbacks.json"), "w") as f:
+        json.dump(counts, f, indent=1, sort_keys=True)
+    path = baseline_path or ANIM_BASELINE
+    baseline = json.load(open(path)) if os.path.exists(path) else {}
+    log("animations drawn as another (gameplay ids): %d in %d models" % (sum(counts.values()), sum(1 for n in counts.values() if n)))
+    worse = ["%s: %d (baseline %d; e.g. %s)" % (name, n, baseline.get(name, 0), ", ".join("%d-%d" % k for k in fallbacks[name][:4]))
+             for name, n in counts.items() if n > baseline.get(name, 0)]
+    if worse:
+        raise ValueError("animation fallbacks rose (a skeleton and its .anim files of two builds?): " + "; ".join(worse))
+    return counts
 
 
 def verify(looks, out_dir):
@@ -1189,7 +1231,9 @@ def dark_troll_entry(troll, night_elf, choice_rows=None):
     out["name"] = "DarkTroll"
     out["replace_rows"] = False
     for sex, m in out["models"].items():
-        specs, extra = dark_troll.extend(m, night_elf["models"][sex])
+        # (each sex its own range of made-up ids: package() merges the sexes' specs by id, and both counted up from SYNTH, so the man's
+        # skin 13 on was made from the woman's spec of the same id, a face picture for a body: the phone's white torso, black arms)
+        specs, extra = dark_troll.extend(m, night_elf["models"][sex], first_id=dark_troll.SYNTH + int(sex) * 1000000)
         for row in extra["Skin Color"] + extra["Hair Color"]:
             if choice_rows and row["ID"] in choice_rows:
                 row["SwatchColor_0"] = choice_rows[row["ID"]].get("SwatchColor_0", "0")
