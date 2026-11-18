@@ -78,6 +78,7 @@ BODY_TATTOOS = ("Body Tattoo", "Tattoo")    # a skin overlay with colours of its
 # Today's geoset groups the 3.3.5 game picks from its tables, so every variant stays:
 TABLE_GROUPS = {0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 15, 18}
 GLOW_GROUP, EARS_GROUP = 17, 7
+SKIN_EXTRA_TYPE = "8"           # ChrModelTextureLayer.TextureType of the skin extra (3.3.5's texture type 8: a skin row's second texture)
 
 
 def rows(csv_dir, table):
@@ -265,6 +266,12 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         fs = [f for _, files in tables.choice_materials(jewelry_first[0], TARGET_TORSO) for f in files]
         jewelry_torso = fs[0] if fs else 0
     skin_choices = tables.option_choices(model_id, "Skin Color")
+    # The skin extra: today's layer of texture type 8 in the model's layout (the Tauren's and the Worgen's fur, the Draenei men's
+    # crests), a picture of the skin colour's own that the model's sections of that type draw. 3.3.5 has the layer too (a skin
+    # row's second texture): m2.py keeps those sections for a model whose skins name it.
+    layout_id = tables.chr_models.get(str(model_id), {}).get("CharComponentTextureLayoutID")
+    extra_targets = sorted({row["ChrModelTextureTargetID_0"] for row in tables.layers
+                            if row["CharComponentTextureLayoutsID"] == layout_id and row["TextureType"] == SKIN_EXTRA_TYPE})
     tattoos = []
     for oname in BODY_TATTOOS:
         tattoos = tables.option_choices(model_id, oname, only_available=False)
@@ -286,6 +293,9 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         if not body:
             continue
         base_skins.append({"choice": c["ID"], "order": int(c["OrderIndex"]), "body": body[0], "pelvis": pelvis[0] if pelvis else jewelry_pelvis, "torso": torso[0] if torso else jewelry_torso})
+        extra = [f for target in extra_targets for _, fs in tables.choice_materials(c, target) for f in fs]
+        if extra:
+            base_skins[-1]["extra"] = extra[0]
     for t, (files, tname) in enumerate(zip(tattoo_files, tattoo_names)):
         for b in base_skins:
             skins.append(dict(b, index=len(skins), base=base_skins.index(b), tattoo=files, tattoo_name=tname))

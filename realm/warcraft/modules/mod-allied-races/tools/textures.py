@@ -160,6 +160,17 @@ def build(read, model, layout, out_dir, log=print):
                 else:
                     w.write(path, b"")
 
+    # The skin extra of a model with fur (today's texture type 8, kept by m2.py: the Tauren's and the Worgen's fur): the skin
+    # colour's own picture of that layer as it is (DXT; the model's sections of that type have its coordinates), under the name
+    # the skin's row gives as its second texture.
+    for s in model["skins"]:
+        if s.get("extra"):
+            path = names.skin_extra(model, s["index"])
+            if not w.exists(path):
+                w.write(path, read(s["extra"]))
+            else:
+                w.write(path, b"")
+
     # The skin extra (m2.py: the sections whose art lies where 3.3.5 composes the face): each skin's whole texture of
     # today, for that skin's colour, palettized at its own size.
     if layout.get("extra"):

@@ -40,6 +40,25 @@ LOOKS = {"races": {"4": {"race": 4, "replace_rows": True, "models": {"0": model(
                    "29": {"race": 29, "models": {"0": model("VoidElfMale", "Character\\VoidElf\\Male")}}}}
 
 
+class FurTest(unittest.TestCase):
+    """a race whose model has fur (today's texture type 8) and no hair colours: the Worgen"""
+
+    def test_a_skin_with_an_extra_names_it_and_a_race_without_hair_colours_has_a_hair_row_a_style(self):
+        m = model("WorgenFemale", "Character\\Worgen\\Female")
+        m["skins"] = [{"index": 0, "base": 0, "pelvis": 9, "torso": 0, "extra": 3057320}, {"index": 1, "base": 1, "pelvis": 0, "torso": 0}]
+        m["hair_colors"] = []
+        sections, hair, facial = sl_looks.table_rows({"races": {"12": {"race": 12, "models": {"1": m}}}})
+        skins = [r for r in sections if r[2] == 0]
+        self.assertEqual([r[4] for r in skins], ["Character\\Worgen\\Female\\WorgenFemaleSkin00_00_Extra.blp", ""])
+        rows = [r for r in sections if r[2] == 3]
+        self.assertEqual([(r[3], r[4], r[7], r[8]) for r in rows], [("", "", 0, 0), ("", "", 1, 0)])      # every style, colour 0, no texture
+        self.assertEqual(len(hair), 2)
+
+    def test_the_worgen_s_ears_are_on_the_feature_slider(self):
+        self.assertEqual(sl_looks.FEATURES[(12, 0)][0], ["Ears", "Facial Hair"])
+        self.assertEqual(sl_looks.FEATURES[(12, 1)][0], ["Ears"])
+
+
 class LooksLastTest(unittest.TestCase):
     def test_the_looks_character_rows_go_after_a_module_s(self):
         """the first dir's CharSections (the looks' drop and put of a race) after the other dirs', so a module's rows of that race are
