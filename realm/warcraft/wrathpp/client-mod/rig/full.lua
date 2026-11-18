@@ -133,8 +133,59 @@ local function customize(R, deep)
 	end
 end
 
+-- The body options of every race's women (RIG_WPP: the appearance add-on with the realm's registry): the last tab is Body, its
+-- Shape (4), Style (17) and Density (5) rows take a tap each way, and the design the native mod is given for the creator's
+-- character is her race's folder's (the High Elf's the Void Elf's, whose files she is drawn with); a man has none.
+local BODY_FOLDER = { [1] = "Human", [2] = "Orc", [3] = "Dwarf", [4] = "NightElf", [5] = "Scourge", [6] = "Tauren", [7] = "Gnome", [8] = "Troll", [9] = "Goblin",
+	[10] = "BloodElf", [11] = "Draenei", [12] = "Worgen", [13] = "Nightborne", [14] = "Lightforged", [15] = "Zandalari", [16] = "Highmountain", [17] = "DarkIron",
+	[18] = "Vulpera", [19] = "Maghar", [20] = "Mechagnome", [21] = "DarkTroll", [22] = "VoidElf", [23] = "VoidElf" }
+local bodyTabs = 0
+local function body(R, race, sex)
+	local last
+	for k = 1, 12 do if R.visible("WrathppCategory"..k) then last = k end end
+	local label = last and _G["WrathppCategory"..last].label:GetText()
+	if sex == 0 then
+		if label == "Body" and R.row("Shape") then fail("a man has the body options' rows") end
+		return
+	end
+	if not BODY_FOLDER[race] then return end                 -- (another realm's race: none of Wrath++'s)
+	if label ~= "Body" then fail("body options: her last tab is "..tostring(label)..", not Body") return end
+	if not tap(R, "WrathppCategory"..last, "the Body tab") then return end
+	local shape, style, density = R.row("Shape"), R.row("Style"), R.row("Density")
+	if not (shape and style and density) then fail("body options: no Shape, Style and Density rows on her Body tab") return end
+	if shape.row.kind ~= "list" or #shape.row.choices ~= 4 or #style.row.choices ~= 17 or #density.row.choices ~= 5 then
+		fail(("body options: Shape %d, Style %d, Density %d choices (4, 17, 5)"):format(#shape.row.choices, #style.row.choices, #density.row.choices)) return
+	end
+	-- (the sweep before left each row on the last choice it tapped: every row is put on a choice through its list)
+	local function choose(name, c)
+		local f = R.row(name)
+		if not f or not tap(R, f.choice, name.." list", WrathppOptionList) then return false end
+		local cell = _G["WrathppChoice"..c]
+		if not (R.visible("WrathppPopout") and cell and cell:IsVisible()) then fail("body options: "..name.."'s choice "..c.." is not in its list") return false end
+		if not tap(R, cell, name.." choice "..c, WrathppPopoutList) then return false end
+		if R.visible("WrathppPopout") then WrathppCreate_ClosePopout() end
+		f = R.row(name)
+		if not f or f.row.at ~= c then fail("body options: "..name.." choice "..c.." tapped, the row shows "..tostring(f and f.row.at)) return false end
+		return true
+	end
+	if not (choose("Shape", 1) and choose("Style", 1) and choose("Density", 5)) then return end
+	local empty = "Character\\"..BODY_FOLDER[race].."\\Female\\WppLayer_0.blp"
+	if R.G.bodyPreview ~= empty then fail("body options: Style none gives the creator's character "..tostring(R.G.bodyPreview)..", not "..empty) end
+	if not tap(R, R.row("Shape").next, "Shape next", WrathppOptionList) then return end
+	if R.row("Shape").choice.label:GetText() ~= "Petite" then fail("body options: Shape next is "..tostring(R.row("Shape").choice.label:GetText())) end
+	if not tap(R, R.row("Style").next, "Style next", WrathppOptionList) then return end
+	local want = "Character\\"..BODY_FOLDER[race].."\\Female\\WppLayer_1_4.blp"
+	if R.G.bodyPreview ~= want then fail("body options: the design given for the creator's character is "..tostring(R.G.bodyPreview)..", not "..want) end
+	if not tap(R, R.row("Density").previous, "Density previous", WrathppOptionList) then return end
+	want = "Character\\"..BODY_FOLDER[race].."\\Female\\WppLayer_1_3.blp"
+	if R.G.bodyPreview ~= want then fail("body options: at 75% the design is "..tostring(R.G.bodyPreview)..", not "..want) end
+	if not (choose("Shape", 1) and choose("Style", 1) and choose("Density", 5)) then return end
+	bodyTabs = bodyTabs + 1
+end
+
 local started = os.clock()
 local done = {}
+local bodied = {}
 local named = {}           -- every texture file a script named, and the line that named it
 local shaded = {}          -- where a Wrath++ script put a pixel shader on a texture (SetDesaturated)
 for _, pair in ipairs(T.baseInfo) do
@@ -153,6 +204,7 @@ for _, pair in ipairs(T.baseInfo) do
 			if not tap(R, "WrathppCustomizeButton", "Customize") then return end
 			apart(R, "customize")
 			customize(R, deep)
+			if os.getenv("RIG_WPP") and not bodied[key] then bodied[key] = true; body(R, race, sex) end
 			if R.visible("WrathppRandomize") then for i = 1, 3 do if not tap(R, "WrathppRandomize", "Randomize") then return end; current(R, "Randomize "..i) end end
 			if not tap(R, "WrathppBackButton", "Back") then return end
 			if not R.visible("WrathppCustomizeButton") then fail("Back did not bring the first screen") return end
@@ -211,6 +263,13 @@ for file, by in pairs(named) do if by:match("^Wrathpp") and file:lower():find("i
 local wantArt = (os.getenv("RIG_ATLAS") or "-") ~= "-" and os.getenv("RIG_ATLAS") ~= "" and os.getenv("RIG_ART") ~= "unreadable"
 if wantArt and (artUsed < 40 or not (WrathppCreator and WrathppCreator.art)) then fail("Shadowlands' art is in and the creator drew "..artUsed.." of its pieces") end
 if not wantArt and WrathppCreator and WrathppCreator.art then fail("the creator says it draws with Shadowlands' art, which is not readable here") end
+if os.getenv("RIG_WPP") then
+	where = "body options"
+	local women = 0
+	for key in pairs(bodied) do local race, sex = key:match("^(%d+)_(%d)$"); if sex == "1" and BODY_FOLDER[tonumber(race)] then women = women + 1 end end
+	if bodyTabs ~= women or women == 0 then fail(("the Body tab was shown and tapped for %d of %d races' women"):format(bodyTabs, women)) end
+	print(("body options: the Body tab shown and tapped for %d races' women"):format(bodyTabs))
+end
 print(("%d taps, %d checks, %d textures named (%d of Shadowlands' art), %.0f s; %d problems"):format(taps, checks, files, artUsed, os.clock() - started, fails.n or 0))
 for _, f in ipairs(fails) do print("  "..f) end
 os.exit((fails.n or 0) == 0 and 0 or 1)
