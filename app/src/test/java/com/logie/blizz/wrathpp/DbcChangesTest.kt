@@ -23,6 +23,32 @@ class DbcChangesTest {
         assertEquals(expected, toHex(t.write()))
     }
 
+    // 6 rows (iiiiis: id, race, sex, skin, face, name) and Wrath++'s own map: a field from itself in the rows of one race and sex (each row
+    // looked up once, the unlisted the default), no default (left as it is) and a value of 32 bits, a key of two fields, every row ("-"),
+    // the id field and then a put of that id. Made by apply_client.py.
+    private val mapInput = "574442430600000006000000180000000d00000001000000040000000100000002000000050000000100000002000000040000000100000003000000000000000300000003000000040000000000000002000000050000000500000004000000050000000100000009000000010000000700000005000000040000000100000028000000070000000900000006000000060000000000000003000000020000000b00000000610062006300640065006600"
+    private val mapChanges = "# the creatures' looks: a rule by race and sex\nmap\t1=4,2=1\t3\t3\t0\t2=3\t3=7\nmap\t1=4,2=1\t4\t4\t-\t5=30\t0=4294967295\nmap\t1=6,2=0\t3,4\t4\t9\t3,2=17\t3,3=18\nmap\t-\t1,2\t3\t-\t5,1=8\ntypes\tiiiiis\nmap\t-\t0\t0\t-\t3=30\nput\t30\t1\t1\t1\t1\tnew\n"
+    private val mapExpected = "5744424306000000060000001800000011000000010000000400000001000000030000001e0000000100000002000000040000000100000007000000ffffffff030000001e000000010000000100000001000000010000000d00000004000000050000000100000008000000010000000700000005000000040000000100000000000000070000000900000006000000060000000000000003000000110000000b000000006100620063006400650066006e657700"
+
+    @Test fun aMapIsTheSameBytesAsTheToolMakes() {
+        val t = DbcTable(hex(mapInput))
+        t.apply(mapChanges)
+        assertEquals(mapExpected, toHex(t.write()))
+        // row by row: race 4 sex 1's skins 2 -> 3 and 3 -> 7 (not 2 -> 3 -> 7), 40 -> the default 0; another sex and race untouched by it
+        assertEquals(listOf(3, 7, 1, 8, 0, 3), t.records.indices.map { t.get(it, 3) })
+        assertEquals(listOf(30, -1, 1, 1, 7, 17), t.records.indices.map { t.get(it, 4) })
+        assertEquals(listOf(1, 2, 30, 4, 5, 6), t.records.indices.map { t.get(it, 0) })
+    }
+
+    @Test fun aBadMapIsRefusedWithItsLine() {
+        for ((text, part) in listOf("map\t-\t3\n" to "wrong size", "map\t-\t9\t3\t0\n" to "no such field", "map\t-\t3\t9\t0\n" to "no such field",
+            "map\t9=1\t3\t3\t0\n" to "no such field", "map\t1\t3\t3\t0\n" to "FIELD=VALUE", "map\t-\t1,2\t3\t0\t4=1\n" to "key of the wrong size",
+            "map\t-\t3\t3\tx\n" to "isn't one", "map\t-\t3\t3\t0\t2\n" to "KEY=VALUE", "map\t-\t-1\t3\t0\n" to "no such field", "\nmap\t-\t3\n" to "line 2")) {
+            val t = DbcTable(hex(mapInput))
+            try { t.apply(text); fail("accepted $text") } catch (e: IOException) { assertTrue("${e.message} for $part", e.message!!.contains(part)) }
+        }
+    }
+
     @Test fun aTableReadAndWrittenIsTheSame() {
         assertEquals(input, toHex(DbcTable(hex(input)).write()))
     }

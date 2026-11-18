@@ -6,8 +6,11 @@ import java.nio.ByteOrder
 
 /**
  * A game table (WDBC) and the change files the allied races module's generator writes (`put`, `putraw`, `appendraw`, `copyrow`,
- * `remapfield`, `or`, `set`) and Wrath++'s own `drop`, applied the way mod-skyborne's SkyborneFiles.cpp does as a realm starts and
+ * `remapfield`, `or`, `set`) and Wrath++'s own `drop` and `map`, applied the way mod-skyborne's SkyborneFiles.cpp does as a realm starts and
  * `realm/warcraft/wrathpp/tools/apply_client.py` does at packaging (the same results: DbcChangesTest holds both to one golden).
+ * `map WHERE FROM TO DEFAULT KEY=VALUE...` is a rule over whatever rows the table has (the creatures' looks, by race and sex): in
+ * every row WHERE holds for (`-`: every row; else `FIELD=VALUE,...`), field TO becomes the VALUE listed for the row's values of the
+ * fields FROM (`FIELD,...`), or DEFAULT for a key that isn't listed (`-`: left as it is); each row is looked up once.
  * Wrath++ applies them here, to the client's own tables (the HD look's included), as the looks are put in ([WrathppLooks]).
  */
 class DbcTable(data: ByteArray) {
@@ -143,6 +146,34 @@ class DbcTable(data: ByteArray) {
                         for (row in records.indices) if (!pairs.all { (a, b) -> get(row, a) == b }) kept.add(records[row])
                         records.clear(); records.addAll(kept)
                         rewhole(); reindex()
+                    }
+                    "map" -> {
+                        if (f.size < 5) throw IOException("a map of the wrong size$where")
+                        val count = size / 4
+                        val conds = if (f[1] == "-") emptyList() else f[1].split(',').map { c ->
+                            val p = c.split('=')
+                            if (p.size != 2) throw IOException("a map's condition that isn't FIELD=VALUE$where")
+                            p[0].toInt() to p[1].toLong().toInt()
+                        }
+                        val from = f[2].split(',').map { it.toInt() }
+                        val to = f[3].toInt()
+                        val default = if (f[4] == "-") null else f[4].toLong().toInt()
+                        if ((conds.map { it.first } + from + to).any { it < 0 || it >= count }) throw IOException("no such field$where")
+                        val lookup = HashMap<List<Int>, Int>()
+                        for (i in 5 until f.size) {
+                            val at = f[i].indexOf('=')
+                            if (at < 0) throw IOException("a map's pair that isn't KEY=VALUE$where")
+                            val key = f[i].substring(0, at).split(',').map { it.toLong().toInt() }
+                            if (key.size != from.size) throw IOException("a map's key of the wrong size$where")
+                            lookup[key] = f[i].substring(at + 1).toLong().toInt()
+                        }
+                        for (row in records.indices) {
+                            if (!conds.all { (a, b) -> get(row, a) == b }) continue
+                            val value = lookup[from.map { get(row, it) }] ?: default
+                            if (value != null) set(row, to, value)
+                        }
+                        rewhole()
+                        if (to == 0 && hasIds) reindex()
                     }
                     "or", "set" -> {
                         val id = f[1].toLong().toInt(); val field = f[2].toInt(); val value = f[3].toLong().toInt()

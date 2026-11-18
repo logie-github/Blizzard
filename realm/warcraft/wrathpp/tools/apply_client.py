@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """Applies the allied races module's change files (the .txt files build_data.py writes: put, putraw, appendraw, copyrow,
-remapfield, or, set, and Wrath++'s own drop) to the game's own tables (WDBC), as mod-skyborne's SkyborneFiles.cpp ApplyChanges does as a realm
+remapfield, or, set, and Wrath++'s own drop and map) to the game's own tables (WDBC), as mod-skyborne's SkyborneFiles.cpp ApplyChanges does as a realm
 starts: Wrath++ makes its tables here, at packaging, so its app only installs them.
+
+Wrath++'s own two (the app's DbcChanges.kt does the same):
+    drop  FIELD VALUE [FIELD VALUE...]              the rows whose fields are those values are taken out
+    map   WHERE FROM TO DEFAULT [KEY=VALUE...]      a rule over whatever rows the table has: in every row that WHERE holds for
+          ("-": every row; else FIELD=VALUE[,FIELD=VALUE...], all of them), field TO becomes the VALUE listed for the row's
+          values of the fields FROM (FIELD[,FIELD...]; KEY: their values, comma separated, as the row has them when the line
+          is reached), or DEFAULT for a key that isn't listed ("-": such a row is left as it is). Every row is looked up
+          once: 1=2 2=3 makes a 1 a 2, not a 3.
 
     python3 tools/apply_client.py STOCK_DBC_DIR CHANGES_DIR OUT_DIR     (a table without changes is copied as it is
                                                                          only if it has a file: the changed ones are written)
@@ -156,6 +164,36 @@ def apply(table, changes):
                 whole = set(table.records)
                 by_id = {}
                 if has_ids:
+                    for row in range(len(table.records)):
+                        by_id.setdefault(table.get(row, 0), row)
+            elif op == "map":
+                # Wrath++'s own: a field looked up from other fields' values, in the rows a condition chooses
+                if len(f) < 5:
+                    raise ValueError("a map of the wrong size" + where)
+                count = table.size // 4
+                conds = [] if f[1] == "-" else [tuple(int(x) for x in c.split("=")) for c in f[1].split(",")]
+                src = [int(x) for x in f[2].split(",")]
+                dst = int(f[3])
+                default = None if f[4] == "-" else int(f[4]) & 0xFFFFFFFF
+                if any(len(c) != 2 for c in conds):
+                    raise ValueError("a map's condition that isn't FIELD=VALUE" + where)
+                if any(not 0 <= x < count for x in [c[0] for c in conds] + src + [dst]):
+                    raise ValueError("no such field" + where)
+                lookup = {}
+                for pair in f[5:]:
+                    key, _, value = pair.partition("=")
+                    key = tuple(int(x) & 0xFFFFFFFF for x in key.split(","))
+                    if len(key) != len(src):
+                        raise ValueError("a map's key of the wrong size" + where)
+                    lookup[key] = int(value) & 0xFFFFFFFF
+                for row in range(len(table.records)):
+                    if all(table.get(row, a) == b & 0xFFFFFFFF for a, b in conds):
+                        value = lookup.get(tuple(table.get(row, x) for x in src), default)
+                        if value is not None:
+                            table.set(row, dst, value)
+                whole = set(table.records)
+                if dst == 0 and has_ids:
+                    by_id = {}
                     for row in range(len(table.records)):
                         by_id.setdefault(table.get(row, 0), row)
             elif op in ("or", "set"):

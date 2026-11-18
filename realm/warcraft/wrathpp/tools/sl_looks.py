@@ -349,6 +349,8 @@ def build_races(csv_dir, races=None):
             if len(model["features"]) > 255:
                 raise SystemExit("%s: %d features, past 3.3.5's 255" % (model["name"], len(model["features"])))
             model["chr_model"] = chr_model
+            # (the feature slider's digits, the first changing slowest: how many choices each of its options has; npc_numbers)
+            model["feature_sizes"] = [len(tables.option_choices(chr_model, o, only_available=False)) for o in model["feature_options"]]
             model["overlays"] = overlays_of(tables, chr_model, model)
             model["variants"] = variants_of(tables, chr_model, model)
             model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
@@ -434,13 +436,205 @@ def looks_changes(looks, stock_dbc_dir):
     lines += ["drop\t0\t%d\t1\t%d" % rs for rs in mine]
     lines += ["appendraw\t" + struct.pack("<8I", *(r[:7] + [glow.get((r[0], r[1]), 0)])).hex() for r in facial]
     out["CharacterFacialHairStyles"] = "\n".join(lines) + "\n"
+    npc = npc_changes(only, stock_dbc_dir)
+    if npc:
+        out["CreatureDisplayInfoExtra"] = npc
     return out
+
+
+# --- the creatures' looks (CreatureDisplayInfoExtra) -----------------------------------------------------------------------------
+# A creature drawn with a race's model has a row there: its race, sex and 3.3.5's five numbers (skin, face, hair style, hair colour,
+# facial hair), its items, and the name of a texture baked from all of it for the model 3.3.5 had. On the looks' models the baked
+# face lies in the wrong place (m2.py: the head's layout is the converter's own), so Wrath++'s native mod has the game compose such
+# a creature's skin as it does a player's (Native.cpp, "the creatures' skins"; Wrathpp\npc.txt says which races and sexes), from the
+# row's five numbers. Those are 3.3.5's, and the looks' tables count otherwise (a face is a face and an eye colour, the feature
+# slider several options at once, the Tauren's horns no longer their hair): the rule below turns them into the looks' own, in
+# whatever rows the table has (the game's, an HD look's, Cataclysm's starting areas'), by race and sex.
+EXTRA_KINDS = "iiiiiiiiiiiiiiiiiiiis"
+EXTRA_RACE, EXTRA_SEX, EXTRA_SKIN, EXTRA_FACE, EXTRA_HAIR, EXTRA_COLOUR, EXTRA_FACIAL = 1, 2, 3, 4, 5, 6, 7
+NPC_LISTED = 64         # the numbers written out one by one (3.3.5's own go to 24): any other takes what 0 takes
+# 3.3.5's hair style slider where today's Hair Style is something else: the option of today's feature slider it became (the
+# Tauren's horns: their hair is today's Foremane).
+CLASSIC_HAIR = {(6, 0): "Horn Style", (6, 1): "Horn Style"}
+# 3.3.5's feature slider where it is one option of today's feature slider, its choices in 3.3.5's order ("": nothing of today's
+# slider: the Night Elf women's markings and the Tauren women's hair are not on it). Any other race and sex: today's features are
+# matched by their geosets (3.3.5's beards, moustaches and sideburns kept their numbers).
+CLASSIC_FEATURE = {(1, 1): "Piercings", (2, 1): "Earrings", (3, 1): "Earrings", (4, 1): "", (6, 0): "Facial Hair", (6, 1): "",
+                   (7, 1): "Earrings", (8, 0): "Tusks", (8, 1): "Tusks", (10, 0): "Facial Hair", (10, 1): "Earrings", (11, 1): "Horns"}
+
+
+def classic_tables(stock_dbc_dir):
+    """3.3.5's own numbers, from the stock tables: {(race, sex): {"skins", "faces", "hair", "colours": how many, "facial": {variation:
+    its geosets (groups 1, 3, 2)}}}."""
+    import apply_client
+    out = {}
+
+    def entry(race, sex):
+        return out.setdefault((race, sex), {"skins": 0, "faces": 0, "hair": 0, "colours": 0, "facial": {}})
+
+    path = os.path.join(stock_dbc_dir, "CharSections.dbc")
+    t = apply_client.Table(struct.pack("<4s4I", b"WDBC", 0, 10, 40, 1) + b"\0")     # (no table: no race of 3.3.5's is known)
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            t = apply_client.Table(f.read())
+    for i in range(len(t.records)):
+        race, sex, section, variation, colour = t.get(i, 1), t.get(i, 2), t.get(i, 3), t.get(i, 8), t.get(i, 9)
+        e = entry(race, sex)
+        if section == 0:
+            e["skins"] = max(e["skins"], colour + 1)
+        elif section == 1:
+            e["faces"] = max(e["faces"], variation + 1)
+        elif section == 3:
+            e["hair"], e["colours"] = max(e["hair"], variation + 1), max(e["colours"], colour + 1)
+    with open(os.path.join(stock_dbc_dir, "CharacterFacialHairStyles.dbc"), "rb") as f:
+        t = apply_client.Table(f.read())
+    for i in range(len(t.records)):
+        entry(t.get(i, 0), t.get(i, 1))["facial"].setdefault(t.get(i, 2), (t.get(i, 3), t.get(i, 4), t.get(i, 5)))
+    return out
+
+
+def npc_numbers(m, race, sex, classic):
+    """3.3.5's five numbers of a creature of [m]'s race and sex as the looks' tables count them:
+
+        {"skin", "face", "colour", "hair": {3.3.5's number: the looks'}, "facial": {(3.3.5's hair style, facial hair): the looks'}}
+
+    for every number to NPC_LISTED (and 3.3.5's own, [classic]: classic_tables' entry, or None for a race 3.3.5 hasn't). How: Shadowlands
+    made 3.3.5's variations its choices one after the other (their ids in a row from the first: a race's 15 skins are choices
+    N to N+14, the creatures' own and the death knights' among them), so 3.3.5's number n is the choice n after the first, and the
+    looks' number is that choice's place in the looks. A choice the looks leave out (the creatures' own skins: a player can't pick
+    them) and a number 3.3.5 hasn't take the place of the number as many back as the looks' first run is long (a death knight's
+    face its face, a creature's skin one of the players'). A face is the face with the first eye colour. The feature slider:
+    CLASSIC_FEATURE and CLASSIC_HAIR, else the looks' feature whose geosets are 3.3.5's (3.3.5's "none" is geoset 1, today's 0)."""
+    def places(entries, number):
+        ids = {}
+        for i, e in enumerate(entries):
+            if "choice" in e:
+                ids.setdefault(int(e["choice"]), number(e, i))
+        if not ids:
+            return lambda n: 0
+        first = min(ids)
+        run = 0
+        while first + run in ids:
+            run += 1
+        return lambda n: ids[first + n] if first + n in ids and n < (limit[0] or n + 1) else ids[first + n % run]
+
+    limit = [0]
+    listed = range(NPC_LISTED)
+    out = {}
+    for field, entries, number, count in (("skin", m["skins"], lambda e, i: e.get("index", i), "skins"),
+                                          ("face", m["faces"], lambda e, i: i * max(1, len(m["eyes"])), "faces"),
+                                          ("hair", m["hair"], lambda e, i: e.get("variation", i), "hair"),
+                                          ("colour", m["hair_colors"], lambda e, i: e.get("index", i), "colours")):
+        limit[0] = classic[count] if classic and classic["faces"] else 0     # (a race 3.3.5 hasn't: every choice in the run counts)
+        place = places(entries, number)
+        out[field] = {n: place(n) for n in listed}
+    # the feature slider: its digits (the first option changing slowest)
+    options, sizes = list(m.get("feature_options", [])), list(m.get("feature_sizes", []))
+    total = 1
+    for size in sizes:
+        total *= size
+    if len(sizes) != len(options) or total != len(m["features"]) or not total:
+        options, sizes = [], []                            # (no digits known: every creature takes the first feature)
+
+    def feature(digits):
+        n = 0
+        for k, size in enumerate(sizes):
+            n = n * size + (digits.get(k, 0) % size)
+        return n
+
+    def by_geosets(wanted):
+        best, score = 0, -1
+        for f in m["features"]:
+            got = sum(1 for a, b in zip(f["geosets"][:3], wanted) if a == b) * 4 - sum(1 for g in f["geosets"][:3] if g)
+            if got > score:
+                best, score = f["variation"], got
+        return best
+
+    hair_option = CLASSIC_HAIR.get((race, sex))
+    own = CLASSIC_FEATURE.get((race, sex))
+    facial_rows = (classic or {}).get("facial", {})
+    facial = {}
+    hairs = range(NPC_LISTED // 2) if hair_option in options else (0,)     # (two numbers a key: half as far each)
+    for h in hairs:
+        for n in (range(NPC_LISTED // 2) if hair_option in options else listed):
+            digits = {}
+            if hair_option in options:
+                digits[options.index(hair_option)] = h
+            if own is None and not hair_option:
+                if n in facial_rows and m["features"]:
+                    facial[(h, n)] = by_geosets([0 if g == 1 else g for g in facial_rows[n]])
+                else:
+                    facial[(h, n)] = 0
+                continue
+            if own and own in options:
+                digits[options.index(own)] = n
+            facial[(h, n)] = feature(digits) if sizes else 0
+    out["facial"] = facial
+    out["hair_in_features"] = hair_option in options
+    if out["hair_in_features"]:
+        out["hair"] = {n: 0 for n in listed}                # (3.3.5's hair style went to the feature slider: today's first hair)
+    return out
+
+
+def npc_changes(looks, stock_dbc_dir):
+    """The rule for CreatureDisplayInfoExtra (a change file's text, apply_client.py's `map`), for the races and sexes whose rows the
+    looks replace; "" where there are none."""
+    classic = classic_tables(stock_dbc_dir)
+    lines = []
+    for entry in sorted((e for e in looks["races"].values() if e.get("replace_rows")), key=lambda e: e["race"]):
+        for sex, m in sorted(entry["models"].items()):
+            race, sex = entry["race"], int(sex)
+            n = npc_numbers(m, race, sex, classic.get((race, sex)))
+            where = "%d=%d,%d=%d" % (EXTRA_RACE, race, EXTRA_SEX, sex)
+
+            def line(source, to, pairs, default):
+                keys = sorted(pairs)
+                return "map\t%s\t%s\t%d\t%d\t%s" % (where, source, to, default, "\t".join(
+                    "%s=%d" % (",".join(str(k) for k in key) if isinstance(key, tuple) else key, pairs[key]) for key in keys if pairs[key] != default))
+
+            # (the feature first: it reads 3.3.5's hair style, which the hair's line then replaces)
+            if n["hair_in_features"]:
+                lines.append(line("%d,%d" % (EXTRA_HAIR, EXTRA_FACIAL), EXTRA_FACIAL, n["facial"], n["facial"][(0, 0)]))
+            else:
+                lines.append(line(str(EXTRA_FACIAL), EXTRA_FACIAL, {k[1]: v for k, v in n["facial"].items()}, n["facial"][(0, 0)]))
+            lines.append(line(str(EXTRA_SKIN), EXTRA_SKIN, n["skin"], n["skin"][0]))
+            lines.append(line(str(EXTRA_FACE), EXTRA_FACE, n["face"], n["face"][0]))
+            lines.append(line(str(EXTRA_HAIR), EXTRA_HAIR, n["hair"], n["hair"][0]))
+            lines.append(line(str(EXTRA_COLOUR), EXTRA_COLOUR, n["colour"], n["colour"][0]))
+    if not lines:
+        return ""
+    return "\n".join(["# CreatureDisplayInfoExtra: the creatures of the looks' races, 3.3.5's five numbers made the looks' (sl_looks.py npc_changes)",
+                      "types\t" + EXTRA_KINDS] + lines) + "\n"
+
+
+def write_npc_list(looks, client):
+    """Wrathpp/npc.txt in [client] (the game's patch): the races and sexes whose model is the looks' ("race<TAB>sex" a line), for the
+    native mod: a creature of one of them has its skin composed, not its baked texture put on. The ten races' run and the allied
+    races' write the same file: the lines of races this one doesn't have are kept."""
+    mine = {}
+    for entry in looks["races"].values():
+        for sex in entry["models"]:
+            mine[(int(entry["race"]), int(sex))] = True
+    path = os.path.join(client, "Wrathpp", "npc.txt")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for l in f:
+                parts = l.split()
+                if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                    mine.setdefault((int(parts[0]), int(parts[1])), True)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("# Wrath++ (sl_looks.py): race, sex of the looks' models; their creatures' skins are composed (Native.cpp)\n")
+        f.write("".join("%d\t%d\n" % key for key in sorted(mine)))
+    return path
 
 
 # The character tables whose rows the looks replace race by race (drop, then put): the first dir's (the looks' own) go last, after
 # every other dir's, so that a module that makes a race the looks redo (mod-worgen-goblin's Worgen and Goblins: Cataclysm's models
 # and textures) has its rows of that race dropped and the looks' put instead; its other races' rows stay.
-LOOKS_LAST = ("CharSections.txt", "CharHairGeosets.txt", "CharacterFacialHairStyles.txt")
+# CreatureDisplayInfoExtra's too: the looks' rule (npc_changes) is for every creature of a race, the ones the other dirs put (Cataclysm's
+# starting areas, the Worgen and Goblins) among them, and after the creatures' own races have moved off the ids the looks' races take.
+LOOKS_LAST = ("CharSections.txt", "CharHairGeosets.txt", "CharacterFacialHairStyles.txt", "CreatureDisplayInfoExtra.txt")
 
 
 def merge_changes(out_dir, *dirs):
@@ -727,6 +921,8 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
         ids = json.load(open(ids_path)).get("keys", {}) if os.path.exists(ids_path) else {}
         sl_parts.write_parts_table(ten, client, ids)
         written.append("Wrathpp\\parts.txt")
+        write_npc_list(ten, client)
+        written.append("Wrathpp\\npc.txt")
         # (the textures the model pieces take, which the creator's options step needs: put in the looks file)
         if any(m.get("part_types") or m.get("soft") for e in ten["races"].values() for m in e["models"].values()):
             with open(looks_path) as f:

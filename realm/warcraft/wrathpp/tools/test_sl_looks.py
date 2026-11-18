@@ -57,6 +57,93 @@ class LooksLastTest(unittest.TestCase):
             self.assertEqual(open(os.path.join(out, "ChrRaces.txt")).read(), "looks\nmodule\n")
 
 
+def npc_model():
+    """A model as the looks have one: 3.3.5's 4 skins were choices 100 to 103 (102 a creature's own, left out), a new one 900; 2 faces
+    of 3.3.5's and a death knight's two (left out), 3 eye colours; 3 hair styles, 2 colours; a feature slider of two options (3 x 2)."""
+    return {"name": "TestMale", "folder": "Character\\Test\\Male",
+            "skins": [{"index": 0, "choice": "100"}, {"index": 1, "choice": "101"}, {"index": 2, "choice": "103"}, {"index": 3, "choice": "900"}],
+            "faces": [{"choice": "200"}, {"choice": "201"}], "eyes": [{"index": 0}, {"index": 1}, {"index": 2}],
+            "hair": [{"variation": 0, "choice": "300", "geoset": 0}, {"variation": 1, "choice": "301", "geoset": 2}, {"variation": 2, "choice": "302", "geoset": 3}],
+            "hair_colors": [{"index": 0, "choice": "400"}, {"index": 1, "choice": "401"}],
+            "feature_options": ["Beard", "Mustache"], "feature_sizes": [3, 2],
+            "features": [{"variation": 0, "geosets": [0, 0, 0, 0, 2]}, {"variation": 1, "geosets": [0, 2, 0, 0, 2]}, {"variation": 2, "geosets": [2, 0, 0, 0, 2]},
+                         {"variation": 3, "geosets": [2, 2, 0, 0, 2]}, {"variation": 4, "geosets": [3, 0, 0, 0, 2]}, {"variation": 5, "geosets": [3, 2, 0, 0, 2]}]}
+
+
+class NpcTest(unittest.TestCase):
+    """The creatures' looks: 3.3.5's five numbers made the looks' (npc_numbers), the rule for CreatureDisplayInfoExtra (npc_changes)."""
+    CLASSIC = {"skins": 4, "faces": 4, "hair": 3, "colours": 2, "facial": {0: (1, 1, 1), 1: (3, 2, 1), 2: (2, 1, 1)}}
+
+    def test_numbers_by_the_choices_in_a_row(self):
+        n = sl_looks.npc_numbers(npc_model(), 50, 0, self.CLASSIC)
+        # skins: 3.3.5's 0, 1 and 3 are the looks' 0, 1, 2; its 2 (a creature's own: the looks haven't it) takes 0's place (two back: the
+        # looks' first run is two long), and a number 3.3.5 hasn't the same way; never the looks' new skin by its place
+        self.assertEqual([n["skin"][i] for i in range(6)], [0, 1, 0, 2, 0, 1])
+        # a face is the face with the first eye colour (3 eye colours); a death knight's face (2, 3) its own face
+        self.assertEqual([n["face"][i] for i in range(4)], [0, 3, 0, 3])
+        self.assertEqual([n["hair"][i] for i in range(4)], [0, 1, 2, 0])
+        self.assertEqual([n["colour"][i] for i in range(3)], [0, 1, 0])
+        # the feature slider by 3.3.5's geosets (its "none" is geoset 1, today's 0): (1,1,1) nothing, (3,2,1) beard 3 moustache 2
+        self.assertEqual([n["facial"][(0, i)] for i in range(4)], [0, 5, 2, 0])
+        self.assertFalse(n["hair_in_features"])
+
+    def test_a_race_3_3_5_hasnt_takes_every_choice_in_the_run(self):
+        n = sl_looks.npc_numbers(npc_model(), 50, 0, None)
+        self.assertEqual([n["skin"][i] for i in range(5)], [0, 1, 0, 2, 0])
+        self.assertEqual([n["facial"][(0, i)] for i in range(3)], [0, 0, 0])
+
+    def test_the_feature_slider_by_one_option_and_the_hair_gone_into_it(self):
+        m = npc_model()
+        m["feature_options"] = ["Horn Style", "Facial Hair"]
+        n = sl_looks.npc_numbers(m, 6, 0, self.CLASSIC)       # (the Tauren men: CLASSIC_HAIR and CLASSIC_FEATURE)
+        self.assertTrue(n["hair_in_features"])
+        self.assertEqual(n["facial"][(0, 0)], 0)
+        self.assertEqual(n["facial"][(2, 1)], 2 * 2 + 1)      # horns 2, facial hair 1
+        self.assertEqual(n["facial"][(4, 3)], 1 * 2 + 1)      # past the options' choices: around again
+        self.assertEqual(set(n["hair"].values()), {0})
+        m["feature_sizes"] = [9, 9]                           # digits that don't make the features: the first feature
+        self.assertEqual(set(sl_looks.npc_numbers(m, 6, 0, self.CLASSIC)["facial"].values()), {0})
+
+    def test_the_rule_on_a_table(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "CharSections.dbc"), "wb") as f:      # 3.3.5's race 50: 4 skins, 4 faces, 3 hair styles x 2 colours
+                rows = [[i + 1, 50, 0, 0, "", "", "", 1, 0, i] for i in range(4)] + [[10 + i, 50, 0, 1, "", "", "", 1, i, 0] for i in range(4)]
+                rows += [[20 + v * 2 + c, 50, 0, 3, "", "", "", 1, v, c] for v in range(3) for c in range(2)]
+                f.write(wdbc("iiiisssiii", rows))
+            with open(os.path.join(d, "CharacterFacialHairStyles.dbc"), "wb") as f:
+                f.write(wdbc("iiiiiiii", [[50, 0, 0, 1, 1, 1, 0, 0], [50, 0, 1, 3, 2, 1, 0, 0]]))
+            looks = {"races": {"50": {"race": 50, "replace_rows": True, "models": {"0": npc_model()}},
+                               "29": {"race": 29, "models": {"0": npc_model()}}}}
+            text = sl_looks.npc_changes(looks, d)
+            self.assertEqual(sl_looks.npc_changes({"races": {"29": looks["races"]["29"]}}, d), "")
+        self.assertNotIn("=29", text)
+        # id race sex skin face hair colour facial 11 items flags bake: a creature of the race, one of its women, one of another race
+        extra = [[1, 50, 0, 3, 1, 2, 1, 1] + [0] * 12 + ["a.blp"], [2, 50, 1, 3, 1, 2, 1, 1] + [0] * 12 + ["b.blp"],
+                 [3, 7, 0, 3, 1, 2, 1, 1] + [0] * 12 + ["c.blp"], [4, 50, 0, 2, 3, 200, 9, 77] + [5] * 12 + ["d.blp"]]
+        t = A.Table(wdbc(sl_looks.EXTRA_KINDS, extra))
+        A.apply(t, text)
+        got = [[t.get(i, f) for f in range(8)] for i in range(4)]
+        self.assertEqual(got[0], [1, 50, 0, 2, 3, 2, 1, 5])
+        self.assertEqual(got[1], [2, 50, 1, 3, 1, 2, 1, 1])                 # (the looks have no woman of it: left)
+        self.assertEqual(got[2], [3, 7, 0, 3, 1, 2, 1, 1])
+        self.assertEqual(got[3], [4, 50, 0, 0, 3, 0, 1, 0])                 # a creature's own skin, a death knight's face, numbers past the list
+        self.assertEqual([t.get(3, f) for f in range(8, 20)], [5] * 12)     # its items as they were
+        with self.assertRaises(ValueError):                                 # another table: refused by its shape
+            A.apply(A.Table(wdbc("iiii", [[1, 50, 0, 3]])), text)
+
+    def test_the_list_for_the_native_mod(self):
+        with tempfile.TemporaryDirectory() as d:
+            sl_looks.write_npc_list({"races": {"4": {"race": 4, "models": {"0": {}, "1": {}}}, "11": {"race": 11, "models": {"1": {}}}}}, d)
+            sl_looks.write_npc_list({"races": {"x": {"race": 15, "models": {"0": {}}}, "4": {"race": 4, "models": {"0": {}}}}}, d)   # the allied races' run
+            with open(os.path.join(d, "Wrathpp", "npc.txt"), encoding="utf-8") as f:
+                lines = [l.rstrip("\n") for l in f]
+        self.assertTrue(lines[0].startswith("#"))
+        self.assertEqual(lines[1:], ["4\t0", "4\t1", "11\t1", "15\t0"])
+
+    def test_the_rule_goes_after_the_other_dirs(self):
+        self.assertIn("CreatureDisplayInfoExtra.txt", sl_looks.LOOKS_LAST)
+
+
 class ChangesTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -159,7 +246,7 @@ class ChangesTest(unittest.TestCase):
 
     def test_ten_races_replaced_others_kept(self):
         ch = sl_looks.looks_changes(LOOKS, self.dir.name)
-        self.assertEqual(sorted(ch), ["CharHairGeosets", "CharSections", "CharacterFacialHairStyles"])
+        self.assertEqual(sorted(ch), ["CharHairGeosets", "CharSections", "CharacterFacialHairStyles", "CreatureDisplayInfoExtra"])
         t = self.table("iiiisssiii", [[1, 4, 0, 0, "Old\\NightElf.blp", "", "", 17, 0, 0], [2, 2, 0, 0, "Orc.blp", "", "", 17, 0, 0],
                                       [3, 4, 1, 0, "Stock\\NightElfFemale.blp", "", "", 17, 0, 0]])
         A.apply(t, ch["CharSections"])

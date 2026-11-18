@@ -1,5 +1,5 @@
 """Tests of tools/apply_client.py: the allied races' change files on a small table (put replaces a row of the same id, adds
-otherwise; strings; floats; putraw; appendraw once; copyrow; remapfield; or and set), and a whole run on the stock tables
+otherwise; strings; floats; putraw; appendraw once; copyrow; remapfield; or and set; drop; map), and a whole run on the stock tables
 (ChrRaces gets the new races' rows; the creatures' race moves). Run by protocol/tests/run.sh (python3 -I)."""
 import os
 import struct
@@ -69,6 +69,27 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual([r[0] for r in rows(t)], [1, 3, 2])
         with self.assertRaises(ValueError):
             A.apply(t, "drop\t1\n")
+
+    def test_map_is_a_rule_over_the_rows_a_condition_chooses(self):
+        # id race sex number: the rows of race 4 sex 1 get field 3 looked up, each once (2 becomes 3, not 7), the unlisted the default
+        t = table([[1, 4, 1, 2], [2, 4, 1, 3], [3, 4, 0, 2], [4, 5, 1, 9], [5, 4, 1, 40]], "iiii")
+        A.apply(t, "map\t1=4,2=1\t3\t3\t0\t2=3\t3=7\n")
+        self.assertEqual(rows(t, "iiii"), [[1, 4, 1, 3], [2, 4, 1, 7], [3, 4, 0, 2], [4, 5, 1, 9], [5, 4, 1, 0]])
+        # no default: an unlisted row is left; a key of two fields; every row ("-"); the fields read as the line finds them
+        A.apply(t, "map\t-\t1,2\t3\t-\t4,0=11\t5,1=12\nmap\t1=4\t3\t2\t-\t11=6\n")
+        self.assertEqual(rows(t, "iiii"), [[1, 4, 1, 3], [2, 4, 1, 7], [3, 4, 6, 11], [4, 5, 1, 12], [5, 4, 1, 0]])
+        # the id field: a row put after it replaces the row that now has the id
+        A.apply(t, "types\tiiii\nmap\t-\t0\t0\t-\t5=50\nput\t50\t1\t1\t1\n")
+        self.assertEqual(rows(t, "iiii")[-1], [50, 1, 1, 1])
+        self.assertEqual(len(t.records), 5)
+
+    def test_map_errors(self):
+        t = table([[1, 4, 1, 2]], "iiii")
+        for bad in ("map\t-\t3\n", "map\t-\t9\t3\t0\n", "map\t-\t3\t9\t0\n", "map\t9=1\t3\t3\t0\n", "map\t1\t3\t3\t0\n",
+                    "map\t-\t1,2\t3\t0\t4=1\n", "map\t-\t3\t3\tx\n", "map\t-\t3\t3\t0\t2\n", "map\t-\t-1\t3\t0\n"):
+            with self.assertRaises(ValueError, msg=bad):
+                A.apply(t, bad)
+        self.assertEqual(rows(t, "iiii"), [[1, 4, 1, 2]])
 
     def test_appendraw_once_and_errors(self):
         t = table([[1, 1, "", 0.0]])
