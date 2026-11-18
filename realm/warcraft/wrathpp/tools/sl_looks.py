@@ -898,12 +898,22 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                 # (soft_weights.py; until 18 November 2026 the retail breast bones found by their height, sl_parts.soft_body, which
                 # on eleven races were bones of the face)
                 import soft_weights
-                soft = soft_weights.soften(model_path, log=log)
-                if soft:
-                    model["soft"] = soft
-                    problems = check_m2.check(model_path)
-                    if problems:
-                        raise ValueError("%s with its soft body: %s" % (model["name"], "; ".join(problems[:20])))
+                # (a fault in this step must not stop the whole package: the model as it was is put back and the woman has no soft
+                # body of her own this release)
+                with open(model_path, "rb") as f:
+                    before_soft = f.read()
+                try:
+                    soft = soft_weights.soften(model_path, log=log)
+                    if soft:
+                        problems = check_m2.check(model_path)
+                        if problems:
+                            raise ValueError("%s with its soft body: %s" % (model["name"], "; ".join(problems[:20])))
+                        model["soft"] = soft
+                except Exception as error:     # noqa: BLE001
+                    log("%s: no soft body this release (%s)" % (model["name"], error))
+                    with open(model_path, "wb") as f:
+                        f.write(before_soft)
+                    model.pop("soft", None)
             written += textures.build(read, model, layout, client, log)
             if model.get("overlays"):
                 import sl_parts
@@ -922,7 +932,11 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                                 if path.lower().endswith(".m2"):
                                     full = path if os.path.isabs(path) else os.path.join(client, path.replace("\\", "/"))
                                     if os.path.isfile(full):
-                                        got = soft_weights.soften(full, log=log)
+                                        try:
+                                            got = soft_weights.soften(full, log=log)
+                                        except Exception as error:     # noqa: BLE001
+                                            got = None
+                                            log("%s: its soft body failed (%s)" % (os.path.basename(full), error))
                                         if not got or [b[0] for b in got["bones"]] != [b[0] for b in model["soft"]["bones"]]:
                                             log("%s: its soft bones are not %s's (%s)" % (os.path.basename(full), model["name"], got and [b[0] for b in got["bones"]]))
             if model.get("parts"):
