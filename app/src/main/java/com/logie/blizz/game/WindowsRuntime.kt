@@ -163,6 +163,12 @@ object WindowsRuntime {
         Borderless.dialogFlag = if (keeper) Borderless.dialogFile(container.rootDir) else null
         // A game that dies of a fault ends without Wine's "Program Error" box: the launcher is back and the app reports it ([WineCrashDialog]).
         withContext(Dispatchers.IO) { runCatching { WineCrashDialog.apply(container.rootDir, entry.gameId) } }
+        // Wine's GetAdaptersAddresses walks an empty adapter list as a full one here (this Wine lists no adapters), which ends
+        // World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one known
+        // iphlpapi.dll only, in every game's Wine alike so they all run the same one).
+        withContext(Dispatchers.IO) {
+            runCatching { WineAdapterFix.apply(RootFS.find(context).rootDir, container.rootDir) }.onSuccess { n -> if (n > 0) com.logie.blizz.reports.SessionLog.event("windows", "Wine's adapter listing fixed in $n file(s)") }
+        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {

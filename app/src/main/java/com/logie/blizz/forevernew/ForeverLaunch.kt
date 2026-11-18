@@ -60,6 +60,11 @@ object ForeverLaunch {
         val locale = textLocale(File(client, ".build.info").takeIf { it.isFile }?.readText().orEmpty())
         File(wtfDir, CONFIG_NAME).writeText(launcherWtf(own ?: base, width, height, locale))
         File(dir, "foreverkey.cfg").writeText(keeperConfig().replace("client=Wow.exe", "client=${program(client)}"))
+        // folders the download made twice, in two cases of letters, are one folder to the game
+        runCatching { com.logie.blizz.forevernew.tact.TactInstaller.mergeCaseFolders(dir) }
+        // which product the program is (Blizzard's installer writes it; the client finds no installation without it)
+        com.logie.blizz.forevernew.tact.TactInstaller.writeFlavor(client, dir.name,
+            com.logie.blizz.forevernew.tact.TactInstaller.productOf(File(client, ".build.info").takeIf { it.isFile }?.readText().orEmpty()) ?: ForeverClientDownload.PRODUCT)
         val bytes = keeperBytes() ?: return "foreverkey.exe isn't in this build of the app."
         val target = File(dir, KEEPER)
         if (!target.isFile || target.length() != bytes.size.toLong() || !target.readBytes().contentEquals(bytes)) target.writeBytes(bytes)

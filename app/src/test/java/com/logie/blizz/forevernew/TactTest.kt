@@ -212,4 +212,129 @@ class TactTest {
         assertEquals(12345, m[12345L * 7919L + 13]); assertEquals(-1, m[5L]); m[13L] = 42; assertEquals(42, m[13L]); assertEquals(200_000, m.size)
         assertEquals(0x0102030405060708L, byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9).prefix64())
     }
+
+    @Test fun theIndexFilesHaveTheUpdateSectionTheGameRequiresAndAnEarlierDownloadGetsItInPlace() {
+        // the game's own file: entries end at 0x5ce6, the section starts at 0x6000, the file is 0x10000
+        assertEquals(0x10000, 0x5ce6 + CascWriter.tail(0x5ce6))
+        assertEquals(0x10000, 0x8000 + CascWriter.tail(0x8000))
+        assertEquals(0x20000, 0x8001 + CascWriter.tail(0x8001))
+        val end = 40 + 65_000 * 18
+        assertEquals(0x130000, end + CascWriter.tail(end))
+
+        val dir = java.nio.file.Files.createTempDirectory("idxfix").toFile()
+        val w = CascWriter(dir)
+        for (n in 0 until 300) w.add(ByteArray(16) { if (it < 2) (n shr (8 * it)).toByte() else (it * 7).toByte() }, "BLTE".toByteArray() + ByteArray(20) { n.toByte() })
+        w.finish()
+        val files = dir.listFiles { f -> f.name.endsWith(".idx") }!!
+        assertEquals(16, files.size)
+        for (f in files) {
+            val b = f.readBytes(); val e = CascWriter.sortedEnd(b)!!
+            assertEquals(0, b.size % 0x10000); assertTrue(b.size - (e + 0xfff) / 0x1000 * 0x1000 >= 0x7800)
+            assertTrue(b.copyOfRange(e, b.size).all { it.toInt() == 0 })
+        }
+        assertEquals(0, CascWriter.repairIndexes(dir))
+        val whole = files.associate { it.name to it.readBytes() }
+        // each entry: 9 key bytes, the place in 5 big-endian bytes, the size in 4 little-endian; the storage's greatest size as the game's own files name it
+        val one = files.first { CascWriter.sortedEnd(it.readBytes())!! > 40 }.readBytes()
+        assertEquals(30 + 24, (one[54].toInt() and 255) or ((one[55].toInt() and 255) shl 8)); assertEquals(0, one[56].toInt()); assertEquals(0, one[57].toInt())
+        org.junit.Assert.assertArrayEquals(byteArrayOf(0, 0, 0, 0xC0.toByte(), 0xFF.toByte(), 0, 0, 0), one.copyOfRange(16, 24))
+        assertFalse(CascWriter.legacy(one))
+        // an earlier download's files (up to build 381): no section, 1 GiB named, sizes big-endian. Made right in place, the data untouched.
+        val dataLength = java.io.File(dir, "data.000").length()
+        for (f in files) {
+            val b = f.readBytes(); val e = CascWriter.sortedEnd(b)!!
+            val old = b.copyOf(e)
+            for (k in 16 until 24) old[k] = 0; old[19] = 0x40
+            for (p in 40 until e step 18) { val t = old.copyOfRange(p + 14, p + 18); for (k in 0 until 4) old[p + 14 + k] = t[3 - k] }
+            assertTrue(CascWriter.legacy(old))
+            f.writeBytes(old)
+        }
+        assertEquals(300, CascWriter(dir).count)
+        assertEquals(16, CascWriter.repairIndexes(dir))
+        val after = dir.listFiles { f -> f.name.endsWith(".idx") }!!
+        assertEquals(16, after.size)
+        for (f in after) org.junit.Assert.assertArrayEquals(files.first { it.name.substring(0, 2) == f.name.substring(0, 2) }.let { whole[it.name] }, f.readBytes())
+        assertEquals(dataLength, java.io.File(dir, "data.000").length())
+        assertEquals(0, CascWriter.repairIndexes(dir))
+        val again = CascWriter(dir)
+        assertEquals(300, again.count)
+        org.junit.Assert.assertArrayEquals("BLTE".toByteArray() + ByteArray(20) { 7 }, again.read(ByteArray(16) { if (it < 2) (7 shr (8 * it)).toByte() else (it * 7).toByte() }))
+        // what the game keeps beside its index files goes when they are written again
+        java.io.File(dir, "shmem").writeText("x"); again.finish(); assertFalse(java.io.File(dir, "shmem").exists())
+    }
+
+    @Test fun aFolderNamedInTwoCasesIsOneFolderAndTheGameSaysWhichProductItIs() {
+        val base = tmp.newFolder("programs")
+        assertEquals(File(base, "Utils/chrome_elf.dll"), TactInstaller.placeFor(base, "Utils\\chrome_elf.dll"))
+        File(base, "Utils/locales").mkdirs()
+        assertEquals(File(base, "Utils/LIBCEF.DLL"), TactInstaller.placeFor(base, "UTILS\\LIBCEF.DLL"))
+        assertEquals(File(base, "Utils/locales/DE.PAK"), TactInstaller.placeFor(base, "UTILS\\LOCALES\\DE.PAK"))
+        assertEquals(File(base, "Wow.exe"), TactInstaller.placeFor(base, "Wow.exe"))
+        // an install made before: two folders, merged into the fuller one, nothing lost, a file there already kept
+        val old = tmp.newFolder("old")
+        File(old, "Utils/locales").mkdirs(); File(old, "UTILS/LOCALES").mkdirs()
+        File(old, "Utils/a.dll").writeText("a"); File(old, "Utils/b.dll").writeText("b"); File(old, "Utils/locales/it.pak").writeText("it")
+        File(old, "UTILS/LIBCEF.DLL").writeText("cef"); File(old, "UTILS/LOCALES/DE.PAK").writeText("de"); File(old, "UTILS/A.DLL").writeText("other")
+        assertEquals(1, TactInstaller.mergeCaseFolders(old))
+        assertEquals(listOf("Utils"), old.list()!!.toList())
+        assertEquals("cef", File(old, "Utils/LIBCEF.DLL").readText()); assertEquals("de", File(old, "Utils/locales/DE.PAK").readText())
+        assertEquals("it", File(old, "Utils/locales/it.pak").readText()); assertEquals("a", File(old, "Utils/a.dll").readText())
+        assertEquals(0, TactInstaller.mergeCaseFolders(old))
+        // the flavor file, and the product read from the install's record
+        assertTrue(TactInstaller.writeFlavor(old, "_forever_", "wowf")); assertFalse(TactInstaller.writeFlavor(old, "_forever_", "wowf"))
+        assertEquals("Product Flavor!STRING:0\nwowf\n", File(old, "_forever_/.flavor.info").readText())
+        assertEquals("wowf", TactInstaller.productOf("Branch!STRING:0|Active!DEC:1|Product!STRING:0\nus|1|wowf\n")); assertNull(TactInstaller.productOf(""))
+    }
+
+    @Test fun winesAdapterListingIsFixedInTheOneKnownFileOnly() {
+        val fix = com.logie.blizz.game.WineAdapterFix
+        val dll = ByteArray(0x6000) { (it * 7).toByte() }
+        val hash = fix.sha256(dll)
+        val fixed = fix.fixed(dll, original = hash)!!
+        org.junit.Assert.assertArrayEquals(byteArrayOf(0xB8.toByte(), 0xE8.toByte(), 0, 0, 0, 0xC3.toByte()), fixed.copyOfRange(0x4cb0, 0x4cb6))
+        org.junit.Assert.assertArrayEquals(dll.copyOf(0x4cb0), fixed.copyOf(0x4cb0))
+        org.junit.Assert.assertArrayEquals(dll.copyOfRange(0x4cb6, dll.size), fixed.copyOfRange(0x4cb6, fixed.size))
+        assertEquals(null, fix.fixed(dll)); assertEquals(null, fix.fixed(fixed, original = hash))
+        // Wine's real file, when the test is pointed at it (BLIZZ_WINE_IPHLPAPI): the hashes written down are its
+        System.getenv("BLIZZ_WINE_IPHLPAPI")?.let { path ->
+            val real = java.io.File(path).readBytes()
+            assertEquals(fix.ORIGINAL, fix.sha256(real)); assertEquals(fix.FIXED, fix.sha256(fix.fixed(real)!!))
+        }
+    }
+
+    /** An earlier download in BLIZZ_FOREVER_REPAIR completed as Play does it (not run without it). */
+    @Test fun anEarlierRealDownloadCompletedWhenAsked() {
+        val root = System.getenv("BLIZZ_FOREVER_REPAIR")?.let { java.io.File(it) } ?: return
+        println("index files completed: " + CascWriter.repairIndexes(java.io.File(root, "Data/data")))
+        println("metadata files added: " + com.logie.blizz.forevernew.ForeverClientDownload.repairIndex(root) { text, _ -> println(text) })
+        println("flavor written: " + TactInstaller.writeFlavor(root, "_forever_", TactInstaller.productOf(java.io.File(root, ".build.info").readText())!!))
+        println("folders merged: " + TactInstaller.mergeCaseFolders(java.io.File(root, "_forever_")))
+    }
+
+    /**
+     * The entries of a storage the game made itself (BLIZZ_FOREVER_COPY_LIST: lines `segment offset size`, of the data files in
+     * BLIZZ_FOREVER_COPY_FROM) written again by this app's writer into BLIZZ_FOREVER_COPY_TO: the same content in our format, to
+     * start the game on at the desk (not run without them).
+     */
+    @Test fun aStorageTheGameMadeWrittenAgainByOurWriterWhenAsked() {
+        val list = System.getenv("BLIZZ_FOREVER_COPY_LIST")?.let { java.io.File(it) } ?: return
+        val from = java.io.File(System.getenv("BLIZZ_FOREVER_COPY_FROM")!!); val to = java.io.File(System.getenv("BLIZZ_FOREVER_COPY_TO")!!)
+        val w = CascWriter(to); var n = 0
+        val files = HashMap<Int, java.io.RandomAccessFile>()
+        for (line in list.readLines()) {
+            val (seg, off, size) = line.trim().split(' ').map { it.toLong() }
+            val f = files.getOrPut(seg.toInt()) { java.io.RandomAccessFile(java.io.File(from, "data.%03d".format(seg)), "r") }
+            val head = ByteArray(30); f.seek(off); f.readFully(head)
+            val blte = ByteArray((size - 30).toInt()); f.readFully(blte)
+            if (String(blte, 0, 4, Charsets.ISO_8859_1) != "BLTE") continue
+            w.add(ByteArray(16) { head[15 - it] }, blte); n++
+        }
+        w.finish(); println("entries written again: $n of ${list.readLines().size}")
+    }
+
+    /** A real essential download into BLIZZ_FOREVER_FRESH (not run without it): what the game is started on at the desk. */
+    @Test fun aRealEssentialDownloadWhenAsked() {
+        val root = System.getenv("BLIZZ_FOREVER_FRESH")?.let { java.io.File(it) } ?: return
+        com.logie.blizz.forevernew.ForeverClientDownload.download(root, 0, emptyList(), { text, _ -> println(text) })
+    }
 }

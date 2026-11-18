@@ -75,4 +75,17 @@ class ForeverLeftoversTest {
         assertTrue(ForeverLeftovers.end(pidFile, File(System.getenv("BLIZZ_LEFTOVER_BIN")!!), { p, s -> Runtime.getRuntime().exec(arrayOf("kill", "-$s", p.toString())).waitFor() }))
         assertFalse(File("/proc/$pid").exists())
     }
+
+    @Test fun theGamesOwnErrorFileIsSentOnce() {
+        val product = java.nio.file.Files.createTempDirectory("product").toFile()
+        assertEquals(null, ForeverPlay.clientTrouble(product, null))
+        java.io.File(product, "Errors").mkdirs(); java.io.File(product, "Logs").mkdirs()
+        java.io.File(product, "Errors/2026-11-18_02.08.09_Crash_324.txt").writeText("World of Warcraft: Retail Build (build 70938)\nException: ACCESS_VIOLATION\n" + "x\n".repeat(100))
+        java.io.File(product, "Logs/Tact.log").writeText("11/18 01:59:51.094  Adding server node 0. Server 'level3.blizzard.com'\n11/18 01:59:51.119  Failed to open dynamic container. Error (9): NeedsRepair\n")
+        val (name, text) = ForeverPlay.clientTrouble(product, null)!!
+        assertEquals("2026-11-18_02.08.09_Crash_324.txt", name)
+        assertTrue(text.contains("ACCESS_VIOLATION")); assertTrue(text.contains("NeedsRepair")); assertFalse(text.contains("Adding server node"))
+        assertTrue(text.lines().size < 60)
+        assertEquals(null, ForeverPlay.clientTrouble(product, name))
+    }
 }

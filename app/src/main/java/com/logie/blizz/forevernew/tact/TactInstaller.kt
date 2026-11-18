@@ -65,7 +65,7 @@ class TactInstaller(
 
     /**
      * The build's metadata files, by encoding key, that the local storage must hold for the client and CascLib to read it: the
-     * encoding, install, download and size manifests, the roots, and every VFS file.
+     * encoding, install, download and size manifests, the roots, the patch index, and every VFS file.
      *
      * The VFS root names further VFS files (`vfs-1`, `vfs-2`, ...: 583 of them in build 70938, 133 MB together), and those hold the
      * game's file numbers. CascLib reads the game's files through them: with the VFS root alone in the storage it opened the
@@ -76,7 +76,10 @@ class TactInstaller(
     fun metadataKeys(b: Build): List<String> {
         val vfs = b.config.keys.filter { it.matches(Regex("vfs-\\d+")) }.sortedBy { it.substringAfter('-').toInt() }.mapNotNull { b.config[it]?.getOrNull(1) }
         return (listOfNotNull(b.config["encoding"]?.getOrNull(1), b.config["install"]?.getOrNull(1), b.config["download"]?.getOrNull(1),
-            b.config["size"]?.getOrNull(1), b.config["vfs-root"]?.getOrNull(1), b.config["root"]?.getOrNull(1)) + vfs).distinct()
+            b.config["size"]?.getOrNull(1), b.config["vfs-root"]?.getOrNull(1), b.config["root"]?.getOrNull(1),
+            // the patch index: the client reads it as it opens its storage, and with Blizzard's servers out of reach (the phone's
+            // games are kept off them) it ended there (its Tact.log: "Failed to download the patch index", then its crash file)
+            b.config["patch-index"]?.getOrNull(1)) + vfs).distinct()
     }
 
     /** Stores those of [metadataKeys] the storage lacks; returns how many were fetched. */
@@ -271,7 +274,7 @@ class TactInstaller(
             val bytes = Blte.decode(blte)
             val md5 = MessageDigest.getInstance("MD5").digest(bytes)
             if (!md5.contentEquals(looseCKey[k])) throw IOException("${loosePath[k]} didn't match its checksum")
-            val target = File(File(root, programFolder), loosePath[k].replace('\\', '/'))
+            val target = placeFor(File(root, programFolder), loosePath[k])
             if (!isInside(root, target)) throw IOException("unsafe path ${loosePath[k]}")
             target.parentFile?.mkdirs(); target.writeBytes(bytes)
         }
@@ -288,7 +291,73 @@ class TactInstaller(
             val f = File(root, "Data/config/${k.substring(0, 2)}/${k.substring(2, 4)}/$k")
             f.parentFile?.mkdirs(); f.writeText(text)
         }
+        writeFlavor(root, programFolder, product)
         File(root, ".build.info").writeText(buildInfo(b))
+    }
+
+    companion object {
+        /**
+         * Where a program file of the install list goes under [base]: its path with each folder taken as Windows takes it, whatever
+         * its letters' case. The list names one folder in two ways (`UTILS\LIBCEF.DLL`, `Utils\chrome_elf.dll`): one folder on
+         * Windows, two on a phone's file system, and the game then finds only the files of one of them. A folder that exists
+         * under another case is used as it is.
+         */
+        fun placeFor(base: File, path: String): File {
+            var dir = base
+            val parts = path.replace('\\', '/').split('/').filter { it.isNotEmpty() }
+            for (part in parts.dropLast(1)) {
+                val there = if (File(dir, part).isDirectory) part else dir.list()?.firstOrNull { it.equals(part, ignoreCase = true) && File(dir, it).isDirectory }
+                dir = File(dir, there ?: part)
+            }
+            return File(dir, parts.lastOrNull() ?: path)
+        }
+
+        /**
+         * Folders under [dir] that differ only in their letters' case (an install made before [placeFor]) become one: the one with
+         * the most files stays, the others' files move into it (one already there is kept), all the way down. Returns how many
+         * folders were merged away.
+         */
+        fun mergeCaseFolders(dir: File): Int {
+            var merged = 0
+            val folders = dir.listFiles { f -> f.isDirectory }.orEmpty()
+            for (group in folders.groupBy { it.name.lowercase() }.values) {
+                if (group.size > 1) {
+                    val keep = group.maxByOrNull { it.walkTopDown().count { f -> f.isFile } }!!
+                    for (other in group) if (other != keep) { moveInto(other, keep); other.deleteRecursively(); merged++ }
+                }
+            }
+            for (f in dir.listFiles { f -> f.isDirectory }.orEmpty()) merged += mergeCaseFolders(f)
+            return merged
+        }
+
+        private fun moveInto(from: File, to: File) {
+            for (f in from.listFiles().orEmpty()) {
+                val name = to.list()?.firstOrNull { it.equals(f.name, ignoreCase = true) } ?: f.name
+                val target = File(to, name)
+                if (f.isDirectory) { target.mkdirs(); moveInto(f, target) }
+                else if (!target.exists() && !f.renameTo(target)) { f.copyTo(target); f.delete() }
+            }
+        }
+
+        /**
+         * `<program folder>/.flavor.info`: which product of `.build.info` the program beside it is. Blizzard's installer writes it;
+         * without it the client finds no installation ("Unable to initialize CAS from build info file. No active install info
+         * entries", then it asks Blizzard's servers, which the phone's games can't reach). Returns true when it was written.
+         */
+        fun writeFlavor(root: File, programFolder: String, product: String): Boolean {
+            val f = File(File(root, programFolder), ".flavor.info")
+            val text = "Product Flavor!STRING:0\n$product\n"
+            if (f.isFile && f.readText() == text) return false
+            f.parentFile?.mkdirs(); f.writeText(text); return true
+        }
+
+        /** The product a `.build.info` names in its (first) row, or null. */
+        fun productOf(buildInfo: String): String? {
+            val lines = buildInfo.lines().filter { it.isNotBlank() }
+            if (lines.size < 2) return null
+            val at = lines[0].split('|').map { it.substringBefore('!').trim() }.indexOf("Product")
+            return lines[1].split('|').getOrNull(at)?.trim()?.takeIf { it.isNotEmpty() }
+        }
     }
 
     /** The file the client reads to know what is installed and where its content comes from. */

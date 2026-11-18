@@ -330,6 +330,8 @@ into the release `forever-android-server` (not published until that workflow has
 or any other realm. **What is not built or never run is listed in `docs/forever/README.md`**: starting the game (certificate
 trust and key step under Wine), importing the client, any run on a phone.
 
+**The game's start (18 November 2026).** The game closed two seconds after Play on the phone (report 327). Run on a desktop with the real client and the phone's Wine, five faults were found and fixed, after which the client reaches its login screen there with Blizzard's servers out of reach: Wine's adapter listing ends the client in its first second (`game/WineAdapterFix`, the first Forever's fix, back); the downloader's index files were not ones the game accepts (rewritten in place at Play, nothing downloaded again); `_forever_/.flavor.info` was missing; the build's patch index was not stored; one folder was written under two cases of letters. Not run on a phone, and not logged in to the realm from that screen: `docs/forever/README.md`.
+
 ## World of Warcraft (from the WoW app, nothing rebuilt)
 
 The shelf's **World of Warcraft** box (placeholder art until you send yours) brings over what the World of Warcraft app (`com.logie.warcraft`) holds: its client, realm databases with their characters, add-ons, modules, settings and the other environments' data. In the WoW app tap **Export everything to Blizzard**, choose where to save, and it writes **one zip file** (`WoW-export.zip`: `files/`, `prefs/`, `checksums.tsv`, and `export.json` as its last entries). In Blizzard, tap the World of Warcraft box, **Auto Import**, and pick that zip. (An export folder made by older versions of the WoW app is still read.) Here, open the box and pick that folder (or the one holding it).

@@ -53,11 +53,14 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
             val bb = ByteBuffer.wrap(d).order(ByteOrder.LITTLE_ENDIAN)
             val size = bb.getInt(32)
             if (size < 0 || 40 + size > d.size) continue
+            val old = legacy(d)
             for (i in 0 until size / ENTRY) {
                 val p = 40 + i * ENTRY
                 val key9 = d.copyOfRange(p, p + 9)
                 var off = 0L; for (k in 0 until 5) off = (off shl 8) or (d[p + 9 + k].toLong() and 0xff)
-                val len = ((d[p + 14].toInt() and 0xff) shl 24) or ((d[p + 15].toInt() and 0xff) shl 16) or ((d[p + 16].toInt() and 0xff) shl 8) or (d[p + 17].toInt() and 0xff)
+                // the size is little-endian; the files this app wrote up to build 381 had it big-endian ([legacy])
+                val len = if (old) ((d[p + 14].toInt() and 0xff) shl 24) or ((d[p + 15].toInt() and 0xff) shl 16) or ((d[p + 16].toInt() and 0xff) shl 8) or (d[p + 17].toInt() and 0xff)
+                    else le32(d, p + 14)
                 put(key9, (off shr 30).toInt(), off and ((1L shl 30) - 1), len)
                 if ((off shr 30).toInt() > segment) segment = (off shr 30).toInt()
             }
@@ -129,6 +132,9 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
             if (!tmp.renameTo(File(dataDir, "%02x%08x.idx".format(b, version)))) throw IOException("an index file couldn't be saved")
         }
         old.forEach { it.delete() }
+        // what the game keeps beside its index files names their versions: gone with them, the game makes them again
+        for (name in listOf("shmem", "shmem.lock", "RepairMarker.psv")) File(dataDir, name).delete()
+        dataDir.listFiles { f -> f.name.endsWith(".lru") }?.forEach { it.delete() }
         indexVersion = version
     }
 
@@ -136,14 +142,14 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
 
     private fun indexFile(bucket: Int, list: List<Int>): ByteArray {
         val header = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN)
-        header.putShort(7).put(bucket.toByte()).put(0).put(4).put(5).put(9).put(30).putLong(segmentSize)
+        header.putShort(7).put(bucket.toByte()).put(0).put(4).put(5).put(9).put(30).putLong(TOTAL_MAX)
         val body = ByteArray(list.size * ENTRY)
         for ((i, j) in list.withIndex()) {
             val p = i * ENTRY
             System.arraycopy(key9s, j * 9, body, p, 9)
             val off = (segs[j].toLong() shl 30) or offs[j]
             for (k in 0 until 5) body[p + 9 + k] = (off shr (8 * (4 - k))).toByte()
-            for (k in 0 until 4) body[p + 14 + k] = (lens[j] shr (8 * (3 - k))).toByte()
+            for (k in 0 until 4) body[p + 14 + k] = (lens[j] shr (8 * k)).toByte() // the size: little-endian
         }
         // the entries' hash is Blizzard's: hashlittle2 over each entry in turn, the first result chained through
         var hi = 0; var lo = 0
@@ -152,12 +158,69 @@ class CascWriter(private val dataDir: File, private val segmentSize: Long = 1L s
         out.putInt(16).putInt(Jenkins.hashlittle(header.array(), 0, 16, 0)).put(header.array())
         out.put(ByteArray(8))
         out.putInt(body.size).putInt(hi).put(body)
-        return out.array().copyOf(out.position())
+        // then zeros: the (empty) update section the game itself requires (CascLib doesn't), see [tail]
+        return out.array().copyOf(out.position() + tail(out.position()))
     }
 
     companion object {
         const val HEADER = 30
         const val ENTRY = 18
+        private const val SORTED_START = 0x28
+        private const val UPDATE_ALIGN = 0x1000
+        private const val UPDATE_MIN = 0x7800
+        private const val FILE_ALIGN = 0x10000
+        /** The storage's greatest size, as the index files the game writes itself name it (read from build 70959's own, 18 November 2026). */
+        const val TOTAL_MAX = 0xFFC0000000L
+
+        /**
+         * An index file as this app wrote it up to build 381: the storage's greatest size given as 1 GiB and each entry's size
+         * big-endian. CascLib (the realm's map tools) read those; the game did not ("CascFull" with 0.8 GB stored, then
+         * "ERROR #137 File I/O error" at the first file it read, 18 November 2026).
+         */
+        fun legacy(index: ByteArray): Boolean {
+            if (index.size < SORTED_START) return false
+            var v = 0L; for (k in 0 until 8) v = v or ((index[16 + k].toLong() and 0xff) shl (8 * k))
+            return v == 1L shl 30
+        }
+
+        private fun le32(b: ByteArray, o: Int) = (b[o].toInt() and 0xff) or ((b[o + 1].toInt() and 0xff) shl 8) or ((b[o + 2].toInt() and 0xff) shl 16) or ((b[o + 3].toInt() and 0xff) shl 24)
+        private fun align(n: Int, to: Int) = (n + to - 1) / to * to
+        private fun updateStart(sortedEnd: Int) = align(sortedEnd, UPDATE_ALIGN)
+
+        /** Where the sorted entries of an index file end (its two guarded blocks), or null when it isn't one. */
+        fun sortedEnd(index: ByteArray): Int? {
+            if (index.size < SORTED_START || le32(index, 0) != 16 || index[8].toInt() != 7) return null
+            val entries = le32(index, 0x20)
+            if (entries < 0 || entries % ENTRY != 0 || SORTED_START + entries.toLong() > index.size) return null
+            return SORTED_START + entries
+        }
+
+        /**
+         * The bytes after the sorted entries, all zero: the update section (512-byte pages the game adds entries to between
+         * compactions; zero is empty), which begins at the next 4 KiB and runs to the end of the file, at least 0x7800 bytes of
+         * it, the file a multiple of 64 KiB. This is the layout of the index files the game writes itself (read from the ones
+         * build 70862 wrote on 9 November 2026). The game refuses an index without the section (its `Logs/Tact.log`: "Failed to
+         * open dynamic container … NeedsRepair", build 70938 on 18 November 2026; "Truncated updated section in KMT file" before).
+         */
+        fun tail(sortedEnd: Int): Int = align(updateStart(sortedEnd) + UPDATE_MIN, FILE_ALIGN) - sortedEnd
+
+        /**
+         * Makes the index files of a storage this app wrote up to build 381 ones the game accepts, in place: the data stays,
+         * nothing is downloaded. Those lacked the update section, named the storage's greatest size wrongly and had each entry's
+         * size in the wrong byte order ([legacy]); every entry is read back and the sixteen files are written again. Files that
+         * are right already (ours, or ones the game has rewritten since) are left as they are. Returns how many were rewritten.
+         */
+        fun repairIndexes(dataDir: File): Int {
+            val files = dataDir.listFiles()?.filter { it.name.endsWith(".idx") }.orEmpty()
+            val wrong = files.count { file ->
+                val bytes = file.readBytes()
+                val end = sortedEnd(bytes) ?: return@count false
+                legacy(bytes) || bytes.size < updateStart(end) + UPDATE_MIN
+            }
+            if (wrong == 0) return 0
+            CascWriter(dataDir).finish()
+            return wrong
+        }
         // Blizzard's table (CascLib's table_16C57A8, from Agent.exe)
         private val TABLE = longArrayOf(
             0x049396B8, 0x72A82A9B, 0xEE626CCA, 0x9917754F, 0x15DE40B1, 0xF5A8A9B6, 0x421EAC7E, 0xA9D55C9A,

@@ -83,14 +83,64 @@ object ForeverPlay {
         }
     }
 
+    /**
+     * What the game itself wrote the last time it ran, sent once: its newest crash or error file (the `.txt` files of `_forever_/Errors`, the
+     * first lines: the error's own words) and the end of its storage and connection logs. The game ends without a word on the
+     * phone's screen; these files are where it says why.
+     */
+    internal fun clientTrouble(product: File, lastSent: String?): Pair<String, String>? {
+        val newest = File(product, "Errors").listFiles { f -> f.isFile && f.name.endsWith(".txt") }?.maxByOrNull { it.lastModified() } ?: return null
+        if (newest.name == lastSent) return null
+        val text = buildString {
+            append("[").append(newest.name).append("]\n").append(newest.readLines().take(40).joinToString("\n") { it.take(300) })
+            for (name in listOf("Tact.log", "Connection.log", "WowConnection.log")) {
+                val tail = ForeverLogs.tailOf(File(File(product, "Logs"), name), 2500).lines().filterNot { "Adding server node" in it }.joinToString("\n").trim()
+                if (tail.isNotEmpty()) append("\n\n[").append(name).append("]\n").append(tail)
+            }
+        }
+        return newest.name to text
+    }
+
+    private fun sendClientTrouble(app: Context, layout: ForeverLayout, product: File, logs: ForeverLogs) {
+        runCatching {
+            val marker = File(layout.manifests, "client-error-sent.txt")
+            val (name, text) = clientTrouble(product, marker.takeIf { it.isFile }?.readText()?.trim()) ?: return
+            marker.parentFile?.mkdirs(); marker.writeText(name)
+            logs.event("client: its error file $name from the last run is sent")
+            com.logie.blizz.reports.BugReports.report(
+                app, "WoW Forever", "The game's own error file from its last run: $name", listOf("Build" to com.logie.blizz.BuildConfig.VERSION_CODE.toString()),
+                log = text, attach = true, force = true,
+            )
+        }
+    }
+
     private fun launchGame(app: Context, layout: ForeverLayout, runner: ForeverSteps, logs: ForeverLogs) {
         val client = runner.client()
         if (client == null) { _status.value = Status(ForeverState.AWAITING_CLIENT, "The client isn't there.", null, false); return }
+        sendClientTrouble(app, layout, ForeverLaunch.product(client.root), logs)
         val (width, height) = WindowsRuntime.gameSize(app, WowPlay.GAME_ID, LaunchProfile.WOW)
         val failure = ForeverLaunch.prepare(client.root, width, height) { runCatching { app.assets.open(ForeverLaunch.ASSET).use { it.readBytes() } }.getOrNull() }
         if (failure != null) {
             logs.event("FAILED launch: $failure")
             _status.value = Status(ForeverState.FAILED, failure, null, false); return
+        }
+        // A game downloaded before the index files had their update section (which the game itself requires) gets it, in place.
+        runCatching { com.logie.blizz.forevernew.tact.CascWriter.repairIndexes(File(client.root, "Data/data")) }
+            .onSuccess { n -> if (n > 0) logs.event("client: $n index files given the section the game requires") }
+            .onFailure { e -> logs.event("client: the index files couldn't be completed: ${e.message}") }
+        // The files the client reads as it opens its storage (the patch index among them) must be on the phone: its games can't
+        // reach Blizzard's servers. Asked of Blizzard's servers once per build, by the app; a few kilobytes for a game downloaded before.
+        val meta = File(layout.manifests, "client-play-metadata-${client.build}.done")
+        if (client.root.canonicalPath == layout.client.canonicalPath && !meta.isFile) {
+            _status.value = Status(ForeverState.PLAYING, "Completing the game's files", null, false)
+            val failed = runCatching { ForeverClientDownload.repairIndex(client.root) { _, _ -> } }
+                .onSuccess { n -> logs.event("client: $n start-up files added to the downloaded game"); meta.parentFile?.mkdirs(); meta.writeText("$n\n") }
+                .exceptionOrNull()
+            if (failed != null) {
+                val text = "The game's files couldn't be completed (${failed.message}). This needs the internet once."
+                logs.event("FAILED launch: $text")
+                _status.value = Status(ForeverState.FAILED, text, null, false); return
+            }
         }
         // The game's login screen is filled in with the local account made at install ([WowLogin.forVersion]).
         val account = ForeverAuth.loadOrCreate(layout)
