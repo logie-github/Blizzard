@@ -219,7 +219,7 @@ function WPP.loadParts()
                 parts.soft[#parts.soft + 1] = { count = tonumber(f[4]), parent = tonumber(f[5]), sides = {
                     { bone = tonumber(f[6]), x = tonumber(f[7]), y = tonumber(f[8]), z = tonumber(f[9]), below = f[10] or "" },
                     { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } }, name = f[16] }
-            elseif kind == "S" then      -- her seat's bones, the same fields: sprung as the chest's (WrathPP_SetSoftSeat)
+            elseif kind == "Q" then      -- her seat's bones, the same fields: sprung as the chest's (WrathPP_SetSoftSeat)
                 parts.soft[#parts.soft + 1] = { seat = true, count = tonumber(f[4]), parent = tonumber(f[5]), sides = {
                     { bone = tonumber(f[6]), x = tonumber(f[7]), y = tonumber(f[8]), z = tonumber(f[9]), below = f[10] or "" },
                     { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } }, name = f[16] }
