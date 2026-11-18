@@ -184,10 +184,16 @@
   "8_1:Body Paint Color": 1234,
   "8_1:Face Paint": 1226,
   "8_1:Face Paint Color": 1225,
+  "9_0:Chin": 1387,
   "9_0:Ears": 1284,
+  "9_0:Jewelry Color": 1389,
+  "9_0:Nose": 1388,
   "9_0:Tentacles": 1285,
+  "9_1:Chin": 1390,
   "9_1:Ears": 1286,
+  "9_1:Jewelry Color": 1392,
+  "9_1:Nose": 1391,
   "9_1:Tentacles": 1287
  },
- "next": 1387
+ "next": 1393
 }
