@@ -540,6 +540,16 @@ def glow_blp(data, box):
     return blp.write_dxt(np.clip(out, 0, 255).round().astype(np.uint8), alpha=True)
 
 
+def headless(policy, geosets, kept):
+    """The head geosets of a character's model ([geosets]: its sections' ids; today's group 32 past 3201, the inside of the
+    mouth) when none of them is among the sections [kept]: a model without its head. None for a model that has no such
+    geosets (an older one, a creature) and for a piece of a model (stand_only: a mod hangs it on the character)."""
+    heads = sorted({g for g in geosets if g // 100 == HEAD_GROUPS[0] and g % 100 > 1})
+    if not heads or policy.get("stand_only") or set(heads) & set(kept):
+        return []
+    return heads
+
+
 def uncut(plan, sections):
     """The sections of [plan] ((new id, section, batch)) that are never cut down: today's head and eyeballs (its
     [sections]' own ids in HEAD_GROUPS), whatever new id they take."""
@@ -1130,6 +1140,13 @@ def convert(files, policy, out_dir, log=print):
                     continue
                 for new in news:
                     plan.append((new, s, b))
+    # A character keeps a head: today's heads are group 32's geosets past 3201 (the inside of the mouth). A policy that
+    # names the group and none of them (a table of another build read against today's numbering: Wrath++'s Nightborne,
+    # 18 November 2026) made a model of eyeballs, teeth and hair around nothing, and nothing said so.
+    heads = headless(policy, [sec[0] for sec in skin.sections], [skin.sections[s][0] for _, s, _ in plan])
+    if heads:
+        raise ValueError("%s: none of its head's geosets (%s) is kept: the policy has group %d without its head"
+                         % (name, ", ".join(str(g) for g in heads), HEAD_GROUPS[0]))
 
     # The triangles of each section (as the model's vertex ids), cut down to what 3.3.5 can
     # address: it reads a section's triangle start as 16 bits, so every section has to begin
