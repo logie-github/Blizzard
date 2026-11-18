@@ -164,6 +164,35 @@ class Tables(allied.Tables):
 # again as a piece over the model's own, lifted, in the colour chosen (parts_of, sl_parts.geoset_part)
 FEATURE_PARTS = {"GnomeFemale": ("Earrings",)}
 
+# BASE ONLY (the user, 18 November 2026: "Limit the options to base options for now which means ralias mods and undead mods and
+# shadowlands"): the creator, the package and the game carry only what 3.3.5's five numbers carry (skin colour, face with its eye
+# colour, hair style, hair colour, the feature slider), plus Ralia's skins and the undead ones. Everything else is OFF: model pieces
+# (ears, horns, tails, vines, the Gnome woman's Earrings: FEATURE_PARTS...), overlay pictures (eyebrows, makeup, scars, tattoos,
+# paints), model variants (the Orc's Upright...), colour pickers; no "Not drawn yet" rows either. One switch, read by build_races, by
+# the package step (load_looks) and by the creator's data (sl_creator.py): False brings today's pieces back exactly as they were.
+# (WRATHPP_BASE_ONLY=0 in the environment turns it off for a run; the saved-choice registry is never touched by it.)
+BASE_ONLY = os.environ.get("WRATHPP_BASE_ONLY", "1") != "0"
+EXTRAS = ("overlays", "variants", "parts", "pickers")
+
+
+def base_only():
+    return BASE_ONLY
+
+
+def strip_extras(looks):
+    """[looks] (looks.json, or the allied races' keyed by name) with the extended options taken out of every model while BASE_ONLY
+    is on: the lists of overlays, variants, parts and pickers empty, no part_types. In place; returns [looks]."""
+    if not BASE_ONLY:
+        return looks
+    races = looks["races"] if isinstance(looks.get("races"), dict) and "build" in looks else looks
+    for entry in races.values():
+        for model in entry.get("models", {}).values():
+            for k in EXTRAS:
+                model[k] = []
+            model.pop("part_types", None)
+    return looks
+
+
 SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
 HEAD_MASKS = (512, 1024, 2048, -1)           # the layers that reach the head in today's layouts: its sections (9, 10, 11) or the whole skin (-1)
 BODY_MASKS = (4096, -1)                      # and the body: its section (12) or the whole skin
@@ -373,9 +402,12 @@ def build_races(csv_dir, races=None):
             model["chr_model"] = chr_model
             # (the feature slider's digits, the first changing slowest: how many choices each of its options has; npc_numbers)
             model["feature_sizes"] = [len(tables.option_choices(chr_model, o, only_available=False)) for o in model["feature_options"]]
-            model["overlays"] = overlays_of(tables, chr_model, model)
-            model["variants"] = variants_of(tables, chr_model, model)
-            model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
+            if BASE_ONLY:
+                model["overlays"], model["variants"], model["parts"], model["pickers"] = [], [], [], []
+            else:
+                model["overlays"] = overlays_of(tables, chr_model, model)
+                model["variants"] = variants_of(tables, chr_model, model)
+                model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
             entry["models"][str(sex)] = model
         entry["replace_rows"] = races is None             # the ten of 3.3.5: their rows in the tables are replaced
         out["races"][str(race_id)] = entry
@@ -832,7 +864,8 @@ def load_looks(path):
     """A looks file: sl_looks.py races' ({"races": ...}) or the allied races' data (sl_looks.py data: the races by key)."""
     with open(path) as f:
         looks = json.load(f)
-    return looks if "races" in looks and isinstance(looks["races"], dict) and "build" in looks else {"races": looks}
+    looks = looks if "races" in looks and isinstance(looks["races"], dict) and "build" in looks else {"races": looks}
+    return strip_extras(looks)           # (an older looks file with pieces: BASE_ONLY writes none of them)
 
 
 def alias_target(looks, looks_path, entry):

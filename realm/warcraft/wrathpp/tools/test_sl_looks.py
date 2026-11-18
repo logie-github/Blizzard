@@ -6,6 +6,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -295,6 +296,9 @@ class ChangesTest(unittest.TestCase):
 
     def test_an_alias_finds_its_target_among_the_ten_beside_the_file(self):
         import json, tempfile, os
+        patch = mock.patch.object(sl_looks, "BASE_ONLY", False)       # (today's pieces: a part_types to find)
+        patch.start()
+        self.addCleanup(patch.stop)
         d = tempfile.mkdtemp()
         json.dump({"build": "x", "races": {"8": {"race": 8, "models": {"0": {"part_types": {"Horns": [1, 2]}}}}}}, open(os.path.join(d, "looks.json"), "w"))
         races = os.path.join(d, "races.json")
@@ -336,6 +340,65 @@ def tables(options, choices, elements, geosets):
     t.geosets = {g: {"ID": g, "GeosetType": str(a), "GeosetID": str(b)} for g, (a, b) in geosets.items()}
     t.chr_models = {"53": {"CharComponentTextureLayoutID": "1"}}
     return t
+
+
+class BaseOnlyTest(unittest.TestCase):
+    """The single switch (sl_looks.BASE_ONLY): off, the looks keep every piece as before; on, a looks file's models lose them."""
+    def spec(self):
+        return {"build": "x", "races": {"2": {"race": 2, "replace_rows": True, "models": {"0": {
+            "name": "OrcMale", "folder": "Character\\Orc\\Male", "skins": [{"index": 0}], "base_skins": 1,
+            "overlays": [{"name": "Eyebrows", "choices": [{"id": "1", "files": {"*": 3}}]}],
+            "variants": [{"name": "Upright", "choices": [{"file": 1}, {"file": 2}]}],
+            "parts": [{"name": "Tusks", "choices": [{"geosets": [[1, 2]]}]}],
+            "pickers": [{"name": "Tusk Color", "type": 10, "choices": []}],
+            "part_types": {"Tusks": [11]}, "soft": {"count": 1, "parent": 2, "bones": [[3, 0.1, 0.2, 0.3, [4]], [5, 0.1, 0.2, 0.3, [6]]]}}}}}}
+
+    def test_on_strips_the_extended_options_and_keeps_the_rest(self):
+        with mock.patch.object(sl_looks, "BASE_ONLY", True):
+            looks = sl_looks.strip_extras(self.spec())
+        m = looks["races"]["2"]["models"]["0"]
+        for k in ("overlays", "variants", "parts", "pickers"):
+            self.assertEqual(m[k], [])
+        self.assertNotIn("part_types", m)
+        self.assertEqual((m["name"], m["soft"]["count"]), ("OrcMale", 1))
+
+    def test_on_strips_the_allied_races_keyed_by_name_too(self):
+        allied = {"maghar": {"race": 36, "models": {"0": {"name": "MagharMale", "variants": [{"name": "Hunched"}], "parts": [{"name": "Horns"}]}}}}
+        with mock.patch.object(sl_looks, "BASE_ONLY", True):
+            sl_looks.strip_extras(allied)
+        self.assertEqual(allied["maghar"]["models"]["0"]["variants"], [])
+        self.assertEqual(allied["maghar"]["models"]["0"]["parts"], [])
+
+    def test_off_changes_nothing(self):
+        with mock.patch.object(sl_looks, "BASE_ONLY", False):
+            looks = sl_looks.strip_extras(self.spec())
+        self.assertEqual(looks, self.spec())
+
+    def test_load_looks_follows_the_switch(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "looks.json")
+            json.dump(self.spec(), open(path, "w"))
+            with mock.patch.object(sl_looks, "BASE_ONLY", True):
+                self.assertEqual(sl_looks.load_looks(path)["races"]["2"]["models"]["0"]["parts"], [])
+            with mock.patch.object(sl_looks, "BASE_ONLY", False):
+                self.assertEqual(len(sl_looks.load_looks(path)["races"]["2"]["models"]["0"]["parts"]), 1)
+
+    def test_the_parts_table_then_holds_no_piece_picture_or_variant_line(self):
+        import sl_parts
+        ids = {"2_0:Eyebrows": 1400, "2_0:Upright": 1500, "2_0:Tusks": 1401}
+        with mock.patch.object(sl_looks, "BASE_ONLY", True):
+            looks = sl_looks.drawn_looks(sl_looks.strip_extras(self.spec()))
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, ids)
+            kinds = {l.split("\t")[0] for l in open(path) if l.strip() and not l.startswith("#")}
+        self.assertEqual(kinds, {"B"})              # (the soft body, which the five numbers do not touch, is all that is left)
+        with mock.patch.object(sl_looks, "BASE_ONLY", False):
+            looks = sl_looks.drawn_looks(sl_looks.strip_extras(self.spec()))
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, ids)
+            kinds = {l.split("\t")[0] for l in open(path) if l.strip() and not l.startswith("#")}
+        self.assertTrue({"V", "H", "G"} <= kinds, kinds)
 
 
 class HeadGeosetsTest(unittest.TestCase):

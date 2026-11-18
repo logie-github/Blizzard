@@ -5,10 +5,12 @@ protocol/tests/run.sh (python3 -I)."""
 import os
 import sys
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import sl_creator  # noqa: E402
+import sl_looks  # noqa: E402
 
 DK, DH = 1 << 5, 1 << 11
 
@@ -87,7 +89,11 @@ MODEL = {"name": "HumanFemale", "chr_model": 2, "tattoos": ["None", "Wolf"], "ba
 
 
 class CreatorDataTest(unittest.TestCase):
+    """Today's options with everything (sl_looks.BASE_ONLY off)."""
     def setUp(self):
+        patch = mock.patch.object(sl_looks, "BASE_ONLY", False)
+        patch.start()
+        self.addCleanup(patch.stop)
         self.m = sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, MODEL)
         self.by = {o["name"]: o for o in self.m["options"]}
 
@@ -133,6 +139,39 @@ class CreatorDataTest(unittest.TestCase):
         bad = dict(MODEL, features=[{"variation": i} for i in range(5)])
         with self.assertRaises(ValueError):
             sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, bad)
+
+
+class BaseOnlyCreatorTest(unittest.TestCase):
+    """sl_looks.BASE_ONLY (the default): only what the five numbers carry; no piece, overlay, variant, picker or greyed row."""
+    EXTRAS = dict(overlays=[{"name": "Makeup", "target": "head", "choices": [{"name": "None", "id": "170", "files": {}}, {"name": "Smoky", "id": "171", "files": {"*": 5}}]}],
+                  parts=[{"name": "Flower", "choices": [{"id": "200", "geosets": []}, {"id": "201", "geosets": [[1, 2]]}]}],
+                  variants=[], pickers=[{"name": "Flower Color", "type": 10, "choices": [{"name": "Red", "id": "1", "file": 7}]}],
+                  part_types={"Flower": [11]})
+
+    def test_only_the_options_the_five_numbers_carry(self):
+        self.assertTrue(sl_looks.BASE_ONLY)
+        m = sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, dict(MODEL, **self.EXTRAS))
+        self.assertEqual([o["name"] for o in m["options"]], ["Face", "Skin Color", "Hair Style", "Hair Color", "Eye Color", "Piercings", "Necklace", "Tattoo"])
+        for o in m["options"]:
+            self.assertIn("field", o)
+            for k in ("overlay", "bodyoverlay", "geoset", "texture", "variant", "style", "reg", "picker", "types"):
+                self.assertNotIn(k, o)
+            for c in o["choices"]:
+                self.assertNotIn("ov", c)
+                self.assertNotIn("tex", c)
+        self.assertNotIn("hairtex", m)
+        self.assertNotIn("skintex", m)
+        self.assertNotIn("Not drawn yet", sl_creator.lua({"build": "x", "models": {"1_1": m}}))
+
+    def test_off_it_is_todays(self):
+        with mock.patch.object(sl_looks, "BASE_ONLY", False):
+            m = sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, dict(MODEL, folder="Character\\Human\\Female", **self.EXTRAS))
+        names = [o["name"] for o in m["options"]]
+        self.assertIn("Makeup", names)
+        self.assertIn("Flower", names)
+        by = {o["name"]: o for o in m["options"]}
+        self.assertIn("overlay", by["Makeup"])
+        self.assertIn("geoset", by["Flower"])
 
 
 class AlliedRaceIdsTest(unittest.TestCase):

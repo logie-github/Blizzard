@@ -148,6 +148,9 @@ def build_model(tables, categories, race_id, sex, model, key_race=None):
     tables.only_available[str(chr_model)] = sl_looks.AVAILABLE_ONLY.get((race_id, sex), set())
     tables.unlock(chr_model, sl_looks.UNLOCKED_ACHIEVEMENTS.get(race_id, set()))
     drawn, fields = digits_of(tables, model, chr_model)
+    if sl_looks.BASE_ONLY:                              # base options only (sl_looks.BASE_ONLY): no piece, overlay, variant or picker
+        model = dict(model, overlays=[], variants=[], parts=[], pickers=[])
+        model.pop("part_types", None)
     options, used = [], {}
     mine = sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"]))
     for o in mine:
@@ -224,6 +227,8 @@ def build_model(tables, categories, race_id, sex, model, key_race=None):
                         e["tex"] = names.picker(model, c["file"])
             if reg and ("geoset" in option or "texture" in option):
                 option["reg"] = reg
+        if sl_looks.BASE_ONLY and "field" not in option:
+            continue                                    # not carried by the five numbers: not in the list at all (no "Not drawn yet" rows)
         if len(option["choices"]) < 2:
             continue
         options.append(option)
