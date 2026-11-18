@@ -83,7 +83,10 @@ def main(out, looks, races_json, maps, v1=None):
             _, s0, info0 = refine.refine(base, skin, lambda *a: None, levels=0, reserve=3 * n + 30, log=lambda *a: None)
             folder = "Character\\%s\\Female" % race
             made, s1, li = layer.add(base, s0, V, R, folder=folder)
+            nv = struct.unpack_from("<I", base, 60)[0]
+            # (base_size, looks_vertices: where the app finds a model's vertices in its patch, to carry a shape onto other looks)
             entry = {"race": race, "shape": 0, "model": rel + ".m2", "skin": rel + "00.skin", "looks_sha256": sha(base),
+                     "base_size": len(base), "looks_vertices": nv,
                      "looks_struct_sha256": struct_sha(base), "made_struct_sha256": struct_sha(made, base),
                      "made_sha256": sha(made), "patch": put("%s/0.patch" % race, layer.patch(base, made)),
                      "skin_file": put("%s/0.skin" % race, s1)}
@@ -115,6 +118,7 @@ def main(out, looks, races_json, maps, v1=None):
                     raise SystemExit("%s: the shapes' skins differ" % race)
                 man["models"].append({"race": race, "shape": k, "model": "%sWpp%d.m2" % (rel, k), "skin": "%sWpp%d00.skin" % (rel, k),
                                       "anims_of": rel, "looks_sha256": sha(base), "made_sha256": sha(made),
+                                      "base_size": len(base), "looks_vertices": nv,
                                       "looks_struct_sha256": struct_sha(base), "made_struct_sha256": struct_sha(made, base),
                                       "patch": put("%s/%d.patch" % (race, k), layer.patch(base, made)), "skin_file": shared})
                 print(race, shape, li, flush=True)
