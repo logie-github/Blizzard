@@ -465,6 +465,26 @@ local function number(i)
 	return current - 1, count
 end
 
+-- Which look the game picked, for the log (a picture from the phone can't be reproduced without it): race, sex and the five numbers
+-- (from 0). Written with the customize line, and once a race, sex or number changes on the race screen (never per frame).
+local lastLook
+local function lookText()
+	local race, sex = creating()
+	local parts = { "race "..tostring(race), "sex "..tostring(sex) }
+	for i, name in ipairs({ "skin", "face", "hair style", "hair colour", "feature" }) do
+		parts[#parts + 1] = name.." "..tostring((number(i)))
+	end
+	return table.concat(parts, ", ")
+end
+local function logLook(where)
+	local ok, text = pcall(lookText)
+	if ( not ok ) then return end
+	text = where..": "..text
+	if ( text == lastLook ) then return end
+	lastLook = text
+	if ( type(WrathPP_Log) == "function" ) then pcall(WrathPP_Log, text) end
+end
+
 -- The pictures over the head (eyebrows, makeup, scars...): which choice of each, kept for the race and sex being made, and what the
 -- native mod is told: for each such option a slot, the head shell (a model of its own the mod hangs on the character) and the
 -- picture the shell draws (the choice's own, or the one of the hair colour on: eyebrows follow the hair).
@@ -1814,6 +1834,7 @@ local function refresh()
 		-- the race and class screen shows the character too: her pieces (a Mechagnome's arms and legs, a Void Elf's tentacles, horns,
 		-- ears) on it as well, or the model stands there without them
 		if ( W.step == 1 ) then
+			logLook("look on the race screen")
 			W.Look()
 			if ( math.abs((W.zoomTarget or W.zoom) - W.FullZoom()) > 0.001 ) then W.SetZoom(1, 0.6) end     -- (another race: its whole view)
 		end
@@ -1858,7 +1879,9 @@ local function refresh()
 		if ( popout.row.kind == "list" ) then fillPopout() else WrathppCreate_ClosePopout() end
 	end
 	local race, sex, deathKnight = creating()
+	local lookOk, lookLine = pcall(lookText)
 	log("customize: "..tostring(race).."_"..tostring(sex)..(deathKnight and " (a death knight)" or "")..", "..#rows.." rows, "..((model and number(FIELD.skin)) and "Shadowlands' options" or "the game's own five")
+		..", "..(lookOk and lookLine or "look unknown")
 		..(sex == 1 and (", body options "..#(bodyOptions())..(select(2, bodyOptions()) and (" ("..select(2, bodyOptions())..")") or "")) or ""))
 	if ( type(WrathPP_GetCustomization) ~= "function" ) then
 		notice:SetText("Wrath++ add-on not running: the game's own five")
@@ -2040,7 +2063,8 @@ local function shoot(elapsed)
 			if ( still and not shots.taken[what] and shots.count < 3 ) then
 				shots.taken[what] = true; shots.count = shots.count + 1
 				local ok = pcall(Screenshot)
-				log("shot "..shots.count..": "..what..(ok and "" or " (the game would not take it)"))
+				local lookOk, lookLine = pcall(lookText)
+				log("shot "..shots.count..": "..what..(ok and "" or " (the game would not take it)")..(lookOk and (" ["..lookLine.."]") or ""))
 			end
 		end
 	end
