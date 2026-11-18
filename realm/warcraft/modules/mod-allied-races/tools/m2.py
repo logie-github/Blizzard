@@ -707,6 +707,70 @@ def map_bones(own, host):
     return out
 
 
+def merge_sections(files, model, skin, host, spec, log=print):
+    """Puts sections of another model of the game's (a collection's: the Mechagnome's arm and leg upgrades, geosets 2901, 3101 and 3001
+    of file 2628212) into the character's own [model] and [skin] (the source's, before it is converted) as always-drawn body, so
+    that the character has them whatever a creator offers and no piece has to be hung on it. [spec]: {"model": the file id, "sections":
+    [the geoset ids wanted], "texture": the file id of the one fixed picture they are drawn with}. The collection is made on the
+    character's skeleton (its bones named as the character's: map_bones). Its batches draw the replaceable type 8 (a customization's
+    own picture: the Paint option's, here its first choice, the plates' atlas in the sections' own coordinates) over a 64 x 64 sheen;
+    3.3.5 draws one texture a batch and the character's skin is not what these coordinates are for (bright green on the phone: the
+    piece's type was made the skin's, 11), so every batch draws the one fixed picture, opaque, untransformed.
+    The sections get the geoset id 0 (the body's, always on). Returns the number of triangles put in."""
+    data = files(spec["model"])
+    chunks = chunks_of(data)
+    own = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0])) if "SKID" in chunks else OwnSkeleton(data)
+    extra = Model(data, own)
+    bone_map = map_bones(own, host)
+    if max(bone_map) > 255:
+        raise ValueError("a bone of the character's past 255, which a vertex can't name")
+    eskin = Skin(files(extra.skin_ids[0]))
+    wanted = set(spec["sections"])
+    skin.vertices, skin.indices = list(skin.vertices), list(skin.indices)
+    model.textures.append((0, 0))
+    while len(model.texture_ids) < len(model.textures) - 1:
+        model.texture_ids.append(0)
+    model.texture_ids.append(spec["texture"])
+    model.texture_lookup.append(len(model.textures) - 1)
+    lookup_at = len(model.texture_lookup) - 1
+    if (0, 0) not in model.materials:
+        model.materials.append((0, 0))
+    opaque = model.materials.index((0, 0))
+    new_vertex = {}
+    triangles = 0
+    seen = set()
+    for si, sec in enumerate(eskin.sections):
+        if sec[0] not in wanted:
+            continue
+        seen.add(sec[0])
+        first = sec[4] + sec[1] * 65536
+        tris = [eskin.vertices[k] for k in eskin.indices[first:first + sec[5]]]
+        for index in set(tris):
+            if index not in new_vertex:
+                v = bytearray(extra.vertices[index])
+                for j in range(4):
+                    v[16 + j] = bone_map[v[16 + j]] if v[12 + j] else 0
+                new_vertex[index] = len(model.vertices)
+                model.vertices.append(bytes(v))
+        vstart, istart = len(skin.vertices), len(skin.indices)
+        local = {}
+        for index in tris:
+            if index not in local:
+                local[index] = len(skin.vertices)       # (a skin's indices name its vertex list's places from its start, not the section's)
+                skin.vertices.append(new_vertex[index])
+            skin.indices.append(local[index])
+        center = bone_map[sec[9]] if sec[9] < len(bone_map) else 0
+        skin.sections.append((0, 0, vstart, len(local), istart, len(tris), sec[6], sec[7], sec[8], center, *sec[10:17]))
+        # a batch of the character's own kind: no colour, the first material (opaque), the one texture, no transparency, no transform
+        skin.batches.append((0, 0, 0x8000, len(skin.sections) - 1, len(skin.sections) - 1, -1, opaque, 0, 1, lookup_at, 0, 0, 0))
+        triangles += len(tris) // 3
+    missing = wanted - seen
+    if missing:
+        raise ValueError("model %d has no geoset %s" % (spec["model"], ", ".join(str(g) for g in sorted(missing))))
+    log("%d triangles of model %d (geosets %s) merged as body" % (triangles, spec["model"], ", ".join(str(g) for g in sorted(wanted))))
+    return triangles
+
+
 class MixedBuilds(ValueError):
     """A model whose .skin files are of another build than the model file."""
 
@@ -789,6 +853,11 @@ def convert(files, policy, out_dir, log=print):
     if len(kept) != len(skin.batches):
         log("%s: %d batches name textures or materials the model hasn't: left out" % (name, len(skin.batches) - len(kept)))
         skin.batches = kept
+    for spec in policy.get("merge", ()):
+        try:
+            merge_sections(files, model, skin, child, spec, lambda text: log("%s: %s" % (name, text)))
+        except ValueError as error:
+            raise ValueError("%s: %s" % (name, error))
     # The skin extra (texture type 8: the fur of the Tauren and the Worgen, the Draenei men's crests): a character's own model keeps
     # today's sections of that type when its skins name the picture (races.py: each skin's "extra"), because 3.3.5 has the same
     # layer and fills it itself: a skin row's second texture is put on the model's type 8 for players and creatures alike

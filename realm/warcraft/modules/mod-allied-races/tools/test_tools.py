@@ -281,5 +281,50 @@ check(m2.headless({}, [0, 401, 3201, 3202, 3203, 3301], [0, 401, 3201, 3301]) ==
 check(m2.headless({}, [0, 401, 3201, 3202, 3203], [0, 3201, 3203]) == [], "one of its heads kept (a variant's): not headless")
 check(m2.headless({"stand_only": True}, [0, 3201, 3202], [0]) == [], "a piece of a model (stand_only) needs no head")
 check(m2.headless({}, [0, 1, 401, 1501], [0, 401]) == [], "a model without today's head geosets (an older one) is not checked")
+# Sections of another model put into a character's own as always-drawn body (m2.merge_sections: the Mechagnome's limbs): bones on the
+# character's, one fixed texture, the geoset id 0, the skin's indices absolute
+class _Src:
+    pass
+
+
+def _vertex(x, bones, weights):
+    return struct.pack("<3f", x, 0, 0) + bytes(weights) + bytes(bones) + b"\0" * 24
+
+
+_coll_model = _Src()
+_coll_model.vertices = [_vertex(float(i), (1, 0, 0, 0), (255, 0, 0, 0)) for i in range(6)]
+_coll_model.skin_ids = [7]
+_coll_skin = _Src()
+_coll_skin.vertices = tuple(range(6))
+_coll_skin.indices = (0, 1, 2, 3, 4, 5, 3, 4, 5)
+_sec = lambda gid, vs, vc, ist, ic: (gid, 0, vs, vc, ist, ic, 2, 0, 1, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
+_coll_skin.sections = [_sec(2901, 0, 3, 0, 3), _sec(2902, 3, 3, 3, 6)]
+_real = (m2.chunks_of, m2.OwnSkeleton, m2.Model, m2.Skin, m2.map_bones)
+m2.chunks_of, m2.OwnSkeleton, m2.Model, m2.Skin, m2.map_bones = (lambda data: {}, lambda data: None, lambda data, skel: _coll_model, lambda data: _coll_skin, lambda own, host: [0, 5])
+try:
+    _char_model = _Src()
+    _char_model.vertices = [_vertex(0.0, (0, 0, 0, 0), (255, 0, 0, 0))] * 4
+    _char_model.textures = [(1, 0)]
+    _char_model.texture_ids = [0]
+    _char_model.texture_lookup = [0]
+    _char_model.materials = [(16, 2)]
+    _char_skin = _Src()
+    _char_skin.vertices, _char_skin.indices = (0, 1, 2), (0, 1, 2)
+    _char_skin.sections = [_sec(0, 0, 3, 0, 3)]
+    _char_skin.batches = [(0, 0, 0, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0)]
+    _made = m2.merge_sections(lambda f: b"", _char_model, _char_skin, None, {"model": 1, "sections": [2901], "texture": 4242}, lambda *a: None)
+    check(_made == 1, "one section's triangle was put in")
+    check(_char_skin.sections[-1][0] == 0 and len(_char_skin.sections) == 2, "its section is the body's (geoset 0)")
+    check(len(_char_model.vertices) == 7 and _char_model.vertices[4][16] == 5, "its vertices are the character's, on the bones the map names")
+    check(_char_skin.indices[3:] == [3, 4, 5] and list(_char_skin.vertices[3:]) == [4, 5, 6], "the skin's indices name its vertex list's places, not the section's")
+    check(_char_model.texture_ids == [0, 4242] and _char_model.textures[-1] == (0, 0), "the one picture is a fixed texture (type 0)")
+    check(_char_skin.batches[-1][9] == 1 and _char_skin.batches[-1][6] == len(_char_model.materials) - 1 and _char_model.materials[-1] == (0, 0), "its batch draws it opaque")
+    try:
+        m2.merge_sections(lambda f: b"", _char_model, _char_skin, None, {"model": 1, "sections": [9999], "texture": 1}, lambda *a: None)
+        check(False, "a geoset the model lacks is refused")
+    except ValueError:
+        check(True, "a geoset the model lacks is refused")
+finally:
+    m2.chunks_of, m2.OwnSkeleton, m2.Model, m2.Skin, m2.map_bones = _real
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)

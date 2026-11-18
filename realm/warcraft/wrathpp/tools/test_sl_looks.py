@@ -6,6 +6,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -295,6 +296,9 @@ class ChangesTest(unittest.TestCase):
 
     def test_an_alias_finds_its_target_among_the_ten_beside_the_file(self):
         import json, tempfile, os
+        patch = mock.patch.object(sl_looks, "BASE_ONLY", False)       # (today's pieces: a part_types to find)
+        patch.start()
+        self.addCleanup(patch.stop)
         d = tempfile.mkdtemp()
         json.dump({"build": "x", "races": {"8": {"race": 8, "models": {"0": {"part_types": {"Horns": [1, 2]}}}}}}, open(os.path.join(d, "looks.json"), "w"))
         races = os.path.join(d, "races.json")
@@ -336,6 +340,112 @@ def tables(options, choices, elements, geosets):
     t.geosets = {g: {"ID": g, "GeosetType": str(a), "GeosetID": str(b)} for g, (a, b) in geosets.items()}
     t.chr_models = {"53": {"CharComponentTextureLayoutID": "1"}}
     return t
+
+
+class BaseOnlyTest(unittest.TestCase):
+    """The single switch (sl_looks.BASE_ONLY): off, the looks keep every piece as before; on, a looks file's models lose them."""
+    def spec(self):
+        return {"build": "x", "races": {"2": {"race": 2, "replace_rows": True, "models": {"0": {
+            "name": "OrcMale", "folder": "Character\\Orc\\Male", "skins": [{"index": 0}], "base_skins": 1,
+            "overlays": [{"name": "Eyebrows", "choices": [{"id": "1", "files": {"*": 3}}]}],
+            "variants": [{"name": "Upright", "choices": [{"file": 1}, {"file": 2}]}],
+            "parts": [{"name": "Tusks", "choices": [{"geosets": [[1, 2]]}]}],
+            "pickers": [{"name": "Tusk Color", "type": 10, "choices": []}],
+            "part_types": {"Tusks": [11]}, "soft": {"count": 1, "parent": 2, "bones": [[3, 0.1, 0.2, 0.3, [4]], [5, 0.1, 0.2, 0.3, [6]]]}}}}}}
+
+    def test_on_strips_the_extended_options_and_keeps_the_rest(self):
+        with mock.patch.object(sl_looks, "BASE_ONLY", True):
+            looks = sl_looks.strip_extras(self.spec())
+        m = looks["races"]["2"]["models"]["0"]
+        for k in ("overlays", "variants", "parts", "pickers"):
+            self.assertEqual(m[k], [])
+        self.assertNotIn("part_types", m)
+        self.assertEqual((m["name"], m["soft"]["count"]), ("OrcMale", 1))
+
+    def test_on_strips_the_allied_races_keyed_by_name_too(self):
+        allied = {"maghar": {"race": 36, "models": {"0": {"name": "MagharMale", "variants": [{"name": "Hunched"}], "parts": [{"name": "Horns"}]}}}}
+        with mock.patch.object(sl_looks, "BASE_ONLY", True):
+            sl_looks.strip_extras(allied)
+        self.assertEqual(allied["maghar"]["models"]["0"]["variants"], [])
+        self.assertEqual(allied["maghar"]["models"]["0"]["parts"], [])
+
+    def test_off_changes_nothing(self):
+        with mock.patch.object(sl_looks, "BASE_ONLY", False):
+            looks = sl_looks.strip_extras(self.spec())
+        self.assertEqual(looks, self.spec())
+
+    def test_load_looks_follows_the_switch(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "looks.json")
+            json.dump(self.spec(), open(path, "w"))
+            with mock.patch.object(sl_looks, "BASE_ONLY", True):
+                self.assertEqual(sl_looks.load_looks(path)["races"]["2"]["models"]["0"]["parts"], [])
+            with mock.patch.object(sl_looks, "BASE_ONLY", False):
+                self.assertEqual(len(sl_looks.load_looks(path)["races"]["2"]["models"]["0"]["parts"]), 1)
+
+    def test_the_parts_table_then_holds_no_piece_picture_or_variant_line(self):
+        import sl_parts
+        ids = {"2_0:Eyebrows": 1400, "2_0:Upright": 1500, "2_0:Tusks": 1401}
+        with mock.patch.object(sl_looks, "BASE_ONLY", True):
+            looks = sl_looks.drawn_looks(sl_looks.strip_extras(self.spec()))
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, ids)
+            kinds = {l.split("\t")[0] for l in open(path) if l.strip() and not l.startswith("#")}
+        self.assertEqual(kinds, {"B"})              # (the soft body, which the five numbers do not touch, is all that is left)
+        with mock.patch.object(sl_looks, "BASE_ONLY", False):
+            looks = sl_looks.drawn_looks(sl_looks.strip_extras(self.spec()))
+        with tempfile.TemporaryDirectory() as out:
+            path = sl_parts.write_parts_table(looks, out, ids)
+            kinds = {l.split("\t")[0] for l in open(path) if l.strip() and not l.startswith("#")}
+        self.assertTrue({"V", "H", "G"} <= kinds, kinds)
+
+
+class AlwaysOnTest(unittest.TestCase):
+    """The Mechagnome's limbs: the first choices of its Arm Upgrade and Leg Upgrade, one model of the game's, with the first picture of the
+    replaceable type 8 (the Paint's)."""
+    class Tables:
+        chr_models = {"73": {"CharComponentTextureLayoutID": "149"}}
+        layers = [{"CharComponentTextureLayoutsID": "149", "ChrModelTextureTargetID_0": "1", "TextureType": "1"},
+                  {"CharComponentTextureLayoutsID": "149", "ChrModelTextureTargetID_0": "2", "TextureType": "8"}]
+        options = {"1": {"ID": "1", "ChrModelID": "73", "Name_lang": "Skin Color", "OrderIndex": "1"},
+                   "2": {"ID": "2", "ChrModelID": "73", "Name_lang": "Arm Upgrade", "OrderIndex": "2"},
+                   "3": {"ID": "3", "ChrModelID": "73", "Name_lang": "Leg Upgrade", "OrderIndex": "3"},
+                   "4": {"ID": "4", "ChrModelID": "73", "Name_lang": "Paint", "OrderIndex": "4"}}
+        choice = lambda self, i, o, ui: {"ID": str(i), "ChrCustomizationOptionID": o, "UiOrderIndex": str(ui), "OrderIndex": str(ui)}
+        elements = {"10": [{"ChrCustomizationMaterialID": "5", "ChrCustomizationSkinnedModelID": "0"}],
+                    "20": [{"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "100"}],
+                    "21": [{"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "101"}],
+                    "30": [{"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "102"},
+                           {"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "103"}],
+                    "40": [{"ChrCustomizationMaterialID": "6", "ChrCustomizationSkinnedModelID": "0"}],
+                    "41": [{"ChrCustomizationMaterialID": "7", "ChrCustomizationSkinnedModelID": "0"}]}
+        skinned = {"100": {"CollectionsFileDataID": "555", "GeosetType": "29", "GeosetID": "1"},
+                   "101": {"CollectionsFileDataID": "555", "GeosetType": "29", "GeosetID": "2"},
+                   "102": {"CollectionsFileDataID": "555", "GeosetType": "31", "GeosetID": "1"},
+                   "103": {"CollectionsFileDataID": "555", "GeosetType": "30", "GeosetID": "1"}}
+        materials = {"5": {"ChrModelTextureTargetID": "1", "MaterialResourcesID": "a"}, "6": {"ChrModelTextureTargetID": "2", "MaterialResourcesID": "b"},
+                     "7": {"ChrModelTextureTargetID": "2", "MaterialResourcesID": "c"}}
+        textures = {"a": [9], "b": [8888], "c": [9999]}
+
+        def option_choices(self, model, name, only_available=True):
+            by = {"Skin Color": [("10", "1", 1)], "Arm Upgrade": [("21", "2", 2), ("20", "2", 1)], "Leg Upgrade": [("30", "3", 1)],
+                  "Paint": [("41", "4", 2), ("40", "4", 1)]}
+            return [self.choice(i, o, ui) for i, o, ui in by[name]]
+
+        def available(self, c):
+            return True
+
+        def material_files(self, e):
+            m = self.materials[e["ChrCustomizationMaterialID"]]
+            return m["ChrModelTextureTargetID"], self.textures[m["MaterialResourcesID"]]
+
+    def test_the_first_choices_of_the_limbs_in_one_merge_with_the_first_paint(self):
+        out = sl_looks.always_on_of(self.Tables(), 73, {"name": "MechagnomeMale"})
+        self.assertEqual(out, [{"options": ["Arm Upgrade", "Leg Upgrade"], "model": 555, "sections": [2901, 3101, 3001], "texture": 8888}])
+
+    def test_other_races_have_none(self):
+        self.assertEqual(sl_looks.always_on_of(self.Tables(), 73, {"name": "GnomeMale"}), [])
 
 
 class HeadGeosetsTest(unittest.TestCase):

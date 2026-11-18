@@ -164,6 +164,35 @@ class Tables(allied.Tables):
 # again as a piece over the model's own, lifted, in the colour chosen (parts_of, sl_parts.geoset_part)
 FEATURE_PARTS = {"GnomeFemale": ("Earrings",)}
 
+# BASE ONLY (the user, 18 November 2026: "Limit the options to base options for now which means ralias mods and undead mods and
+# shadowlands"): the creator, the package and the game carry only what 3.3.5's five numbers carry (skin colour, face with its eye
+# colour, hair style, hair colour, the feature slider), plus Ralia's skins and the undead ones. Everything else is OFF: model pieces
+# (ears, horns, tails, vines, the Gnome woman's Earrings: FEATURE_PARTS...), overlay pictures (eyebrows, makeup, scars, tattoos,
+# paints), model variants (the Orc's Upright...), colour pickers; no "Not drawn yet" rows either. One switch, read by build_races, by
+# the package step (load_looks) and by the creator's data (sl_creator.py): False brings today's pieces back exactly as they were.
+# (WRATHPP_BASE_ONLY=0 in the environment turns it off for a run; the saved-choice registry is never touched by it.)
+BASE_ONLY = os.environ.get("WRATHPP_BASE_ONLY", "1") != "0"
+EXTRAS = ("overlays", "variants", "parts", "pickers")
+
+
+def base_only():
+    return BASE_ONLY
+
+
+def strip_extras(looks):
+    """[looks] (looks.json, or the allied races' keyed by name) with the extended options taken out of every model while BASE_ONLY
+    is on: the lists of overlays, variants, parts and pickers empty, no part_types. In place; returns [looks]."""
+    if not BASE_ONLY:
+        return looks
+    races = looks["races"] if isinstance(looks.get("races"), dict) and "build" in looks else looks
+    for entry in races.values():
+        for model in entry.get("models", {}).values():
+            for k in EXTRAS:
+                model[k] = []
+            model.pop("part_types", None)
+    return looks
+
+
 SLIDERS = ("Skin Color", "Face", "Hair Style", "Hair Color", "Eye Color")
 HEAD_MASKS = (512, 1024, 2048, -1)           # the layers that reach the head in today's layouts: its sections (9, 10, 11) or the whole skin (-1)
 BODY_MASKS = (4096, -1)                      # and the body: its section (12) or the whole skin
@@ -344,6 +373,62 @@ def parts_of(tables, chr_model, model):
     return parts, pickers
 
 
+# Options whose first choice is a part of the character itself, whatever the creator offers: the Mechagnome's Arm Upgrade and Leg
+# Upgrade (the first choices: the 'Standard' arm, geoset 29 id 1; the leg, types 31 and 30 id 1). The model of the game the base
+# model has none of its limbs in is a collection's (ChrCustomizationSkinnedModel), made on the character's skeleton: m2.convert's
+# "merge" puts the choice's geosets into the character's own model as always-drawn body, with the one fixed picture the plates take
+# (the first choice of the option that fills the skin extra's replaceable type 8: the Paint's, the plates' atlas in the collection's
+# own coordinates), so that the Mechagnome has its arms and legs in the creator, the world and the preview, whatever skin is picked.
+# (Before: a piece hung on the character, its texture the player's skin file, which these coordinates are not made for: bright
+# green, the user's phone pictures of 18 November; and no piece at all while the options are off.)
+ALWAYS_ON = {"Mechagnome": ("Arm Upgrade", "Leg Upgrade")}
+
+
+def always_on_of(tables, chr_model, model):
+    """[{"model": a collection's file id, "sections": [its geoset ids], "texture": a file id}] for [model]'s ALWAYS_ON options
+    (m2.convert's "merge"), or [] for a model with none. Raises when an option has no model of its own or no picture to draw it with."""
+    names = next((v for k, v in ALWAYS_ON.items() if model["name"].startswith(k)), ())
+    if not names:
+        return []
+    layout = tables.chr_models[str(chr_model)]["CharComponentTextureLayoutID"]
+    kinds = {row["ChrModelTextureTargetID_0"]: row["TextureType"] for row in tables.layers if row["CharComponentTextureLayoutsID"] == layout}
+    options = sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"]))
+
+    def first(option):
+        chs = sorted((c for c in tables.option_choices(chr_model, option["Name_lang"], only_available=False) if tables.available(c)), key=ui_order)
+        return chs[0] if chs else None
+
+    texture = 0
+    for o in options:
+        c = first(o)
+        for e in tables.elements[c["ID"]] if c else ():
+            if e["ChrCustomizationMaterialID"] != "0":
+                target, fids = tables.material_files(e)
+                if kinds.get(target) == "8" and fids:
+                    texture = texture or fids[0]
+    out = []
+    for name in names:
+        option = next((o for o in options if o["Name_lang"] == name), None)
+        c = first(option) if option else None
+        found = {}
+        for e in tables.elements[c["ID"]] if c else ():
+            if e["ChrCustomizationSkinnedModelID"] != "0":
+                sm = tables.skinned[e["ChrCustomizationSkinnedModelID"]]
+                found.setdefault(int(sm["CollectionsFileDataID"]), []).append(int(sm["GeosetType"]) * 100 + int(sm["GeosetID"]))
+        if not found:
+            raise SystemExit("%s: its %s has no model of the game's to draw" % (model["name"], name))
+        for fid, geosets in found.items():
+            have = next((x for x in out if x["model"] == fid), None)
+            if have:
+                have["sections"] += geosets
+                have["options"].append(name)
+            else:
+                out.append({"options": [name], "model": fid, "sections": geosets, "texture": texture})
+    if not texture:
+        raise SystemExit("%s: no picture of replaceable type 8 for %s" % (model["name"], ", ".join(names)))
+    return out
+
+
 def build_races(csv_dir, races=None):
     """What each race and sex is made of. [races]: RACES (the ten of 3.3.5's, the default) or ALLIED."""
     tables = Tables(csv_dir)
@@ -373,9 +458,14 @@ def build_races(csv_dir, races=None):
             model["chr_model"] = chr_model
             # (the feature slider's digits, the first changing slowest: how many choices each of its options has; npc_numbers)
             model["feature_sizes"] = [len(tables.option_choices(chr_model, o, only_available=False)) for o in model["feature_options"]]
-            model["overlays"] = overlays_of(tables, chr_model, model)
-            model["variants"] = variants_of(tables, chr_model, model)
-            model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
+            if BASE_ONLY:
+                model["merge"] = always_on_of(tables, chr_model, model)          # (the pieces themselves bring these back when it is off)
+                model["overlays"], model["variants"], model["parts"], model["pickers"] = [], [], [], []
+            else:
+                model["merge"] = []
+                model["overlays"] = overlays_of(tables, chr_model, model)
+                model["variants"] = variants_of(tables, chr_model, model)
+                model["parts"], model["pickers"] = parts_of(tables, chr_model, model)
             entry["models"][str(sex)] = model
         entry["replace_rows"] = races is None             # the ten of 3.3.5: their rows in the tables are replaced
         out["races"][str(race_id)] = entry
@@ -832,7 +922,8 @@ def load_looks(path):
     """A looks file: sl_looks.py races' ({"races": ...}) or the allied races' data (sl_looks.py data: the races by key)."""
     with open(path) as f:
         looks = json.load(f)
-    return looks if "races" in looks and isinstance(looks["races"], dict) and "build" in looks else {"races": looks}
+    looks = looks if "races" in looks and isinstance(looks["races"], dict) and "build" in looks else {"races": looks}
+    return strip_extras(looks)           # (an older looks file with pieces: BASE_ONLY writes none of them)
 
 
 def alias_target(looks, looks_path, entry):

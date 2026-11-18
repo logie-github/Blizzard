@@ -26,7 +26,15 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 	and R.visible("WrathppRace1") and WrathppRace1.__parent == WrathppAllianceRaces and R.visible("WrathppRace"..#R.G.races) and _G["WrathppRace"..#R.G.races].__parent == WrathppHordeRaces
 	and R.visible("WrathppClass1") and R.visible("WrathppSexMale") and R.visible("WrathppSexFemale"),
 	"  Shadowlands' round race, class and sex buttons on the screen, the game's own out of sight")
-check(R.G.log[1] == "built" and R.G.log[2]:match("^opened: native 0.10.0, looks' options in") and R.G.log[3]:match("^appearance add%-on: ") and R.G.log[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
+-- (the log without the look lines: race, sex and the five numbers, written when they change)
+local LOG = {}
+for _, text in ipairs(R.G.log) do if not text:find("^look on the race screen: race %d+, sex %d, skin ") then LOG[#LOG + 1] = text end end
+check(LOG[1] == "built" and LOG[2]:match("^opened: native 0.10.0, looks' options in") and LOG[3]:match("^appearance add%-on: ") and LOG[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
+do
+	local looks = 0
+	for _, text in ipairs(R.G.log) do if text:find("^look on the race screen: race %d+, sex %d, skin %d+, face %d+, hair style %d+, hair colour %d+, feature %d+$") then looks = looks + 1 end end
+	check(looks >= 1 and looks <= 3, "  the log names the look the game picked: race, sex and the five numbers, a few lines and not one a frame ("..looks..")")
+end
 -- the game's own buttons, where the creator put them, do the game's own work
 R.tap("WrathppRace7"); R.frames(0.1)
 check(R.G.character.race == R.G.races[7] and select(1, clean(R)), "a race tapped is the game's race (race "..R.G.character.race..")"..select(2, clean(R)))
@@ -218,7 +226,9 @@ do
 	for k = 1, 6 do local b = _G["WrathppCategory"..k]; if b and b:IsVisible() then R.tap(b); R.frames(0.6); if #R.rows() > most then most, best = #R.rows(), b end end end
 	R.tap(best); R.frames(1)
 	local limit = list.content - list.view
-	check(limit > 60, "  a list longer than its place to scroll ("..most.." rows, "..math.floor(limit).." units more than it shows)")
+	-- (base options only, 18 November 2026: the Human man's longest list is 8 rows, 55 units more than it shows; it was 12 rows with the
+	-- pieces and pictures of Shadowlands' creator)
+	check(limit > 40, "  a list longer than its place to scroll ("..most.." rows, "..math.floor(limit).." units more than it shows)")
 	local row = R.rows()[2]
 	local _, rb, _, rh = R.E.rect(row)
 	local dt = 1 / 30
