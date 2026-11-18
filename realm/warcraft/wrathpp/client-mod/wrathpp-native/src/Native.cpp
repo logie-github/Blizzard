@@ -69,6 +69,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <atomic>
 #include <cctype>
 #include <cmath>
@@ -92,6 +93,7 @@
 #include "wxl/services/hook.hpp"
 #include "wxl/services/m2.hpp"
 #include "wxl/services/script.hpp"
+#include "wxl/services/storage.hpp"
 
 namespace
 {
@@ -960,7 +962,7 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.10.0"); }
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.10.1"); }
 
 #if defined(_M_IX86)
     // --- The race ids past 21 ---------------------------------------------------------------------------------------------
@@ -1045,6 +1047,82 @@ namespace
 
     void MaxRaceCall(wxl::ScriptCall& call) { call.PushNumber(static_cast<double>(g_maxRace)); }
 
+    // --- which model file of a character the game read (report #332: the Troll man drawn as 3.3.5's own model) ---
+    // Each model file under Character\ is logged once, as the game reads it (ModelLoad: the bytes before they are parsed): its path,
+    // length, version, bones and vertices (the looks' TrollMale.m2: 25320348 bytes, 231 bones). For a race's own model the runtime is
+    // also asked where the name resolves (hash_file: the layer and the archive, as the client resolves it), answered later on the
+    // main thread. At most kModelLines a session. The start report carries WarcraftXL.log, so it says which file was drawn.
+
+    /// The log's line for a model file of a character as the game read it ("Character\Troll\Male\TrollMale.m2: 25320348 bytes, v264,
+    /// 231 bones, 19442 vertices"), or "" for one not under Character\: which file was drawn, the looks' or another archive's.
+    std::string ModelLine(std::string_view path, const uint8_t* data, uint32_t size)
+    {
+        if (path.size() < 10) return {};
+        std::string top(path.substr(0, 10));
+        for (char& c : top) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (top != "character\\" && top != "character/") return {};
+        std::string line(path);
+        line += ": " + std::to_string(size) + " bytes";
+        if (!data || size < 0x48 || std::memcmp(data, "MD20", 4) != 0) return line + ", no model header";
+        const auto word = [data](size_t at) { uint32_t v = 0; std::memcpy(&v, data + at, 4); return v; };
+        return line + ", v" + std::to_string(word(4)) + ", " + std::to_string(word(0x2C)) + " bones, " + std::to_string(word(0x3C)) + " vertices";
+    }
+
+    /// A race's own model: the file named for its two folders ("Character\Troll\Male\TrollMale.m2"), whose source is asked.
+    bool RaceModel(std::string_view path)
+    {
+        std::string p(path);
+        for (char& c : p) c = static_cast<char>(c == '/' ? '\\' : std::tolower(static_cast<unsigned char>(c)));
+        const size_t a = p.find('\\'), b = a == std::string::npos ? a : p.find('\\', a + 1), c = b == std::string::npos ? b : p.find('\\', b + 1);
+        if (c == std::string::npos || p.find('\\', c + 1) != std::string::npos) return false;
+        return p.substr(c + 1) == p.substr(a + 1, b - a - 1) + p.substr(b + 1, c - b - 1) + ".m2";
+    }
+
+    const char* LayerName(wxl_file_layer layer)
+    {
+        switch (layer)
+        {
+        case WXL_FILE_LAYER_ARCHIVE: return "an archive";
+        case WXL_FILE_LAYER_DISK: return "a loose file";
+        case WXL_FILE_LAYER_FOLDER: return "a mod's folder";
+        case WXL_FILE_LAYER_PROVIDER: return "a mod's provider";
+        case WXL_FILE_LAYER_SERVED: return "a mod's served bytes";
+        default: return "nowhere";
+        }
+    }
+
+    constexpr size_t kModelLines = 80;
+    std::mutex g_modelLock;
+    std::set<std::string> g_modelsSeen;   // lower case
+
+    class ModelLog final : public wxl::AssetScript
+    {
+    public:
+        void OnModelLoad(std::string_view path, wxl::Bytes data, const void**, uint32_t*) override
+        {
+            const std::string line = ModelLine(path, data.data(), data.size());
+            if (line.empty()) return;
+            std::string key(path);
+            for (char& c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            {
+                std::lock_guard<std::mutex> hold(g_modelLock);
+                if (g_modelsSeen.size() >= kModelLines || !g_modelsSeen.insert(key).second) return;
+            }
+            wxl::Log(WXL_LOG_INFO, kTag, "model read: {}", line);
+            if (!RaceModel(path)) return;
+            const wxl::StorageService storage;
+            if (!storage) return;
+            const std::string name(path);
+            const auto asked = storage.HashFileAsync(name, [name](wxl::Expected<wxl::FileHash> hash) {
+                if (hash) wxl::Log(WXL_LOG_INFO, kTag, "model source: {} from {} {} ({} bytes, md5 {})", name, LayerName(hash->layer), hash->source, hash->size, hash->Hex());
+                else wxl::Log(WXL_LOG_WARN, kTag, "model source: {}: no answer ({})", name, wxl::ResultName(hash.Error()));
+            });
+            if (!asked) wxl::Log(WXL_LOG_WARN, kTag, "model source: {}: not asked ({})", name, wxl::ResultName(asked.Error()));
+        }
+    };
+
+    ModelLog g_modelLog;
+
     class Api final : public wxl::LuaScript
     {
     public:
@@ -1079,6 +1157,7 @@ namespace
         wxl_result OnLoad() override
         {
             wxl::ScriptMgr::Add(&g_api);
+            wxl::ScriptMgr::Add(&g_modelLog);
 #if defined(_M_IX86)
             wxl::ScriptMgr::Add(&g_worldScript);
             wxl::ScriptMgr::Add(&g_mountWatch);
