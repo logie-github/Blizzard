@@ -93,6 +93,16 @@ class DarkTroll(unittest.TestCase):
         self.assertEqual(int(m["extra_choices"]["Skin Color"][-1]["SwatchColor_0"]), 112 << 16 | 74 << 8 | 150)
         self.assertEqual(troll["models"]["0"]["base_skins"], 2)                    # (the Troll's own entry is left alone)
 
+    def test_the_sexes_made_up_ids_never_meet(self):
+        import sl_looks
+        troll = {"race": 8, "name": "Troll", "replace_rows": True, "models": {"0": model(), "1": model()}}
+        night = {"race": 4, "name": "NightElf", "models": {"0": ne(), "1": ne()}}
+        dt = sl_looks.dark_troll_entry(troll, night, {})
+        man, woman = dt["models"]["0"]["synth"], dt["models"]["1"]["synth"]
+        # (package() merges the sexes' specs by id: one id for two specs made the man's skins from the woman's, a face for a body)
+        self.assertTrue(man and woman)
+        self.assertFalse(set(man) & set(woman))
+
     def test_extend_leaves_the_night_elf_alone(self):
         n = ne(); before = copy.deepcopy(n)
         D.extend(model(), n)

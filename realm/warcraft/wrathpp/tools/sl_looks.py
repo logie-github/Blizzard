@@ -1140,7 +1140,9 @@ def dark_troll_entry(troll, night_elf, choice_rows=None):
     out["name"] = "DarkTroll"
     out["replace_rows"] = False
     for sex, m in out["models"].items():
-        specs, extra = dark_troll.extend(m, night_elf["models"][sex])
+        # (each sex its own range of made-up ids: package() merges the sexes' specs by id, and both counted up from SYNTH, so the man's
+        # skin 13 on was made from the woman's spec of the same id, a face picture for a body: the phone's white torso, black arms)
+        specs, extra = dark_troll.extend(m, night_elf["models"][sex], first_id=dark_troll.SYNTH + int(sex) * 1000000)
         for row in extra["Skin Color"] + extra["Hair Color"]:
             if choice_rows and row["ID"] in choice_rows:
                 row["SwatchColor_0"] = choice_rows[row["ID"]].get("SwatchColor_0", "0")
