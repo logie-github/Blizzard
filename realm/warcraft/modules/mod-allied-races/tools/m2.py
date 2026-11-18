@@ -394,6 +394,9 @@ def complete_policy(policy, geosets):
                     continue                       # a variant no 3.3.5 item asks for
                 out[str(g)] = [g]
             elif g == members[0]:
+                if group > LAST_KNOWN_GROUP and g % 100 != 1:
+                    continue        # a group of variants with no first (the Night Elf man's 1902, 74 vertices over the eyes: a dark
+                                    # band across them): nothing is shown by default, so nothing here is the body either
                 out[str(g)] = [g] if group <= LAST_KNOWN_GROUP else [0]
     return out
 
