@@ -708,6 +708,16 @@ class MixedBuilds(ValueError):
     """A model whose .skin files are of another build than the model file."""
 
 
+class FallbackAnimations(MixedBuilds):
+    """A model with sequences whose animation files fit none of its skeletons: the skeleton and the .anim files are of two builds
+    (wago.tools serves each file's newest copy in any product), so the sequences would play as another animation. The caller can
+    answer it as MixedBuilds: by fetching the whole model at one build (package.PINNED_BUILD), where the files are a set. Raised
+    only for a policy with "retry_on_fallback"."""
+
+
+last_fallbacks = []      # the (animation id, variation) of the sequences the last convert() drew as another animation
+
+
 def convert(files, policy, out_dir, log=print):
     """[files]: file id -> bytes (a function). [policy]: the model's description (see the module's
     tools/races.py for how one is made). Writes the model into [out_dir] and returns the list of
@@ -834,6 +844,10 @@ def convert(files, policy, out_dir, log=print):
         durations[j] = duration
     keys = [struct.unpack_from("<HH", merged.seq(j), 0) for j in range(merged.n)]
     stand = keys.index((0, 0)) if (0, 0) in keys else 0
+    last_fallbacks[:] = [keys[j] for j in sorted(unusable)]
+    if unusable and policy.get("retry_on_fallback"):
+        raise FallbackAnimations("%s: %d sequences' files fit none of its skeletons (e.g. %s)"
+                                 % (name, len(unusable), ", ".join("%d-%d" % keys[j] for j in sorted(unusable)[:4])))
     for j in range(merged.n):
         which, i = merged.sources[j]
         s = bytearray(merged.seq(j))
