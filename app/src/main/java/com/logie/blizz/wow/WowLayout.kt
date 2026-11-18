@@ -26,6 +26,8 @@ class WowLayout(val root: File, val exportDir: File) {
     val logs = File(root, "logs")
     val run = File(root, "run")
     /** Wrath++'s own server build (its package, [com.logie.blizz.wrathpp.WrathppServerPackage]); never the realms' `server`. */
+    /** The Worgen's and Goblins' starting areas' package (ctl.sh's ZONES): `client/`, `server/`, `TAG` (WrathppZones). */
+    val zones = File(root, "zones")
     val wrathppServer = File(root, "server-wrathpp")
     val wrathppCtl = File(wrathppServer, "ctl.sh")
     /** The copy of Wrath++'s ctl.sh Blizzard runs for Wrath++'s own steps (see [WowCtl.prepareWrathpp]). */

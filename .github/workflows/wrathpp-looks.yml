@@ -20,6 +20,7 @@ on:
       - realm/warcraft/wrathpp/tools/races_profile.py
       - realm/warcraft/wrathpp/tools/apply_client.py
       - realm/warcraft/modules/mod-allied-races/tools/build_data.py
+      - realm/warcraft/modules/mod-worgen-goblin/data/zones/client/dbc/**
       - realm/warcraft/modules/mod-allied-races/tools/package.py
       - app/src/main/assets/wrathpp/WrathppAlliedRaces.lua
       - app/src/main/assets/wrathpp/WrathppAlliedRaces.xml
@@ -114,7 +115,14 @@ jobs:
           fi
           # The change files merged (the ten races' rows and the allied races'), and the server's tables with them applied: the package
           # carries the changes (the app applies them to the client's own tables), not tables.
-          python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client realm/warcraft/modules/mod-worgen-goblin/data/client/dbc
+          # The starting areas' table rows (mod-worgen-goblin/data/zones/client/dbc: maps, areas, lights, their creatures' displays, items, spells) are in the
+          # looks too: the realm's own patch-U carries them, but a table this package changes comes after it (patch-Z), so a creature of Gilneas would
+          # have no display row. Not ChrRaces: its 'set' puts the Cataclysm intro cinematics on the two races, which exist only with the package.
+          mkdir -p build/zones-dbc
+          for f in realm/warcraft/modules/mod-worgen-goblin/data/zones/client/dbc/*.txt; do
+            [ "$(basename "$f")" = ChrRaces.txt ] || cp "$f" build/zones-dbc/
+          done
+          python3 realm/warcraft/wrathpp/tools/sl_looks.py assemble server-data/dbc build/looks build/looks/changes build/profile/client realm/warcraft/modules/mod-worgen-goblin/data/client/dbc build/zones-dbc
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/looks.json build/looks
           python3 realm/warcraft/wrathpp/tools/sl_looks.py verify build/races.json build/looks
 
@@ -159,6 +167,14 @@ jobs:
         run: |
           python3 realm/warcraft/wrathpp/tools/sl_skin_names.py list build/looks.json realm/warcraft/wrathpp/data/skin_names.json build/looks/client/wrathpp-skins.json | tee -a looks-report.txt
           echo 'wrathpp-skins.json' >> build/looks/looks.files
+
+      # Every race and zone of the manifest (tools/massconv.json) checked in one run: models, displays, skins, outfits, the creator's
+      # options still not drawn. Reported for now (--warn-only): what it says is what to fix next, and not yet a reason to hold a release.
+      - name: Every race of the manifest checked
+        continue-on-error: true
+        run: |
+          python3 realm/warcraft/wrathpp/tools/test_massconv.py 2>&1 | tail -3 | tee -a looks-report.txt
+          python3 realm/warcraft/wrathpp/tools/massconv.py audit build/looks realm/warcraft/wrathpp/tools/massconv.json --report looks-report.txt --warn-only 2>&1 | tee -a looks-report.txt
 
       - name: The package
         run: |

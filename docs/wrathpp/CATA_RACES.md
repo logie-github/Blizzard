@@ -56,5 +56,4 @@ Instead of giving the module new ids (its C++, SQL and the third-party mod-worgo
 Worgen and puts its own races above 21: the High Elf is **22** and the Void Elf **23** (the allied races 13 to 20 and the Dark Troll 21 stay). The native mod's
 larger saved-choices array (`WrathPP_MaxRace`, 283c959) is what races 22 and 23 need; if it didn't apply on a phone, those two races crash the creation screen, and
 the next start report's `race ids past 21:` line says whether it did. The creatures' races move clear: 13 to 19 to 24-27, 30-32; the module moves 9 and 12 to 28 and
-29 itself. The realm (`ctl.sh`) turns the module on for Wrath++ (`WorgenGoblin.Enable 1`, `StartingAreas 0`: no Cataclysm zones yet, they start with the Night Elves
-and Orcs) and runs mod-worgoblin's SQL into `acore_world_wrathpp`; the looks package carries the module's client table changes (`wrathpp-looks.yml`).
+29 itself. The realm (`ctl.sh`) turns the module on for Wrath++ (`WorgenGoblin.Enable 1`; `StartingAreas 1` once the app has downloaded the zones package, 18 November 2026: `WrathppZones`, `zones_data_realm`; else 0: they start with the Night Elves and Orcs) and runs mod-worgoblin's SQL into `acore_world_wrathpp`; the looks package carries the module's client table changes (`wrathpp-looks.yml`).
