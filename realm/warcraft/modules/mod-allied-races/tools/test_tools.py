@@ -274,5 +274,10 @@ class _Bones:
 _char = _Bones([(10, -1), (20, 0), (30, 1), (40, 1)])
 _coll = _Bones([(10, -1), (40, 0), (99, 1), (30, 0)])
 check(m2.map_bones(_coll, _char) == [0, 3, 3, 2], "a collection's bones on the character's: by name, an unknown one on its parent's")
+# A character keeps a head: group 32's geosets past 3201 (the inside of the mouth); a policy that keeps none of them is refused
+check(m2.headless({}, [0, 401, 3201, 3202, 3203, 3301], [0, 401, 3201, 3301]) == [3202, 3203], "a model whose policy keeps the mouth and no head is headless")
+check(m2.headless({}, [0, 401, 3201, 3202, 3203], [0, 3201, 3203]) == [], "one of its heads kept (a variant's): not headless")
+check(m2.headless({"stand_only": True}, [0, 3201, 3202], [0]) == [], "a piece of a model (stand_only) needs no head")
+check(m2.headless({}, [0, 1, 401, 1501], [0, 401]) == [], "a model without today's head geosets (an older one) is not checked")
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)
