@@ -606,8 +606,8 @@ def npc_changes(looks, stock_dbc_dir):
 
             def line(source, to, pairs, default):
                 keys = sorted(pairs)
-                return "map\t%s\t%s\t%d\t%d\t%s" % (where, source, to, default, "\t".join(
-                    "%s=%d" % (",".join(str(k) for k in key) if isinstance(key, tuple) else key, pairs[key]) for key in keys if pairs[key] != default))
+                return "\t".join(["map", where, source, str(to), str(default)] + [
+                    "%s=%d" % (",".join(str(k) for k in key) if isinstance(key, tuple) else key, pairs[key]) for key in keys if pairs[key] != default])
 
             # (the feature first: it reads 3.3.5's hair style, which the hair's line then replaces)
             if n["hair_in_features"]:

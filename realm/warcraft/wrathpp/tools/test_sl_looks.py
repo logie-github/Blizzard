@@ -117,6 +117,7 @@ class NpcTest(unittest.TestCase):
             text = sl_looks.npc_changes(looks, d)
             self.assertEqual(sl_looks.npc_changes({"races": {"29": looks["races"]["29"]}}, d), "")
         self.assertNotIn("=29", text)
+        self.assertFalse([l for l in text.split("\n") if l.endswith("\t")])    # (a rule with nothing listed: its default alone)
         # id race sex skin face hair colour facial 11 items flags bake: a creature of the race, one of its women, one of another race
         extra = [[1, 50, 0, 3, 1, 2, 1, 1] + [0] * 12 + ["a.blp"], [2, 50, 1, 3, 1, 2, 1, 1] + [0] * 12 + ["b.blp"],
                  [3, 7, 0, 3, 1, 2, 1, 1] + [0] * 12 + ["c.blp"], [4, 50, 0, 2, 3, 200, 9, 77] + [5] * 12 + ["d.blp"]]
