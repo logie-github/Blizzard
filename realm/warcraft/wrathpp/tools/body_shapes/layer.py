@@ -7,7 +7,10 @@ character's own hair texture times a design picked by its display (body options'
   unpatch(base_m2, patch)                            -> made_m2 again (what the app does: WrathppBody.withPatch)
 
 race: {"k": scale against the Human, "fold": the fold's height, "body": the skin's body section ids, "hair_block": the
-patch of the race's hair textures (column, row of a 16 x 16 grid) where every colour's strands are} (races.json).
+patch of the race's hair textures (column, row of a 16 x 16 grid) where every colour's strands are} (races.json; measure.py
+measures them). "x": where her front begins, front to back (0 unless her hips stand behind the model's middle: the
+Goblin, the Vulpera, the Worgen). "texture": 1 for a race without hair textures (the Worgen, the Vulpera: fur): the layer's first texture
+is then her body's own (type 1) by the body's own coordinates, so the design darkens her fur where it lies.
 
 How the game draws it (the 3.3.5a client at the pinned decompilation, docs in README.md):
   - the layer is one skin section, geoset 1901: group 19, which the client's CCharacterComponent::GeosRenderPrep hides
@@ -21,8 +24,11 @@ How the game draws it (the 3.3.5a client at the pinned decompilation, docs in RE
     creature's, the character screens', the race's own display) draws the layer as nothing: a texture without a file is
     solid white in this client, CM2Shared::Initialize) over the layer's square; alpha blended
     (material blend 2) with the texture combiner list (model flag 0x8, header 0x130) [1, 0, 1, 1]: every other batch's
-    combiner index 0 (MOD, OPAQUE: as the game sets them without the list), the layer's 2 (MOD, MOD: Combiners_Mod_Mod,
-    vertex shader Diffuse_T1_T2: the hair by the first texture coordinates, the design by the second);
+    combiner index 0 (MOD, or OPAQUE for an opaque material: as the game sets them without the list), the layer's 1
+    (OPAQUE, MOD: Combiners_Opaque_Mod, vertex shader Diffuse_T1_T2: the hair's colour by the first texture coordinates
+    times the design's by the second, the alpha the design's alone: CM2Shared's shader choice in the client's source.
+    Until 18 November 2026 it was 2, MOD, MOD, which multiplies the hair texture's alpha in too: the Nightborne's hair
+    sheets are see-through nearly everywhere (their hair is drawn opaque), which hid her layer);
   - its vertices are the body's own under it (the same bones and weights) lifted 0.4 mm along the normal, after the
     model's vertices; texture coordinates: the hair patch's middle half over the whole layer, the design's square SPAN x k wide, its top
     TOP x k above the fold, left to right her right to her left as seen from the front.
@@ -40,7 +46,7 @@ LIFT = 0.0004
 MIN_NX = 0.12
 HAIR, DESIGN = 6, 11
 COMBINERS = (1, 0, 1, 1)
-LAYER_COMBINER = 2
+LAYER_COMBINER = 1
 FLAG_COMBINERS = 0x8
 HEADER = 0x138
 MAX_BONES = 64
@@ -84,7 +90,7 @@ def triangles(P, skb, race):
         keep = (p[:, :, 2].max(1) >= zbot) & (p[:, :, 2].min(1) <= ztop) & (np.abs(p[:, :, 1]).min(1) <= span / 2)
         fn = np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0])
         fn /= np.linalg.norm(fn, axis=1, keepdims=True) + 1e-12
-        keep &= (fn[:, 0] >= MIN_NX) & (p[:, :, 0].mean(1) >= 0)
+        keep &= (fn[:, 0] >= MIN_NX) & (p[:, :, 0].mean(1) >= race.get("x", 0.0))
         out.append(T[keep]); owners += [si] * int(keep.sum())
     return (np.concatenate(out) if out else np.zeros((0, 3), np.int64)), owners
 
@@ -135,8 +141,10 @@ def add(m2b, skb, vertices, race, select=None, folder=None):
     uv1 = np.stack([(y + span / 2) / span, (ztop - z) / span], 1)
     bx, by = race["hair_block"]
     uv0 = (np.array([bx, by], np.float64) + 0.25 + 0.5 * np.clip(uv1, 0, 1)) / GRID
+    first = int(race.get("texture", HAIR))
     L[:, 0:12] = p.astype("<f4").view(np.uint8).reshape(-1, 12)
-    L[:, 32:40] = uv0.astype("<f4").view(np.uint8).reshape(-1, 8)
+    if first == HAIR:
+        L[:, 32:40] = uv0.astype("<f4").view(np.uint8).reshape(-1, 8)
     L[:, 40:48] = uv1.astype("<f4").view(np.uint8).reshape(-1, 8)
     # one section: its own bone list (the bones the layer's vertices hang on)
     bones = sorted({int(b) for r in L for w, b in zip(r[12:16], r[16:20]) if w})
@@ -167,9 +175,17 @@ def add(m2b, skb, vertices, race, select=None, folder=None):
     materials = old(MATERIALS, "<HH", 4)
     bone_combos = [x[0] for x in old(BONE_COMBOS, "<H", 2)]
     replaceable = [x[0] for x in old(REPLACEABLE, "<h", 2)]
-    hair_tex, design_tex = len(textures), len(textures) + 1
     empty = (folder.replace("/", "\\").rstrip("\\") + "\\" + EMPTY + ".blp").encode() + b"\0"
-    textures += [(HAIR, 0, 0, 0), (DESIGN, 0, len(empty), _put(blob, base_len, empty))]    # both clamped
+    if first == HAIR:
+        hair_tex = len(textures)
+        textures.append((HAIR, 0, 0, 0))                                                   # clamped, as the design
+    else:
+        own = [i for i, t in enumerate(textures) if t[0] == first]
+        if not own:
+            raise ValueError("the model has no texture of type %d" % first)
+        hair_tex = own[0]
+    design_tex = len(textures)
+    textures.append((DESIGN, 0, len(empty), _put(blob, base_len, empty)))
     while len(replaceable) <= DESIGN:
         replaceable.append(-1)
     if replaceable[DESIGN] < 0:

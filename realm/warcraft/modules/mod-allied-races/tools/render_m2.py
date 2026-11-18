@@ -280,7 +280,8 @@ def look_at(eye, target, up=(0, 0, 1)):
 
 def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir, extra_tex=None, design_tex=None):
     """... design_tex: a display's texture variation (type 11), for a two-texture batch (the body layer: the first
-    texture by the first coordinates, repeated, times the second by the second, clamped; Combiners_Mod_Mod). A batch
+    texture by the first coordinates, repeated, times the second by the second, clamped; Combiners_Mod_Mod, or
+    Combiners_Opaque_Mod, the second's alpha alone, where the model's combiner list says the first is opaque). A batch
     whose type 11 texture is missing is left out, as Wrath++'s native mod leaves the layer hidden then."""
     W, H = size
     fov, near, far, eye, target = camera
@@ -347,6 +348,12 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             if second is None:
                 continue
             second = np.asarray(second)
+        # the first texture's operation of a two-texture batch: the model's combiner list at the batch's index (flag 0x8), else MOD
+        first_op = 1
+        if struct.unpack_from("<I", model.m, 0x10)[0] & 0x8:
+            cn, co = arr(model.m, 0x130)
+            if b[2] < cn:
+                first_op = struct.unpack_from("<H", model.m, co + b[2] * 2)[0]
         if kind == 1:
             tx = texture
         elif kind == 6:
@@ -403,8 +410,9 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
                 u1 = l0 * uv1[tri[0], 0] + l1 * uv1[tri[1], 0] + l2 * uv1[tri[2], 0]
                 v1 = l0 * uv1[tri[0], 1] + l1 * uv1[tri[1], 1] + l2 * uv1[tri[2], 1]
                 t2 = second[np.clip(v1 * sh2, 0, sh2 - 1).astype(int), np.clip(u1 * sw2, 0, sw2 - 1).astype(int)].astype(np.float32)
+                first_alpha = texel[:, :, 3:4].astype(np.float32) if first_op else 255.0   # (Opaque_Mod: the second's alpha alone)
                 texel = np.concatenate([texel[:, :, :3].astype(np.float32) * t2[:, :, :3] / 255.0,
-                                        (texel[:, :, 3:4].astype(np.float32) * t2[:, :, 3:4] / 255.0)], axis=2)
+                                        (first_alpha * t2[:, :, 3:4] / 255.0)], axis=2)
                 alpha = texel[:, :, 3] / 255.0
             if blend == 1:                                       # alpha key: the game's test
                 hit &= texel[:, :, 3] >= 224
