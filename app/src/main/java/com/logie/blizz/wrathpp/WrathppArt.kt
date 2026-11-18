@@ -34,7 +34,8 @@ object WrathppArt {
      * Downloads and installs the newest art into [client] (Wrath++'s copy of the game) when it isn't the one in. Offline
      * with some in: kept. No release yet: an [IOException] (the creator draws with 3.3.5's own pictures).
      */
-    fun ensure(client: File, say: (String, Float?) -> Unit) {
+    fun ensure(client: File, say: (String, Float?) -> Unit, update: Boolean = true) {
+        if (!update && installedSha(client) != null) return
         val published = runCatching { WrathppAddon.parseManifest(WrathppAddon.fetchText("$BASE/wrathpp-creator-art.json")) }.getOrElse { e ->
             if (installedSha(client) != null) return
             throw IOException("Wrath++'s creator art couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")

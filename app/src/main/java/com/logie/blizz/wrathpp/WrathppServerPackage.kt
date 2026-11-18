@@ -30,8 +30,20 @@ object WrathppServerPackage {
     /** The oldest package format this app runs. 1: the first (protocol 1). */
     const val MIN_FORMAT = 1
 
+    /**
+     * The oldest server protocol the app's Wrath++ client speaks. Raise it when a change to the client needs a newer
+     * server: the installed server is then replaced at the next Play, as when none is installed. Any other newer package
+     * waits for the next refresh ([WrathppParts]: once after the app itself updates, or the settings page's button): the
+     * user, 18 November 2026: "it downloads then unpacks the server every time I launch ... Just keep it on device". The
+     * server is rebuilt and published several times a day, and a Play used to fetch all 251 MB each time.
+     */
+    const val MIN_PROTOCOL = 1
+
     /** Written into `server-wrathpp` after a complete install: the package's SHA-256. */
     const val MARKER = "PACKAGE_SHA256"
+
+    /** Written beside [MARKER]: the package's protocol (an install from before it was written is protocol 1). */
+    const val PROTOCOL_MARKER = "PACKAGE_PROTOCOL"
 
     data class Manifest(val size: Long, val sha256: String, val unpacked: Long, val format: Int, val protocol: Int)
 
@@ -48,26 +60,45 @@ object WrathppServerPackage {
     fun installedSha(layout: WowLayout): String? =
         File(layout.wrathppServer, MARKER).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** Whether [published] should be downloaded over what is installed (nothing, an unfinished install, another package). */
-    fun needsInstall(layout: WowLayout, published: Manifest?): Boolean {
+    fun installedProtocol(layout: WowLayout): Int =
+        File(layout.wrathppServer, PROTOCOL_MARKER).takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: 1
+
+    /**
+     * Whether [published] should be downloaded over what is installed: nothing installed, an unfinished install, or a
+     * server too old for this app ([MIN_PROTOCOL]) always; another package only when [update] (the settings page's button).
+     * Offline ([published] null) with a server installed: what is installed.
+     */
+    fun needsInstall(layout: WowLayout, published: Manifest?, update: Boolean = false): Boolean {
         val installed = installedSha(layout)
         if (!layout.hasWrathppServer() || installed == null) return true
-        return published != null && !published.sha256.equals(installed, ignoreCase = true)
+        if (published == null) return false
+        if (installedProtocol(layout) < MIN_PROTOCOL && published.protocol >= MIN_PROTOCOL) return true
+        return update && !published.sha256.equals(installed, ignoreCase = true)
+    }
+
+    /** The published package when it is not the installed one (for the settings page), else null; null too when offline or none installed. */
+    fun newer(layout: WowLayout): Manifest? {
+        val installed = installedSha(layout) ?: return null
+        val published = runCatching { manifest() }.getOrNull() ?: return null
+        return published.takeUnless { it.sha256.equals(installed, ignoreCase = true) }
     }
 
     /**
-     * Makes sure the newest package is installed. Offline with a package installed: that one is used. Call off the main
-     * thread; [say] gets each step's words and its share done (0..1), often (the caller thins it out).
+     * Makes sure a usable package is installed: the one there stays ([needsInstall]) unless there is none, or it is older
+     * than [MIN_PROTOCOL], or [update] asks for the newest. Offline with a package installed: that one is used. Call off
+     * the main thread; [say] gets each step's words and its share done (0..1), often (the caller thins it out).
+     * Returns whether the release was reached (false: offline, the installed one used).
      */
-    fun ensure(layout: WowLayout, say: (String, Float?) -> Unit) {
+    fun ensure(layout: WowLayout, say: (String, Float?) -> Unit, update: Boolean = false): Boolean {
         val published = runCatching { manifest() }.getOrElse { e ->
-            if (layout.hasWrathppServer() && installedSha(layout) != null) return
+            if (layout.hasWrathppServer() && installedSha(layout) != null) return false
             throw IOException("Wrath++'s server couldn't be fetched (${e.message ?: e.javaClass.simpleName}). It is published by this app's " +
                 "repository (release $RELEASE); check the connection, or that the release exists yet.")
         }
-        if (!needsInstall(layout, published)) return
+        if (!needsInstall(layout, published, update)) return true
         if (published.format < MIN_FORMAT) throw IOException("Wrath++'s server is being updated. Try again in a few minutes.")
         install(layout, published, say)
+        return true
     }
 
     private fun mb(bytes: Long) = bytes shr 20
@@ -115,6 +146,7 @@ object WrathppServerPackage {
         }
         old.deleteRecursively()
         staging.deleteRecursively()
+        File(target, PROTOCOL_MARKER).writeText(manifest.protocol.toString())
         File(target, MARKER).writeText(manifest.sha256)
     }
 

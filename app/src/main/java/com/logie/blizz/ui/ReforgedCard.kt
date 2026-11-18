@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.logie.blizz.wrathpp.Reforged
 import com.logie.blizz.wrathpp.ReforgedDownloads
+import com.logie.blizz.wrathpp.WrathppServerUpdate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -96,5 +97,27 @@ internal fun WrathppGraphicsCard() {
         }
         Text("Set at the next Play. The frame limit itself is in World of Warcraft's Launch options (60 unless you choose otherwise).",
             style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+    }
+}
+
+/** Wrath++'s settings page: the downloaded pieces stay on the phone; updated here ([WrathppServerUpdate]). */
+@Composable
+internal fun WrathppServerCard() {
+    val context = LocalContext.current
+    val state by WrathppServerUpdate.state.collectAsState()
+    SettingCard("Downloads") {
+        Text(
+            "Wrath++'s server, add-on, looks and creator art live on this phone and Play uses them as they are: nothing is " +
+                "downloaded again at every start. They are fetched again once after the app itself updates (so they match it) " +
+                "and when you tap Update now (about 250 MB for the server; your characters are not touched).",
+            style = MaterialTheme.typography.bodySmall, color = Colors.Mist,
+        )
+        state.message?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Colors.Gold) }
+        if (state.running) {
+            Text(state.text, style = MaterialTheme.typography.bodySmall, color = Colors.Ice)
+            state.fraction?.let { f -> LinearProgressIndicator(progress = { f.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth()) }
+        } else {
+            FrameButton("Update now", primary = false, modifier = Modifier.fillMaxWidth()) { WrathppServerUpdate.update(context) }
+        }
     }
 }

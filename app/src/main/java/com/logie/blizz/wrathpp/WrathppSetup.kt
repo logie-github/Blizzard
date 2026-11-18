@@ -4,15 +4,20 @@ import android.content.Context
 import com.logie.blizz.wow.WowLayout
 
 /**
- * What Play on Wrath++'s page does before its realm starts: its server package ([WrathppServerPackage], downloaded the
- * first time and when a newer one is published) and its own copy of the game ([WrathppClient], made once from Wrath+'s).
+ * What Play on Wrath++'s page does before its realm starts: its server package ([WrathppServerPackage]) and its own copy of
+ * the game ([WrathppClient], made once from Wrath+'s), the add-on, the looks and the creator's art. Those downloaded pieces
+ * are fetched the first time and then kept on the phone: refreshed only at the first Play after the app was updated and by
+ * the settings page's Update ([WrathppParts], [refreshParts]), never at every start.
  * Each step reports its words and share done, thinned out ([Reports]) so the screen moves without being flooded.
  */
 object WrathppSetup {
     fun run(context: Context, say: (String, Float?) -> Unit) {
         val layout = WowLayout.of(context)
         val report = Reports(say)
-        WrathppServerPackage.ensure(layout, report::say)
+        // The downloaded pieces stay as they are on the phone unless this is the first Play of this build of the app.
+        val refresh = WrathppParts.due(context.filesDir, com.logie.blizz.BuildConfig.VERSION_CODE)
+        val reached = WrathppServerPackage.ensure(layout, report::say, update = refresh)
+        var partsOk = true
         if (!WrathppClient.isMade(layout.wrathppClient)) {
             report.say("Making Wrath++'s copy of the game (step 4 of 4)", 0f)
             WrathppClient.make(layout.client, layout.wrathppClient, report::say)
@@ -31,20 +36,23 @@ object WrathppSetup {
         }.onFailure { e -> notes.append("reforged FAILED: ${e.message}\n") }
         runCatching { ReforgedDownloads.start(context) }
         lap("reforged")
-        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
+        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say, update = refresh) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
-            .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
+            .onFailure { e -> partsOk = false; notes.append("add-on FAILED: ${e.message}\n") }
         lap("add-on")
         // Shadowlands' looks for the ten races (WrathppLooks): without them, the game's own.
-        runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
+        runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say, update = refresh) }
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
-            .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
+            .onFailure { e -> partsOk = false; notes.append("looks FAILED: ${e.message}\n") }
         lap("looks")
         // Shadowlands' creator's own art (WrathppArt): without it the creator draws with 3.3.5's pictures in the same places.
-        runCatching { WrathppArt.ensure(layout.wrathppClient, report::say) }
+        runCatching { WrathppArt.ensure(layout.wrathppClient, report::say, update = refresh) }
             .onSuccess { notes.append("creator art: ${WrathppArt.installedSha(layout.wrathppClient) ?: "none"}\n") }
-            .onFailure { e -> notes.append("creator art FAILED: ${e.message}\n") }
+            .onFailure { e -> partsOk = false; notes.append("creator art FAILED: ${e.message}\n") }
         lap("creator art")
+        // Refreshed for this build only when the release was reached and nothing failed: else the next Play tries again.
+        if (refresh && reached && partsOk) runCatching { WrathppParts.markDone(context.filesDir, com.logie.blizz.BuildConfig.VERSION_CODE) }
+        notes.append("downloaded pieces: ${if (refresh) "refreshed for this build (${if (reached && partsOk) "done" else "not complete: again at the next Play"})" else "kept as they are (refreshed for build ${WrathppParts.refreshedFor(context.filesDir)})"}\n")
         // Ralia's mod, when you imported it (WrathppRalia): its skins in place of the looks' they are named for.
         // Its zip is looked for by its name where downloads are (ImportFinder), and taken in by itself the first time.
         runCatching {
@@ -125,6 +133,36 @@ object WrathppSetup {
         }.onFailure { e -> notes.append("creator patch FAILED: ${e.message}\n") }
         val log = java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log")
         runCatching { log.parentFile?.mkdirs(); log.writeText(notes.toString()) }
+    }
+
+    /**
+     * The settings page's **Update now**: the server, add-on, looks and creator art fetched again when the release has newer
+     * ones ([WrathppParts]). Returns a sentence saying what happened. Call off the main thread; not while the realm runs.
+     */
+    fun refreshParts(context: Context, say: (String, Float?) -> Unit): String {
+        val layout = WowLayout.of(context)
+        val client = layout.wrathppClient
+        val report = Reports(say)
+        fun shas() = listOf(
+            "server" to WrathppServerPackage.installedSha(layout), "add-on" to WrathppAddon.installedSha(client),
+            "looks" to WrathppLooks.installedSha(client, layout.wrathppServer), "creator art" to WrathppArt.installedSha(client),
+        )
+        val before = shas()
+        val reached = WrathppServerPackage.ensure(layout, report::say, update = true)
+        val failures = ArrayList<String>()
+        if (WrathppClient.isMade(client)) {
+            runCatching { WrathppAddon.ensure(client, report::say) }.onFailure { failures += "the add-on (${it.message})" }
+            runCatching { WrathppLooks.ensure(client, layout.wrathppServer, report::say) }.onFailure { failures += "the looks (${it.message})" }
+            runCatching { WrathppArt.ensure(client, report::say) }.onFailure { failures += "the creator art (${it.message})" }
+        }
+        if (reached && failures.isEmpty()) WrathppParts.markDone(context.filesDir, com.logie.blizz.BuildConfig.VERSION_CODE)
+        val changed = shas().zip(before).filter { (now, was) -> now.second != was.second }.map { it.first.first }
+        return when {
+            failures.isNotEmpty() -> "Not everything could be updated: ${failures.joinToString("; ")}. What was on the phone is kept."
+            !reached -> "Couldn't reach the downloads (offline?). What is on the phone is kept."
+            changed.isEmpty() -> "Everything on the phone is the newest published."
+            else -> "Updated: ${changed.joinToString(", ")}. It takes effect at the next Play."
+        }
     }
 
     const val GLUE_ASSET = "wrathpp/WrathppCreate.lua"

@@ -38,8 +38,12 @@ object WrathppAddon {
     fun baseExecutable(client: File): File? =
         listOf(com.logie.blizz.game.WowClientSetup.PATCHED_EXE, com.logie.blizz.game.WowClientSetup.EXE).map { File(client, it) }.firstOrNull { it.isFile }
 
-    /** Downloads and installs the newest add-on into [client] (Wrath++'s copy) when it isn't the one in. Offline with one in: kept. */
-    fun ensure(client: File, say: (String, Float?) -> Unit) {
+    /**
+     * Downloads and installs the newest add-on into [client] (Wrath++'s copy) when it isn't the one in. Offline with one in: kept.
+     * Not [update] (Play, after the pieces were refreshed for this build of the app: [WrathppParts]): the one in stays.
+     */
+    fun ensure(client: File, say: (String, Float?) -> Unit, update: Boolean = true) {
+        if (!update && installedSha(client) != null && File(client, EXE).isFile) return
         val published = runCatching { parseManifest(fetchText("$BASE/wrathpp-client-addon.json")) }.getOrElse { e ->
             if (installedSha(client) != null) return
             throw IOException("Wrath++'s add-on couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")

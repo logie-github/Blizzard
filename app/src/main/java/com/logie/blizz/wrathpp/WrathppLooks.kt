@@ -55,13 +55,16 @@ object WrathppLooks {
      * they aren't the ones in. Offline with some in: kept. No release yet: an [IOException] (Wrath++ plays with the
      * game's own looks).
      */
-    fun ensure(client: File, server: File, say: (String, Float?) -> Unit) {
+    fun ensure(client: File, server: File, say: (String, Float?) -> Unit, update: Boolean = true) {
         // The game's patch is in and the server's tables aren't (a server package put in since): the server's are put back from
         // the patch first, whatever is published, so that a failed download or a package this app can't take keeps the game and
         // its server on the same looks.
         File(client, "Data/$PATCH/$MARKER").takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }?.let { sha ->
             if (installedSha(client, server) == null) runCatching { restoreServer(client, server, sha) }
         }
+        // Not [update] (Play, after the pieces were refreshed for this build of the app: [WrathppParts]): the looks in stay, and
+        // their 20,500 files are not fetched and written again each time the release is rebuilt.
+        if (!update && installedSha(client, server) != null) return
         val published = runCatching { WrathppAddon.parseManifest(WrathppAddon.fetchText("$BASE/wrathpp-looks.json")) }.getOrElse { e ->
             if (installedSha(client, server) != null) return
             throw IOException("Wrath++'s looks couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")
