@@ -42,9 +42,9 @@ class RegistryTest(unittest.TestCase):
             self.assertIn("verified", c["legion"])
 
     def test_body_options(self):
-        # Shape, Style and Density: every woman of the ten races, none of the men; the values the realm's module reads.
+        # Shape, Style and Density: every woman of the 23 races, none of the men; the values the realm's module reads.
         cats = {c["id"]: c for c in self.doc["categories"]}
-        races = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11}
+        races = set(range(1, 24))
         for cid, values in ((1101, range(4)), (1102, range(17)), (1103, range(5))):
             c = cats[cid]
             self.assertEqual({e["race"] for e in c["eligibility"]}, races)

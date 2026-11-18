@@ -169,7 +169,7 @@ namespace
         if (display && !sCreatureDisplayInfoStore.LookupEntry(display))
             display = 0;                                       // the tables don't have it (the app puts the rows in): her race's own stays
         uint32 native = player->GetNativeDisplayId();
-        bool ours = (native >= kBodyDisplayBase && native < kBodyDisplayBase + 10 * 260) || (native >= kVariantDisplayBase && native < kVariantDisplayBase + kVariantCount * 16);
+        bool ours = IsBodyDisplay(native) || (native >= kVariantDisplayBase && native < kVariantDisplayBase + kVariantCount * 16);
         if (!display)
         {
             // none (any more): her race's own display, where one of these was hers
