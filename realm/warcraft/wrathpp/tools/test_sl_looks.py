@@ -235,6 +235,46 @@ class ChangesTest(unittest.TestCase):
         self.assertEqual(open(os.path.join(out, "T.txt")).read(), "types\tii\nput\t1\t2\nput\t3\t4\n")
 
 
+def tables(options, choices, elements, geosets):
+    """sl_looks' Tables over a few rows (no CSVs): options {id: (model, name)}, choices {option: [choice ids]}, elements {choice: [geoset
+    row ids]}, geosets {row id: (type, id)}."""
+    t = sl_looks.Tables.__new__(sl_looks.Tables)
+    t.aliases, t.only_available, t.unlocked, t.reqs, t.cond_models, t.model_data, t.skinned, t.layers = {}, {}, set(), {}, {}, {}, {}, []
+    t.options = {o: {"ID": o, "ChrModelID": m, "Name_lang": n, "OrderIndex": str(i)} for i, (o, (m, n)) in enumerate(options.items())}
+    t.choices = {o: [{"ID": c, "Name_lang": "", "OrderIndex": str(i), "ChrCustomizationReqID": "0"} for i, c in enumerate(cs)] for o, cs in choices.items()}
+    t.elements = type("E", (dict,), {"__missing__": lambda self, k: []})(
+        {c: [{"ChrCustomizationGeosetID": g, "ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "0",
+              "RelatedChrCustomizationChoiceID": "0"} for g in gs] for c, gs in elements.items()})
+    t.geosets = {g: {"ID": g, "GeosetType": str(a), "GeosetID": str(b)} for g, (a, b) in geosets.items()}
+    t.chr_models = {"53": {"CharComponentTextureLayoutID": "1"}}
+    return t
+
+
+class HeadGeosetsTest(unittest.TestCase):
+    """9.2.7's rows of the head's group against the models' numbering (the newest files: the mouth 3201, the heads from 3202)."""
+
+    def setUp(self):
+        self.t = tables({"1530": ("53", "Eyes"), "1532": ("53", "Eyebrows"), "1534": ("53", "Face Jewelry")},
+                        {"1530": ["e1", "e2"], "1532": ["b1", "b2"], "1534": ["j0", "j1"]},
+                        {"e1": ["2083"], "e2": ["2084"], "b1": ["300"], "b2": ["301"], "j0": ["400"], "j1": ["401"]},
+                        {"2083": (32, 1), "2084": (32, 2), "300": (34, 1), "301": (34, 2), "400": (16, 0), "401": (16, 1)})
+
+    def test_a_head_row_of_9_2_7_is_the_models_next_geoset(self):
+        self.assertEqual(sl_looks.BUILD, "9.2.7.45745")                      # (a newer build's table has the models' numbers: HEAD_SHIFT)
+        self.assertEqual([self.t.choice_geosets(c) for c in self.t.choices["1530"]], [[3202], [3203]])
+        self.assertEqual([self.t.choice_geosets(c) for c in self.t.choices["1532"]], [[3401], [3402]])       # the other groups as they are
+        self.assertEqual([self.t.choice_geosets(c) for c in self.t.choices["1534"]], [[], [1601]])
+
+    def test_the_nightbornes_eyes_are_models_of_their_own_not_a_piece(self):
+        """two heads of the model itself: a variant (a model a choice), the first the model as it is; never a piece laid over the head"""
+        model = {"model": 1, "name": "NightborneMale", "feature_options": [], "overlays": [], "hair_colors": []}
+        model["variants"] = sl_looks.variants_of(self.t, 53, model)
+        self.assertEqual([(v["name"], v.get("geoset"), [c["geosets"] for c in v["choices"]]) for v in model["variants"]],
+                         [("Eyes", True, [[3202], [3203]])])
+        parts, pickers = sl_looks.parts_of(self.t, 53, model)
+        self.assertEqual([p["name"] for p in parts], ["Eyebrows", "Face Jewelry"])
+
+
 class BlueEyesTest(unittest.TestCase):
     def test_irises_turn_blue_and_the_green_cast_goes_back_to_skin(self):
         import numpy as np

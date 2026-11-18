@@ -117,6 +117,16 @@ SEXES = ("Male", "Female")
 SKIP = set()           # (the Blood Elf man was here until his files were fetched of one build: m2.MixedBuilds)
 
 
+# The head's geosets (today's group 32) are numbered one higher in the models than in 9.2.7's tables: the models are fetched as
+# their newest copies, which keep the inside of the mouth as 3201 and the heads from 3202, and today's ChrCustomizationGeoset
+# has its three head rows (ids 2083 to 2085) one up ((32, 2) to (32, 4)); at 9.2.7 they are (32, 1) to (32, 3). Read as they
+# stand, the Nightborne's Eyes (two heads) named the mouth as its first choice, so the head was left out of the model (the
+# phone's race screen, 18 November 2026: eyeballs, teeth and hair around nothing), and the Human's Face Shape gave its second
+# shape for the third choice and the first again, without its mouth, for the second.
+HEAD_GROUP = 32
+HEAD_SHIFT = 1 if BUILD == "9.2.7.45745" else 0
+
+
 class Tables(allied.Tables):
     """The allied races' reading of the tables, with the ten races' own names for an option."""
 
@@ -125,6 +135,11 @@ class Tables(allied.Tables):
         self.aliases = {}
         self.only_available = {}
         self.unlocked = set()
+
+    def geoset_of(self, element):
+        """A choice's geoset as the models number it: a head's (HEAD_SHIFT) one up from this build's row."""
+        geoset = super().geoset_of(element)
+        return geoset + HEAD_SHIFT if geoset // 100 == HEAD_GROUP and geoset % 100 else geoset
 
     def unlock(self, model_id, achievements):
         """The choices of a model's options that only an achievement of [achievements] closes: never left out for being hidden."""
@@ -228,7 +243,9 @@ def overlays_of(tables, chr_model, model):
     return out
 
 
-GEOSET_VARIANTS = ("Face Shape", "Skin Type")
+# (Eyes: the Nightborne's, two heads of the model itself, today's 3202 and 3203. As a piece laid over the model it was the head
+# drawn a second time with the bare skin for its texture, on a model that had none.)
+GEOSET_VARIANTS = ("Face Shape", "Skin Type", "Eyes")
 
 
 def variants_of(tables, chr_model, model):
@@ -278,7 +295,7 @@ def parts_of(tables, chr_model, model):
     skip = set(SLIDERS) | set(model.get("feature_options", [])) | {o["name"] for o in model.get("overlays", [])}
     skip |= {today for (cm, asked), today in tables.aliases.items() if cm == str(chr_model)}      # (the Tauren's Foremane and Horn Color are the hair's sliders)
     skip |= {v["name"] for v in model.get("variants", [])}
-    skip |= {"Face Shape", "Skin Type"}         # (they replace the head or the body of the model itself: a piece laid over it would double it)
+    skip |= set(GEOSET_VARIANTS)                # (they replace the head or the body of the model itself: a piece laid over it would double it)
     feature_parts = FEATURE_PARTS.get(model.get("name"), ())
     skip -= set(feature_parts)
     parts, pickers = [], []
