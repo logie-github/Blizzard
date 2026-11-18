@@ -54,6 +54,19 @@
 // differs shows no layer and keeps running. Addresses and layouts: the pinned decompilation (CharacterComponent.h,
 // ComponentData.h, M2Model.h, M2Shared.h, M2Data.h); NOT run in the game.
 //
+// And the creatures' skins. A creature drawn with a race's model (CreatureDisplayInfoExtra) gets a texture baked for the model
+// 3.3.5 had: CGUnit_C::InitializeExtendedDisplay (0x0071D010) sets ComponentData's flag 1 and m_npcSkinTexture
+// ("Textures\\BakedNpcTextures\\" and the row's BakeName), and CCharacterComponent::Init (0x004F24D0, thiscall: data, debug) then
+// calls SkinNpc (0x004F1FC0), which puts that file on as the whole skin; with the flag on, nothing is composed (SetSkinColor,
+// SetFace, the item textures all return early). On the looks' models the head is laid out otherwise, so the baked face lies in
+// the wrong place (the user's pictures of 18 November 2026: Keina, Conservator Ilthalaine). A detour on Init takes the flag and
+// the name off for the races and sexes whose model is the looks' (Wrathpp\\npc.txt in the looks' package: "race<TAB>sex" a line,
+// read once through wxl.storage when the first such creature is made), and the game composes the creature's skin as it does a
+// player's: the skin, face and hair of the row's five numbers (which the looks' change file has made the looks' own:
+// sl_looks.py npc_changes) and its items' textures (InitializeComponent's AddItem of the row's eleven item displays, which
+// composes them when the flag is off). No list, no storage or no hook: every creature keeps its baked texture, as before.
+// Compiled by CI only; NOT run in the game.
+//
 // Addresses and layouts: WarcraftXL-Labs/core's offset tables and the decompiled client
 // (docs/wrathpp/CLIENT_PROBE.md), both at the commits wrathpp.env pins:
 //   CCharacterCreation::m_character            0x00B6B1A0   CCharacterComponent*
@@ -92,6 +105,7 @@
 #include "wxl/services/hook.hpp"
 #include "wxl/services/m2.hpp"
 #include "wxl/services/script.hpp"
+#include "wxl/services/storage.hpp"
 
 namespace
 {
@@ -518,7 +532,114 @@ namespace
         if (g_layerHook) wxl::Log(WXL_LOG_INFO, kTag, "body options' layer: attached");
         else wxl::Log(WXL_LOG_WARN, kTag, "body options' layer: not attached");
     }
+
+    // --- the creatures' skins ----------------------------------------------------------------------------------------
+    // ComponentData (ComponentData.h): its CharacterPreferences first (race +0x00, sex +0x04), m_flags +0x24 (1: the baked
+    // texture is the skin), m_npcSkinTexture +0x28.
+    using ComponentInitFn = bool(__thiscall*)(void*, void*, const char*);
+    ComponentInitFn g_componentInit = nullptr;
+    wxl::Hook g_creatureHook;
+    constexpr uint32_t kComposedRaces = 256;
+    bool g_composed[kComposedRaces * 2] = {};      // [race * 2 + sex]: the looks' models
+    bool g_composedRead = false;
+    uint32_t g_composedCount = 0, g_composedMade = 0;
+
+    /// Wrathpp\\npc.txt: "race<TAB>sex" a line ('#' a comment). Read once; without it nothing is composed.
+    void ReadComposed()
+    {
+        g_composedRead = true;
+        const wxl::StorageService storage;
+        if (!storage)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "creatures' skins: no wxl.storage: the baked textures stay");
+            return;
+        }
+        const wxl::Expected<std::string> text = storage.ReadText("Wrathpp\\npc.txt");
+        if (!text)
+        {
+            wxl::Log(WXL_LOG_INFO, kTag, "creatures' skins: no Wrathpp\\npc.txt ({}): the baked textures stay", wxl::ResultName(text.Error()));
+            return;
+        }
+        const std::string& all = *text;
+        size_t at = 0;
+        while (at < all.size())
+        {
+            size_t end = all.find('\n', at);
+            if (end == std::string::npos) end = all.size();
+            uint32_t numbers[2] = {0, 0};
+            int have = 0;
+            bool digit = false, bad = false;
+            for (size_t i = at; i < end && !bad; i++)
+            {
+                const char c = all[i];
+                if (c == '#') break;
+                if (c >= '0' && c <= '9')
+                {
+                    if (!digit && have == 2) { bad = true; break; }
+                    if (!digit) have++;
+                    digit = true;
+                    numbers[have - 1] = numbers[have - 1] * 10 + static_cast<uint32_t>(c - '0');
+                    if (numbers[have - 1] > 100000) bad = true;
+                }
+                else if (c == ' ' || c == '\t' || c == '\r') digit = false;
+                else bad = true;
+            }
+            if (!bad && have == 2 && numbers[0] < kComposedRaces && numbers[1] < 2 && !g_composed[numbers[0] * 2 + numbers[1]])
+            {
+                g_composed[numbers[0] * 2 + numbers[1]] = true;
+                g_composedCount++;
+            }
+            at = end + 1;
+        }
+        wxl::Log(WXL_LOG_INFO, kTag, "creatures' skins: composed for {} models of the looks (Wrathpp\\npc.txt)", g_composedCount);
+    }
+
+    bool Composed(uint32_t race, uint32_t sex)
+    {
+        if (!g_composedRead) ReadComposed();
+        return race < kComposedRaces && sex < 2 && g_composed[race * 2 + sex];
+    }
+
+    /// A creature's ComponentData about to be made a component: the baked texture taken off where the model is the looks'.
+    bool Unbake(uintptr_t data)
+    {
+        __try
+        {
+            uint32_t* flags = reinterpret_cast<uint32_t*>(data + 0x24);
+            if (!(*flags & 1)) return false;                                   // a player's, or composed already
+            if (!Composed(*reinterpret_cast<const uint32_t*>(data), *reinterpret_cast<const uint32_t*>(data + 4))) return false;
+            *flags &= ~1u;
+            *reinterpret_cast<char*>(data + 0x28) = 0;
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    bool __fastcall ComponentInitDetour(void* component, void* /*edx*/, void* data, const char* debug)
+    {
+        if (data && Unbake(reinterpret_cast<uintptr_t>(data)) && ++g_composedMade == 1)
+            wxl::Log(WXL_LOG_INFO, kTag, "creatures' skins: the first creature composed");
+        return g_componentInit(component, data, debug);
+    }
+
+    void AttachCreatureSkins()
+    {
+        const wxl::RawHookService raw;
+        if (!raw)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "no wxl.hook.raw: the creatures keep their baked textures");
+            return;
+        }
+        g_creatureHook = raw.AttachAt("CCharacterComponent::Init", 0x004F24D0, reinterpret_cast<void*>(&ComponentInitDetour),
+                                      reinterpret_cast<void**>(&g_componentInit));
+        if (g_creatureHook) wxl::Log(WXL_LOG_INFO, kTag, "creatures' skins: attached");
+        else wxl::Log(WXL_LOG_WARN, kTag, "creatures' skins: not attached");
+    }
 #else
+    void AttachCreatureSkins() {}
     bool Customization(int, int32_t&, int32_t&) { return false; }
     bool SetCustomization(int, int32_t) { return false; }
     bool CreatingWho(int32_t&, int32_t&, int32_t&) { return false; }
@@ -1084,6 +1205,7 @@ namespace
             wxl::ScriptMgr::Add(&g_mountWatch);
 #endif
             AttachLayer();
+            AttachCreatureSkins();
             MovePreferences();
             wxl::Log(WXL_LOG_INFO, kTag, "Wrath++ native loaded");
             return WXL_OK;
