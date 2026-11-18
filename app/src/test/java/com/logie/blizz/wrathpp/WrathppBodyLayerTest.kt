@@ -177,6 +177,10 @@ class WrathppBodyLayerTest {
         assertArrayEquals(looks.copyOfRange(0, 48), out.copyOfRange(0, 48))
         assertArrayEquals(looks.copyOfRange(96, looks.size), out.copyOfRange(96, out.size))
         assertEquals(looks.size, out.size)
+        // looks that weigh the vertex anew (another bone): it takes the shape's place and keeps the looks' bone
+        val weighed = vertex(5f, 5f, 5f, 1f) + vertex(0.1f, -0.05f, 1.0f, 1f, bone = 9) + was.copyOfRange(48, was.size)
+        val kept = WrathppBodyLayer.carried(weighed, was, shape)!!
+        assertArrayEquals(vertex(0.13f, -0.05f, 1.0f, 1f, bone = 9), kept.copyOfRange(48, 96))
         // looks whose body itself is another: the changed vertex is not found
         assertNull(WrathppBodyLayer.carried(vertex(5f, 5f, 5f, 1f) + was.copyOfRange(48, was.size), was, shape))
         assertNull("a shape that changes nothing", WrathppBodyLayer.carried(looks, was, was))

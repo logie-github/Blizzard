@@ -313,25 +313,29 @@ object WrathppBodyLayer {
 
     /**
      * A body shape carried onto looks it was not made for: the looks' own vertices ([looks], 48 bytes each) with each
-     * vertex the shape changed taking the shape's record, found by what the vertex was in the looks the package was made
-     * for ([was], and [shape] in the same order: the first vertices of the package's two models). The vertices the package's
-     * refinement added are left out: the shape then lies on the looks' own, coarser mesh. Null when fewer than 97 in 100
-     * of the changed vertices are found in the new looks (her body itself changed: the shape is not for these looks).
+     * vertex the shape changed taking the shape's place, normal and texture coordinates, found by what those were in the
+     * looks the package was made for ([was], and [shape] in the same order: the first vertices of the package's two
+     * models). A vertex's bones and weights stay the looks' own (a looks release may weigh the body anew: the soft body's
+     * bones). The vertices the package's refinement added are left out: the shape then lies on the looks' own, coarser
+     * mesh. Null when fewer than 97 in 100 of the changed vertices are found in the new looks (her body itself changed: the
+     * shape is not for these looks).
      */
     fun carried(looks: ByteArray, was: ByteArray, shape: ByteArray): ByteArray? {
+        // (what a shape changes of a vertex: its place, 0 to 12; its normal and first texture coordinates, 20 to 40)
+        fun key(b: ByteArray, i: Int): ByteBuffer = ByteBuffer.allocate(32).put(b, i * VERT, 12).put(b, i * VERT + 20, 20).also { it.flip() }
         val n = minOf(was.size, shape.size) / VERT
         val changed = HashMap<ByteBuffer, Int>()
         for (i in 0 until n) {
-            var same = true
-            for (q in 0 until VERT) if (was[i * VERT + q] != shape[i * VERT + q]) { same = false; break }
-            if (!same) changed.putIfAbsent(ByteBuffer.wrap(was, i * VERT, VERT).slice(), i)
+            val k = key(was, i)
+            if (k != key(shape, i)) changed.putIfAbsent(k, i)
         }
         if (changed.isEmpty()) return null
         val out = looks.copyOf()
         val found = HashSet<Int>()
         for (j in 0 until looks.size / VERT) {
-            val i = changed[ByteBuffer.wrap(looks, j * VERT, VERT).slice()] ?: continue
-            System.arraycopy(shape, i * VERT, out, j * VERT, VERT)
+            val i = changed[key(looks, j)] ?: continue
+            System.arraycopy(shape, i * VERT, out, j * VERT, 12)
+            System.arraycopy(shape, i * VERT + 20, out, j * VERT + 20, 20)
             found.add(i)
         }
         return if (found.size * 100L >= changed.size * 97L) out else null
