@@ -31,13 +31,63 @@ def tinted(rgba, factor):
     return out
 
 
+def _hsv(rgb):
+    """Hue (degrees), saturation and value of float RGB (0..255) arrays."""
+    r, g, b = rgb[..., 0] / 255.0, rgb[..., 1] / 255.0, rgb[..., 2] / 255.0
+    v = np.maximum(np.maximum(r, g), b)
+    c = v - np.minimum(np.minimum(r, g), b)
+    s = np.where(v > 0, c / np.maximum(v, 1e-6), 0.0)
+    h = np.zeros_like(v)
+    nz = c > 1e-6
+    rc = nz & (v == r)
+    gc = nz & (v == g) & ~rc
+    bc = nz & ~rc & ~gc
+    h[rc] = ((g - b)[rc] / c[rc]) % 6
+    h[gc] = (b - r)[gc] / c[gc] + 2
+    h[bc] = (r - g)[bc] / c[bc] + 4
+    return h * 60.0, s, v
+
+
+def skin_reference(rgba):
+    """What a skin texture's skin is like: (hue in degrees, luminance of its skin pixels' mean), the pixels being the visible, saturated ones
+    (a tusk, an eye's white and a loincloth are not the skin's colour)."""
+    rgb = rgba[..., :3].astype(np.float64)
+    h, s, v = _hsv(rgb)
+    ok = (rgba[..., 3] > 8) & (s > 0.12) & (v > 0.06)
+    if not ok.any():
+        ok = rgba[..., 3] > 8
+    ang = np.radians(h[ok])
+    hue = float(np.degrees(np.arctan2((np.sin(ang) * s[ok]).sum(), (np.cos(ang) * s[ok]).sum())) % 360)
+    lum = rgb[..., 0] * 0.299 + rgb[..., 1] * 0.587 + rgb[..., 2] * 0.114
+    return hue, float(max(lum[ok].mean(), 1.0))
+
+
+def recolored(rgba, want, ref, width=80.0):
+    """The picture with its skin's colour made [want] (r, g, b): each pixel whose hue is within [width] degrees of the reference skin's hue
+    [ref] (from [skin_reference] of the Troll skin the colour was taken from) takes the wanted colour at its own brightness relative to the
+    skin's mean (the shading, the veins and the folds kept, the same whatever the part: body, face, underwear), the nearer the hue the
+    more fully; every other pixel (tusks, eye whites, loincloth, lips, tattoos of another colour) stays as it was. A per-channel factor (the
+    first version) turned a blue skin's bright chest lilac and its dark legs and its face black."""
+    hue0, lum0 = ref
+    rgb = rgba[..., :3].astype(np.float64)
+    h, s, v = _hsv(rgb)
+    d = np.abs((h - hue0 + 180.0) % 360.0 - 180.0)
+    w = np.clip(1.0 - d / width, 0.0, 1.0) * (s > 0.12) * (v > 0.04)
+    lum = rgb[..., 0] * 0.299 + rgb[..., 1] * 0.587 + rgb[..., 2] * 0.114
+    shade = np.clip(lum / lum0, 0.0, 2.4)[..., None]
+    target = np.clip(np.asarray(want, dtype=np.float64)[None, None, :] * shade, 0, 255)
+    out = rgba.copy()
+    out[..., :3] = np.clip(np.rint(rgb * (1 - w[..., None]) + target * w[..., None]), 0, 255).astype(np.uint8)
+    return out
+
+
 class Resolver:
     """A reader that makes a made-up file id's texture from its spec, and passes every other file id to [read]."""
 
     def __init__(self, read, specs):
         import blp
         self.blp, self.read, self.specs = blp, read, {str(k): v for k, v in specs.items()}
-        self.cache, self.chosen, self.means = {}, {}, {}
+        self.cache, self.chosen, self.means, self.refs = {}, {}, {}, {}
 
     def texture(self, fid):
         if fid not in self.cache:
@@ -69,8 +119,9 @@ class Resolver:
             return self.read(fid)
         cand = self.candidate(spec)
         key = "hair" if "hair" in cand else "body"
-        factor = np.clip(self.wanted(spec) / np.maximum(self.mean(cand[key]), 1.0), 0.2, 5.0)
-        return self.blp.write_dxt(tinted(self.texture(cand[spec["part"]]), factor), alpha=True)
+        if cand[key] not in self.refs:
+            self.refs[cand[key]] = skin_reference(self.texture(cand[key]))
+        return self.blp.write_dxt(recolored(self.texture(cand[spec["part"]]), self.wanted(spec), self.refs[cand[key]]), alpha=True)
 
 
 def extend(dark, night_elf, own_skins=OWN_SKINS, first_id=SYNTH):
