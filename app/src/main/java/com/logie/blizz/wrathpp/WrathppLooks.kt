@@ -23,6 +23,27 @@ object WrathppLooks {
     const val MARKER = "wrathpp-looks.stamp"
     /** In the patch folder (a folder the game reads as an archive: it ignores this one): the server's tables, to put back after a new server package. */
     const val SERVER_COPY = "wrathpp-server-dbc"
+    /**
+     * In the patch folder: each file of the package's `client/` as it was written (its length, its CRC-32 and its path in the folder),
+     * so that what is on the phone can be held to the package later ([WrathppModelCheck]) without the package. A patch put in before
+     * this was written has none.
+     */
+    const val SIZES = "wrathpp-looks.sizes"
+
+    /**
+     * What an install that was stopped (the app closed while it put the looks in) left beside the patch and the server's tables: the
+     * half-made `.new` and `.changes` folders and the `.old` one being deleted, each as large as the looks (the game never reads them:
+     * it opens only `Data/patch-?.MPQ`, Client.cpp's PatchFiles). Taken away when the patch they were for is in place. Returns how many.
+     */
+    fun clearLeftovers(client: File, server: File): Int {
+        val data = File(client, "Data")
+        if (!File(data, "$PATCH/$MARKER").isFile) return 0
+        var cleared = 0
+        for (f in listOf(File(data, "$PATCH.new"), File(data, "$PATCH.changes"), File(data, "$PATCH.old"), File(server, "share/dbc.new"), File(server, "share/dbc.old"))) {
+            if (f.exists() && f.deleteRecursively()) cleared++
+        }
+        return cleared
+    }
 
     /** The game's patch is [sha]'s and the server's tables aren't (a server package installed since): copied from the patch. */
     fun restoreServer(client: File, server: File, sha: String): Boolean {
@@ -55,7 +76,10 @@ object WrathppLooks {
      * they aren't the ones in. Offline with some in: kept. No release yet: an [IOException] (Wrath++ plays with the
      * game's own looks).
      */
-    fun ensure(client: File, server: File, say: (String, Float?) -> Unit, update: Boolean = true) {
+    fun ensure(client: File, server: File, say: (String, Float?) -> Unit, update: Boolean = true, repair: Boolean = false) {
+        // [repair] ([WrathppModelCheck]): the looks put in again over what is in even when the release is the one installed; through the
+        // delta that fetches only the files whose length or CRC-32 isn't the package's (missing, cut short or replaced ones).
+        runCatching { clearLeftovers(client, server) }
         // The game's patch is in and the server's tables aren't (a server package put in since): the server's are put back from
         // the patch first, whatever is published, so that a failed download or a package this app can't take keeps the game and
         // its server on the same looks.
@@ -64,14 +88,14 @@ object WrathppLooks {
         }
         // Not [update] (Play, after the pieces were refreshed for this build of the app: [WrathppParts]): the looks in stay, and
         // their 20,500 files are not fetched and written again each time the release is rebuilt.
-        if (!update && installedSha(client, server) != null) return
+        if (!update && !repair && installedSha(client, server) != null) return
         val published = runCatching { WrathppAddon.parseManifest(WrathppAddon.fetchText("$BASE/wrathpp-looks.json")) }.getOrElse { e ->
             if (installedSha(client, server) != null) return
             throw IOException("Wrath++'s looks couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")
         }
-        if (published.sha256.equals(installedSha(client, server), ignoreCase = true)) return
+        if (!repair && published.sha256.equals(installedSha(client, server), ignoreCase = true)) return
         // A new server package took its share/ (and the tables with it): they are the patch's own, put back from there.
-        if (restoreServer(client, server, published.sha256.lowercase())) return
+        if (!repair && restoreServer(client, server, published.sha256.lowercase())) return
         val zip = File(client.parentFile, "wrathpp-looks.zip.part")
         val free = (client.parentFile ?: client).usableSpace
         if (free in 1 until published.size * 3) {
@@ -136,6 +160,7 @@ object WrathppLooks {
         val dbcDir = File(server, "share/dbc")
         val dbcNew = File(server, "share/dbc.new").apply { deleteRecursively() }
         var count = 0
+        val sizes = StringBuilder()
         try {
             source { entryName, input ->
                 val name = entryName.replace('\\', '/')
@@ -148,7 +173,14 @@ object WrathppLooks {
                 }
                 if (out != null) {
                     out.parentFile?.mkdirs()
-                    out.outputStream().use { input.copyTo(it) }
+                    // (read to its end: the zip's and the delta's streams check the entry's CRC-32 there; the length and CRC kept for [SIZES])
+                    val crc = java.util.zip.CRC32()
+                    var length = 0L
+                    out.outputStream().buffered(1 shl 16).use { o ->
+                        val buffer = ByteArray(1 shl 16)
+                        while (true) { val n = input.read(buffer); if (n < 0) break; o.write(buffer, 0, n); crc.update(buffer, 0, n); length += n }
+                    }
+                    if (name.startsWith("client/")) sizes.append(length).append('\t').append("%08x".format(crc.value)).append('\t').append(name.removePrefix("client/")).append('\n')
                     if (++count % 500 == 0) progress(count)
                 }
             }
@@ -169,6 +201,7 @@ object WrathppLooks {
             } finally {
                 own?.second?.invoke()
             }
+            File(patchNew, SIZES).writeText(sizes.toString())
             File(dbcNew, MARKER).writeText("$sha\n")
             File(patchNew, MARKER).writeText("$sha\n")
             File(patchNew, SERVER_COPY).mkdirs()

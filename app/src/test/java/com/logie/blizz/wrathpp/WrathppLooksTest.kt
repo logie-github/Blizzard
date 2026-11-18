@@ -99,4 +99,30 @@ class WrathppLooksTest {
         assertEquals("old sections", File(server, "share/dbc/CharSections.dbc").readText())
         assertEquals("old", WrathppLooks.installedSha(client, server))
     }
+
+    @Test fun theInstallWritesThePackagesSizesForEachFileOfThePatch() {
+        val (client, server) = setup()
+        WrathppLooks.install(client, server, zip(good), "abc", tables = tables)
+        val lines = File(client, "Data/patch-Z.MPQ/${WrathppLooks.SIZES}").readLines().filter { it.isNotBlank() }
+        val crc = java.util.zip.CRC32().apply { update("model".toByteArray()) }.value
+        // only the client's files (the game's patch), each its length, CRC-32 and path in the folder
+        assertEquals(listOf("5\t%08x\tCharacter/Human/Male/HumanMale.m2".format(crc)), lines)
+        assertEquals(5L, WrathppModelCheck.sizes(File(client, "Data/patch-Z.MPQ"))!!["character\\human\\male\\humanmale.m2"])
+    }
+
+    @Test fun whatAStoppedInstallLeftBesideThePatchIsTakenAway() {
+        val (client, server) = setup()
+        // nothing installed yet: a half-made folder is the install's own to start again from, left alone
+        File(client, "Data/patch-Z.MPQ.new/Character").mkdirs()
+        assertEquals(0, WrathppLooks.clearLeftovers(client, server))
+        WrathppLooks.install(client, server, zip(good), "abc", tables = tables)
+        for (n in listOf("patch-Z.MPQ.new/Character/x.m2", "patch-Z.MPQ.old/Character/y.m2", "patch-Z.MPQ.changes/CharSections.txt")) {
+            File(client, "Data/$n").apply { parentFile!!.mkdirs(); writeText("left") }
+        }
+        File(server, "share/dbc.old").mkdirs()
+        assertEquals(4, WrathppLooks.clearLeftovers(client, server))
+        assertEquals(listOf("patch-W.MPQ", "patch-Z.MPQ"), File(client, "Data").list()!!.sorted())
+        assertEquals("model", File(client, "Data/patch-Z.MPQ/Character/Human/Male/HumanMale.m2").readText())
+        assertEquals("abc", WrathppLooks.installedSha(client, server))
+    }
 }
