@@ -82,8 +82,13 @@ FEATURES = {
     (11, 1): (["Horns", "Tendrils", "Tail"], {24: 3, 38: 16}),                          # 12 x 2 x 6
     (9, 0): (["Earrings", "Nose Ring"], {35: 3}),                                        # the Goblins' (Wrath++'s 9)
     (9, 1): (["Earrings", "Nose Ring"], {35: 3}),
-    (12, 0): (["Facial Hair"], {}),                                                     # the Worgen's (Wrath++'s 12)
-    (12, 1): ([], {}),
+    # The Worgen's (Wrath++'s 12). Their ears are geosets of group 2, which 3.3.5's facial table shows itself, and they draw from
+    # the head's half of the skin (the face's place of the composed texture): on the slider the game draws them, on every
+    # character and creature. As a piece hung by the native mod (until 18 November 2026) they took the plain skin file, whose
+    # face's place holds no face: dark shapes behind an earless head (the phone's "bear-like head and a crescent behind it").
+    # Ears first (slowest), so a character made before keeps its facial hair's number.
+    (12, 0): (["Ears", "Facial Hair"], {}),                                             # 12 x 12
+    (12, 1): (["Ears"], {}),                                                            # 12
 }
 FEATURES.update({
     (28, 0): (["Horn Style", "Beard"], {24: 3}), (28, 1): (["Horn Style", "Earrings"], {24: 3, 35: 1}),
@@ -374,7 +379,9 @@ def table_rows(looks):
             sex = int(sex)
             for s in m["skins"]:
                 c = s["index"]
-                sections.append([race, sex, 0, names.skin(m, c), names.skin_extra(m, c) if m.get("skin_extra") else "", "", 17, 0, c])
+                # (the second texture is the skin extra, which the game puts on the model's texture type 8: a model with fur has
+                # one a skin, textures.py; the Forsaken's is the whole texture of today, m2.py's bony pieces)
+                sections.append([race, sex, 0, names.skin(m, c), names.skin_extra(m, c) if m.get("skin_extra") or s.get("extra") else "", "", 17, 0, c])
                 if s["pelvis"]:
                     sections.append([race, sex, 4, names.pelvis(m, c), names.torso(m, c) if s["torso"] else "", "", 17, 0, c])
             for fi, face in enumerate(m["faces"]):
@@ -395,6 +402,12 @@ def table_rows(looks):
                     scalp = h.get("scalp", {}).get(str(hc["index"])) or h.get("scalp", {}).get("*")
                     sections.append([race, sex, 3, names.hair(m, hc["index"]), names.scalp(m, scalp) if scalp else "", "", 17,
                                      h["variation"], hc["index"]])
+                if not m["hair_colors"]:
+                    # A race without hair colours (the Worgen: the mane is the fur's colour, the skin extra) still needs a hair
+                    # row a style: the game takes a style only if the table has it with the character's hair colour
+                    # (CCharacterComponent::SetHairStyle, ComponentValidateBase), and the realm checks the same row. Colour 0,
+                    # no texture of its own (ReplaceHairTexture leaves an empty name alone).
+                    sections.append([race, sex, 3, "", "", "", 17, h["variation"], 0])
                 hair.append([race, sex, h["variation"], h["geoset"], 0])
             for f in m["features"]:
                 facial.append([race, sex, f["variation"]] + list(f["geosets"]))

@@ -763,6 +763,16 @@ def convert(files, policy, out_dir, log=print):
     if len(kept) != len(skin.batches):
         log("%s: %d batches name textures or materials the model hasn't: left out" % (name, len(skin.batches) - len(kept)))
         skin.batches = kept
+    # The skin extra (texture type 8: the fur of the Tauren and the Worgen, the Draenei men's crests): a character's own model keeps
+    # today's sections of that type when its skins name the picture (races.py: each skin's "extra"), because 3.3.5 has the same
+    # layer and fills it itself: a skin row's second texture is put on the model's type 8 for players and creatures alike
+    # (CCharacterComponent::ReplaceExtraSkinTexture, from SetSkinColor and SkinNpc; the stock Tauren's Skin00_NN_Extra.blp). They
+    # were left out with every other type the old game has no use for, so the Worgen had no mane, neck or hair (the head stood
+    # over the shoulders, open at the back) and the Tauren no mane or beards. A part's model (stand_only) says what it keeps itself.
+    keep_types = set(policy.get("keep_types", ()))
+    fur = not policy.get("stand_only") and any(s.get("extra") for s in policy.get("skins", ()))
+    if fur:
+        keep_types.add(SKIN_EXTRA)
     blob = Blob()
     d = blob.data
     d[0:4] = b"MD20"
@@ -945,7 +955,7 @@ def convert(files, policy, out_dir, log=print):
     # colors now instead of bony"). Such a section draws with its own coordinates on today's whole skin texture (the
     # first colour's, textures.py), a texture of the model's own.
     extra_sections = set()
-    for si, sec in enumerate(skin.sections if policy.get("skin_extra", True) else ()):
+    for si, sec in enumerate(skin.sections if policy.get("skin_extra", True) and not fur else ()):
         if not any(b[3] == si and model.textures[model.texture_lookup[b[9]]][0] == BODY for b in skin.batches if b[9] < len(model.texture_lookup)):
             continue
         uvs = np.array([struct.unpack_from("<ff", model.vertices[skin.vertices[k]], 32) for k in range(sec[2], sec[2] + sec[3])])
@@ -966,7 +976,7 @@ def convert(files, policy, out_dir, log=print):
             texture_names[fid] = path
             texture_index[i] = len(textures)
             textures.append((0, flags, path))
-        elif kind in (BODY, CAPE, HAIR) or kind in policy.get("keep_types", ()):
+        elif kind in (BODY, CAPE, HAIR) or kind in keep_types:
             # (a model piece of Wrath++'s: today's customization textures too, which a picture is put on by type: sl_parts.py)
             texture_index[i] = len(textures)
             textures.append((kind, flags, ""))
@@ -1126,7 +1136,7 @@ def convert(files, policy, out_dir, log=print):
         for s in sections_by_id.get(int(old), []):
             for b in batches_of.get(s, []):
                 kind = texture_types[model.texture_lookup[b[9]]]
-                if kind not in KEPT_TYPES and kind != EYES and str(kind) not in hard and kind not in policy.get("keep_types", ()):
+                if kind not in KEPT_TYPES and kind != EYES and str(kind) not in hard and kind not in keep_types:
                     continue
                 for new in news:
                     plan.append((new, s, b))
