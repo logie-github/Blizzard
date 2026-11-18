@@ -86,6 +86,8 @@ check(int(cut[10, 100, 3]) == 255 and int(cut[120, 100, 3]) == 0, "...its alpha 
 check(tuple(int(v) for v in cut[10, 100, :3]) == (200, 40, 40) and int(cut[120, 100, :3].max()) == 0, "...no colour bleeding in from the clear parts")
 check(names.scalp({"folder": "Character\\Dwarf\\Female", "name": "DwarfFemale"}, 7) == "Character\\Dwarf\\Female\\DwarfFemaleScalp7.blp", "a scalp is named by its file")
 check(complete["3301"] == [0], "the eyes go to the body as named")
+check("1902" not in m2.complete_policy({"geoset_policy": {"0": [0]}, "drop_groups": []}, [0, 1902]) and m2.complete_policy({"geoset_policy": {"0": [0]}, "drop_groups": []}, [0, 1901, 1902])["1901"] == [0],
+      "a group the game doesn't know folds its first (X01) into the body, never a lone variant (the Night Elf man's 1902 band over the eyes)")
 capped = m2.complete_policy({"geoset_policy": {"0": [0]}, "drop_groups": []}, [0, 501, 502, 506, 507, 510, 1502, 1507])
 check(all(k in capped for k in ("501", "502", "506", "1502")) and not any(k in capped for k in ("507", "510", "1507")), "gear variants no 3.3.5 item asks for go")
 
