@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": 18,
+  "version": 19,
   "comment": "Wrath++ customization registry. Engineering seed for the first vertical slice (docs/wrathpp/MILESTONES.md, phase 3): two geoset categories of Legion 7.3.5's demon hunter looks. Every geoset group and option count here is UNVERIFIED until tools/legion_inventory.py has read the user's own 7.3.5 tables and tools/probe_geosets.py the Wrath++ client's models (docs/wrathpp/LEGION_OPTIONS_735.md). Stable ids: never reuse a category or option id for another look.",
   "classes": {
     "warrior": 1,
@@ -195,6 +195,97 @@
             "female"
           ],
           "classes": []
+        },
+        {
+          "race": 9,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 12,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 13,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 14,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 15,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 16,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 17,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 18,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 19,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 20,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 21,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 22,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 23,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
         }
       ],
       "options": [
@@ -293,6 +384,97 @@
         },
         {
           "race": 11,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 9,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 12,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 13,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 14,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 15,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 16,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 17,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 18,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 19,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 20,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 21,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 22,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 23,
           "sexes": [
             "female"
           ],
@@ -460,6 +642,97 @@
         },
         {
           "race": 11,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 9,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 12,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 13,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 14,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 15,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 16,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 17,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 18,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 19,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 20,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 21,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 22,
+          "sexes": [
+            "female"
+          ],
+          "classes": []
+        },
+        {
+          "race": 23,
           "sexes": [
             "female"
           ],

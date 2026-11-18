@@ -42,6 +42,9 @@ import decimate  # noqa: E402
 
 MAX_BONES = 64
 INDEX_BUDGET = 65535            # the game reads a section's triangle start as 16 bits: every section within this
+# Indices a cut model leaves free: Wrath++'s body layer (wrathpp/tools/body_shapes/layer.py: at most 107 triangles on the
+# released looks' women) is added to the looks' own skin on the phone (WrathppBodyLayer), which cuts nothing itself.
+LAYER_RESERVE = 420
 # What gives way when a model has more than that (decimate.py), and how far: the gear first, then
 # the features and the hair, the body (the face among it) last.
 TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]
@@ -1221,10 +1224,10 @@ def convert(files, policy, out_dir, log=print):
             if s not in whole:
                 now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
         total = sum(now.values()) + kept_whole
-        if total <= INDEX_BUDGET:
+        if total <= INDEX_BUDGET - LAYER_RESERVE:
             break
         floors = TIER_FLOORS if step == 0 else TIER_FLOORS_MORE if step == 1 else []
-        keep = decimate.plan(now, INDEX_BUDGET - 300 - kept_whole, floors)
+        keep = decimate.plan(now, INDEX_BUDGET - LAYER_RESERVE - 300 - kept_whole, floors)
         before = total
         for s, t in tier_of_section.items():
             if s in whole:
@@ -1234,7 +1237,7 @@ def convert(files, policy, out_dir, log=print):
                 cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))), locked=joins.get(s, ()))
         total = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section)
         if total >= before:
-            raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, INDEX_BUDGET, total))
+            raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, INDEX_BUDGET - LAYER_RESERVE, total))
     for t in sorted(sizes):
         kept = sum(len(cut[s]) * 3 for n, s, b in plan if tier_of(n) == t)
         log("%s: %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))

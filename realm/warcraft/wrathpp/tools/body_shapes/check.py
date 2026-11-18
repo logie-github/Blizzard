@@ -13,6 +13,7 @@ z = zipfile.ZipFile(sys.argv[1]); man = json.loads(z.read('wrathpp-body.json'))
 SIZES = {0x08: 1, 0x14: 4, 0x1C: 64, 0x24: 2, 0x2C: 88, 0x34: 2, 0x3C: 48, 0x48: 40, 0x50: 16, 0x58: 20, 0x60: 60, 0x68: 2, 0x70: 4,
          0x78: 2, 0x80: 2, 0x88: 2, 0x90: 2, 0x98: 2, 0xD8: 2, 0xE0: 12, 0xE8: 12, 0xF0: 40, 0xF8: 2, 0x100: 36, 0x108: 156,
          0x110: 100, 0x118: 2, 0x120: 176, 0x128: 476, 0x130: 2}
+FIRST = {r['race']: r.get('layer', {}).get('texture', 6) for r in man.get('races', [])}   # the layer's first texture: the hair's, or the body's own
 total = 0
 for mo in man['models']:
     base = open(LOOKS + '/' + (mo['model'] if mo['shape'] == 0 else mo['anims_of'] + '.m2'), 'rb').read()
@@ -29,7 +30,8 @@ for mo in man['models']:
         need(o <= len(m) and o + size * n <= len(m), 'array %#x out of the file' % off)
     tex = [struct.unpack_from('<IIII', m, A[0x50][1] + i * 16) for i in range(A[0x50][0])]
     for t in tex: need(t[3] + t[2] <= len(m), 'texture name out of the file')
-    need(tex[-1][0] == 11 and tex[-2][0] == 6, 'the last two textures: hair, design')
+    first = FIRST.get(mo['race'], 6)
+    need(tex[-1][0] == 11 and (tex[-2][0] == 6 or first != 6), 'the last textures: hair, design')
     nm = m[tex[-1][3]:tex[-1][3] + tex[-1][2]]
     need(nm.endswith(b'WppLayer_0.blp\0') and nm.lower().startswith(mo['model'].rsplit('/', 1)[0].replace('/', '\\').lower().encode()), 'design default name %r' % nm)
     arr = lambda off, fmt: [struct.unpack_from(fmt, m, A[off][1] + i * struct.calcsize(fmt))[0] for i in range(A[off][0])]
@@ -65,7 +67,7 @@ for mo in man['models']:
         need(b[2] + tc <= len(comb), 'batch %d combiner %d' % (k, b[2]))
         need(b[7] == 0, 'batch %d layered' % k)
     lay = [b for b in bats if secs[b[3]][0] == 1901]
-    need(len(lay) == 1 and lay[0][8] == 2 and lay[0][2] == 2 and [tex[texc[lay[0][9]]][0], tex[texc[lay[0][9] + 1]][0]] == [6, 11]
+    need(len(lay) == 1 and lay[0][8] == 2 and lay[0][2] == layer.LAYER_COMBINER and [tex[texc[lay[0][9]]][0], tex[texc[lay[0][9] + 1]][0]] == [first, 11]
          and coordc[lay[0][10]:lay[0][10] + 2] == [0, 1], 'the layer batch')
     need(sum(1 for s in secs if s[0] == 1901) == 1 and [s for s in secs if s[0] == 1901][0][4] <= 0xFFFF, 'the layer section')
     need(all(b[2] == 0 for b in bats if secs[b[3]][0] != 1901), 'other batches combiner 0')

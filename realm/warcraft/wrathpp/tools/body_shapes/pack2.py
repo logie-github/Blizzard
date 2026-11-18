@@ -4,7 +4,10 @@ design textures (masks.py). usage:
 
   pack2.py OUT.zip LOOKS_CLIENT_DIR RACES.json MAPS_DIR [SHAPES_V1.zip]
 
-RACES.json: per race (Human, Orc, ...): {"race": id, "k", "fold", "body", "hair_block"} (layer.py). A model is a
+RACES.json: per race (Human, Orc, ...): {"race": id, "k", "fold", "body", "hair_block"} (layer.py; measure.py), or
+{"race": id, "files": "VoidElf"} for a race drawn with another's files (the High Elf: her displays, the other's models
+and designs). The list's "layer" is the race's entry again: what the app needs to make the layer itself on looks the
+package was not made for (WrathppBodyLayer). A model is a
 patch of the looks' own (the header and what follows the base: layer.patch), checked by the SHA-256 of the looks' model
 it was made from and of the model it makes. The app (WrathppBody) puts the race's own model's back in place of the
 looks' model and each shape's beside it, with the textures in each race's folder and the display rows that pick them
@@ -27,7 +30,7 @@ import masks  # noqa: E402
 import refine  # noqa: E402
 
 SHAPES = ["As drawn", "Petite", "Curvy", "Voluptuous"]
-ALLIANCE = {1, 3, 4, 7, 11}
+ALLIANCE = {1, 3, 4, 7, 11, 12, 14, 17, 20, 22, 23}        # (the Worgen, Lightforged, Dark Iron, Mechagnome, High and Void Elves)
 SELECT = "Curvy"             # the shape whose places choose the layer's triangles for every shape of a model
 
 
@@ -67,17 +70,23 @@ def main(out, looks, races_json, maps, v1=None):
             z.writestr(name, data)
             return {"file": name, "sha256": sha(data), "size": len(data)}
         for race, R in races.items():
+            if "files" in R:
+                continue
             rel = "Character/%s/Female/%sFemale" % (race, race)
             base = open("%s/%s.m2" % (looks, rel), "rb").read()
             skin = open("%s/%s00.skin" % (looks, rel), "rb").read()
             man["races"].append({"race": race, "race_id": R["race"], "folder": "Character/%s/Female" % race,
-                                 "faction": "alliance" if R["race"] in ALLIANCE else "horde"})
+                                 "faction": "alliance" if R["race"] in ALLIANCE else "horde",
+                                 "layer": {k: R[k] for k in ("k", "fold", "body", "hair_block", "texture", "x") if k in R}})
             V = vertices_of(base)
             n = layer.count(V, skin, R)
             _, s0, info0 = refine.refine(base, skin, lambda *a: None, levels=0, reserve=3 * n + 30, log=lambda *a: None)
             folder = "Character\\%s\\Female" % race
             made, s1, li = layer.add(base, s0, V, R, folder=folder)
+            nv = struct.unpack_from("<I", base, 60)[0]
+            # (base_size, looks_vertices: where the app finds a model's vertices in its patch, to carry a shape onto other looks)
             entry = {"race": race, "shape": 0, "model": rel + ".m2", "skin": rel + "00.skin", "looks_sha256": sha(base),
+                     "base_size": len(base), "looks_vertices": nv,
                      "looks_struct_sha256": struct_sha(base), "made_struct_sha256": struct_sha(made, base),
                      "made_sha256": sha(made), "patch": put("%s/0.patch" % race, layer.patch(base, made)),
                      "skin_file": put("%s/0.skin" % race, s1)}
@@ -109,9 +118,16 @@ def main(out, looks, races_json, maps, v1=None):
                     raise SystemExit("%s: the shapes' skins differ" % race)
                 man["models"].append({"race": race, "shape": k, "model": "%sWpp%d.m2" % (rel, k), "skin": "%sWpp%d00.skin" % (rel, k),
                                       "anims_of": rel, "looks_sha256": sha(base), "made_sha256": sha(made),
+                                      "base_size": len(base), "looks_vertices": nv,
                                       "looks_struct_sha256": struct_sha(base), "made_struct_sha256": struct_sha(made, base),
                                       "patch": put("%s/%d.patch" % (race, k), layer.patch(base, made)), "skin_file": shared})
                 print(race, shape, li, flush=True)
+        for race, R in races.items():
+            if "files" in R:
+                if R["files"] not in races:
+                    raise SystemExit("%s: no race %s to take the files of" % (race, R["files"]))
+                man["races"].append({"race": race, "race_id": R["race"], "files": R["files"], "folder": "Character/%s/Female" % R["files"],
+                                     "faction": "alliance" if R["race"] in ALLIANCE else "horde"})
         # the designs, a texture each style and density, and the empty one
         names = sorted(set(masks.styles("alliance") + masks.styles("horde")))
         for name in names:

@@ -246,6 +246,75 @@ class WrathppBodyTest {
         assertEquals(setOf(50, 52), table(File(server, "share/dbc/CreatureDisplayInfo.dbc"), displayKinds).keys)
     }
 
+    @Test fun looksThePackageWasNotMadeForGetTheLayerMadeOnThePhone() {
+        // (one import lasts: a looks release changed her model; the package says how her layer lies, and the layer is made
+        // on the looks' own model and skin)
+        val store = File(tmp.root, "store")
+        val client = game()
+        val looks = WrathppBodyLayerTest.model()
+        val skin = WrathppBodyLayerTest.skin()
+        File(female(client), "HumanFemale.m2").writeBytes(looks); File(female(client), "HumanFemale00.skin").writeBytes(skin)
+        val l = list(looksSha = "0".repeat(64))
+        l.getJSONArray("races").getJSONObject(0).put("layer", JSONObject().put("k", 1.0).put("fold", 1.0).put("body", JSONArray(listOf(0))).put("hair_block", JSONArray(listOf(4, 3))))
+        bodyZip(l).inputStream().use { WrathppBody.importZip(store, it) }
+        val said = WrathppBody.apply(store, client, server, data)
+        assertTrue(said, said.contains("made here for these looks (the package was made for others): Human"))
+        val made = WrathppBodyLayer.add(looks, skin, null, WrathppBodyLayer.Params(1.0, 1.0, setOf(0), intArrayOf(4, 3)), "Character\\Human\\Female")
+        assertArrayEquals(made.model, File(female(client), "HumanFemale.m2").readBytes())
+        assertArrayEquals(made.skin, File(female(client), "HumanFemale00.skin").readBytes())
+        assertArrayEquals(designBytes("", 0), File(female(client), "WppLayer_0.blp").readBytes())
+        assertFalse("her shape, made for another body, is not carried", File(female(client), "HumanFemaleWpp1.m2").exists())
+        // her displays are in all the same: a style at every shape, on her own model
+        val displays = table(File(client, "Data/patch-Z.MPQ/DBFilesClient/CreatureDisplayInfo.dbc"), displayKinds)
+        assertEquals(4, displays[WrathppBody.displayId(0, 1, 7)]!![1])
+        assertEquals("WppLayer_2_3", displays[WrathppBody.displayId(0, 1, 7)]!![6])
+        // looks without room for the layer's indices: she is left as drawn, and the report says why
+        WrathppBody.remove(store)
+        WrathppBody.apply(store, client, server, data)
+        assertArrayEquals(looks, File(female(client), "HumanFemale.m2").readBytes())
+        File(female(client), "HumanFemale00.skin").writeBytes(WrathppBodyLayerTest.skin(65535 - 9 - 5))
+        bodyZip(l).inputStream().use { WrathppBody.importZip(store, it) }
+        val full = WrathppBody.apply(store, client, server, data)
+        assertTrue(full, full.contains("Human: made for other looks, and these leave the layer no room (5 indices free, 6 needed): left as drawn"))
+        assertArrayEquals(looks, File(female(client), "HumanFemale.m2").readBytes())
+    }
+
+    @Test fun aRaceDrawnWithAnothersFilesGetsItsOwnDisplaysOfThatOnesModels() {
+        // (the High Elf is drawn with the Void Elf's files: here race 2 with the Human's)
+        val store = File(tmp.root, "store")
+        val client = game()
+        val l = list()
+        l.getJSONArray("races").put(JSONObject().put("race", "Other").put("race_id", 2).put("files", "Human").put("folder", "Character/Human/Female").put("faction", "horde"))
+        bodyZip(l).inputStream().use { WrathppBody.importZip(store, it) }
+        assertTrue(WrathppBody.apply(store, client, server, data).contains("2 races' displays"))
+        val displays = table(File(client, "Data/patch-Z.MPQ/DBFilesClient/CreatureDisplayInfo.dbc"), displayKinds)
+        assertEquals("her own display's model", 6, displays[WrathppBody.displayId(1, 0, 7)]!![1])
+        assertEquals("WppLayer_2_3", displays[WrathppBody.displayId(1, 0, 7)]!![6])
+        assertEquals(WrathppBody.EMPTY, displays[52]!![6])
+        assertNotNull(table(File(server, "share/dbc/CreatureDisplayInfo.dbc"), displayKinds)[WrathppBody.displayId(1, 0, 1)])
+    }
+
+    @Test fun theDisplaysOfEveryRaceStayClearOfTheModelVariants() {
+        // (the base was 42000, whose eighth slot ran into the variants' displays at 44000: WrathppVariants)
+        assertEquals(23, WrathppBody.RACES.size)
+        assertEquals(WrathppBody.RACES.size, WrathppBody.RACES.toSet().size)
+        assertEquals(listOf(1, 2, 3, 4, 5, 6, 7, 8, 10, 11), WrathppBody.RACES.take(10))
+        assertTrue(WrathppBody.displayId(0, 0, 0) > 44000 + 6 * 16)
+        assertEquals(45000 + 22 * 260 + 3 * 65 + 64, WrathppBody.displayId(22, 3, 64))
+    }
+
+    @Test fun aPatchesVerticesAreFoundInThePatchItself() {
+        // the model a patch makes of a base of 0x150 bytes has its vertex array after the base's end: read from the patch alone
+        val base = ByteArray(0x150)
+        val records = ByteArray(3 * 48) { (it % 251).toByte() }
+        val head = ByteBuffer.allocate(0x138).order(ByteOrder.LITTLE_ENDIAN)
+        head.put("MD20".toByteArray()); head.putInt(60, 3); head.putInt(64, 0x150 + 32)
+        val patch = head.array() + ByteArray(32) + records
+        assertArrayEquals(records.copyOf(96), WrathppBody.patchVertices(patch, base.size, 2))
+        try { WrathppBody.patchVertices(patch, base.size, 4); fail("more vertices than the patch has") } catch (e: IOException) { }
+        try { WrathppBody.patchVertices(patch, 0x1000, 2); fail("another base") } catch (e: IOException) { }
+    }
+
     @Test fun newLooksTakeThePackageAgain() {
         val store = File(tmp.root, "store")
         val client = game()

@@ -424,7 +424,10 @@ end
 -- The creator's preview of a woman's Style and Density: the design file of her layer (the package's WppLayer_<style>_<density>
 -- in her race's folder; WppLayer_0 is none) put on the creator's character by the native mod, which draws the layer where
 -- nothing is on her legs (Gear off). The Shape row's models are the world's (the realm's displays): the creator keeps her as drawn.
-local RACE_FOLDER = { [1] = "Human", [2] = "Orc", [3] = "Dwarf", [4] = "NightElf", [5] = "Scourge", [6] = "Tauren", [7] = "Gnome", [8] = "Troll", [10] = "BloodElf", [11] = "Draenei" }
+-- (every race's women, by Wrath++'s race ids; the High Elf, 22, is drawn with the Void Elf's files: WrathppBody's races)
+local RACE_FOLDER = { [1] = "Human", [2] = "Orc", [3] = "Dwarf", [4] = "NightElf", [5] = "Scourge", [6] = "Tauren", [7] = "Gnome", [8] = "Troll", [10] = "BloodElf", [11] = "Draenei",
+	[9] = "Goblin", [12] = "Worgen", [13] = "Nightborne", [14] = "Lightforged", [15] = "Zandalari", [16] = "Highmountain", [17] = "DarkIron", [18] = "Vulpera",
+	[19] = "Maghar", [20] = "Mechagnome", [21] = "DarkTroll", [22] = "VoidElf", [23] = "VoidElf" }
 local STYLE_ROW, DENSITY_ROW = 1102, 1103
 function W.BodyPreview()
 	if ( type(WrathPP_SetBodyPreview) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return end

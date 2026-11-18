@@ -845,22 +845,26 @@ namespace
     // motion (its acceleration in the world), simulated at 120 Hz at most, with gravity. Matrices: 16 floats a bone, row vectors, the
     // translation at 12 to 14, taking a point of the file to the scene's camera-relative space; view_to_world takes that to the world.
     // Ideas and numbers: the same spring Wifecraft's softbody.cpp has (freq, damping, sag, a limit), as a bone, not a vertex shader.
+    // Four sides at most: the chest's two (WrathPP_SetSoftBody), then the seat's two (WrathPP_SetSoftSeat: soft_weights.py gives a
+    // woman's model bones of its own for both, weighted at the bottom of the curve; each side hangs on its own bone: chest, pelvis).
+    constexpr int kSoftSides = 4;
     struct SoftSide
     {
+        bool set = false;
+        uint32_t parent = 0;
         uint32_t bone = 0;
         float pivot[3] = {0, 0, 0};
         std::vector<uint32_t> below;
     };
     struct SoftConfig
     {
-        uint32_t parent = 0;
-        SoftSide sides[2];
+        SoftSide sides[kSoftSides];
     };
     struct SoftState
     {
         bool started = false;
         uint32_t lastMs = 0;
-        double anchor[2][3] = {}, velocity[2][3] = {}, offset[2][3] = {}, speed[2][3] = {};
+        double anchor[kSoftSides][3] = {}, velocity[kSoftSides][3] = {}, offset[kSoftSides][3] = {}, speed[kSoftSides][3] = {};
         uint32_t seen = 0;
     };
     std::mutex g_softLock;
@@ -935,7 +939,6 @@ namespace
         const SoftConfig* config = SoftFor(bones->path, bones->bone_count);
         if (!config) return;
         const SoftConfig& c = *config;
-        if (c.parent >= bones->bone_count) return;
         SoftState& st = g_softState[bones->model];
         st.seen = bones->time_ms;
         if (g_softState.size() > 96)                                    // models that left: forgotten
@@ -943,15 +946,15 @@ namespace
                 it = (bones->time_ms - it->second.seen > 5000 && it->first != bones->model) ? g_softState.erase(it) : std::next(it);
         const SoftTuning t = TuningOf(level);
         const double omega = 6.283185307 * t.freq;
-        const float* parent = bones->matrices + c.parent * 16;
         const float* toWorld = bones->view_to_world;
         double dt = (bones->time_ms - st.lastMs) / 1000.0;
         const bool fresh = !st.started || dt <= 0.0 || dt > 0.25;        // a pause, a hitch or a first frame: held still
         if (!fresh && dt > 0.1) dt = 0.1;
-        for (int s = 0; s < 2; ++s)
+        for (int s = 0; s < kSoftSides; ++s)
         {
             const SoftSide& side = c.sides[s];
-            if (side.bone >= bones->bone_count) continue;
+            if (!side.set || side.bone >= bones->bone_count || side.parent >= bones->bone_count) continue;
+            const float* parent = bones->matrices + side.parent * 16;
             const double pivot[3] = {side.pivot[0], side.pivot[1], side.pivot[2]};
             double cam[3], world[3];
             Row(parent, pivot, cam);                                    // where the bone's rest point is now, carried by its parent
@@ -1014,7 +1017,7 @@ namespace
     /// "ModelName"). The name (the package's parts.txt has it since 17 November 2026) makes it that model's only: by the bone count
     /// alone, another race's model of the same count (the Troll's, the Zandalari's and the Dark Troll's women: 200) took the last one's
     /// bones, and the head's shell, of her bones, was sprung too.
-    void SetSoftBodyCall(wxl::ScriptCall& call)
+    void SetSoft(wxl::ScriptCall& call, int first, const char* usage)
     {
         const auto count = call.Number(0), parent = call.Number(1);
         const auto leftBone = call.Number(2), lx = call.Number(3), ly = call.Number(4), lz = call.Number(5);
@@ -1024,7 +1027,7 @@ namespace
         const auto modelName = call.String(12);
         if (!count || !parent || !leftBone || !lx || !ly || !lz || !rightBone || !rx || !ry || !rz)
         {
-            call.Fail("WrathPP_SetSoftBody(boneCount, parent, boneL, x, y, z, \"below,...\", boneR, x, y, z, \"below,...\")");
+            call.Fail(usage);
             return;
         }
         auto list = [](const std::optional<std::string_view>& text, std::vector<uint32_t>& out)
@@ -1043,22 +1046,30 @@ namespace
                 while (at < s.size() && (s[at] == ',' || s[at] == ' ')) ++at;
             }
         };
-        SoftConfig c;
-        c.parent = static_cast<uint32_t>(*parent);
-        c.sides[0].bone = static_cast<uint32_t>(*leftBone);
-        c.sides[0].pivot[0] = static_cast<float>(*lx); c.sides[0].pivot[1] = static_cast<float>(*ly); c.sides[0].pivot[2] = static_cast<float>(*lz);
-        list(leftBelow, c.sides[0].below);
-        c.sides[1].bone = static_cast<uint32_t>(*rightBone);
-        c.sides[1].pivot[0] = static_cast<float>(*rx); c.sides[1].pivot[1] = static_cast<float>(*ry); c.sides[1].pivot[2] = static_cast<float>(*rz);
-        list(rightBelow, c.sides[1].below);
+        SoftSide left, right;
+        left.set = right.set = true;
+        left.parent = right.parent = static_cast<uint32_t>(*parent);
+        left.bone = static_cast<uint32_t>(*leftBone);
+        left.pivot[0] = static_cast<float>(*lx); left.pivot[1] = static_cast<float>(*ly); left.pivot[2] = static_cast<float>(*lz);
+        list(leftBelow, left.below);
+        right.bone = static_cast<uint32_t>(*rightBone);
+        right.pivot[0] = static_cast<float>(*rx); right.pivot[1] = static_cast<float>(*ry); right.pivot[2] = static_cast<float>(*rz);
+        list(rightBelow, right.below);
         {
+            // (the chest's call starts a model's soft body anew; the seat's adds its two sides to what the model has)
             std::lock_guard<std::mutex> hold(g_softLock);
-            g_soft[static_cast<uint32_t>(*count)] = c;
+            auto put = [&](SoftConfig& c)
+            {
+                if (first == 0) c = SoftConfig();
+                c.sides[first] = left;
+                c.sides[first + 1] = right;
+            };
+            put(g_soft[static_cast<uint32_t>(*count)]);
             if (modelName && !modelName->empty())
             {
                 std::string name(*modelName);
                 for (char& ch : name) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-                g_softByName[name] = c;
+                put(g_softByName[name]);
             }
         }
         if (!g_boneWatch)
@@ -1067,6 +1078,17 @@ namespace
             wxl::Log(g_boneWatch ? WXL_LOG_INFO : WXL_LOG_WARN, kTag, "soft body: bone watcher {}", g_boneWatch ? "started" : "not started");
         }
         call.PushBool(true);
+    }
+
+    void SetSoftBodyCall(wxl::ScriptCall& call)
+    {
+        SetSoft(call, 0, "WrathPP_SetSoftBody(boneCount, parent, boneL, x, y, z, \"below,...\", boneR, x, y, z, \"below,...\")");
+    }
+
+    /// The seat's two bones of the same model (after its WrathPP_SetSoftBody): the same arguments, the bone they hang on her pelvis.
+    void SetSoftSeatCall(wxl::ScriptCall& call)
+    {
+        SetSoft(call, 2, "WrathPP_SetSoftSeat(boneCount, parent, boneL, x, y, z, \"below,...\", boneR, x, y, z, \"below,...\")");
     }
 
     /// WrathPP_SetSoftBodyLevel(n): 0 off, 1 subtle, 2 natural (the default), 3 strong.
@@ -1260,6 +1282,7 @@ namespace
                                         std::pair{"WrathPP_SetOverlay", script.RegisterFunction<&SetOverlayCall>("WrathPP_SetOverlay")},
                                         std::pair{"WrathPP_ApplyLook", script.RegisterFunction<&ApplyLookCall>("WrathPP_ApplyLook")},
                                         std::pair{"WrathPP_SetSoftBody", script.RegisterFunction<&SetSoftBodyCall>("WrathPP_SetSoftBody")},
+                                        std::pair{"WrathPP_SetSoftSeat", script.RegisterFunction<&SetSoftSeatCall>("WrathPP_SetSoftSeat")},
                                         std::pair{"WrathPP_SetSoftBodyLevel", script.RegisterFunction<&SetSoftBodyLevelCall>("WrathPP_SetSoftBodyLevel")},
                                         std::pair{"WrathPP_NativeVersion", script.RegisterFunction<&NativeVersion>("WrathPP_NativeVersion")},
                                         std::pair{"WrathPP_MaxRace", script.RegisterFunction<&MaxRaceCall>("WrathPP_MaxRace")}})

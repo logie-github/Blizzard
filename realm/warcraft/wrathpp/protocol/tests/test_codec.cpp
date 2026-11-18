@@ -184,19 +184,25 @@ static void TestToolRegistry(const char* path, const char* expectedHash) {
     CHECK(RegistryHash(reg) == uint32_t(std::strtoul(expectedHash, nullptr, 16)));
     std::printf("tool registry: version %u, %zu categories, hash %08x\n", reg.version, reg.categories.size(), RegistryHash(reg));
     // the body options' display: a Human woman's defaults change nothing; a Curvy Draenei with style 16 at 75%,
-    // a Petite Orc with no style, style 3 at None on an As drawn Gnome; a man and a race not in the list: nothing
+    // a Petite Orc with no style, style 3 at None on an As drawn Gnome; a man and a race not in the list: nothing;
+    // the Goblin (the eleventh slot), the High Elf and the Void Elf (the last two): theirs; none runs into the variants'
     auto shown = [&](uint8_t race, uint8_t sex, uint16_t shape, uint16_t style, uint16_t density) {
         Appearance a; a.registryVersion = reg.version;
         a.Set(kBodyShape, shape); a.Set(kBodyStyle, style); a.Set(kBodyDensity, density);
         return BodyDisplay(reg, Resolve(reg, a, race, sex, 1), race);
     };
     CHECK(shown(1, 1, 1, 1, 5) == 0);
-    CHECK(shown(11, 1, 3, 17, 4) == 42000 + 9 * 260 + 2 * 65 + 1 + 15 * 4 + 2);
-    CHECK(shown(2, 1, 2, 1, 5) == 42000 + 1 * 260 + 1 * 65);
+    CHECK(shown(11, 1, 3, 17, 4) == 45000 + 9 * 260 + 2 * 65 + 1 + 15 * 4 + 2);
+    CHECK(shown(2, 1, 2, 1, 5) == 45000 + 1 * 260 + 1 * 65);
     CHECK(shown(7, 1, 1, 4, 1) == 0);
     CHECK(shown(1, 0, 3, 5, 5) == 0);
-    CHECK(shown(9, 1, 3, 5, 5) == 0);
-    CHECK(shown(10, 1, 4, 2, 2) == 42000 + 8 * 260 + 3 * 65 + 1);
+    CHECK(shown(24, 1, 3, 5, 5) == 0);
+    CHECK(shown(10, 1, 4, 2, 2) == 45000 + 8 * 260 + 3 * 65 + 1);
+    CHECK(shown(9, 1, 3, 5, 5) == 45000 + 10 * 260 + 2 * 65 + 1 + 3 * 4 + 3);
+    CHECK(shown(22, 1, 2, 1, 5) == 45000 + 21 * 260 + 1 * 65);
+    CHECK(shown(23, 1, 4, 17, 5) == 45000 + 22 * 260 + 3 * 65 + 1 + 15 * 4 + 3);
+    CHECK(IsBodyDisplay(45000) && IsBodyDisplay(45000 + 23 * 260 - 1) && !IsBodyDisplay(45000 + 23 * 260));
+    CHECK(IsBodyDisplay(42000) && IsBodyDisplay(43999) && !IsBodyDisplay(kVariantDisplayBase) && !IsBodyDisplay(kVariantDisplayBase + kVariantCount * 16 - 1));
     // model variants: the Orc man's Upright, the Human's Face Shape, the Forsaken's Skin Type: each a display of its own
     auto variant = [&](uint8_t race, uint8_t sex, uint16_t category, size_t at) {
         const Category* c = reg.FindCategory(category);
