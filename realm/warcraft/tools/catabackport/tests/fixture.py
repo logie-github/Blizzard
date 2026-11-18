@@ -20,7 +20,7 @@ def wdt(tiles):
     main = bytearray(32768)
     for (x, y) in tiles:
         struct.pack_into("<I", main, (y * 64 + x) * 8, 1 | 2)      # (Cataclysm keeps flag 2 on empty tiles too)
-    return chunk(b"MVER", struct.pack("<I", 17)) + chunk(b"MPHD", b"\0" * 32) + chunk(b"MAIN", bytes(main))
+    return chunk(b"MVER", struct.pack("<I", 18)) + chunk(b"MPHD", b"\0" * 32) + chunk(b"MAIN", bytes(main))
 
 
 def blp(w=4, h=4):
@@ -36,12 +36,16 @@ MAPS = [
     (902, "BigWorld", "Big World", 0, 0, 3, 5003),                   # (a continent big enough to split)
     (903, "LaterExpansion", "Pandaria", 0, 0, 4, 5004),              # past Cataclysm
     (904, "", "No Directory", 0, 0, 3, 0),
+    (389, "OrgrimmarInstance", "Ragefire Chasm", 1, 0, 0, 5005),   # (3.3.5a has it, Cataclysm did not make it over: stock)
+    (905, "Development_Test", "dev", 0, 0, 3, 5006),               # (a developer map)
 ]
 LISTFILE = [
     (5000, "world/maps/tinydungeon/tinydungeon.wdt"),
     (5001, "world/maps/tinydungeonphase1/tinydungeonphase1.wdt"),
     (5002, "world/maps/deadminesinstance/deadminesinstance.wdt"),
     (5003, "world/maps/bigworld/bigworld.wdt"),
+    (5005, "world/maps/orgrimmarinstance/orgrimmarinstance.wdt"),
+    (5006, "world/maps/development_test/development_test.wdt"),
     (6000, "world/maps/tinydungeon/tinydungeon_0_0.adt"),
     (6001, "world/maps/tinydungeon/tinydungeon_1_0.adt"),
     (6002, "world/maps/tinydungeon/tinydungeon_1_0.adt".replace(".adt", "_tex1.adt")),     # (not taken)
@@ -71,7 +75,7 @@ def build(root):
         f.write("4000,900,0,10,0,Clash Hall\n")              # (an id 3.3.5a has; bit 10 taken)
     with open(os.path.join(root, "tables", "LiquidType.csv"), "w", encoding="utf-8") as f:
         f.write("ID,SoundBank\n1,0\n2,1\n")
-    tiles = {5000: [(0, 0), (1, 0)], 5001: [(1, 0)], 5002: [(0, 0)], 5003: [(n, y) for n in range(10) for y in (0, 1)]}
+    tiles = {5000: [(0, 0), (1, 0)], 5001: [(1, 0)], 5002: [(0, 0)], 5003: [(n, y) for n in range(10) for y in (0, 1)], 5005: [(0, 0)], 5006: [(0, 0)]}
     for fdid, t in tiles.items():
         open(os.path.join(root, "files", str(fdid)), "wb").write(wdt(t))
     for fdid in (6000, 6001):

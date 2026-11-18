@@ -1,6 +1,6 @@
 """Stage `validate`: what a unit made is checked before it is packed; a file that fails is not shipped and is reported.
 
-Structural checks by signature (the Converter's own limits.py values): ADT v18 with its MCIN, WDT v17 with a 32 KB MAIN, M2 MD20
+Structural checks by signature (the Converter's own limits.py values): ADT v18 with its MCIN, WDT v18 with a 32 KB MAIN, M2 MD20
 version 264, skin, WMO v17, BLP2 with sane dimensions, DBC-style table files' header agreeing with their rows. Then references: every
 model, building and texture an ADT names is a file of the unit (or, with a stock list, of 3.3.5a's own); a name that is neither is
 `unresolved` (a count and the first few names in the report: a hole in the world, not a crash). A unit with a bad map file (ADT/WDT)
@@ -33,8 +33,9 @@ def check_adt(data):
 
 def check_wdt(data):
     ch = {m: b for m, b, _ in chunks(data)}
-    if b"MVER" not in ch or struct.unpack_from("<I", ch[b"MVER"])[0] != 17:
-        return "WDT is not version 17"
+    # (the Converter's README says 17; what it writes, and 3.3.5a's own WDTs carry, is 18: found by the first real run)
+    if b"MVER" not in ch or struct.unpack_from("<I", ch[b"MVER"])[0] not in (17, 18):
+        return "WDT is not version 17 or 18"
     if b"MAIN" not in ch or len(ch[b"MAIN"]) != 32768:
         return "WDT has no 64 x 64 MAIN"
     return None

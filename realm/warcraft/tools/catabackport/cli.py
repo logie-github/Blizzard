@@ -66,7 +66,8 @@ def parser():
         p.add_argument("--tools", help="AzerothCore's extractors folder (map_extractor ... zones_mkmpq, mmaps-config.yaml)")
         p.add_argument("--cpp-schema", help="CPP's world SQL dump (for the world stage's column lists)")
         p.add_argument("--ac-schema", help="AzerothCore's base db_world SQL (idem)")
-        p.add_argument("--run-sql", action="store_true", help="the world stage also runs its SQL with mariadb (cpp_world, ac_world)")
+        p.add_argument("--run-sql", action="store_true", help="the world stage also runs its SQL with mariadb (cpp_world, ac_world) and dumps the rows")
+        p.add_argument("--world-dir", help="a folder of <unit>/world.sql made by a job that has the database: the world stage takes them")
     p = sub.add_parser("assemble")
     p.add_argument("--release", required=True)
     p.add_argument("--pins")
@@ -163,7 +164,9 @@ def run_unit(c, unit, stages):
                     result["problems"].append(f"{len(r['missing'])} files are not in the build (first: {r['missing'][0]})")
             elif name == "convert":
                 base_map = c.by_id.get(m.get("swap_of")) if unit.get("base") else None
-                r = conv_stage.run(m, unit, c.work, c.listfile, c.conv_cmd, c.conv_env, c.liquids, c.jobs, unit.get("base"), base_map, log)
+                areas = {int(k): v for k, v in c.manifest.get("id_plan", {}).get("areas", {}).items() if int(k) != v}
+                r = conv_stage.run(m, unit, c.work, c.listfile, c.conv_cmd, c.conv_env, c.liquids, c.jobs, unit.get("base"), base_map,
+                                   log, areas)
                 mark(name, "done", t0, tiles=r["tiles"], accounting=r["accounting"])
                 result["problems"] += r["problems"]
                 if r["status"] == "failed":
@@ -220,6 +223,13 @@ def run_unit(c, unit, stages):
 
 
 def world_unit(c, m, unit, base_dir, result, mark, t0):
+    pre = os.path.join(c.world_dir, unit["unit"]) if c.world_dir else None
+    if pre and os.path.exists(os.path.join(pre, "world.sql")):            # (made by the world job, which has the database)
+        for n in ("world.sql", "world_off.sql"):
+            if os.path.exists(os.path.join(pre, n)):
+                util.write_atomic(os.path.join(base_dir, "out", n), open(os.path.join(pre, n), "rb").read())
+        mark("world", "done", t0, from_world_job=True)
+        return
     if not (c.cpp_schema and c.ac_schema):
         mark("world", "skipped", t0, why="no --cpp-schema/--ac-schema")
         result["problems"].append("world data not made: no schemas given (the world stage needs CPP's and AzerothCore's SQL)")
@@ -230,10 +240,21 @@ def world_unit(c, m, unit, base_dir, result, mark, t0):
     base, span = (wi["bases"].get(str(m["id"]), 0), wi["spans"].get(str(m["id"]), 1000)) if wi else (0, 1000)
     sql, off, rep = world_stage.generate(m, cpp_cols, ac_cols, base, span)
     out = os.path.join(base_dir, "out")
-    util.write_atomic(os.path.join(out, "world.sql"), sql)
+    util.write_atomic(os.path.join(base_dir, "world_transform.sql"), sql)
     util.write_atomic(os.path.join(out, "world_off.sql"), off)
     util.dump_json(os.path.join(base_dir, "world-report.json"), rep)
-    mark("world", "done", t0, skipped=len(rep["skipped"]), dropped_columns=sum(len(s["dropped"]) for s in rep["steps"]))
+    rows = None
+    if c.run_sql:
+        tables = [s["table"] for s in rep["steps"] if not s["missing_table"]]
+        errors, rows = world_stage.apply_and_dump(os.path.join(base_dir, "world_transform.sql"), os.path.join(out, "world.sql"), tables)
+        util.write_atomic(os.path.join(base_dir, "world-sql-errors.txt"), errors)
+        if errors.strip():
+            result["problems"].append(f"world: {len(errors.splitlines())} lines of SQL errors (world-sql-errors.txt)")
+        if not rows:
+            result["problems"].append("world: no rows were made")
+    else:
+        result["problems"].append("world: the SQL was written but not run (no --run-sql: no database)")
+    mark("world", "done", t0, skipped=len(rep["skipped"]), rows=rows, dropped_columns=sum(len(s["dropped"]) for s in rep["steps"]))
     if rep["skipped"]:
         result["problems"].append("world: " + "; ".join(rep["skipped"][:5]))
     result["problems"].append("world: not built: " + ", ".join(rep["not_built"]))
@@ -259,7 +280,7 @@ def cmd_run(a):
             log(f"run: unknown stage {s}")
             return 2
     c.listfile, c.dbd, c.stock_dbc, c.tools = a.listfile, a.dbd, a.stock_dbc, a.tools
-    c.cpp_schema, c.ac_schema = a.cpp_schema, a.ac_schema
+    c.cpp_schema, c.ac_schema, c.run_sql, c.world_dir = a.cpp_schema, a.ac_schema, a.run_sql, a.world_dir
     c.conv_cmd, c.conv_env = conv_stage.converter_command(a.converter_src, a.converter)
     c.source = make_source(a, pins)
     c.by_id_fd, c.by_path = ({}, {})

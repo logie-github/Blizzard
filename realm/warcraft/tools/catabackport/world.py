@@ -82,14 +82,24 @@ def step_sql(step, cpp_cols, ac_cols, ctx):
     return sql, rep
 
 
-def generate(map_entry, cpp_cols, ac_cols, guid_base, guid_span, plan=None, cpp_db="cpp_world", ac_db="ac_world"):
-    """(world.sql text, world_off.sql text, report dict) for one manifest map entry. The map's spawns are ids
+def load_plan():
+    with open(PLAN, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def generate(map_entry, cpp_cols, ac_cols, guid_base, guid_span, plan=None, cpp_db="cpp_world", ac_db="cb_out", ac_src="ac_world"):
+    """(transform.sql text, world_off.sql text, report dict) for one manifest map entry. The transform script fills `ac_db`
+    (a scratch database: empty copies of AzerothCore's tables, made `LIKE` those of `ac_src`) from `cpp_db`; `dump()` then writes
+    the rows as plain INSERTs, which is what a pack carries (the phone has no CPP database). The map's spawns are ids
     GUID + guid_base up to guid_span after (`guid_bases`)."""
-    plan = plan or json.load(open(PLAN))
+    plan = plan or load_plan()
     ctx = {"cpp": cpp_db, "ac": ac_db, "map": map_entry["id"], "new_map": map_entry["new_id"], "guid_base": guid_base}
     out = [f"-- {map_entry.get('name') or map_entry['dir']} (CPP map {map_entry['id']} as {map_entry['new_id']}): catabackport world.py. "
            f"Ids: entries +{ENTRY}, spawns +{GUID + guid_base}, paths +{PATH}.\n",
+           f"DROP DATABASE IF EXISTS {ac_db};\nCREATE DATABASE {ac_db};\n",
            "CREATE DATABASE IF NOT EXISTS cb_tmp;\n"]
+    for t in sorted({s["table"] for s in plan["steps"] if s["table"] in ac_cols}):
+        out.append(f"CREATE TABLE {ac_db}.`{t}` LIKE {ac_src}.`{t}`;\n")
     for s in plan["scratch"]:
         out.append(f"DROP TABLE IF EXISTS cb_tmp.`{s['name']}`;\nCREATE TABLE cb_tmp.`{s['name']}` AS {render(s['sql'], ctx)};\n")
     reports, skipped = [], []
@@ -110,9 +120,20 @@ def generate(map_entry, cpp_cols, ac_cols, guid_base, guid_span, plan=None, cpp_
 
 
 def mariadb(db, sql_path, force=True):
-    argv = ["mariadb"] + (["--force"] if force else []) + [db]
+    argv = ["mariadb"] + (["--force"] if force else []) + ([db] if db else [])
     with open(sql_path, "rb") as f:
         return subprocess.run(argv, stdin=f, capture_output=True, text=True)
+
+
+def apply_and_dump(transform_sql_path, dump_path, tables, ac_db="cb_out"):
+    """Runs the transform in MariaDB (with --force: a failing statement is a line of stderr, not the end) and dumps the rows
+    of `tables` of `ac_db` as plain INSERT IGNOREs. Returns (errors text, rows dumped)."""
+    p = mariadb(None, transform_sql_path)
+    d = subprocess.run(["mariadb-dump", "--no-create-info", "--insert-ignore", "--complete-insert", "--skip-extended-insert",
+                        "--skip-comments", "--skip-add-locks", "--skip-triggers", "--order-by-primary", ac_db] + sorted(tables),
+                       capture_output=True, text=True)
+    util.write_atomic(dump_path, "-- catabackport: rows made from the Cataclysm Preservation Project's 4.3.4 world\n" + d.stdout)
+    return p.stderr + d.stderr, d.stdout.count("INSERT ")
 
 
 def counts(cpp_db="cpp_world"):

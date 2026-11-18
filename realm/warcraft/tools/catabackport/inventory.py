@@ -77,7 +77,7 @@ def build(source, pins, listfile_path=None, overrides=None, report=None):
         if not directory:
             report.append(f"map {mid}: no directory (not a world map), not taken")
             continue
-        if mid in overrides.get("exclude", []):
+        if mid in overrides.get("exclude", []) or re.match(overrides.get("exclude_dir_regex", "(?!x)x"), directory, re.I):
             report.append(f"map {mid} {directory}: excluded by data/overrides.json")
             continue
         if num(r.get("ExpansionID")) > pins["max_expansion"]:
@@ -113,11 +113,21 @@ def build(source, pins, listfile_path=None, overrides=None, report=None):
         entry["tiles_from"] = how or "unknown"
         entry["n_tiles"] = len(entry["tiles"])
         entry["weight"] = max(1, entry["n_tiles"])
-        entry["status"] = "done_elsewhere" if mid in overrides.get("done_elsewhere", []) else "planned"
+        # What it is next to 3.3.5a: a map the game has not (new), one it has that Cataclysm made over (revamped: the pinned list),
+        # or one it has as it is (stock: the same as Wrath's, not redone unless named by id).
+        entry["origin"] = "revamped" if mid in overrides.get("revamped", []) else ("stock" if mid in st["map_ids"] else "new")
+        entry["status"] = ("done_elsewhere" if mid in overrides.get("done_elsewhere", []) else
+                           "planned" if entry["origin"] != "stock" else "same_as_stock")
         maps.append(entry)
-    new = ids.alloc_map_ids([m["id"] for m in maps], st["map_ids"], taken_dirs, {m["id"]: m["dir"] for m in maps})
+    # (ids for the maps that are made; a "revamped" map is always renumbered: it lives beside 3.3.5a's own, CATA_BACKPORT.md 5.1)
+    made = [m for m in maps if m["status"] in ("planned", "done_elsewhere")]
+    new = ids.alloc_map_ids([m["id"] for m in made if m["origin"] != "revamped"], st["map_ids"], taken_dirs,
+                            {m["id"]: m["dir"] for m in made})
+    revamped = ids.alloc_map_ids([m["id"] for m in made if m["origin"] == "revamped"], set(st["map_ids"]) | set(new.values()),
+                                 set(), {}, force_move=True)
+    new.update(revamped)
     for m in maps:
-        m["new_id"] = new[m["id"]]
+        m["new_id"] = new.get(m["id"], m["id"])
         m["new_dir"] = ids.new_dir(m["dir"], m["id"], m["new_id"], taken_dirs)
         m["input_hash"] = util.input_hash(pins["build"], pins["converter"]["commit"], m["id"], m["dir"], m["tiles"])
     manifest = {"version": 1, "build": pins["build"], "pins": pins, "maps": maps}
@@ -128,10 +138,11 @@ def id_plan(source, manifest):
     """ids.json: Cataclysm's area ids and explore bits over *every* area of the manifest's maps, decided once for the whole
     expansion (so that a shard's ids do not depend on which maps ran with it)."""
     st = ids.stock()
-    maps = {m["id"] for m in manifest["maps"]}
+    maps = {m["id"] for m in manifest["maps"] if m["status"] in ("planned", "done_elsewhere")}
     areas = [r for r in rows(source.table("AreaTable")) if num(r.get("ContinentID")) in maps]
     area_ids = ids.alloc_area_ids([num(r["ID"]) for r in areas], st["area_ids"])
-    bits, none = ids.alloc_explore_bits({num(r["ID"]): num(r.get("AreaBit", r.get("ExploreFlag", 0))) for r in areas}, st["area_bits"])
+    bits, none = ids.alloc_explore_bits({num(r["ID"]): num(r.get("AreaBit", r.get("ExploreFlag", 0))) for r in areas}, st["area_bits"],
+                                        st.get("area_bit_by_id"))
     return {"maps": {str(m["id"]): m["new_id"] for m in manifest["maps"]}, "areas": {str(k): v for k, v in area_ids.items()},
             "explore_bits": {str(k): v for k, v in bits.items()}, "no_explore_bit": none}
 

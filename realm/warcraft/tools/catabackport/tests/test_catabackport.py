@@ -142,18 +142,20 @@ class InventoryPlanTests(unittest.TestCase):
 
     def test_maps_taken_and_not(self):
         b = self.by()
-        self.assertEqual(sorted(b), [36, 900, 901, 902])
+        self.assertEqual(sorted(b), [36, 389, 900, 901, 902])
         report = open(os.path.join(self.d, "work", "inventory-report.txt")).read()
         self.assertIn("expansion 4 is past Cataclysm", report)
         self.assertIn("no directory", report)
+        self.assertIn("excluded", report)                                # (the developer map)
 
     def test_swap_group_ids_tiles(self):
         b = self.by()
         self.assertEqual(b[901]["swap_of"], 900)
         self.assertEqual(b[901]["group"], "swap")
         self.assertEqual(b[900]["group"], "dungeon")
-        self.assertEqual(b[36]["new_id"], 5036)
-        self.assertEqual(b[36]["new_dir"], "DeadminesInstanceCata")
+        self.assertEqual((b[36]["origin"], b[36]["new_id"], b[36]["new_dir"]), ("revamped", 5036, "DeadminesInstanceCata"))
+        self.assertEqual((b[389]["origin"], b[389]["status"]), ("stock", "same_as_stock"))
+        self.assertEqual(b[900]["origin"], "new")
         self.assertEqual(b[900]["n_tiles"], 2)
         self.assertEqual(b[900]["tiles_from"], "wdt")
         self.assertEqual(self.manifest["proof"], 36 if b[36]["n_tiles"] < b[900]["n_tiles"] else 900)
@@ -168,6 +170,8 @@ class InventoryPlanTests(unittest.TestCase):
         self.assertIn("bigworld-r0", names)
         self.assertEqual(sum(1 for n in names if n.startswith("bigworld-r")), 2)      # (whole rows: 10 tiles each, past 8)
         self.assertEqual(sorted(u["part"] for u in p["units"] if u["map"] == 902), [0, 1])
+        self.assertNotIn(389, [u["map"] for u in p["units"]])               # (a stock map is not redone unless named)
+        self.assertEqual([u["map"] for u in plan.make(self.manifest, "389")["units"]], [389])
         swap = next(u for u in p["units"] if u["map"] == 901)
         base = next(u for u in p["units"] if u["map"] == 900)
         self.assertEqual(swap["shard"], base["shard"])
@@ -219,6 +223,22 @@ class ValidateTests(unittest.TestCase):
             self.assertEqual(validate.run(files)["status"], "failed")
 
 
+class AreaRemapTests(unittest.TestCase):
+    def test_remap_adt_areas(self):
+        from catabackport import convert
+        head = bytearray(128)
+        struct = __import__("struct")
+        struct.pack_into("<I", head, 52, 1)
+        data = fixture.chunk(b"MVER", struct.pack("<I", 18)) + fixture.chunk(b"MCNK", bytes(head)) + fixture.chunk(b"MCNK", bytes(head))
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "t.adt")
+            open(p, "wb").write(data)
+            self.assertEqual(convert.remap_adt_areas(p, {1: 10001}), 2)
+            out = open(p, "rb").read()
+            self.assertEqual(struct.unpack_from("<I", out, 12 + 8 + 52)[0], 10001)
+            self.assertEqual(convert.remap_adt_areas(p, {7: 8}), 0)
+
+
 class WorldTests(unittest.TestCase):
     CPP = """CREATE TABLE `creature` (\n  `guid` int unsigned NOT NULL,\n  `id` int NOT NULL,\n  `map` smallint NOT NULL,\n  `phaseMask` int,\n  `npcflag` int,\n  `curmana` int,\n  PRIMARY KEY (`guid`)\n) ENGINE=InnoDB;\n"""
     AC = """CREATE TABLE `creature` (\n  `guid` int unsigned NOT NULL,\n  `id` int NOT NULL,\n  `map` smallint NOT NULL,\n  `phaseMask` int,\n  `npcflag` int,\n  `Comment` text,\n  PRIMARY KEY (`guid`)\n) ENGINE=InnoDB;\n"""
@@ -228,7 +248,8 @@ class WorldTests(unittest.TestCase):
         self.assertEqual(cpp["creature"], ["guid", "id", "map", "phaseMask", "npcflag", "curmana"])
         m = {"id": 654, "new_id": 5654, "dir": "X", "name": "X"}
         sql, off, rep = world.generate(m, cpp, ac, 2000, 1000)
-        self.assertIn("INSERT IGNORE INTO ac_world.`creature` (`guid`, `id`, `map`, `phaseMask`, `npcflag`)", sql)
+        self.assertIn("CREATE TABLE cb_out.`creature` LIKE ac_world.`creature`", sql)
+        self.assertIn("INSERT IGNORE INTO cb_out.`creature` (`guid`, `id`, `map`, `phaseMask`, `npcflag`)", sql)
         self.assertIn("`id` + 6000000", sql)
         self.assertIn("5654", sql)
         self.assertIn("`npcflag` & 67108863", sql)

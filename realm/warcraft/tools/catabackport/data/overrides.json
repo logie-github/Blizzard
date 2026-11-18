@@ -2,6 +2,9 @@
   "_": "Pinned decisions that used to be made by hand. done_elsewhere: maps cata-zones.tar.xz already carries (mod-worgen-goblin/tools/zones/common.MAPS), not redone. swap_of: terrain swaps (common.OVERLAYS: swap map id -> base map id). The generic rule (a directory that is another map's directory plus 'phase...') is in inventory.py; add an entry here only to override it. exclude: map ids never taken. directory: a map id's directory where the Map table's own does not name its files (the listfile has the real one).",
   "done_elsewhere": [638, 648, 654, 655, 656, 659, 661],
   "swap_of": {"638": 654, "655": 654, "656": 654, "659": 648, "661": 648},
+  "revamped": [0, 1, 33, 36, 309, 568],
+  "revamped_note": "maps 3.3.5a has that Cataclysm made over (Azeroth and Kalimdor, Shadowfang Keep, the Deadmines, Zul'Gurub, Zul'Aman): made as maps of their own beside the old ones (CATA_BACKPORT.md 5.1). From the content of patch 4.0 to 4.1 (UNVERIFIED against the build's tiles: the first run's report shows each one's size); add an id here to take another.",
+  "exclude_dir_regex": "^(development|unused|test|leveldesign|.*devonly)",
   "exclude": [],
   "directory": {}
 }

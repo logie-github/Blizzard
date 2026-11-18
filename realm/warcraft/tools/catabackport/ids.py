@@ -19,13 +19,14 @@ def stock():
     return json.load(open(os.path.join(DATA, "stock_ids.json")))
 
 
-def alloc_map_ids(cata_ids, taken_ids, taken_dirs=(), dirs=None):
-    """{cata id: new id}. `dirs` {cata id: directory}: a directory 3.3.5a has is taken as well as an id."""
+def alloc_map_ids(cata_ids, taken_ids, taken_dirs=(), dirs=None, force_move=False):
+    """{cata id: new id}. `dirs` {cata id: directory}: a directory 3.3.5a has is taken as well as an id. force_move: every
+    id is moved (a map made over that lives beside the old one)."""
     taken = set(taken_ids)
     out = {}
     dirs = dirs or {}
     for i in sorted(cata_ids):
-        clash = i in taken or dirs.get(i, "").lower() in taken_dirs
+        clash = force_move or i in taken or dirs.get(i, "").lower() in taken_dirs
         new = i
         if clash:
             new = MAP_BASE + i
@@ -59,14 +60,19 @@ def alloc_area_ids(cata_ids, taken_ids):
     return out
 
 
-def alloc_explore_bits(areas, taken_bits):
+def alloc_explore_bits(areas, taken_bits, stock_bit_by_id=None):
     """areas {area id: Cataclysm's explore bit}. Returns ({area id: bit}, [area ids left without one]): the bit is kept when
-    free, else the next free one of FREE_BITS; none left is bit 0 (the area cannot be tracked as explored: a report line)."""
+    free, or when it is the very bit 3.3.5a gives the area of the same id (the same place: exploring one explores the other);
+    else the next free one of FREE_BITS; none left is bit 0 (the area cannot be tracked as explored: a report line)."""
     taken = set(taken_bits)
     out, none = {}, []
     free = iter(b for b in FREE_BITS)
+    stock_bit_by_id = stock_bit_by_id or {}
     for aid in sorted(areas):
         bit = areas[aid]
+        if bit and stock_bit_by_id.get(str(aid)) == bit:
+            out[aid] = bit
+            continue
         if bit and bit not in taken and bit < 4096:
             out[aid] = bit
             taken.add(bit)

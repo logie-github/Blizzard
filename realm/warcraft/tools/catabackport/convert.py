@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -53,7 +54,29 @@ def tile_files(conv, d):
     return out
 
 
-def finish_map(conv, m, liquids, base_conv=None, base_dir=None, base_tiles_all=False):
+def remap_adt_areas(path, mapping):
+    """The area id of each of a tile's 256 chunks (MCNK header, offset 52) through `mapping` {old: new}: the tile's chunks name
+    AreaTable rows, and the rows of a map made over beside 3.3.5a's own have new ids (ids.alloc_area_ids). Returns how many
+    chunks changed."""
+    data = bytearray(open(path, "rb").read())
+    i, changed = 0, 0
+    while i + 8 <= len(data):
+        magic = bytes(data[i:i + 4])
+        size = struct.unpack_from("<I", data, i + 4)[0]
+        if magic == b"KNCM" and size >= 56:
+            old = struct.unpack_from("<I", data, i + 8 + 52)[0]
+            new = mapping.get(old, old)
+            if new != old:
+                struct.pack_into("<I", data, i + 8 + 52, new)
+                changed += 1
+        i += 8 + size
+    if changed:
+        with open(path, "wb") as f:
+            f.write(data)
+    return changed
+
+
+def finish_map(conv, m, liquids, base_conv=None, base_dir=None, areas=None):
     """The unit's map made right: liquids 3.3.5a has, the WDT's flags, its tile set equal to the tiles written (a mismatch is
     returned as a problem, not asserted), and a terrain swap made whole from its base's tiles. Returns (tiles, problems)."""
     pkg = zones_adapter.load("package")
@@ -64,6 +87,8 @@ def finish_map(conv, m, liquids, base_conv=None, base_dir=None, base_tiles_all=F
     tiles = tile_files(conv, d)
     for path in tiles.values():
         pkg.fix_liquids(path, liquids)
+        if areas:
+            remap_adt_areas(path, areas)
     if os.path.exists(wdt):
         pkg.fix_wdt(wdt)
     else:
@@ -111,7 +136,7 @@ def minimaps(conv, files_dir, tiles, new_dir, dir_for):
     return lines
 
 
-def run(m, unit, work, listfile, cmd, env, liquids, jobs=4, base_unit=None, base_map=None, log=print):
+def run(m, unit, work, listfile, cmd, env, liquids, jobs=4, base_unit=None, base_map=None, log=print, areas=None):
     """Converts one unit. Returns {"status": ok|partial|failed, "problems": [...], "accounting": {...}}."""
     pkg = zones_adapter.load("package")
     base = os.path.join(work, unit["unit"])
@@ -138,7 +163,7 @@ def run(m, unit, work, listfile, cmd, env, liquids, jobs=4, base_unit=None, base
     pkg.fix_models(conv)
     pkg.plain_textures(conv)
     base_conv = os.path.join(work, base_unit, "conv") if base_unit else None
-    tiles, tp = finish_map(conv, m, liquids, base_conv, base_map["dir"] if base_map else None)
+    tiles, tp = finish_map(conv, m, liquids, base_conv, base_map["dir"] if base_map else None, areas)
     problems += tp
     dir_for = [m["dir"]] + ([base_map["dir"]] if base_map else [])
     mm_lines = minimaps(conv, out_client, tiles, m["new_dir"], dir_for)
