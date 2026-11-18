@@ -373,6 +373,62 @@ def parts_of(tables, chr_model, model):
     return parts, pickers
 
 
+# Options whose first choice is a part of the character itself, whatever the creator offers: the Mechagnome's Arm Upgrade and Leg
+# Upgrade (the first choices: the 'Standard' arm, geoset 29 id 1; the leg, types 31 and 30 id 1). The model of the game the base
+# model has none of its limbs in is a collection's (ChrCustomizationSkinnedModel), made on the character's skeleton: m2.convert's
+# "merge" puts the choice's geosets into the character's own model as always-drawn body, with the one fixed picture the plates take
+# (the first choice of the option that fills the skin extra's replaceable type 8: the Paint's, the plates' atlas in the collection's
+# own coordinates), so that the Mechagnome has its arms and legs in the creator, the world and the preview, whatever skin is picked.
+# (Before: a piece hung on the character, its texture the player's skin file, which these coordinates are not made for: bright
+# green, the user's phone pictures of 18 November; and no piece at all while the options are off.)
+ALWAYS_ON = {"Mechagnome": ("Arm Upgrade", "Leg Upgrade")}
+
+
+def always_on_of(tables, chr_model, model):
+    """[{"model": a collection's file id, "sections": [its geoset ids], "texture": a file id}] for [model]'s ALWAYS_ON options
+    (m2.convert's "merge"), or [] for a model with none. Raises when an option has no model of its own or no picture to draw it with."""
+    names = next((v for k, v in ALWAYS_ON.items() if model["name"].startswith(k)), ())
+    if not names:
+        return []
+    layout = tables.chr_models[str(chr_model)]["CharComponentTextureLayoutID"]
+    kinds = {row["ChrModelTextureTargetID_0"]: row["TextureType"] for row in tables.layers if row["CharComponentTextureLayoutsID"] == layout}
+    options = sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"]))
+
+    def first(option):
+        chs = sorted((c for c in tables.option_choices(chr_model, option["Name_lang"], only_available=False) if tables.available(c)), key=ui_order)
+        return chs[0] if chs else None
+
+    texture = 0
+    for o in options:
+        c = first(o)
+        for e in tables.elements[c["ID"]] if c else ():
+            if e["ChrCustomizationMaterialID"] != "0":
+                target, fids = tables.material_files(e)
+                if kinds.get(target) == "8" and fids:
+                    texture = texture or fids[0]
+    out = []
+    for name in names:
+        option = next((o for o in options if o["Name_lang"] == name), None)
+        c = first(option) if option else None
+        found = {}
+        for e in tables.elements[c["ID"]] if c else ():
+            if e["ChrCustomizationSkinnedModelID"] != "0":
+                sm = tables.skinned[e["ChrCustomizationSkinnedModelID"]]
+                found.setdefault(int(sm["CollectionsFileDataID"]), []).append(int(sm["GeosetType"]) * 100 + int(sm["GeosetID"]))
+        if not found:
+            raise SystemExit("%s: its %s has no model of the game's to draw" % (model["name"], name))
+        for fid, geosets in found.items():
+            have = next((x for x in out if x["model"] == fid), None)
+            if have:
+                have["sections"] += geosets
+                have["options"].append(name)
+            else:
+                out.append({"options": [name], "model": fid, "sections": geosets, "texture": texture})
+    if not texture:
+        raise SystemExit("%s: no picture of replaceable type 8 for %s" % (model["name"], ", ".join(names)))
+    return out
+
+
 def build_races(csv_dir, races=None):
     """What each race and sex is made of. [races]: RACES (the ten of 3.3.5's, the default) or ALLIED."""
     tables = Tables(csv_dir)
@@ -403,8 +459,10 @@ def build_races(csv_dir, races=None):
             # (the feature slider's digits, the first changing slowest: how many choices each of its options has; npc_numbers)
             model["feature_sizes"] = [len(tables.option_choices(chr_model, o, only_available=False)) for o in model["feature_options"]]
             if BASE_ONLY:
+                model["merge"] = always_on_of(tables, chr_model, model)          # (the pieces themselves bring these back when it is off)
                 model["overlays"], model["variants"], model["parts"], model["pickers"] = [], [], [], []
             else:
+                model["merge"] = []
                 model["overlays"] = overlays_of(tables, chr_model, model)
                 model["variants"] = variants_of(tables, chr_model, model)
                 model["parts"], model["pickers"] = parts_of(tables, chr_model, model)

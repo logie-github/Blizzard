@@ -401,6 +401,53 @@ class BaseOnlyTest(unittest.TestCase):
         self.assertTrue({"V", "H", "G"} <= kinds, kinds)
 
 
+class AlwaysOnTest(unittest.TestCase):
+    """The Mechagnome's limbs: the first choices of its Arm Upgrade and Leg Upgrade, one model of the game's, with the first picture of the
+    replaceable type 8 (the Paint's)."""
+    class Tables:
+        chr_models = {"73": {"CharComponentTextureLayoutID": "149"}}
+        layers = [{"CharComponentTextureLayoutsID": "149", "ChrModelTextureTargetID_0": "1", "TextureType": "1"},
+                  {"CharComponentTextureLayoutsID": "149", "ChrModelTextureTargetID_0": "2", "TextureType": "8"}]
+        options = {"1": {"ID": "1", "ChrModelID": "73", "Name_lang": "Skin Color", "OrderIndex": "1"},
+                   "2": {"ID": "2", "ChrModelID": "73", "Name_lang": "Arm Upgrade", "OrderIndex": "2"},
+                   "3": {"ID": "3", "ChrModelID": "73", "Name_lang": "Leg Upgrade", "OrderIndex": "3"},
+                   "4": {"ID": "4", "ChrModelID": "73", "Name_lang": "Paint", "OrderIndex": "4"}}
+        choice = lambda self, i, o, ui: {"ID": str(i), "ChrCustomizationOptionID": o, "UiOrderIndex": str(ui), "OrderIndex": str(ui)}
+        elements = {"10": [{"ChrCustomizationMaterialID": "5", "ChrCustomizationSkinnedModelID": "0"}],
+                    "20": [{"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "100"}],
+                    "21": [{"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "101"}],
+                    "30": [{"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "102"},
+                           {"ChrCustomizationMaterialID": "0", "ChrCustomizationSkinnedModelID": "103"}],
+                    "40": [{"ChrCustomizationMaterialID": "6", "ChrCustomizationSkinnedModelID": "0"}],
+                    "41": [{"ChrCustomizationMaterialID": "7", "ChrCustomizationSkinnedModelID": "0"}]}
+        skinned = {"100": {"CollectionsFileDataID": "555", "GeosetType": "29", "GeosetID": "1"},
+                   "101": {"CollectionsFileDataID": "555", "GeosetType": "29", "GeosetID": "2"},
+                   "102": {"CollectionsFileDataID": "555", "GeosetType": "31", "GeosetID": "1"},
+                   "103": {"CollectionsFileDataID": "555", "GeosetType": "30", "GeosetID": "1"}}
+        materials = {"5": {"ChrModelTextureTargetID": "1", "MaterialResourcesID": "a"}, "6": {"ChrModelTextureTargetID": "2", "MaterialResourcesID": "b"},
+                     "7": {"ChrModelTextureTargetID": "2", "MaterialResourcesID": "c"}}
+        textures = {"a": [9], "b": [8888], "c": [9999]}
+
+        def option_choices(self, model, name, only_available=True):
+            by = {"Skin Color": [("10", "1", 1)], "Arm Upgrade": [("21", "2", 2), ("20", "2", 1)], "Leg Upgrade": [("30", "3", 1)],
+                  "Paint": [("41", "4", 2), ("40", "4", 1)]}
+            return [self.choice(i, o, ui) for i, o, ui in by[name]]
+
+        def available(self, c):
+            return True
+
+        def material_files(self, e):
+            m = self.materials[e["ChrCustomizationMaterialID"]]
+            return m["ChrModelTextureTargetID"], self.textures[m["MaterialResourcesID"]]
+
+    def test_the_first_choices_of_the_limbs_in_one_merge_with_the_first_paint(self):
+        out = sl_looks.always_on_of(self.Tables(), 73, {"name": "MechagnomeMale"})
+        self.assertEqual(out, [{"options": ["Arm Upgrade", "Leg Upgrade"], "model": 555, "sections": [2901, 3101, 3001], "texture": 8888}])
+
+    def test_other_races_have_none(self):
+        self.assertEqual(sl_looks.always_on_of(self.Tables(), 73, {"name": "GnomeMale"}), [])
+
+
 class HeadGeosetsTest(unittest.TestCase):
     """9.2.7's rows of the head's group against the models' numbering (the newest files: the mouth 3201, the heads from 3202)."""
 
