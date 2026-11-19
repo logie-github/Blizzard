@@ -122,6 +122,27 @@ object WrathppRalia {
     }
 
     /**
+     * The skins the imported set supplies a texture for itself (its file for the skin, or for its underwear: the ones [apply] puts in
+     * directly, not the ones it only carries over to), by model ("1_0": race and sex) the model's name and the skins' places in the
+     * looks, for [WrathppSkins]. A skin whose file name has "mannequin" in it is matched like any other, by its name. Null when
+     * nothing is imported or the looks have no list of names: nothing is filtered then.
+     */
+    internal fun supplied(store: File, client: File): Map<String, Pair<String, List<Int>>>? {
+        if (!installed(store)) return null
+        val patch = File(client, "Data/${WrathppLooks.PATCH}")
+        fun has(name: String) = File(store, "files/$name").isFile
+        val direct = names(patch).filter { has(it.retail) || has(it.retail.replace("skin00_", "nakedpelvisskin00_")) || has(it.retail.replace("skin00_", "nakedtorsoskin00_")) }
+        if (direct.isEmpty()) return null
+        val called = HashMap<String, String>()
+        File(patch, NAMES).takeIf { it.isFile }?.let { f ->
+            val models = JSONObject(f.readText()).optJSONObject("models")
+            if (models != null) for (k in models.keys()) called[k] = models.getJSONObject(k).optString("name")
+        }
+        return direct.groupBy { "${it.race}_${it.sex}" }.toSortedMap(compareBy<String>({ it.substringBefore('_').toInt() }, { it.substringAfter('_').toInt() }))
+            .mapValues { (key, list) -> (called[key] ?: key) to list.map { it.index }.distinct().sorted() }
+    }
+
+    /**
      * The imported set put into Wrath++'s looks in [client], or taken out when nothing is imported. Returns how many
      * skins are the set's now (0: none imported, no looks, or looks without their list of names). [say]: progress.
      */

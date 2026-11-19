@@ -655,6 +655,21 @@ local function allowed(choice, dk)
 	return true
 end
 
+-- The skins the Skin Color row offers. WrathppSkins (WrathppSkins.lua, written by the app after Ralia's mod is in: WrathppSkins.kt) lists
+-- for a model ("1_0") the positions of the skins the imported set supplies; those and the choices the looks mark `keep` (the Dark Ranger)
+-- are offered, the other colours are not. A model it doesn't list, or one it would leave without a skin, is not filtered (a phone
+-- without the import offers all). The game's number of a choice stays its real position: nothing is renumbered.
+local function skinFilter(model, key, option)
+	local list = type(WrathppSkins) == "table" and WrathppSkins[key]
+	if ( type(list) ~= "table" or not model or not model.fields or not model.fields.skin ) then return nil end
+	if ( not (option.field == "skin" and option.part == #model.fields.skin) ) then return nil end
+	local set = {}
+	for _, v in ipairs(list) do set[v] = true end
+	local pass = function(choice) return choice.keep == true or set[choice.v] == true end
+	for _, c in ipairs(option.choices) do if ( pass(c) ) then return pass end end
+	return nil
+end
+
 -- Whether the skin on is one of the undead's (the colours after the race's own).
 local function undeadOn(model, undead)
 	if ( not model or not undead ) then return false end
@@ -664,7 +679,7 @@ end
 
 -- The rows to show: { name, kind ("list", "switch", "plain"), choices, at (index of the one on), option, ... }
 function W.Rows()
-	local model, undead, dk = looks()
+	local model, undead, dk, key = looks()
 	local rows = {}
 	if ( not model or not number(FIELD.skin) ) then
 		-- the game's own five
@@ -716,8 +731,9 @@ function W.Rows()
 					for _, c in ipairs(option.choices) do if ( allowed(c, dk) ) then row.choices[#row.choices + 1] = c end end
 				else
 					local digit = decode(math.min(value, product(model.fields[option.field]) - 1), model.fields[option.field])[option.part]
+					local offered = skinFilter(model, key, option)
 					for _, c in ipairs(option.choices) do
-						if ( allowed(c, dk) ) then
+						if ( allowed(c, dk) and (not offered or offered(c)) ) then
 							row.choices[#row.choices + 1] = c
 							if ( c.v == digit ) then row.at = #row.choices end
 						end
@@ -803,16 +819,37 @@ function W.Regear()
 	if ( W.gear == false ) then W.SetGear(false) end
 end
 
--- After the game's own Randomize: an undead skin only while Undead is on, a living one otherwise.
+-- After the game's own Randomize: an undead skin only while Undead is on, a living one otherwise, and a living one from the offered ones.
 function W.AfterRandomize(wasUndead)
-	local model, undead = looks()
-	if ( not model or not undead ) then return end
+	local model, undead, dk, key = looks()
+	if ( not model ) then return end
 	local skin = number(FIELD.skin)
 	if ( not skin ) then return end
-	if ( wasUndead and skin < undead.first ) then
+	if ( undead and wasUndead and skin < undead.first ) then
 		setNumber(FIELD.skin, undead.first + math.random(#undead.skins) - 1)
-	elseif ( not wasUndead and skin >= undead.first ) then
+		return
+	elseif ( undead and not wasUndead and skin >= undead.first ) then
 		setNumber(FIELD.skin, math.random(undead.first) - 1)
+		skin = number(FIELD.skin)
+		if ( not skin ) then return end
+	elseif ( wasUndead ) then
+		return
+	end
+	-- a living skin the list doesn't offer: another, drawn from those it does (a death knight's rule is Normalize's)
+	for _, option in ipairs(model.options) do
+		local offered = skinFilter(model, key, option)
+		if ( offered and skin < product(model.fields.skin) ) then
+			local digits = decode(skin, model.fields.skin)
+			local mine, current = {}, nil
+			for _, c in ipairs(option.choices) do
+				if ( c.v == digits[option.part] ) then current = c end
+				if ( offered(c) and allowed(c, dk) ) then mine[#mine + 1] = c end
+			end
+			if ( #mine > 0 and not (current and offered(current)) ) then
+				digits[option.part] = mine[math.random(#mine)].v
+				setNumber(FIELD.skin, encode(digits, model.fields.skin))
+			end
+		end
 	end
 end
 
@@ -822,11 +859,12 @@ end
 -- race, sex or class, and at Randomize can be a choice this class may not have. Such a number is moved onto this
 -- class's choice at the same place among its kind (a death knight's third face for the others' third).
 function W.Normalize()
-	local model, undead, dk = looks()
+	local model, undead, dk, key = looks()
 	if ( not model ) then return end
 	local isUndead = undeadOn(model, undead)
 	for _, option in ipairs(model.options) do
 		local index = option.field and FIELD[option.field]
+		local offered = skinFilter(model, key, option)
 		if ( index and not (isUndead and option.field == "skin") ) then
 			local value = number(index)
 			local parts = model.fields[option.field]
@@ -835,11 +873,11 @@ function W.Normalize()
 				local current, mine = nil, {}
 				for _, c in ipairs(option.choices) do
 					if ( c.v == digits[option.part] ) then current = c end
-					if ( allowed(c, dk) ) then mine[#mine + 1] = c end
+					if ( allowed(c, dk) and (not offered or offered(c)) ) then mine[#mine + 1] = c end
 				end
-				if ( #mine > 0 and (not current or not allowed(current, dk)) ) then
+				if ( #mine > 0 and (not current or not allowed(current, dk) or (offered and not offered(current))) ) then
 					local place = 1
-					if ( current ) then
+					if ( current and not offered ) then
 						local n = 0
 						for _, c in ipairs(option.choices) do
 							if ( c.c == current.c ) then n = n + 1; if ( c == current ) then place = n end end

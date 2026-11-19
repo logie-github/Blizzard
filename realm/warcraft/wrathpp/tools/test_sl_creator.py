@@ -135,6 +135,18 @@ class CreatorDataTest(unittest.TestCase):
         self.assertIn('{ v = 1, n = "", s = 15648168 }', text)
         self.assertTrue(text.startswith("-- Wrath++'s creator"))
 
+    def test_a_skin_only_an_achievement_opens_is_marked_kept(self):
+        """The Dark Ranger skin (sl_looks.UNLOCKED_ACHIEVEMENTS) stays in the creator's Skin Color whatever the Ralia import supplies (`keep`)."""
+        self.assertFalse(any("keep" in c for c in self.by["Skin Color"]["choices"]))
+        tables = Tables(OPTIONS, CHOICES, REQS, FILES)
+        tables.unlocked.add("111")
+        m = sl_creator.build_model(tables, CATEGORIES, 1, 1, MODEL)
+        skin = {c["v"]: c for c in next(o for o in m["options"] if o["name"] == "Skin Color")["choices"]}
+        self.assertEqual({v for v, c in skin.items() if c.get("keep")}, {1})                    # choice 111 is the skin at place 1; v is its place
+        text = sl_creator.lua({"build": "9.2.7.45745", "models": {"1_1": m}})
+        self.assertEqual(text.count("keep = true"), 1)
+        self.assertRegex(text, r'\{ v = 1, n = "", s = \d+, keep = true \}')                    # one line, as the other choices
+
     def test_parts_must_make_the_looks_count(self):
         bad = dict(MODEL, features=[{"variation": i} for i in range(5)])
         with self.assertRaises(ValueError):
