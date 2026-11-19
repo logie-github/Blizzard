@@ -105,8 +105,11 @@
 #include "wxl/sdk.hpp"
 #include "wxl/services/hook.hpp"
 #include "wxl/services/m2.hpp"
+#include "wxl/services/m2file.hpp"
 #include "wxl/services/script.hpp"
 #include "wxl/services/storage.hpp"
+
+#include "WideSkin.hpp"
 
 namespace
 {
@@ -1189,6 +1192,522 @@ namespace
 
     void MaxRaceCall(wxl::ScriptCall& call) { call.PushNumber(static_cast<double>(g_maxRace)); }
 
+#if defined(_M_IX86)
+    // --- wide skins: every hair style whole on the stock client -------------------------------------------------------------
+    // WideSkin.hpp says what a wide skin is and how the stock client is made to draw one; this is the part that touches the
+    // game. Three detours and three events, each checked against the game itself before a far section is drawn:
+    //   * SkinProfileParsed (the runtime's seam before CM2Shared::InitializeSkinProfile, 0x00837A40): the sections rewritten in
+    //     memory so the stock client alone draws the skin without its far sections (WideSkin.hpp, Normalize).
+    //   * CM2Shared::SetIndices (0x008360A0, thiscall, no arguments): after the stock function filled the shared pool, the
+    //     copies of the sections (CM2Shared::m_skinSections, +0x18C) are compared with what the stock pass must have left
+    //     (CopiesAsStock); once the device's draw has been seen drawing this very pool (below) the far sections' counts are put
+    //     in the copies, the stock function fills the pool again (now leaving their room), its output is read back and
+    //     compared (Calibrate) and only then are the far sections' triangles written (CGxDeviceD3d::BufLock 0x0068FCE0,
+    //     BufUnlock 0x0068FAE0, CGxDevice::PrimIndexPtr 0x00682F10: the three the stock function itself calls).
+    //   * CGxDeviceD3d::Draw (0x006A3620) and CGxDeviceD3d9Ex::Draw (0x006A77C0), thiscall (CGxBatch*, int): the four places
+    //     the model code draws from (CM2SceneRender.cpp 475, 619; M2Model.cpp 2939, 2986) hand the device a CGxBatch whose
+    //     start is the copy's 16 bits; with a wide skin's pool bound (CGxDevice::m_primIndexBuf, +0x28BC) the start is given
+    //     its high half (in a copy of the batch: the caller's is not written). Before a skin is made whole the same detour
+    //     watches for a draw of one of its near sections: that the detour is reached, and that the device, the bound pool
+    //     and the batch's fields are what this code takes them for, is then seen, not assumed.
+    //   * FileOpen: <Model>00.skin is answered with <Model>00w.skin when every hook is in, the app's switch is on, the looks
+    //     list the model (Wrathpp\wide.txt) and the model file just parsed (ModelParsed) has the vertex count and size the
+    //     whole skin was made for (a model the app's body options rewrote has not: it keeps its cut skin).
+    // Anything that does not hold leaves the far sections empty: pieces missing, never wrong triangles. Offsets: the
+    // runtime's measured layouts (core/include/wxl/offsets/generated/layouts.def).
+    namespace wide = wrathpp::wide;
+
+    constexpr wide::StockFunction kSharedSetIndices{"CM2Shared::SetIndices", 0x008360A0, 0x210, 0x20D};
+    constexpr wide::StockFunction kDrawD3d{"CGxDeviceD3d::Draw", 0x006A3620, 0x100, 0xF6};
+    constexpr wide::StockFunction kDrawD3d9Ex{"CGxDeviceD3d9Ex::Draw", 0x006A77C0, 0x100, 0xF6};
+    constexpr wide::StockFunction kBufLock{"CGxDeviceD3d::BufLock", 0x0068FCE0, 0x20, 0x1E};
+    constexpr wide::StockFunction kBufUnlock{"CGxDeviceD3d::BufUnlock", 0x0068FAE0, 0x30, 0x27};
+    constexpr wide::StockFunction kPrimIndexPtr{"CGxDevice::PrimIndexPtr", 0x00682F10, 0x30, 0x2C};
+    constexpr uintptr_t kGxDevice = 0x00C5DF88;                  // g_theGxDevicePtr
+    constexpr uintptr_t kSharedSkin = 0x170, kSharedIndexBuf = 0x17C, kSharedSections = 0x18C;      // CM2Shared
+    constexpr uintptr_t kBufPool = 0x8, kBufItemSize = 0xC, kBufItemCount = 0x10, kBufHasData = 0x1C, kBufValid = 0x1D;   // CGxBuf
+    constexpr uintptr_t kDeviceApi = 0x1B4, kDeviceIndexBuf = 0x28BC;                                // CGxDevice
+    constexpr uintptr_t kSkinVertices = 0x4, kSkinIndices = 0xC, kSkinSections = 0x1C, kSkinBatches = 0x24;   // M2SkinProfile
+    constexpr uintptr_t kModelVertices = 0x3C;                                                       // M2Data::m_vertices.m_count
+    constexpr uint32_t kGxTriangles = 3;                                                             // EGxPrim
+
+    using SharedSetIndicesFn = int32_t(__thiscall*)(void*);
+    using DrawFn = void(__thiscall*)(void*, void*, int32_t);
+    using BufLockFn = char*(__thiscall*)(void*, void*);
+    using BufUnlockFn = int32_t(__thiscall*)(void*, void*, uint32_t);
+    using PrimIndexPtrFn = void(__thiscall*)(void*, void*);
+    SharedSetIndicesFn g_sharedSetIndices = nullptr;
+    DrawFn g_drawD3d = nullptr, g_drawD3d9Ex = nullptr;
+    wxl::Hook g_wideHooks[3];
+
+    struct WideSkin
+    {
+        wide::Plan plan;
+        const uint16_t* indices = nullptr;    // the skin's own, where the client keeps them
+        std::string name;
+        uintptr_t buf = 0, pool = 0;          // the shared pool's CGxBuf and its CGxPool, once seen
+        uint32_t items = 0;
+        bool seen = false;                    // the device's draw was seen drawing a near section from that pool
+        bool whole = false;                   // the far sections are in
+        bool failed = false;                  // a check did not hold: they stay empty
+    };
+    // (all four are the main thread's: the loader's callbacks and the drawing)
+    std::map<uintptr_t, WideSkin> g_wideSkins;       // by the skin profile's address
+    std::vector<WideSkin*> g_wideBufs;               // those whose pool is known
+    bool g_wideHooked = false;                       // every detour in, every stock function where the table has it
+    uint32_t g_wideWhole = 0;
+    // (any thread: the files' opens)
+    struct WideModel
+    {
+        uint32_t vertices, bytes;
+    };
+    std::atomic<bool> g_wideOn{false};
+    std::atomic<bool> g_wideStarted{false};
+    std::atomic<uint32_t> g_wideGiven{0}, g_wideRefused{0};
+    std::mutex g_wideLock;
+    std::map<std::string, wide::Listed> g_wideListed;      // the looks' list, by model
+    std::map<std::string, WideModel> g_wideModels;         // the model files parsed, by model
+
+    bool SharedParts(uintptr_t shared, uintptr_t* skin, uintptr_t* buf, uintptr_t* copies)
+    {
+        __try
+        {
+            *skin = *reinterpret_cast<const uintptr_t*>(shared + kSharedSkin);
+            *buf = *reinterpret_cast<const uintptr_t*>(shared + kSharedIndexBuf);
+            *copies = *reinterpret_cast<const uintptr_t*>(shared + kSharedSections);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    /// A CGxBuf's pool, item size and count, and whether it holds its data (CM2Shared::SetIndices fills it when not).
+    bool BufParts(uintptr_t buf, uintptr_t* pool, uint32_t* itemSize, uint32_t* items, bool* filled)
+    {
+        __try
+        {
+            *pool = *reinterpret_cast<const uintptr_t*>(buf + kBufPool);
+            *itemSize = *reinterpret_cast<const uint32_t*>(buf + kBufItemSize);
+            *items = *reinterpret_cast<const uint32_t*>(buf + kBufItemCount);
+            *filled = *reinterpret_cast<const uint8_t*>(buf + kBufHasData) && *reinterpret_cast<const uint8_t*>(buf + kBufValid);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    /// 0: the copies are as the stock pass leaves them with the far sections empty; 1: with them whole; -1: neither.
+    int CopiesState(uintptr_t copies, const wide::Plan* plan)
+    {
+        __try
+        {
+            const wide::Section* c = reinterpret_cast<const wide::Section*>(copies);
+            if (wide::CopiesAsStock(c, *plan)) return 0;
+            if (wide::CopiesWhole(c, *plan)) return 1;
+            return -1;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return -1;
+        }
+    }
+
+    /// The copies' far sections given their counts or emptied, and the pool marked to be filled again.
+    bool SetWhole(uintptr_t copies, uintptr_t buf, const wide::Plan* plan, bool whole)
+    {
+        __try
+        {
+            wide::Whole(reinterpret_cast<wide::Section*>(copies), *plan, whole);
+            *reinterpret_cast<uint8_t*>(buf + kBufHasData) = 0;
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    /// The far sections' triangles into the pool the stock pass just filled. 0: done; 1: no device; 2: no lock; 3: the pool
+    /// does not hold what the stock pass writes (nothing written); 4: a fault.
+    int WideFill(const wide::Plan* plan, const uint16_t* indices, uintptr_t buf)
+    {
+        __try
+        {
+            void* const device = *reinterpret_cast<void* const*>(kGxDevice);
+            if (!device) return 1;
+            uint16_t* pool = reinterpret_cast<uint16_t*>(reinterpret_cast<BufLockFn>(kBufLock.address)(device, reinterpret_cast<void*>(buf)));
+            if (!pool) return 2;
+            const wide::Rebase how = wide::Calibrate(pool, *plan, indices);
+            if (how != wide::Rebase::Unknown) wide::WriteFar(pool, *plan, indices, how);
+            reinterpret_cast<BufUnlockFn>(kBufUnlock.address)(device, reinterpret_cast<void*>(buf), 0);
+            *reinterpret_cast<uint8_t*>(buf + kBufHasData) = 1;
+            reinterpret_cast<PrimIndexPtrFn>(kPrimIndexPtr.address)(device, reinterpret_cast<void*>(buf));
+            return how == wide::Rebase::Unknown ? 3 : 0;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return 4;
+        }
+    }
+
+    /// `skin`'s pool, and any skin's pool at `buf`, are no longer watched.
+    void WideForget(const WideSkin* skin, uintptr_t buf)
+    {
+        for (size_t i = g_wideBufs.size(); i-- > 0;)
+            if (g_wideBufs[i] == skin || (buf && g_wideBufs[i]->buf == buf))
+            {
+                g_wideBufs[i]->buf = 0;
+                g_wideBufs.erase(g_wideBufs.begin() + static_cast<std::ptrdiff_t>(i));
+            }
+    }
+
+    /// A check did not hold: the far sections empty again (the stock function fills the pool for that), for good.
+    void WideTakeBack(void* shared, WideSkin& w, uintptr_t copies, uintptr_t buf, const char* why)
+    {
+        w.failed = true;
+        w.whole = false;
+        WideForget(&w, 0);
+        if (copies && buf && SetWhole(copies, buf, &w.plan, false)) g_sharedSetIndices(shared);
+        wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {}: {}: its {} sections past 65,535 stay empty", w.name, why, w.plan.farSections);
+    }
+
+    /// After the stock function filled (`filled`) or kept the shared pool of a wide skin.
+    void WideAfter(void* shared, WideSkin& w, bool filled)
+    {
+        uintptr_t skin = 0, buf = 0, copies = 0, pool = 0;
+        uint32_t itemSize = 0, items = 0;
+        bool has = false;
+        if (!SharedParts(reinterpret_cast<uintptr_t>(shared), &skin, &buf, &copies) || !buf || !copies || !BufParts(buf, &pool, &itemSize, &items, &has)) return;
+        if (w.buf != buf || w.pool != pool || w.items != items)
+        {
+            // (the first fill, or a pool made anew: one instance of the skin's indices, 16 bits each)
+            if (itemSize != 2 || items < w.plan.total || items > 0x40000)
+            {
+                WideTakeBack(shared, w, w.whole ? copies : 0, buf, "the shared pool is not one of 16-bit indices for the skin");
+                return;
+            }
+            WideForget(&w, buf);
+            w.buf = buf;
+            w.pool = pool;
+            w.items = items;
+            g_wideBufs.push_back(&w);
+            if (!w.whole) w.seen = false;
+        }
+        const bool first = !w.whole;
+        if (first)
+        {
+            if (!w.seen) return;                  // (the device's draw has not been seen with this pool yet)
+            if (CopiesState(copies, &w.plan) != 0)
+            {
+                WideTakeBack(shared, w, 0, buf, "the shared's sections are not as the game leaves them");
+                return;
+            }
+            if (!SetWhole(copies, buf, &w.plan, true) || !g_sharedSetIndices(shared))
+            {
+                WideTakeBack(shared, w, copies, buf, "the pool could not be filled again");
+                return;
+            }
+            filled = true;
+        }
+        if (!filled) return;
+        if (CopiesState(copies, &w.plan) != 1)
+        {
+            WideTakeBack(shared, w, copies, buf, "the game's pool starts are not the ones worked out");
+            return;
+        }
+        static const char* const kWhy[] = {"", "no device", "the pool could not be locked", "the pool does not hold what the game wrote", "a fault while writing the pool"};
+        const int code = WideFill(&w.plan, w.indices, buf);
+        if (code)
+        {
+            WideTakeBack(shared, w, copies, buf, kWhy[code]);
+            return;
+        }
+        if (first)
+        {
+            w.whole = true;
+            if (++g_wideWhole <= 40)
+                wxl::Log(WXL_LOG_INFO, kTag, "wide skins: {}: drawn whole ({} indices, {} of them in {} sections past 65,535; {} models so far)", w.name,
+                         w.plan.total, w.plan.farIndices, w.plan.farSections, g_wideWhole);
+        }
+    }
+
+    int32_t __fastcall SharedSetIndicesDetour(void* shared, void* /*edx*/)
+    {
+        if (g_wideSkins.empty() && g_wideBufs.empty()) return g_sharedSetIndices(shared);
+        uintptr_t skin = 0, buf = 0, copies = 0, pool = 0;
+        uint32_t itemSize = 0, items = 0;
+        WideSkin* w = nullptr;
+        bool filled = true;
+        if (SharedParts(reinterpret_cast<uintptr_t>(shared), &skin, &buf, &copies))
+        {
+            const auto it = g_wideSkins.find(skin);
+            if (it != g_wideSkins.end() && !it->second.failed) w = &it->second;
+            if (w && (!buf || !BufParts(buf, &pool, &itemSize, &items, &filled))) filled = false;
+        }
+        const int32_t made = g_sharedSetIndices(shared);
+        if (w && made) WideAfter(shared, *w, !filled);
+        else if (!w && !g_wideBufs.empty() && SharedParts(reinterpret_cast<uintptr_t>(shared), &skin, &buf, &copies) && buf)
+            WideForget(nullptr, buf);           // (another model's pool now, where a wide skin's was)
+        return made;
+    }
+
+    /// The device is about to draw `batch` (a CGxBatch: primitive, start, count; 16 bytes). True with `fixed` a copy whose
+    /// start is whole, when the bound index pool is a whole wide skin's and the start is one of its far sections' low half.
+    bool WideDrawStart(uintptr_t device, const void* batch, uint32_t* fixed)
+    {
+        __try
+        {
+            const uintptr_t buf = *reinterpret_cast<const uintptr_t*>(device + kDeviceIndexBuf);
+            if (!buf) return false;
+            const size_t count = g_wideBufs.size();
+            WideSkin* const* list = g_wideBufs.data();
+            for (size_t i = 0; i < count; i++)
+            {
+                WideSkin* w = list[i];
+                if (w->buf != buf) continue;
+                if (*reinterpret_cast<const uintptr_t*>(buf + kBufPool) != w->pool || *reinterpret_cast<const uint32_t*>(buf + kBufItemCount) != w->items) return false;
+                const uint32_t* b = static_cast<const uint32_t*>(batch);
+                if (!w->whole)
+                {
+                    if (!w->seen && b[0] == kGxTriangles && wide::StockDraw(w->plan, b[1], b[2])) w->seen = true;
+                    return false;
+                }
+                const uint32_t start = wide::DrawStart(w->plan, b[1]);
+                if (start == b[1]) return false;
+                fixed[0] = b[0];
+                fixed[1] = start;
+                fixed[2] = b[2];
+                fixed[3] = b[3];
+                return true;
+            }
+            return false;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    void __fastcall DrawD3dDetour(void* device, void* /*edx*/, void* batch, int32_t indexed)
+    {
+        uint32_t fixed[4];
+        if (indexed && batch && !g_wideBufs.empty() && WideDrawStart(reinterpret_cast<uintptr_t>(device), batch, fixed)) batch = fixed;
+        g_drawD3d(device, batch, indexed);
+    }
+
+    void __fastcall DrawD3d9ExDetour(void* device, void* /*edx*/, void* batch, int32_t indexed)
+    {
+        uint32_t fixed[4];
+        if (indexed && batch && !g_wideBufs.empty() && WideDrawStart(reinterpret_cast<uintptr_t>(device), batch, fixed)) batch = fixed;
+        g_drawD3d9Ex(device, batch, indexed);
+    }
+
+    /// Whether the game draws with Direct3D 9 (EGxApi 1) or 9Ex (2): the devices whose draw and lock are hooked and called.
+    bool WideDevice()
+    {
+        __try
+        {
+            const uintptr_t device = *reinterpret_cast<const uintptr_t*>(kGxDevice);
+            if (!device) return false;
+            const uint32_t api = *reinterpret_cast<const uint32_t*>(device + kDeviceApi);
+            return api == 1 || api == 2;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    bool ImageBytes(const wide::StockFunction* f, uint8_t* out, uint32_t capacity)
+    {
+        __try
+        {
+            if (f->bound > capacity) return false;
+            std::memcpy(out, reinterpret_cast<const void*>(static_cast<uintptr_t>(f->address)), f->bound);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    /// One stock function checked where the table has it; its first and last bytes go to the log (the start report carries
+    /// it: an exact signature can be pinned from a phone's report).
+    bool WideCheck(const wide::StockFunction& f)
+    {
+        uint8_t image[0x400];
+        if (!ImageBytes(&f, image, sizeof image))
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {} at 0x{:08X}: not readable", f.name, f.address);
+            return false;
+        }
+        const bool ok = wide::LooksLikeIt(image, f);
+        const uint32_t tail = f.length >= 4 ? f.length - 4 : 0;
+        wxl::Log(ok ? WXL_LOG_INFO : WXL_LOG_WARN, kTag, "wide skins: {} at 0x{:08X}: {} | ends {} | {}", f.name, f.address, wide::Hex(image, 16),
+                 wide::Hex(image + tail, f.bound - tail), ok ? "where the table has it" : "NOT as the table has it (its padding is not where its length ends)");
+        return ok;
+    }
+
+    void AttachWide()
+    {
+        const wxl::RawHookService raw;
+        bool ok = true;
+        for (const wide::StockFunction* f : {&kSharedSetIndices, &kDrawD3d, &kDrawD3d9Ex, &kBufLock, &kBufUnlock, &kPrimIndexPtr})
+            if (!WideCheck(*f)) ok = false;
+        if (!raw || !wxl::M2FileService::Available())
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: off: no {}; the cut skins are drawn", raw ? "wxl.m2file" : "wxl.hook.raw");
+            return;
+        }
+        if (!ok)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: off: this is not the game the addresses are for; the cut skins are drawn");
+            return;
+        }
+        g_wideHooks[0] = raw.AttachAt(kSharedSetIndices.name, kSharedSetIndices.address, reinterpret_cast<void*>(&SharedSetIndicesDetour), reinterpret_cast<void**>(&g_sharedSetIndices));
+        g_wideHooks[1] = raw.AttachAt(kDrawD3d.name, kDrawD3d.address, reinterpret_cast<void*>(&DrawD3dDetour), reinterpret_cast<void**>(&g_drawD3d));
+        g_wideHooks[2] = raw.AttachAt(kDrawD3d9Ex.name, kDrawD3d9Ex.address, reinterpret_cast<void*>(&DrawD3d9ExDetour), reinterpret_cast<void**>(&g_drawD3d9Ex));
+        static const char* const kNames[] = {"CM2Shared::SetIndices", "CGxDeviceD3d::Draw", "CGxDeviceD3d9Ex::Draw"};
+        std::string failed;
+        for (int i = 0; i < 3; i++)
+            if (!g_wideHooks[i]) failed += std::string(failed.empty() ? "" : ", ") + kNames[i];
+        if (!failed.empty() || !g_sharedSetIndices || !g_drawD3d || !g_drawD3d9Ex)
+        {
+            for (wxl::Hook& hook : g_wideHooks) hook.Reset();
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: off: not attached: {}; the cut skins are drawn", failed.empty() ? "an original" : failed);
+            return;
+        }
+        g_wideHooked = true;
+        wxl::Log(WXL_LOG_INFO, kTag, "wide skins: the three hooks are in (CM2Shared::SetIndices, CGxDeviceD3d::Draw, CGxDeviceD3d9Ex::Draw)");
+    }
+
+    /// The app's switch and the looks' list, read once the interface starts (the files are the patch folder's).
+    void WideStart()
+    {
+        if (g_wideStarted.exchange(true)) return;
+        if (!g_wideHooked) return;
+        const wxl::StorageService storage;
+        if (!storage)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: off: no wxl.storage; the cut skins are drawn");
+            return;
+        }
+        const wxl::Expected<std::string> script = storage.ReadText("Interface\\GlueXML\\WrathppWideSkins.lua");
+        if (script && !wide::SwitchedOn(*script))
+        {
+            wxl::Log(WXL_LOG_INFO, kTag, "wide skins: off (the app's switch): the cut skins are drawn");
+            return;
+        }
+        const wxl::Expected<std::string> text = storage.ReadText("Wrathpp\\wide.txt");
+        if (!text)
+        {
+            wxl::Log(WXL_LOG_INFO, kTag, "wide skins: off: the looks have no Wrathpp\\wide.txt ({}); the cut skins are drawn", wxl::ResultName(text.Error()));
+            return;
+        }
+        size_t count = 0;
+        {
+            std::lock_guard<std::mutex> hold(g_wideLock);
+            for (wide::Listed& listed : wide::ParseList(*text)) g_wideListed[listed.model] = listed;
+            count = g_wideListed.size();
+        }
+        if (!count)
+        {
+            wxl::Log(WXL_LOG_INFO, kTag, "wide skins: off: Wrathpp\\wide.txt lists no model; the cut skins are drawn");
+            return;
+        }
+        g_wideOn.store(true);
+        wxl::Log(WXL_LOG_INFO, kTag, "wide skins: on: the looks have a whole skin for {} models", count);
+    }
+
+    /// A skin profile has been parsed (the main thread): a wide one is read, rewritten for the stock client and kept.
+    void WideParsed(std::string_view path, void* skin)
+    {
+        if (!skin) return;
+        const uintptr_t at = reinterpret_cast<uintptr_t>(skin);
+        const auto old = g_wideSkins.find(at);
+        if (old != g_wideSkins.end())
+        {
+            WideForget(&old->second, 0);        // (what was at this address is gone)
+            g_wideSkins.erase(old);
+        }
+        if (!wxl::M2FileService::Available()) return;
+        const uint8_t* base = static_cast<const uint8_t*>(skin);
+        const auto indices = wxl::M2FileService::Elements<uint16_t>(base + kSkinIndices);
+        const auto sections = wxl::M2FileService::Elements<wide::Section>(base + kSkinSections);
+        const auto batches = wxl::M2FileService::Elements<wide::Batch>(base + kSkinBatches);
+        const uint32_t vertices = *reinterpret_cast<const uint32_t*>(base + kSkinVertices);
+        wide::Plan plan = wide::Read(sections.data, sections.size(), batches.data, batches.size(), indices.data, indices.size(), vertices);
+        if (!plan.wide) return;
+        wide::Normalize(sections.data, sections.size(), plan);
+        if (!plan.valid)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {}: not a skin this can draw whole ({}): its sections past 65,535 stay empty", path, plan.why);
+            return;
+        }
+        if (!g_wideHooked)
+        {
+            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {}: a whole skin with the hooks not in: its {} sections past 65,535 stay empty", path, plan.farSections);
+            return;
+        }
+        WideSkin& w = g_wideSkins[at];
+        w.plan = std::move(plan);
+        w.indices = indices.data;
+        w.name = std::string(path);
+    }
+
+    class WideAssets final : public wxl::AssetScript
+    {
+    public:
+        void OnModelParsed(std::string_view path, void*, void* header, uint32_t size) override
+        {
+            if (!g_wideOn.load(std::memory_order_relaxed) || !header) return;
+            const std::string model = wide::ModelOfFile(path);
+            if (model.empty()) return;
+            const uint32_t vertices = *reinterpret_cast<const uint32_t*>(static_cast<const uint8_t*>(header) + kModelVertices);
+            std::lock_guard<std::mutex> hold(g_wideLock);
+            if (g_wideListed.count(model)) g_wideModels[model] = WideModel{vertices, size};
+        }
+
+        void OnFileOpen(std::string_view asked, wxl::Buffer redirect) override
+        {
+            if (!g_wideOn.load(std::memory_order_relaxed) || asked.size() < 8 || (asked.back() != 'n' && asked.back() != 'N')) return;
+            const std::string model = wide::ModelOfSkin(asked);
+            if (model.empty()) return;
+            const char* why = nullptr;
+            {
+                std::lock_guard<std::mutex> hold(g_wideLock);
+                const auto listed = g_wideListed.find(model);
+                if (listed == g_wideListed.end()) return;
+                const auto parsed = g_wideModels.find(model);
+                if (parsed == g_wideModels.end()) why = "its model file was not seen";
+                else if (parsed->second.vertices != listed->second.vertices || parsed->second.bytes != listed->second.bytes)
+                    why = "its model file is not the one the whole skin was made for (the body options' own, or other looks)";
+            }
+            if (!why && !WideDevice()) why = "the game is not drawing with Direct3D 9";
+            if (!why && !redirect.Write(wide::WideName(asked))) why = "no room for the name";
+            if (why)
+            {
+                if (g_wideRefused.fetch_add(1) < 12) wxl::Log(WXL_LOG_INFO, kTag, "wide skins: {} keeps its cut skin: {}", asked, why);
+                return;
+            }
+            const uint32_t given = g_wideGiven.fetch_add(1) + 1;
+            if (given <= 40) wxl::Log(WXL_LOG_INFO, kTag, "wide skins: {} read as its whole skin ({} so far)", asked, given);
+        }
+
+        void OnSkinProfileParsed(std::string_view path, void*, void*, void* skin) override { WideParsed(path, skin); }
+    };
+
+    WideAssets g_wideAssets;
+#else
+    void AttachWide() {}
+    void WideStart() {}
+#endif
+
     // --- which model file of a character the game read (report #332: the Troll man drawn as 3.3.5's own model) ---
     // Each model file under Character\ is logged once, as the game reads it (ModelLoad: the bytes before they are parsed): its path,
     // length, version, bones and vertices (the looks' TrollMale.m2: 25320348 bytes, 231 bones). For a race's own model the runtime is
@@ -1270,6 +1789,7 @@ namespace
     public:
         void OnScriptVmReady(wxl_script_context, void*) override
         {
+            WideStart();
             const wxl::ScriptService script;
             if (!script) return;
             for (auto [name, result] : {std::pair{"WrathPP_GetCustomization", script.RegisterFunction<&GetCustomization>("WrathPP_GetCustomization")},
@@ -1304,9 +1824,11 @@ namespace
 #if defined(_M_IX86)
             wxl::ScriptMgr::Add(&g_worldScript);
             wxl::ScriptMgr::Add(&g_mountWatch);
+            wxl::ScriptMgr::Add(&g_wideAssets);
 #endif
             AttachLayer();
             AttachCreatureSkins();
+            AttachWide();
             MovePreferences();
             wxl::Log(WXL_LOG_INFO, kTag, "Wrath++ native loaded");
             return WXL_OK;

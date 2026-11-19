@@ -24,6 +24,10 @@
       "version": 1
     },
     {
+      "service": "wxl.m2file",
+      "version": 1
+    },
+    {
       "service": "wxl.storage",
       "version": 1
     }
