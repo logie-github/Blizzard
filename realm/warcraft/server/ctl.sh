@@ -48,6 +48,9 @@ DATA_MODULES="$FILES/data-modules"
 # release the app downloads; mod-worgen-goblin's README): client/ for the game's patch, server/ for
 # the world server's data (zones_data).
 ZONES="$FILES/zones"
+# The launcher's Converter's results (Settings, Games, Legion): <expansion>/release/ packs of Cataclysm's to Legion's content in 3.3.5a's format, kept where
+# Wrath++ and the realms can reach them ($FILES/converter). Nothing reads them yet: put in only when the user says so.
+CONVERTED="$FILES/converter"
 # What the modules the app's user picked bring for the game's files (scripts/module-files.py).
 MODULE_FILES="$SERVER/share"
 # The modules whose SQL went into the world database (ctl.sh modules); goes with the databases.

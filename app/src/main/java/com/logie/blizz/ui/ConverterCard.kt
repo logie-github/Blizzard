@@ -44,14 +44,20 @@ internal fun ConverterCard() {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(e.name, style = MaterialTheme.typography.bodyMedium, color = Colors.Mist)
                     val line = when {
-                        running && p != null && !p.finished -> "${p.message.ifEmpty { p.state }}"
+                        running && p != null && !p.finished -> p.label.ifEmpty { p.message.ifEmpty { p.state } }
                         running -> "Starting"
                         p == null -> "Not converted yet"
                         else -> "${p.state}: ${p.message}"
                     }
-                    Text(line, style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+                    Text(line, style = MaterialTheme.typography.bodySmall, color = if (running) Colors.Ice else Colors.Mist)
+                    if (running && p != null && !p.finished) {
+                        if (p.detail.isNotEmpty()) Text(p.detail, style = MaterialTheme.typography.labelSmall, color = Colors.Mist)
+                        Text("${p.done} of ${p.total} maps done" + (p.fraction?.let { " · ${(it * 100).toInt()}%" } ?: ""), style = MaterialTheme.typography.labelSmall, color = Colors.Mist)
+                    }
                     if (running) {
-                        (p?.fraction)?.let { f -> LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth()) }
+                        val f = if (p != null && !p.finished) p.fraction else null
+                        if (f != null) LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth())
+                        else LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         FrameButton("Stop", primary = false, modifier = Modifier.fillMaxWidth()) { ConverterController.stop() }
                     } else {
                         FrameButton(if (p == null) "Convert" else "Convert again", primary = false, modifier = Modifier.fillMaxWidth()) {
@@ -65,7 +71,7 @@ internal fun ConverterCard() {
             FrameButton("Update the converter's runtime", primary = false, modifier = Modifier.fillMaxWidth()) { ConverterController.installRuntime(context, update = true) }
         }
         if (s.outputFolder.isNotEmpty()) {
-            Text("Results: ${s.outputFolder}/<expansion>/release", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
+            Text("Results (where Wrath++ can reach them): ${s.outputFolder}/<expansion>/release", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
         }
     }
 }

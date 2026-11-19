@@ -30,7 +30,7 @@ object ConverterController {
     @Volatile private var process: Process? = null
     @Volatile private var stopping = false
 
-    private fun paths(context: Context) = ConverterRuntime.paths(context.applicationContext.filesDir)
+    private fun paths(context: Context) = ConverterRuntime.paths(context.applicationContext.filesDir, com.logie.blizz.wow.WowLayout.of(context).converted)
 
     /** Reads what is on disk: the runtime's state and each expansion's last progress. Cheap; call when the screen opens. */
     fun refresh(context: Context) {

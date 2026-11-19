@@ -20,6 +20,7 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+STAGE_WORDS = {"fetch": "downloading its files", "convert": "converting to 3.3.5", "tables": "making its table rows", "validate": "checking the result", "pack": "packing"}
 DEFAULT_STAGES = ["fetch", "convert", "tables", "validate", "pack"]      # no native tools and no database: they run on a phone
 EX_DEFERRED = 75
 
@@ -64,7 +65,7 @@ class Progress:
     def __init__(self, path, ex, stages):
         self.path = path
         self.data = {"expansion": ex["key"], "name": ex["name"], "build": ex["build"], "state": "starting", "stage": "", "unit": "",
-                     "done": 0, "total": 0, "message": "", "stages": stages, "started": int(time.time()), "updated": 0,
+                     "done": 0, "total": 0, "fraction": 0.0, "label": "", "detail": "", "message": "", "stages": stages, "started": int(time.time()), "updated": 0,
                      "units": {}, "errors": []}
 
     def set(self, **kw):
@@ -94,12 +95,37 @@ def tool_command(python, tool_dir):
     return python.split() + ["-m", "catabackport"], tool_dir
 
 
-def run_tool(prefix, cwd, args, log, runner=subprocess.run):
-    """One tool command; its output appended to [log]. Returns its exit status."""
+def last_line(path, offset):
+    """The last non-empty line written to [path] after byte [offset], and the new offset."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(offset)
+            data = f.read()
+    except OSError:
+        return "", offset
+    lines = [ln.strip() for ln in data.decode("utf-8", "replace").splitlines() if ln.strip()]
+    return (lines[-1][:200] if lines else ""), offset + len(data)
+
+
+def run_tool(prefix, cwd, args, log, runner=subprocess.run, on_tick=None, tick=2.0):
+    """One tool command; its output appended to [log]. Returns its exit status. While it runs, [on_tick(line)] gets the last line it printed
+    every [tick] seconds (what it is doing now). [runner] is `subprocess.run` (tests give their own, which has no Popen to poll)."""
     with open(log, "a", encoding="utf-8") as out:
         out.write("$ %s\n" % " ".join(prefix + args))
         out.flush()
-        return runner(prefix + args, cwd=cwd, stdout=out, stderr=subprocess.STDOUT).returncode
+    offset = os.path.getsize(log)
+    if on_tick is None or runner is not subprocess.run:
+        with open(log, "a", encoding="utf-8") as out:
+            return runner(prefix + args, cwd=cwd, stdout=out, stderr=subprocess.STDOUT).returncode
+    with open(log, "a", encoding="utf-8") as out:
+        proc = subprocess.Popen(prefix + args, cwd=cwd, stdout=out, stderr=subprocess.STDOUT)
+        while True:
+            try:
+                return proc.wait(timeout=tick)
+            except subprocess.TimeoutExpired:
+                line, offset = last_line(log, offset)
+                if line:
+                    on_tick(line)
 
 
 def units_of(plan):
@@ -160,23 +186,33 @@ def run(key, root, stages=None, tool=None, python=None, source="wago", listfile=
     units = units_of(plan)
     progress.set(total=len(units), done=0, message="%d units" % len(units))
 
+    names = {m["new_dir"].lower(): m.get("name") or m["dir"] for m in manifest.get("maps", []) if m.get("new_dir")}
+    names.update({u["unit"]: names.get(u["unit"].split("-r")[0], u["unit"]) for u in plan.get("units", [])})
     failures, deferred = 0, 0
     for i, unit in enumerate(units):
-        progress.set(stage=",".join(stages), unit=unit, done=i, message="%s (%d of %d)" % (unit, i + 1, len(units)))
-        args = ["run"] + common + ["--release", release, "--stages", ",".join(stages), "--only", unit]
-        if jobs:
-            args += ["--jobs", str(jobs)]
-        status = run_tool(prefix, cwd, args, log, runner)
-        if status == 0:
+        label = names.get(unit, unit)
+        unit_status = 0
+        for k, stage in enumerate(stages):
+            fraction = (i + k / len(stages)) / len(units)
+            progress.set(stage=stage, unit=unit, done=i, fraction=round(fraction, 4), detail="", label="%s: %s (%d of %d)" % (label, STAGE_WORDS.get(stage, stage), i + 1, len(units)),
+                         message="%s: %s" % (label, STAGE_WORDS.get(stage, stage)))
+            args = ["run"] + common + ["--release", release, "--stages", stage, "--only", unit]
+            if jobs:
+                args += ["--jobs", str(jobs)]
+            status = run_tool(prefix, cwd, args, log, runner, on_tick=lambda line: progress.set(detail=line))
+            if status != 0:
+                unit_status = status
+                break
+        if unit_status == 0:
             progress.unit(unit, "done")
-        elif status == EX_DEFERRED:
+        elif unit_status == EX_DEFERRED:
             deferred += 1
             progress.unit(unit, "deferred", "the source was down")
         else:
             failures += 1
-            progress.unit(unit, "failed", "status %d" % status)
-            progress.data["errors"].append("%s: status %d" % (unit, status))
-        progress.set(done=i + 1)
+            progress.unit(unit, "failed", "status %d" % unit_status)
+            progress.data["errors"].append("%s: status %d" % (unit, unit_status))
+        progress.set(done=i + 1, fraction=round((i + 1) / len(units), 4))
     run_tool(prefix, cwd, ["assemble", "--release", release], log, runner)
     state = "done" if not failures and not deferred else ("deferred" if deferred and not failures else "partial")
     progress.set(state=state, stage="", unit="", done=len(units), message={

@@ -10,11 +10,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import convert  # noqa: E402
 
 MAPS = [
-    {"id": 1, "dir": "A", "expansion": 3, "origin": "new", "status": "planned"},
-    {"id": 2, "dir": "Azeroth", "expansion": 0, "origin": "revamped", "status": "planned"},
-    {"id": 3, "dir": "B", "expansion": 4, "origin": "new", "status": "planned"},
-    {"id": 4, "dir": "C", "expansion": 3, "origin": "stock", "status": "same_as_stock"},
-    {"id": 5, "dir": "D", "expansion": 6, "origin": "new", "status": "planned"},
+    {"id": 1, "new_dir": "U1", "name": "A", "dir": "A", "expansion": 3, "origin": "new", "status": "planned"},
+    {"id": 2, "new_dir": "U2", "name": "Azeroth", "dir": "Azeroth", "expansion": 0, "origin": "revamped", "status": "planned"},
+    {"id": 3, "new_dir": "U3", "name": "B", "dir": "B", "expansion": 4, "origin": "new", "status": "planned"},
+    {"id": 4, "new_dir": "U4", "name": "C", "dir": "C", "expansion": 3, "origin": "stock", "status": "same_as_stock"},
+    {"id": 5, "new_dir": "U5", "name": "D", "dir": "D", "expansion": 6, "origin": "new", "status": "planned"},
 ]
 
 
@@ -73,9 +73,35 @@ class ConvertTest(unittest.TestCase):
         self.assertEqual((p["state"], p["done"], p["total"]), ("done", 2, 2))
         self.assertEqual({k: v["state"] for k, v in p["units"].items()}, {"u1": "done", "u2": "done"})
         stages = [a[a.index("--stages") + 1] for a in fake.calls if a[0] == "run"]
-        self.assertEqual(stages, ["fetch,convert,tables,validate,pack"] * 2)    # no extract and no world: nothing native, no database
+        self.assertEqual(stages, ["fetch", "convert", "tables", "validate", "pack"] * 2)   # stage by stage, so the screen says which; no extract and no world: nothing native, no database
+        self.assertEqual(p["fraction"], 1.0)
         self.assertEqual(fake.calls[-1][0], "assemble")
         self.assertTrue(os.path.isfile(os.path.join(self.root, "cataclysm", "convert.log")))
+
+    def test_the_progress_names_the_map_and_the_stage_it_is_on(self):
+        seen = []
+
+        class Watch(Fake):
+            def __call__(self2, cmd, cwd=None, stdout=None, stderr=None):
+                args = cmd[cmd.index("catabackport") + 1:]
+                if args[0] == "run":
+                    p = convert.load_progress(os.path.join(self.root, "cataclysm", "progress.json"))
+                    seen.append((p["label"], round(p["fraction"], 2)))
+                return super().__call__(cmd, cwd, stdout, stderr)
+        convert.run("cataclysm", self.root, tool=self.tool, python="python3", runner=Watch())
+        self.assertEqual(seen[0], ("A: downloading its files (1 of 2)", 0.0))
+        self.assertEqual(seen[1][0], "A: converting to 3.3.5 (1 of 2)")
+        self.assertLess(seen[1][1], seen[5][1])                              # the bar only goes forward
+        self.assertTrue(seen[5][0].startswith("Azeroth: downloading"))
+
+    def test_the_last_line_a_tool_printed_is_what_it_is_doing(self):
+        path = os.path.join(self.dir.name, "log.txt")
+        open(path, "w").write("old\n")
+        start = os.path.getsize(path)
+        with open(path, "a") as f:
+            f.write("fetching 12 of 40 files\n\n")
+        self.assertEqual(convert.last_line(path, start)[0], "fetching 12 of 40 files")
+        self.assertEqual(convert.last_line(path, os.path.getsize(path))[0], "")
 
     def test_a_second_run_does_not_ask_the_source_for_the_inventory_again(self):
         convert.run("mop", self.root, tool=self.tool, python="python3", runner=Fake())

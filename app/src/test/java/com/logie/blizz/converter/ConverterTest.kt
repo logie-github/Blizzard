@@ -35,8 +35,19 @@ class ConverterTest {
         assertEquals(0.25f, p!!.fraction!!, 0.0001f)
         assertFalse(p.finished)
         assertEquals(1, p.failedUnits)
+        val q = ConverterProgress.parse("""{"expansion": "mop", "state": "running", "done": 1, "total": 4, "fraction": 0.4, "label": "Deepholm: converting to 3.3.5 (2 of 4)", "detail": "12 of 40"}""")!!
+        assertEquals(0.4f, q.fraction!!, 0.0001f)                                      // the driver's overall share, moving inside a unit
+        assertEquals("Deepholm: converting to 3.3.5 (2 of 4)", q.label)
+        assertEquals("12 of 40", q.detail)
         assertTrue(ConverterProgress.parse("""{"expansion": "x", "state": "partial"}""")!!.finished)
         assertNull(ConverterProgress.parse("not json"))
+    }
+
+    @Test fun theResultsGoWhereWrathppCanReachThem() {
+        val files = tmp.newFolder("games")
+        val layout = com.logie.blizz.wow.WowLayout(File(files, "files"), File(files, ".export"))
+        assertEquals(File(File(files, "files"), "converter"), layout.converted)
+        assertEquals(layout.converted, ConverterRuntime.paths(files, layout.converted).output)
     }
 
     @Test fun theRuntimeIsInstalledOnlyWithItsMarkerPythonAndDriver() {

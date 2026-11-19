@@ -24,15 +24,15 @@ object ConverterRuntime {
     data class Manifest(val size: Long, val sha256: String, val unpacked: Long)
 
     /** The runtime's folder and the files the driver is run from, under the app's `files`. */
-    class Paths(val root: File) {
+    class Paths(val root: File, val output: File = File(root, "converter")) {
         val folder = File(root, "converter-runtime")
         val python = File(folder, "bin/python3")
         val driver = File(folder, "repo/realm/warcraft/converter/convert.py")
         val tool = File(folder, "repo/realm/warcraft/tools")
-        val output = File(root, "converter")
     }
 
-    fun paths(filesDir: File) = Paths(filesDir)
+    /** [filesDir]: where the runtime is kept; [output]: where the results go (the Wrath++ layout's `converter`: within its reach). */
+    fun paths(filesDir: File, output: File = File(filesDir, "converter")) = Paths(filesDir, output)
 
     fun installedSha(p: Paths): String? = File(p.folder, MARKER).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.length == 64 }
 

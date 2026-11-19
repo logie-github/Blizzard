@@ -31,8 +31,13 @@ data class ConverterProgress(
     val message: String,
     val updated: Long,
     val failedUnits: Int,
+    /** The whole run's share done (0..1), moving within a unit as its stages go (the driver's `fraction`); falls back to units done. */
+    val overall: Float? = null,
+    /** What it is converting now ("Deepholm: converting to 3.3.5 (4 of 54)") and the last line the tool printed. */
+    val label: String = "",
+    val detail: String = "",
 ) {
-    val fraction: Float? get() = if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else null
+    val fraction: Float? get() = overall?.coerceIn(0f, 1f) ?: if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else null
     val finished: Boolean get() = state == "done" || state == "partial" || state == "deferred" || state == "failed"
 
     companion object {
@@ -44,6 +49,7 @@ data class ConverterProgress(
             ConverterProgress(
                 j.getString("expansion"), j.optString("state"), j.optString("stage"), j.optString("unit"), j.optInt("done"), j.optInt("total"),
                 j.optString("message"), j.optLong("updated"), failed,
+                if (j.has("fraction")) j.optDouble("fraction").toFloat() else null, j.optString("label"), j.optString("detail"),
             )
         }.getOrNull()
     }
