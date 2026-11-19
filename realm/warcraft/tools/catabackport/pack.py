@@ -8,12 +8,32 @@ assemble: every pack's json into index.json (what the app reads: pack, size, sha
 report.json. Idempotent; a pack that is not `ok` or `partial` is listed with its reason and left out of the index's installable list.
 """
 import json
+import hashlib
 import os
 import shutil
 
 from . import util, zones_adapter
 
 SERVER_PARTS = ("maps", "vmaps", "mmaps", "cameras")
+
+
+def dedupe(folder):
+    """Files with the same bytes: one kept (the first in sorted order: the zones' own dedupe walks in the file system's order,
+    so which copy was kept differed from one machine to the next), the others named in same.txt (path, kept path)."""
+    seen, same = {}, []
+    for root, dirs, names in os.walk(folder):
+        dirs.sort()
+        for name in sorted(names):
+            path = os.path.join(root, name)
+            with open(path, "rb") as f:
+                digest = hashlib.sha256(f.read()).hexdigest()
+            rel = os.path.relpath(path, folder)
+            if digest in seen:
+                same.append((rel, seen[digest]))
+                os.remove(path)
+            else:
+                seen[digest] = rel
+    return same
 
 
 def build_dir(unit_dir, pack_dir, unit, m, status, input_hash):
@@ -34,7 +54,7 @@ def build_dir(unit_dir, pack_dir, unit, m, status, input_hash):
         if os.path.exists(os.path.join(out, name)):
             shutil.copyfile(os.path.join(out, name), os.path.join(server, name))
     for part, folder in (("client", os.path.join(client, "files")), ("server", server)):
-        same = pkg.dedupe(folder) if part == "client" or os.path.isdir(os.path.join(server, "maps")) else []
+        same = dedupe(folder) if part == "client" or os.path.isdir(os.path.join(server, "maps")) else []
         with open(os.path.join(pack_dir, part, "same.txt"), "w", newline="\n") as f:
             f.write("".join(f"{a.replace(os.sep, chr(92)) if part == 'client' else a}\t"
                             f"{b.replace(os.sep, chr(92)) if part == 'client' else b}\n" for a, b in same))

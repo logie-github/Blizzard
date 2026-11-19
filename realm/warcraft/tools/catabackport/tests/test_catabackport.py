@@ -308,8 +308,12 @@ class EndToEnd(unittest.TestCase):
             names = t.getnames()
         for want in ("TAG", "pack.json", "client/files.txt", "client/same.txt", "client/minimap.txt", "client/dbc/Map.txt",
                      "client/dbc/AreaTable.txt", "client/files/world/maps/tinydungeon/tinydungeon.wdt",
-                     "client/files/world/maps/tinydungeon/tinydungeon_0_0.adt", "client/files/tileset/test/ground.blp"):
+                     "client/files/world/maps/tinydungeon/tinydungeon_0_0.adt"):
             self.assertIn(want, names, out + "\n" + "\n".join(sorted(names)))
+        # a file with the bytes of another is kept once; either way the files list names it
+        with tarfile.open(fileobj=io.BytesIO(lzma.decompress(open(os.path.join(release, "cata-tinydungeon.tar.xz"), "rb").read()))) as t:
+            listed = t.extractfile("client/files.txt").read().decode().split("\n")
+        self.assertIn("tileset\\test\\ground.blp", listed)
         self.assertFalse(any("_tex1" in n for n in names))
         # a terrain swap is made whole from its base: tiles (0,0) from the base, (1,0) its own
         with tarfile.open(fileobj=io.BytesIO(lzma.decompress(open(os.path.join(release, "cata-tinydungeonphase1.tar.xz"), "rb").read()))) as t:
