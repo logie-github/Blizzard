@@ -19,7 +19,7 @@ object WrathppSetup {
         val reached = WrathppServerPackage.ensure(layout, report::say, update = refresh)
         var partsOk = true
         if (!WrathppClient.isMade(layout.wrathppClient)) {
-            report.say("Making Wrath++'s copy of the game (step 4 of 4)", 0f)
+            report.say("Making Wrath++'s copy of the game (step 2 of 2)", 0f)
             WrathppClient.make(layout.client, layout.wrathppClient, report::say)
         }
         // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.
@@ -233,6 +233,7 @@ object WrathppSetup {
         val creator = WrathppLogs.lastCreatorLines(logs)
         // the realm's own lines about Wrath++ (its module: the registry it serves, the clients that said hello, the body
         // options' displays), from the end of its Server.log
+        val worldLoad = runCatching { worldLoadLines(java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "world.out")) }.getOrNull() ?: "no world.out"
         val realm = runCatching { realmLines(java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "Server.log")) }.getOrNull() ?: "no Server.log"
         val files = listOf(WrathppAddon.EXE, "WarcraftXL.dll", "Mods/wrathpp.native/bin/x86/wrathpp-native.dll", "Mods/wxl.lua/bin/x86/wxl-lua.dll",
             "Mods/wxl.glue-unlock/bin/x86/glue-unlock.dll", "Data/${WrathppAddon.PATCH}", "WowPatched.exe", "Wow.exe")
@@ -250,11 +251,29 @@ object WrathppSetup {
                 "Wrath++ start: build ${com.logie.blizz.BuildConfig.VERSION_CODE}, add-on ${addon.take(8)}, looks ${looks.take(8)}",
                 com.logie.blizz.reports.BugReports.body("Wrath++ start", "What Wrath++'s game was started with",
                     listOf("Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
-                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- WarcraftXL.log ---\n$wxlLog"),
+                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- the world server's load: its >> Loaded ... in N ms lines (world.out) ---\n$worldLoad\n\n--- WarcraftXL.log ---\n$wxlLog"),
             ))
             last.parentFile?.mkdirs()
             last.writeText(state)
         }
+    }
+
+    /**
+     * The world server's loading lines of its last start: AzerothCore's ">> Loaded N things in M ms" for each table it
+     * reads, and when it says the world is initialized. Kept in the start report so a phone's real timings show where the
+     * start goes (nothing of the sort was recorded before). At most 400 lines, the colours of the console taken out.
+     */
+    internal fun worldLoadLines(file: java.io.File): String {
+        if (!file.isFile) return "no ${file.name}"
+        val text = java.io.RandomAccessFile(file, "r").use { f ->
+            val from = maxOf(0L, f.length() - (4 shl 20))
+            f.seek(from)
+            ByteArray((f.length() - from).toInt()).also { f.readFully(it) }
+        }
+        val ansi = Regex("\u001B\\[[0-9;]*m")
+        val lines = String(text, Charsets.UTF_8).lines().map { it.replace(ansi, "") }
+            .filter { ">>" in it && " ms" in it || "initialized" in it || "Starting up" in it }.takeLast(400)
+        return if (lines.isEmpty()) "none (the world server hasn't started, or its log has none)" else lines.joinToString("\n")
     }
 
     /** The last lines of [file] (its last megabyte) that are the Wrath++ module's ("Wrath++"), or what there is instead. */
