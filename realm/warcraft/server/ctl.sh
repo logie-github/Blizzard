@@ -552,10 +552,35 @@ zones_data_realm() {
 # has copied over the server's (data/dbc). The world server reads $DATA_MODULES instead: links to
 # the game's data, with the module's files in place of the game's of the same name (whatever its
 # case). A realm without such modules reads $DATA. realm() first.
+# What the world server's data folder (module_data) is made of, as one number: the names of the files it links to (the shared
+# data's maps, vmaps, mmaps and cameras and the DBC files, the starting areas' package's) and which realm it is for. The folder
+# is all links, so a file changed in place is seen through them; only a name that comes or goes changes the folder.
+data_fingerprint() {
+	{
+		echo "$REALM"
+		cat "$ZONES/TAG" 2> /dev/null || true
+		cat "$ZONES/server/same.txt" 2> /dev/null || true
+		ls "$DATA" "$DATA/dbc" "$R_MODULE_FILES/dbc" 2> /dev/null || true
+		for part in maps vmaps mmaps cameras; do
+			echo "$part"
+			ls "$DATA/$part" "$ZONES/server/$part" 2> /dev/null || true
+		done
+	} | cksum
+}
+
 module_data() {
 	if [ ! -d "$R_MODULE_FILES/dbc" ] || [ ! -d "$DATA/dbc" ]; then
 		rm -rf "$R_DATA_MODULES"
 		setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA\""
+		return
+	fi
+	# Making the folder is a link for every file (Wrath++'s: some 50,000, one process each: minutes on a phone), so it is made
+	# again only when what it is made of has changed (the first start, a new data or starting-areas package, a module's DBC file
+	# coming or going), not at every start.
+	fingerprint=$(data_fingerprint)
+	if [ -d "$R_DATA_MODULES/dbc" ] && [ "$(cat "$R_DATA_MODULES/.fingerprint" 2> /dev/null || true)" = "$fingerprint" ]; then
+		setkey "$R_ETC/worldserver.conf" DataDir "\"$R_DATA_MODULES\""
+		echo "The world server's data folder is as it was"
 		return
 	fi
 	rm -rf "$R_DATA_MODULES.new"
@@ -575,6 +600,7 @@ module_data() {
 		count=$((count + 1))
 	done
 	[ "$REALM" != wrathpp ] || zones_data_realm "$R_DATA_MODULES.new"
+	echo "$fingerprint" > "$R_DATA_MODULES.new/.fingerprint"
 	rm -rf "$R_DATA_MODULES"
 	mv "$R_DATA_MODULES.new" "$R_DATA_MODULES"
 	setkey "$R_ETC/worldserver.conf" DataDir "\"$R_DATA_MODULES\""

@@ -226,6 +226,30 @@ after=$(shared_manifest "$F")
 check "every file of main's, Remix's and the shared game unchanged after Wrath++'s commands" [ "$before" = "$after" ]
 [ "$before" = "$after" ] || diff <(echo "$before") <(echo "$after") || true
 
+echo "# 3b. the world server's data folder is made once, not at every start"
+H="$WORK/h"
+make_files "$H"; install_wrathpp "$H"
+mkdir -p "$H/server-wrathpp/share/dbc" "$H/data/maps" "$H/data/vmaps"
+: > "$H/server-wrathpp/share/dbc/Test.dbc"; : > "$H/data/dbc/Test.dbc"; : > "$H/data/maps/a.map"; : > "$H/data/vmaps/a.vmtile"
+mkdir -p "$H/etc-wrathpp"; echo 'DataDir = ""' > "$H/etc-wrathpp/worldserver.conf"
+run "$CTL" "$H" modules wrathpp > /dev/null
+check "the first start makes the data folder" [ -L "$H/data-modules-wrathpp/dbc/Test.dbc" ] && [ -f "$H/data-modules-wrathpp/.fingerprint" ]
+: > "$H/data-modules-wrathpp/canary"
+out=$(run "$CTL" "$H" modules wrathpp)
+check "a start with the same files keeps it (no links made again)" [ -f "$H/data-modules-wrathpp/canary" ]
+check "  and says so" grep -q "data folder is as it was" <<< "$out"
+check "  and the world server is still pointed at it" grep -q "^DataDir = \"$H/data-modules-wrathpp\"" "$H/etc-wrathpp/worldserver.conf"
+: > "$H/data/maps/b.map"
+run "$CTL" "$H" modules wrathpp > /dev/null
+check "a new map file makes it again" [ ! -f "$H/data-modules-wrathpp/canary" ] && [ -f "$H/data-modules-wrathpp/.fingerprint" ]
+: > "$H/data-modules-wrathpp/canary"
+: > "$H/server-wrathpp/share/dbc/More.dbc"
+run "$CTL" "$H" modules wrathpp > /dev/null
+check "a module's DBC file coming makes it again, with its link" [ ! -f "$H/data-modules-wrathpp/canary" ] && [ -L "$H/data-modules-wrathpp/dbc/More.dbc" ]
+rm -rf "$H/data-modules-wrathpp"
+run "$CTL" "$H" modules wrathpp > /dev/null
+check "a folder that is gone is made again" [ -L "$H/data-modules-wrathpp/dbc/Test.dbc" ]
+
 echo "# 4. a Wrath++ game folder that reaches the shared one is refused"
 G="$WORK/g"
 make_files "$G"; install_wrathpp "$G"

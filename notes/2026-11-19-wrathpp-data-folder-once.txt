@@ -1,0 +1,1 @@
+Wrath++: a start no longer rebuilds the world server's data folder every time (it sat on "World database matches the realm's modules" for minutes); update the server in settings to get it.
