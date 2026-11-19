@@ -277,11 +277,6 @@ object WrathppSetup {
     }
 
     /**
-     * The world server's loading lines of its last start: AzerothCore's ">> Loaded N things in M ms" for each table it
-     * reads, and when it says the world is initialized. Kept in the start report so a phone's real timings show where the
-     * start goes (nothing of the sort was recorded before). At most 400 lines, the colours of the console taken out.
-     */
-    /**
      * The start report's own log (its issue's body, which keeps the end of it): the files and archives, the creator's lines, the
      * realm's Wrath++ lines, and last the setup's (`setup.log`: the add-on, looks, body options, undead skins, creator patch).
      */
@@ -289,6 +284,11 @@ object WrathppSetup {
         "$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n" +
             "--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- the setup (setup.log) ---\n${setup.trimEnd()}"
 
+    /**
+     * The world server's loading lines of its last start: AzerothCore's ">> Loaded N things in M ms" for each table it
+     * reads, and when it says the world is initialized. Kept in the start report so a phone's real timings show where the
+     * start goes (nothing of the sort was recorded before). At most 400 lines, the colours of the console taken out.
+     */
     internal fun worldLoadLines(file: java.io.File): String {
         if (!file.isFile) return "no ${file.name}"
         val text = java.io.RandomAccessFile(file, "r").use { f ->
