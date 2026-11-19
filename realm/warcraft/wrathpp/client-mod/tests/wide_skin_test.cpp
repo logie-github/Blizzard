@@ -165,8 +165,63 @@ namespace
     }
 }
 
-int main()
+/// A converted skin file through the same flow: `wide_skin_test Model00w.skin ...` (what the looks' whole skins are held to).
+int File(const char* path)
 {
+    std::FILE* f = std::fopen(path, "rb");
+    if (!f) { std::printf("FAIL %s: not read\n", path); return 1; }
+    std::vector<uint8_t> bytes;
+    uint8_t chunk[65536];
+    for (size_t n; (n = std::fread(chunk, 1, sizeof chunk, f)) > 0;) bytes.insert(bytes.end(), chunk, chunk + n);
+    std::fclose(f);
+    if (bytes.size() < 48 || std::memcmp(bytes.data(), "SKIN", 4) != 0) { std::printf("FAIL %s: not a skin\n", path); return 1; }
+    uint32_t head[11];
+    std::memcpy(head, bytes.data() + 4, sizeof head);
+    Skin s;
+    s.vertices = head[0];
+    s.indices.resize(head[2]);
+    s.sections.resize(head[6]);
+    s.batches.resize(head[8]);
+    if (head[3] + 2ull * head[2] > bytes.size() || head[7] + 48ull * head[6] > bytes.size() || head[9] + 24ull * head[8] > bytes.size())
+    {
+        std::printf("FAIL %s: its arrays leave the file\n", path);
+        return 1;
+    }
+    std::memcpy(s.indices.data(), bytes.data() + head[3], 2ull * head[2]);
+    std::memcpy(s.sections.data(), bytes.data() + head[7], 48ull * head[6]);
+    std::memcpy(s.batches.data(), bytes.data() + head[9], 24ull * head[8]);
+    const Plan p = ReadSkin(s);
+    if (!p.wide) { std::printf("ok   %s: %zu indices, not wide\n", path, s.indices.size()); return 0; }
+    if (!p.valid) { std::printf("FAIL %s: %s\n", path, p.why.c_str()); return 1; }
+    std::vector<Section> file = s.sections;
+    Normalize(file.data(), static_cast<uint32_t>(file.size()), p);
+    std::vector<Section> copies = file;
+    std::vector<uint16_t> pool(s.indices.size(), 0xDEAD);
+    StockFill(copies, file, s.indices, pool);
+    bool ok = CopiesAsStock(copies.data(), p);
+    for (size_t i = 0; i < file.size(); i++)
+        if (!p.far[i] && !DrawsRight(s, p, copies, pool, i, false)) ok = false;
+    Whole(copies.data(), p, true);
+    StockFill(copies, file, s.indices, pool);
+    ok = ok && CopiesWhole(copies.data(), p);
+    const Rebase how = Calibrate(pool.data(), p, s.indices.data());
+    ok = ok && how == Rebase::Section;
+    if (how != Rebase::Unknown) WriteFar(pool.data(), p, s.indices.data(), how);
+    for (size_t i = 0; i < file.size(); i++)
+        if (!DrawsRight(s, p, copies, pool, i, true)) ok = false;
+    std::printf("%s %s: %u indices in %zu sections, %u of them past 65,535 (%u indices): %s\n", ok ? "ok  " : "FAIL", path, p.total, p.count.size(),
+                p.farSections, p.farIndices, ok ? "every section drawn right, near ones without a hook" : "NOT drawn right");
+    return ok ? 0 : 1;
+}
+
+int main(int argc, char** argv)
+{
+    if (argc > 1)
+    {
+        int bad = 0;
+        for (int i = 1; i < argc; i++) bad += File(argv[i]);
+        return bad ? 1 : 0;
+    }
     // Human woman's shape: body and gear first, the hair styles last (about 121,000 indices)
     std::vector<uint32_t> human;
     for (int i = 0; i < 40; i++) human.push_back(300 + 3 * ((i * 977) % 900));

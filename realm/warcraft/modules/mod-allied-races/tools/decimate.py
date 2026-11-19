@@ -5,9 +5,9 @@ kept: a vertex on an open edge, or sharing its position with another vertex (the
 seam), stays where it is.
 
 A stock 3.3.5 reads a mesh section's triangle start as a 16-bit number, so a model's sections have to fit in
-65535 indices; today's character models have twice that. Wrath++'s client reads wide starts (m2.py, skinwide.py), so
-m2.convert cuts only what would pass the skin's vertex limit (65535) or the wide budget (m2.WIDE_INDEX_BUDGET), or
-everything to 65535 with WRATHPP_WIDE_SKINS=0.
+65535 indices; today's character models have twice that. m2.convert cuts a model's own skin (<Model>00.skin) to that,
+and writes the whole one beside it (<Model>00w.skin, m2.WIDE_SKINS), which Wrath++'s native mod makes the stock client
+draw: there only what would pass the skin's vertex limit (65535) or m2.WIDE_INDEX_BUDGET is the cut skin's.
 """
 import heapq
 

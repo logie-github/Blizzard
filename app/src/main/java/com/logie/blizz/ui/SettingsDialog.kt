@@ -433,7 +433,7 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                     }
                 }
                 // Project Reforged's HD patches for Wrath++'s game (wrathpp/Reforged.kt): a switch each, downloaded by the app.
-                if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) { WrathppServerCard(); WrathppGraphicsCard(); WrathppBodyCard(); WrathppSoftBodyCard(); ReforgedCard() }
+                if (game.id == com.logie.blizz.game.WowPlay.WRATHPP_ID) { WrathppServerCard(); WrathppGraphicsCard(); WrathppBodyCard(); WrathppSoftBodyCard(); WrathppWideSkinsCard(); ReforgedCard() }
                 if (game.id == "wow") {
                     SettingCard("Modules") {
                         Text(com.logie.blizz.wowmodules.modulesSummary(context), style = MaterialTheme.typography.bodySmall, color = Colors.Mist)

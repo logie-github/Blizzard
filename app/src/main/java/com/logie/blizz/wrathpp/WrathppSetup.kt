@@ -140,7 +140,9 @@ object WrathppSetup {
             // (the skin colours the creator offers once Ralia's mod is in: WrathppSkins; an empty list when it isn't)
             val (skins, skinLine) = WrathppSkins.build(WrathppRalia.store(context), layout.wrathppClient)
             notes.append("skins offered: ${skinLine ?: "all (no Ralia import, or none of its skins named)"}\n")
-            val files = creator0 + (WrathppSoftBody.FILE_NAME to WrathppSoftBody.script(WrathppSoftBody.chosen(context.filesDir))) + (WrathppSkins.FILE_NAME to skins)
+            // (whether the whole skins are drawn, for the native mod: WrathppWideSkins)
+            val files = creator0 + (WrathppSoftBody.FILE_NAME to WrathppSoftBody.script(WrathppSoftBody.chosen(context.filesDir))) + (WrathppSkins.FILE_NAME to skins) +
+                (WrathppWideSkins.FILE_NAME to WrathppWideSkins.script(WrathppWideSkins.on(context.filesDir)))
             WrathppAddon.writeGluePatch(layout.wrathppClient, files)
             files
         }.onSuccess { files ->

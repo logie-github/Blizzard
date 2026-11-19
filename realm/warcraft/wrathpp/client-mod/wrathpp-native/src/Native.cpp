@@ -1609,12 +1609,22 @@ namespace
             wxl::Log(WXL_LOG_INFO, kTag, "wide skins: off: the looks have no Wrathpp\\wide.txt ({}); the cut skins are drawn", wxl::ResultName(text.Error()));
             return;
         }
-        size_t count = 0;
+        // (the models the app's body options made on the phone, with the whole skins it made for them: after the looks' own,
+        // so a woman's rewritten model file is the one her line names; WrathppWideSkins.BODY_LIST)
+        const wxl::Expected<std::string> body = storage.ReadText("Wrathpp\\wide-body.txt");
+        size_t count = 0, made = 0;
         {
             std::lock_guard<std::mutex> hold(g_wideLock);
             for (wide::Listed& listed : wide::ParseList(*text)) g_wideListed[listed.model] = listed;
+            if (body)
+                for (wide::Listed& listed : wide::ParseList(*body))
+                {
+                    g_wideListed[listed.model] = listed;
+                    made++;
+                }
             count = g_wideListed.size();
         }
+        if (made) wxl::Log(WXL_LOG_INFO, kTag, "wide skins: {} of them are the body options' own (Wrathpp\\wide-body.txt)", made);
         if (!count)
         {
             wxl::Log(WXL_LOG_INFO, kTag, "wide skins: off: Wrathpp\\wide.txt lists no model; the cut skins are drawn");

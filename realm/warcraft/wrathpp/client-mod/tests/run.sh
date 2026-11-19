@@ -78,3 +78,6 @@ PY
 # The allied races' glue on a mock of the creation screen (buttons, columns, pictures, scenes, texts): what a mock can say;
 # the phone and the rig say the rest.
 luajit "$HERE/test_allied_races.lua" "$WPP/../../../app/src/main/assets/wrathpp/WrathppAlliedRaces.lua"
+
+# The wide skins' logic (wrathpp-native/src/WideSkin.hpp) against a stand-in of the stock client's shared index pool and draw.
+sh "$HERE/wide_skin.sh"

@@ -1,4 +1,6 @@
-"""How Wrath++'s client reads a skin section's first index (the converter, the checker, the renderer and the body layer share it).
+"""How a wide skin's section says where its triangles begin (the converter, the checker, the renderer and the body layer share
+it). The phone's client is the stock one, which reads 16 bits: only <Model>00w.skin is written this way, and Wrath++'s native mod
+(client-mod/wrathpp-native/src/WideSkin.hpp, FileStart) reads it by the same rule as the source-built client below.
 
 WarcraftXL-Labs/client, Engine/Source/Model2/M2Data.h (commit e3dc928, "wide skin indices"): the skin section's id field is
 32 bits, the id in its low half and, in the high half, the "level" (an LOD marker in 3.3.5's files). A section's real first

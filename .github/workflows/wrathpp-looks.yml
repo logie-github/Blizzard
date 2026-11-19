@@ -101,6 +101,16 @@ jobs:
       - name: The allied races' models, voices, narrations and icons
         run: python3 realm/warcraft/wrathpp/tools/sl_looks.py package build/races.json build/sl-cache server-data/dbc build/looks 2>&1 | tee -a package.log
 
+      # Every whole skin of the package (<Model>00w.skin: every hair style at 100%) through the native mod's own code
+      # (WideSkin.hpp) against a stand-in of the stock client's index pool and draw: one the mod would refuse, or draw wrong,
+      # stops the release here.
+      - name: The whole skins as the native mod reads them
+        run: |
+          set -o pipefail
+          find build/looks/client -name '*00w.skin' | sort > wide-skins.txt
+          echo "$(wc -l < wide-skins.txt) whole skins" | tee -a looks-report.txt
+          xargs -a wide-skins.txt sh realm/warcraft/wrathpp/client-mod/tests/wide_skin.sh | grep -v '^ok ' | tee -a looks-report.txt
+
       # Their table changes and world SQL: the allied races module's generator with Wrath++'s profile. The committed SQL is what the
       # server is built with: a run that makes another says so (the SQL is in the logs) and the commit is to be remade.
       - name: The allied races' table changes and world SQL

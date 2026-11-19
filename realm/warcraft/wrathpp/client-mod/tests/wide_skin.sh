@@ -8,3 +8,5 @@ trap 'rm -rf "$OUT"' EXIT
 CXX="${CXX:-g++}"
 "$CXX" -std=c++17 -O1 -Wall -Wextra -Werror -o "$OUT/wide_skin_test" "$HERE/wide_skin_test.cpp"
 "$OUT/wide_skin_test"
+# (given skins, the same flow on them: sh wide_skin.sh build/looks/client/Character/Human/Female/HumanFemale00w.skin ...)
+if [ "$#" -gt 0 ]; then "$OUT/wide_skin_test" "$@"; fi

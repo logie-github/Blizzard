@@ -187,6 +187,7 @@ object WrathppBody {
         val models = list.getJSONArray("models")
         val shapesOf = HashMap<String, MutableSet<Int>>()
         val remade = HashMap<String, MutableList<Int>>()
+        val wideLines = ArrayList<String>()          // the models made here that have a whole skin: [WrathppWideSkins.BODY_LIST]
         for (i in 0 until models.length()) {
             val m = models.getJSONObject(i)
             val race = m.getString("race")
@@ -203,6 +204,7 @@ object WrathppBody {
             val rightLooks = if (byStructure) structSha256(base) == m.getString("looks_struct_sha256") else sha256(base) == m.getString("looks_sha256")
             val out: ByteArray
             val skin: ByteArray
+            var wideSkin: ByteArray? = null
             if (rightLooks) {
                 out = withPatch(base, File(files, m.getJSONObject("patch").getString("file")).readBytes())
                 val madeRight = if (byStructure) structSha256(out, base) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
@@ -213,9 +215,12 @@ object WrathppBody {
                 // and skin ([WrathppBodyLayer]), so one import lasts; a shape's vertices carried onto the looks' own mesh.
                 val looksSkin = File(patch, if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin")
                     .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
+                // (the looks' whole skin of her model, beside her own: the same layer goes on it)
+                val looksWide = File(patch, WrathppWideSkins.wideName(if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin"))
+                    .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
                 val made = try {
                     if (!looksSkin.isFile) throw IOException("the looks have no skin for her")
-                    onTheseLooks(list, files, m, base, looksSkin.readBytes())
+                    onTheseLooks(list, files, m, base, looksSkin.readBytes(), looksWide.takeIf { it.isFile }?.readBytes())
                 } catch (e: WrathppBodyLayer.NoRoom) {
                     if (shape == 0) done.add("$race: made for other looks, and these leave the layer no room (${e.free} indices free, ${e.needed} needed): left as drawn")
                     null
@@ -225,10 +230,18 @@ object WrathppBody {
                 } ?: continue
                 out = made.model
                 skin = made.skin
+                wideSkin = made.wideSkin
                 remade.getOrPut(race) { ArrayList() }.add(shape)
             }
             val model = File(patch, m.getString("model"))
             val skinFile = File(patch, m.getString("skin"))
+            // (her whole skin, when one was made: beside her skin, and in the list the native mod reads it by; a model without one
+            // keeps the looks' whole skin beside it unread: it is for the looks' own model file, which this one no longer is)
+            wideSkin?.let { bytes ->
+                val wideFile = File(patch, WrathppWideSkins.wideName(m.getString("skin")))
+                if (wideFile.isFile) over(wideFile, bytes) else write(wideFile, bytes, made)
+                wideLines += WrathppWideSkins.line(m.getString("model"), out)
+            }
             if (shape == 0) {
                 over(model, out); over(skinFile, skin)
             } else {
@@ -242,6 +255,7 @@ object WrathppBody {
             }
             shapesOf.getOrPut(race) { HashSet() }.add(shape)
         }
+        if (wideLines.isNotEmpty()) write(File(patch, WrathppWideSkins.BODY_LIST), WrathppWideSkins.list(wideLines), made)
         // the designs in each race's folder: the package's own files, linked where the storage allows
         val textures = list.getJSONArray("textures")
         val byDesign = HashMap<Pair<String, Int>, File>()
@@ -318,7 +332,7 @@ object WrathppBody {
      * vertex arrays, which its `base_size` and `looks_vertices` find in the patches). Throws when the package has not what
      * this needs (an older one), the shape is not for these looks' body, or the skin has no room.
      */
-    private fun onTheseLooks(list: JSONObject, files: File, m: JSONObject, base: ByteArray, looksSkin: ByteArray): WrathppBodyLayer.Made {
+    private fun onTheseLooks(list: JSONObject, files: File, m: JSONObject, base: ByteArray, looksSkin: ByteArray, looksWide: ByteArray? = null): WrathppBodyLayer.Made {
         val race = m.getString("race")
         val races = list.getJSONArray("races")
         val entry = (0 until races.length()).map { races.getJSONObject(it) }.firstOrNull { it.optString("race") == race && !it.has("files") }
@@ -336,7 +350,7 @@ object WrathppBody {
             val shape = patchVertices(File(files, m.getJSONObject("patch").getString("file")).readBytes(), m.getInt("base_size"), m.getInt("looks_vertices"))
             vertices = WrathppBodyLayer.carried(WrathppBodyLayer.verticesOf(base), was, shape) ?: throw IOException("the shape is for another body")
         }
-        return WrathppBodyLayer.add(base, looksSkin, vertices, params, entry.getString("folder").replace('/', '\\'))
+        return WrathppBodyLayer.add(base, looksSkin, vertices, params, entry.getString("folder").replace('/', '\\'), wide = looksWide)
     }
 
     /** The first [count] vertex records of the model a [patch] makes of a base of [baseSize] bytes: read out of the patch itself. */

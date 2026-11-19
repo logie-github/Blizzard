@@ -43,11 +43,13 @@ object WrathppBodyLayer {
     /** What a stock 3.3.5 skin holds: a section's start is 16 bits there. */
     const val MAX_INDICES = 0xFFFF
     /**
-     * What a wide skin holds (Wrath++'s own client reads a section's start wide, `skinwide.py` / `wide_index_start`: the high
-     * half in the section's level, the id's top half-word, taken when the window lies inside the skin): the converter's
-     * `m2.WIDE_INDEX_BUDGET`. The skin's vertices stay under 65536 and a section's own count under 65536.
+     * What a whole ("wide") skin holds: the looks carry one beside a model's own (`<Model>00w.skin`, the converter's
+     * `m2.WIDE_SKINS`), with every hair style whole; a section past 65535 has the high half of its start in its level (the
+     * id's top half-word, `skinwide.py` / `wide_index_start`) and Wrath++'s native mod makes the stock game draw it
+     * (`WideSkin.hpp`). The converter's `m2.WIDE_INDEX_BUDGET`: below 3 x 65536. The skin's vertices stay under 65536 and a
+     * section's own count under 65536.
      */
-    const val WIDE_MAX_INDICES = 262144
+    const val WIDE_MAX_INDICES = 3 * 65536 - 1
     const val MAX_SKIN_VERTICES = 0xFFFF
 
     /** The client's M2SkinSectionIndexStart: [level] << 16 | [start], when its window of [count] lies inside the skin's [total] indices. */
@@ -72,7 +74,8 @@ object WrathppBodyLayer {
     /** How a race's layer lies (races.json: layer.py): her scale, the fold's height, the body's sections, the hair patch. */
     class Params(val k: Double, val fold: Double, val body: Set<Int>, val hairBlock: IntArray, val texture: Int = HAIR, val x: Double = 0.0)
 
-    class Made(val model: ByteArray, val skin: ByteArray, val triangles: Int, val indices: Int)
+    /** [wideSkin]: the looks' whole skin with the same layer, when one was given and its body is the same triangles. */
+    class Made(val model: ByteArray, val skin: ByteArray, val triangles: Int, val indices: Int, val wideSkin: ByteArray? = null)
 
     /** The looks' skin has no room for the layer's indices. */
     class NoRoom(val free: Int, val needed: Int) : IOException("the looks' skin has $free indices free, the layer needs $needed")
@@ -149,8 +152,13 @@ object WrathppBodyLayer {
      * the game ("Character\\Gnome\\Female"), where the empty design is. Throws [NoRoom] when the skin's indices with the
      * layer's would pass [maxIndices], [IOException] for a model this can't be done to (not 3.3.5's, a combiner list of its
      * own, no body under the layer, more bones than a section takes).
+     *
+     * [wide]: the looks' whole skin of the same model (`<Model>00w.skin`), which names the same vertices: it gets the same
+     * layer ([Made.wideSkin]) when the body under the layer is the same triangles in it (the converter keeps a woman's body
+     * as the cut skin's for this) and it has the room; otherwise none is made and she is drawn with her cut skin (the
+     * native mod reads a whole skin only beside the model file it was made for: `Wrathpp\wide-body.txt`, [WrathppBody]).
      */
-    fun add(m2: ByteArray, skin: ByteArray, vertices: ByteArray?, p: Params, folder: String, maxIndices: Int = MAX_INDICES): Made {
+    fun add(m2: ByteArray, skin: ByteArray, vertices: ByteArray?, p: Params, folder: String, maxIndices: Int = MAX_INDICES, wide: ByteArray? = null): Made {
         if (m2.size < 0x138 || String(m2, 0, 4, Charsets.ISO_8859_1) != "MD20") throw IOException("not a 3.3.5 model")
         val h = le(m2)
         val flags = h.getInt(0x10)
@@ -166,7 +174,8 @@ object WrathppBodyLayer {
         val ztop = p.fold + TOP * p.k
         val zbot = ztop - span
 
-        // the body's triangles under the layer's square that face the front (layer.py's triangles)
+        // the body's triangles under the layer's square that face the front (layer.py's triangles), and the first section of them
+        fun under(sk: Skin): Pair<ArrayList<IntArray>, Int> {
         val tris = ArrayList<IntArray>()
         var owner = -1
         for ((si, s) in sk.secs.withIndex()) {
@@ -192,6 +201,9 @@ object WrathppBodyLayer {
                 tris.add(intArrayOf(a, b, c))
             }
         }
+        return tris to owner
+        }
+        val (tris, owner) = under(sk)
         if (tris.isEmpty()) throw IOException("no body under the layer")
         val used = tris.flatMap { it.asList() }.toSortedSet().toIntArray()
         val local = HashMap<Int, Int>()
@@ -302,6 +314,7 @@ object WrathppBodyLayer {
         oh.putInt(0x10, flags or FLAG_COMBINERS)
 
         // the skin: the layer's vertices, triangles, section and batch after the model's own; every other batch's combiner 0
+        fun withLayer(sk: Skin, owner: Int): ByteArray {
         val nsv = sk.verts.size
         val start = sk.idx.size
         val verts2 = sk.verts + IntArray(used.size) { nv + it }
@@ -321,8 +334,24 @@ object WrathppBodyLayer {
         put16(mine, 10, material); put16(mine, 12, 0); put16(mine, 14, 2)
         put16(mine, 16, tc); put16(mine, 18, cc); put16(mine, 20, wc); put16(mine, 22, xc)
         batches.add(mine)
-        val madeSkin = writeSkin(verts2, idx2, sk.props + lprops, sk.secs + section.array(), batches, maxOf(sk.maxBones, bones.size))
-        return Made(out + blob.toByteArray(), madeSkin, tris.size, idx2.size)
+        return writeSkin(verts2, idx2, sk.props + lprops, sk.secs + section.array(), batches, maxOf(sk.maxBones, bones.size))
+        }
+        val madeSkin = withLayer(sk, owner)
+        // the whole skin: the same layer after its own sections (past 65535 there: the level carries the start's high half)
+        var madeWide: ByteArray? = null
+        if (wide != null) {
+            // (a whole skin this can't read or put the layer on is no reason to leave her without her own: none is made)
+            madeWide = try {
+                val wk = Skin(wide)
+                val (wideTris, wideOwner) = under(wk)
+                val same = wideTris.size == tris.size && wideTris.map { it.asList() }.toHashSet() == tris.map { it.asList() }.toHashSet()
+                if (same && wideOwner >= 0 && wk.verts.none { it >= nv } && wk.idx.size + tris.size * 3 <= WIDE_MAX_INDICES &&
+                    wk.verts.size + used.size <= MAX_SKIN_VERTICES) withLayer(wk, wideOwner) else null
+            } catch (e: IOException) {
+                null
+            }
+        }
+        return Made(out + blob.toByteArray(), madeSkin, tris.size, sk.idx.size + tris.size * 3, madeWide)
     }
 
     /**

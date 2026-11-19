@@ -1545,9 +1545,10 @@ def convert(files, policy, out_dir, log=print):
                 count[key + "v"][t] = count[key + "v"].get(t, 0) + len(np.unique(tris)) * copies[sec_index]
                 count[key + "i"][t] = count[key + "i"].get(t, 0) + len(tris) * 3 * copies[sec_index]
         whole_tiers = wide_plan(tiers, count["cv"], count["wv"], count["ci"], count["wi"], female)
-        if whole_tiers is None or "hair" not in whole_tiers:
-            log("%s: no wide skin: the hair whole does not fit a skin's vertices (%d with the rest as cut, %d allowed)" % (
-                name, count["wv"].get("hair", 0) + sum(count["cv"].get(t, 0) for t in tiers if t != "hair"), SKIN_VERTEX_LIMIT - VERTEX_RESERVE))
+        if not whole_tiers or ("hair" in tiers and "hair" not in whole_tiers):
+            log("%s: no wide skin: %s (%d vertices with the rest as cut, %d allowed)" % (
+                name, "the hair whole does not fit a skin's vertices" if "hair" in tiers else "nothing of it fits a skin's vertices whole",
+                count["wv"].get("hair", 0) + sum(count["cv"].get(t, 0) for t in tiers if t != "hair"), SKIN_VERTEX_LIMIT - VERTEX_RESERVE))
         else:
             wide_tris = {sec_index: (source_tris[sec_index] if tier_of_section[sec_index] in whole_tiers else cut[sec_index]) for sec_index in cut}
             plain = set(sec_index for sec_index in cut if wide_tris[sec_index] is not cut[sec_index])
