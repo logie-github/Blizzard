@@ -30,6 +30,9 @@ import blp  # noqa: E402
 from skinwide import wide_index_start  # noqa: E402
 
 
+CULL = int(os.environ.get("RENDER_CULL", "0"))      # +1 or -1: cull back faces (the winding's sign), 0: draw both sides (the default)
+
+
 def arr(m, off):
     return struct.unpack_from("<II", m, off)
 
@@ -389,6 +392,8 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             d = (xs[1] - xs[0]) * (ys[2] - ys[0]) - (xs[2] - xs[0]) * (ys[1] - ys[0])
             if abs(d) < 1e-9:
                 continue
+            if CULL and not (mflags & 0x4) and d * CULL < 0:
+                continue                                         # back faces are not drawn, as in the game (material flag 4: two-sided)
             l1 = ((gx - xs[0]) * (ys[2] - ys[0]) - (xs[2] - xs[0]) * (gy - ys[0])) / d
             l2 = ((xs[1] - xs[0]) * (gy - ys[0]) - (gx - xs[0]) * (ys[1] - ys[0])) / d
             l0 = 1 - l1 - l2
