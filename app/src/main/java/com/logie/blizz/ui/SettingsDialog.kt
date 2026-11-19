@@ -424,6 +424,8 @@ fun GameSettingsDialog(game: Game, onDismiss: () -> Unit) {
                         FrameButton("Search add-ons", primary = false, modifier = Modifier.fillMaxWidth()) { addonsOpen = true }
                     }
                 }
+                // The Converter (converter/): the expansions' content in 3.3.5a's format, from the Legion version's page.
+                if (game.id == "wow_legion") ConverterCard()
                 if (game.id == "wow" || game.id == "wow_legion" || game.id == "wow_octowow") {
                     SettingCard("Character Porter") {
                         Text("Find any character on Blizzard's Armory and see them in 3D as they are dressed now; then bring them into your realm.", style = MaterialTheme.typography.bodySmall, color = Colors.Mist)
