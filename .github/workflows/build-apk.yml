@@ -150,7 +150,7 @@ jobs:
       - name: Run the unit tests
         if: matrix.task == 'test'
         run: >
-          ./gradlew :app:testDebugUnitTest --no-daemon -PtestForks=2
+          ./gradlew :app:testDebugUnitTest --no-daemon -PtestForks=3
           -PblizzVersionCode=${{ github.run_number }} -PblizzVersionName=1.0.${{ github.run_number }}
       - run: cp app/build/outputs/apk/debug/app-debug.apk Blizzard.apk
         if: matrix.task == 'assemble'
