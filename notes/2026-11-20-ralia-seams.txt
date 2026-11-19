@@ -1,0 +1,1 @@
+Skin tones now line up with Ralia's bodies at the neck, and Ralia's skins no longer fail to load on the phone.
