@@ -1,0 +1,1 @@
+Body options (Shape, Style, Density) for every race's women now download by themselves and show on the character in the creator and in the world.
