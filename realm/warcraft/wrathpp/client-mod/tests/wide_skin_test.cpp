@@ -101,9 +101,9 @@ namespace
         const Plan p = ReadSkin(s);
         Check(p.wide && p.valid, "read: wide and valid");
         if (!p.valid) { std::printf("     (%s)\n", p.why.c_str()); return; }
-        uint32_t far = 0;
-        for (uint8_t f : p.far) far += f;
-        Check(far > 0 && far == p.farSections && far < counts.size(), "some sections are far, some near");
+        uint32_t nFar = 0;
+        for (uint8_t f : p.isFar) nFar += f;
+        Check(nFar > 0 && nFar == p.farSections && nFar < counts.size(), "some sections are far, some near");
 
         // as the stock client alone sees it
         std::vector<Section> file = s.sections;
@@ -112,8 +112,8 @@ namespace
         for (size_t i = 0; i < file.size(); i++)
         {
             if (file[i].level) clean = false;
-            if (p.far[i] && (file[i].indexCount || file[i].indexStart)) clean = false;
-            if (!p.far[i] && (file[i].indexCount != s.sections[i].indexCount || file[i].indexStart != s.sections[i].indexStart)) clean = false;
+            if (p.isFar[i] && (file[i].indexCount || file[i].indexStart)) clean = false;
+            if (!p.isFar[i] && (file[i].indexCount != s.sections[i].indexCount || file[i].indexStart != s.sections[i].indexStart)) clean = false;
             if (file[i].id != s.sections[i].id) clean = false;
         }
         Check(clean, "normalized: no level, far sections empty, near ones and every id untouched");
@@ -121,14 +121,14 @@ namespace
         std::vector<uint16_t> pool(s.indices.size(), 0xDEAD);     // the pool is made for the skin's index count
         StockFill(copies, file, s.indices, pool, rebase);
         Check(CopiesAsStock(copies.data(), p), "stock fill, far sections empty: the copies are as expected");
-        bool near = true, empty = true;
+        bool nearOk = true, empty = true;
         for (size_t i = 0; i < file.size(); i++)
         {
-            if (!p.far[i] && !DrawsRight(s, p, copies, pool, i, false, rebase)) near = false;
-            if (p.far[i] && copies[i].indexCount) empty = false;
-            if (!p.far[i] && !StockDraw(p, copies[i].indexStart, copies[i].indexCount)) near = false;
+            if (!p.isFar[i] && !DrawsRight(s, p, copies, pool, i, false, rebase)) nearOk = false;
+            if (p.isFar[i] && copies[i].indexCount) empty = false;
+            if (!p.isFar[i] && !StockDraw(p, copies[i].indexStart, copies[i].indexCount)) nearOk = false;
         }
-        Check(near, "  every near section draws its own triangles with no hook at all");
+        Check(nearOk, "  every near section draws its own triangles with no hook at all");
         Check(empty, "  every far section draws nothing");
         Check(!StockDraw(p, 1, 3), "  a draw that is no section's is not taken for one");
 
@@ -140,7 +140,7 @@ namespace
         Check(how == (rebase ? Rebase::Section : Rebase::None), "calibrated against the stock pass's own output");
         bool wrongBefore = false;
         for (size_t i = 0; i < file.size(); i++)
-            if (p.far[i] && !DrawsRight(s, p, copies, pool, i, true, rebase)) wrongBefore = true;
+            if (p.isFar[i] && !DrawsRight(s, p, copies, pool, i, true, rebase)) wrongBefore = true;
         Check(wrongBefore, "  (before the far sections are written the stock pass left the wrong triangles there)");
         WriteFar(pool.data(), p, s.indices.data(), how);
         bool all = true, unfixedWrong = false;
@@ -158,8 +158,8 @@ namespace
         bool back = true;
         for (size_t i = 0; i < file.size(); i++)
         {
-            if (p.far[i] && copies[i].indexCount) back = false;
-            if (!p.far[i] && p.pool[i] < kNear && !DrawsRight(s, p, copies, pool, i, false, rebase)) back = false;
+            if (p.isFar[i] && copies[i].indexCount) back = false;
+            if (!p.isFar[i] && p.pool[i] < kNear && !DrawsRight(s, p, copies, pool, i, false, rebase)) back = false;
         }
         Check(back, "taken back: far sections empty again, near ones still right");
     }
@@ -200,7 +200,7 @@ int File(const char* path)
     StockFill(copies, file, s.indices, pool);
     bool ok = CopiesAsStock(copies.data(), p);
     for (size_t i = 0; i < file.size(); i++)
-        if (!p.far[i] && !DrawsRight(s, p, copies, pool, i, false)) ok = false;
+        if (!p.isFar[i] && !DrawsRight(s, p, copies, pool, i, false)) ok = false;
     Whole(copies.data(), p, true);
     StockFill(copies, file, s.indices, pool);
     ok = ok && CopiesWhole(copies.data(), p);

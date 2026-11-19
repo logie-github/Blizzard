@@ -96,7 +96,7 @@ namespace wrathpp::wide
         std::vector<uint32_t> start;        ///< each section's first index in the file's array
         std::vector<uint16_t> count;        ///< each section's index count
         std::vector<uint16_t> vertexStart;
-        std::vector<uint8_t> far;           ///< 1: begins past 65,535 in the file
+        std::vector<uint8_t> isFar;           ///< 1: begins past 65,535 in the file
         std::vector<uint32_t> pool;         ///< each section's first index in the shared pool with every section whole
         std::vector<uint32_t> poolNear;     ///< ...and with the far sections empty (the stock client alone)
         std::vector<std::pair<uint16_t, uint32_t>> high;   ///< (low 16 bits, whole start) of the pool starts past 65,535, sorted
@@ -140,10 +140,10 @@ namespace wrathpp::wide
             if (start > indexCount || s.indexCount > indexCount - start) return fail("indices outside the skin", i);
             if (s.indexCount % 3) return fail("a count that is not whole triangles", i);
             if (static_cast<uint32_t>(s.vertexStart) + s.vertexCount > vertexCount) return fail("vertices outside the skin", i);
-            const bool far = start >= kNear;
+            const bool isFar = start >= kNear;
             // (with the far sections empty the stock client's own pool starts must all be ones it can hold)
-            if (!far && s.indexCount && poolNear >= kNear) return fail("a near section after more than 65,535 near indices", i);
-            if (far)
+            if (!isFar && s.indexCount && poolNear >= kNear) return fail("a near section after more than 65,535 near indices", i);
+            if (isFar)
             {
                 // (the near sections' are the stock client's to read; a far one's are written by this code: each must
                 // name a vertex of its own section, or the rebased index would leave it)
@@ -158,11 +158,11 @@ namespace wrathpp::wide
             p.start.push_back(start);
             p.count.push_back(s.indexCount);
             p.vertexStart.push_back(s.vertexStart);
-            p.far.push_back(far ? 1 : 0);
+            p.isFar.push_back(isFar ? 1 : 0);
             p.pool.push_back(pool);
             p.poolNear.push_back(poolNear);
             pool += s.indexCount;
-            if (!far) poolNear += s.indexCount;
+            if (!isFar) poolNear += s.indexCount;
         }
         p.total = pool;
         // the pool is made for the skin's index count (M2Shared.cpp 346-350, one instance: 0x10000 / count is 0 or 1)
@@ -233,7 +233,7 @@ namespace wrathpp::wide
         if (!p.wide || !sections) return;
         for (uint32_t i = 0; i < sectionCount; i++)
         {
-            const bool empty = p.valid ? (i < p.far.size() && p.far[i]) : sections[i].level != 0;
+            const bool empty = p.valid ? (i < p.isFar.size() && p.isFar[i]) : sections[i].level != 0;
             sections[i].level = 0;
             if (empty)
             {
@@ -248,7 +248,7 @@ namespace wrathpp::wide
     {
         for (size_t i = 0; i < p.count.size(); i++)
         {
-            const uint16_t count = p.far[i] ? 0 : p.count[i];
+            const uint16_t count = p.isFar[i] ? 0 : p.count[i];
             if (copies[i].indexCount != count || copies[i].vertexStart != p.vertexStart[i]) return false;
             if (count && copies[i].indexStart != static_cast<uint16_t>(p.poolNear[i])) return false;
         }
@@ -267,7 +267,7 @@ namespace wrathpp::wide
     inline void Whole(Section* copies, const Plan& p, bool whole)
     {
         for (size_t i = 0; i < p.count.size(); i++)
-            if (p.far[i]) copies[i].indexCount = whole ? p.count[i] : 0;
+            if (p.isFar[i]) copies[i].indexCount = whole ? p.count[i] : 0;
     }
 
     enum class Rebase { Unknown, Section, None };
@@ -284,7 +284,7 @@ namespace wrathpp::wide
         uint32_t seen = 0;
         for (size_t i = 0; i < p.count.size() && (section || none); i++)
         {
-            if (p.far[i] || !p.count[i]) continue;
+            if (p.isFar[i] || !p.count[i]) continue;
             for (uint32_t j = 0; j < p.count[i]; j++)
             {
                 const uint16_t in = indices[p.start[i] + j], out = pool[p.pool[i] + j];
@@ -305,7 +305,7 @@ namespace wrathpp::wide
     {
         for (size_t i = 0; i < p.count.size(); i++)
         {
-            if (!p.far[i]) continue;
+            if (!p.isFar[i]) continue;
             const uint16_t off = how == Rebase::Section ? p.vertexStart[i] : 0;
             for (uint32_t j = 0; j < p.count[i]; j++) pool[p.pool[i] + j] = static_cast<uint16_t>(indices[p.start[i] + j] - off);
         }
@@ -323,7 +323,7 @@ namespace wrathpp::wide
     inline bool StockDraw(const Plan& p, uint32_t start, uint32_t count)
     {
         for (size_t i = 0; i < p.count.size(); i++)
-            if (!p.far[i] && p.count[i] && static_cast<uint16_t>(p.poolNear[i]) == start && p.count[i] == count) return true;
+            if (!p.isFar[i] && p.count[i] && static_cast<uint16_t>(p.poolNear[i]) == start && p.count[i] == count) return true;
         return false;
     }
 
