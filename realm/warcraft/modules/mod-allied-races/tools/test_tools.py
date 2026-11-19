@@ -391,6 +391,16 @@ check(m2.index_budget() == 65535 and m2.WIDE_INDEX_BUDGET == 196607, "the cut sk
 _far = _wide_skin([(1, 0, 0, 9, 0, 6), (2, 1, 0, 9, 4464, 6)], 70006)
 check(skinwide.wide_index_start(70006, 1, 4464, 6) == 70000, "(the fixture's second section starts at 70000)")
 
+# A woman's wide skin keeps the head's small features whole (m2.head_feature_sections): section 0 body, 1 head 3202, 2 ears 702 at the head,
+# 3 knee spurs (a body geoset, low), 4 the head's own 3201 mouth.
+_pos = np.array([[0, 0, z] for z in (0.1, 0.2, 0.3, 1.5, 1.6, 1.7, 0.4, 0.5)], dtype=float)
+_sections = [[0], [3202], [702], [1901], [3201]]
+_st = {0: np.array([[0, 1, 2]]), 1: np.array([[3, 4, 5]]), 2: np.array([[3, 4, 5]]), 3: np.array([[6, 7, 0]]), 4: np.array([[3, 4, 5]])}
+_plan = [(0, s, None) for s in range(5)]
+_tiers_of = {s: "body" for s in range(5)}
+check(m2.head_feature_sections(_plan, _sections, _pos, _st, _tiers_of) == {2}, "the ears at the head's height are a head feature; the body, the head, the mouth and low spurs are not")
+check(m2.head_feature_sections([(0, 0, None)], _sections, _pos, _st, _tiers_of) == set(), "no head, no head features")
+
 # Hair-aware cutting (19 November 2026): texture coordinates are part of the error, a collapse never turns a triangle over
 # in the texture, the open outline of a card stays, and the budget goes to the hair last.
 def _uv_area(uv, t):
