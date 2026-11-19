@@ -171,39 +171,26 @@ class WrathppRaliaTest {
         assertArrayEquals(before, table.readBytes())
     }
 
-    @Test fun aSkinsFacesTakeTheToneItsNewBodyHasByTheNeck() {
-        // the user, 19 November 2026: "skin tones aren't lining up". The looks' face textures were made for the looks' own body: where the
-        // set's body is another tone by the neck, the colour's two face textures (lower and upper) take the same change, and go back with it.
+    @Test fun aSkinsFacesAreLeftAsTheLooksMadeThemWhateverToneTheNewBodyHas() {
+        // 20 November 2026 (the user: "ralias should be compatible with the faces"): the looks' faces and the set's bodies are made from today's
+        // own textures, so the faces are not changed (a tint by the neck's difference, 920b0c3, made the carried skins' seams worse: 57 of 83).
         val store = File(tmp.root, "store")
         val client = game()
         val patch = File(client, "Data/patch-Z.MPQ")
         File(patch, "Character/Human/Female/HumanFemaleSkin00_01.blp").writeBytes(solid(100, 100, 100))
         val lower = File(patch, "Character/Human/Female/HumanFemaleFaceLower00_01.blp").apply { writeBytes(solid(100, 100, 100, 32, 16)) }
         val upper = File(patch, "Character/Human/Female/HumanFemaleFaceUpper00_01.blp").apply { writeBytes(solid(100, 100, 100, 32, 16)) }
-        val other = File(patch, "Character/Human/Female/HumanFemaleFaceLower00_00.blp").apply { writeBytes(solid(100, 100, 100, 32, 16)) }
         val table = File(patch, "DBFilesClient/CharSections.dbc")
         val dbc = WrathppUndead.Dbc.read(table.readBytes(), WrathppUndead.KINDS)
         dbc.rows.add(row(20, 1, 1, 1, "Character\\Human\\Female\\HumanFemaleFaceLower00_01.blp", "Character\\Human\\Female\\HumanFemaleFaceUpper00_01.blp", 1))
-        dbc.rows.add(row(21, 1, 1, 1, "Character\\Human\\Female\\HumanFemaleFaceLower00_00.blp", "", 0))
         table.writeBytes(dbc.write())
-        val own = listOf(lower, upper, other).map { it.readBytes() }
+        val own = listOf(lower, upper).map { it.readBytes() }
         zip(set).inputStream().use { WrathppRalia.importZip(store, it) }
         WrathppRalia.apply(store, client)
-        // the set's 03 is 200 150 120 where the looks' own was 100 100 100: each channel times (c + 8) / (100 + 8)
-        for (face in listOf(lower, upper)) assertEquals(listOf(193, 146, 119), pixel(face))
-        assertArrayEquals(own[2], other.readBytes())                                 // a colour whose body the set didn't change: as it was
-        assertEquals(2, WrathppRalia.faces(client))
-        WrathppRalia.remove(store)
-        WrathppRalia.apply(store, client)
+        // the set's 03 is 200 150 120 where the looks' own was 100 100 100: the body changes, the faces do not
         assertArrayEquals(own[0], lower.readBytes())
         assertArrayEquals(own[1], upper.readBytes())
-    }
-
-    @Test fun gainIsBoundedAndSmallChangesAreLeft() {
-        val g = WrathppRalia.gain(doubleArrayOf(255.0, 0.0, 100.0), doubleArrayOf(0.0, 255.0, 100.0))
-        assertEquals(2.0, g[0], 1e-9); assertEquals(0.5, g[1], 1e-9); assertEquals(1.0, g[2], 1e-9)
-        assertFalse(WrathppRalia.off(doubleArrayOf(1.02, 0.98, 1.0)))
-        assertTrue(WrathppRalia.off(doubleArrayOf(1.05, 1.0, 1.0)))
+        assertFalse(File(lower.path + ".orig").exists())
     }
 
     @Test fun anAlliedWomanTakesHerDonorRacesBodyAndIsOfferedWhole() {
