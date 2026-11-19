@@ -63,7 +63,8 @@ WIDE_ORDER = ["body", "bare", "features", "gear", "hair"]      # the wide skin's
 # A woman's model is one Wrath++'s body options rewrite on the phone (WrathppBody: the layer made from the body's
 # triangles, the shapes carried onto the looks' vertices by what they were): what a shape moves has to be the same
 # triangles and vertices in both skins, so her wide skin keeps the cut skin's body and gear and is whole in the hair and
-# the features (the head: no shape moves it).
+# the features (the head: no shape moves it); the head's own small features folded into the body tier (ears, tusks, the
+# Goblin's chin and nose: head_feature_sections) are whole there as well, where the budget allows.
 WIDE_TIERS_FEMALE = ("hair", "features")
 WIDE_GIVE = ["gear", "bare", "body", "features"]               # what goes back to the cut skin's when the vertices don't fit
 SKIN_VERTEX_LIMIT = 65535       # skin vertices (m_vertexStart, m_vertexCount and the skin's vertex lookup are 16-bit)
@@ -118,6 +119,25 @@ TIER_FLOORS_MORE = [("gear", 0.3), ("features", 0.4), ("hair", 0.4), ("body", 0.
 GEAR_GROUPS = {4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20}
 HEAD_GROUPS = (32, 33)          # today's head and eyeballs: never cut (below)
 GEAR_MAX_VARIANT = 6            # 3.3.5's items ask for a group's variants 1 to 6 (ItemDisplayInfo's geoset groups 0 to 5)
+
+
+def head_feature_sections(plan, sections, positions, source_tris, tier_of_section):
+    """The sections of today's model, folded into the body tier (geoset 0 or the ears' 702), that are small features of the head: not
+    the body's own geoset 0 and not the head (group 32) or eyeballs (33), and lying wholly at the head's height or above (the lowest
+    vertex of the head's geosets past the mouth's). The ears, a tusk, the Goblin's chin and nose, earrings and the like: a woman's
+    wide skin keeps them whole (WIDE_TIERS_FEMALE keeps her body's triangles as the cut skin's, because a body shape moves those; none
+    moves a head)."""
+    heads = [s for _, s, _ in plan if sections[s][0] // 100 == 32 and sections[s][0] % 100 > 1]
+    if not heads:
+        return set()
+    floor = min(positions[source_tris[s].reshape(-1)][:, 2].min() for s in heads) - 0.005
+    found = set()
+    for _, s, _ in plan:
+        if tier_of_section.get(s) != "body" or s in found or sections[s][0] == 0 or sections[s][0] // 100 in (32, 33):
+            continue
+        if len(source_tris[s]) and positions[source_tris[s].reshape(-1)][:, 2].min() >= floor:
+            found.add(s)
+    return found
 
 
 def tier_of(geoset):
@@ -1544,13 +1564,25 @@ def convert(files, policy, out_dir, log=print):
             for key, tris in (("c", cut[sec_index]), ("w", source_tris[sec_index])):
                 count[key + "v"][t] = count[key + "v"].get(t, 0) + len(np.unique(tris)) * copies[sec_index]
                 count[key + "i"][t] = count[key + "i"].get(t, 0) + len(tris) * 3 * copies[sec_index]
+        # A woman's head features folded into the body tier (the ears, tusks, chin, nose...: head_feature_sections) are whole in
+        # her wide skin too: no body shape moves them. Their extra vertices and indices are counted with the tier the plan gives
+        # back to the cut skin, so the plan leaves them room.
+        head_whole = set()
+        if female:
+            head_whole = head_feature_sections(plan, skin.sections, positions, source_tris, tier_of_section)
+        extra_v = sum((len(np.unique(source_tris[s])) - len(np.unique(cut[s]))) * copies[s] for s in head_whole)
+        extra_i = sum((len(source_tris[s]) - len(cut[s])) * 3 * copies[s] for s in head_whole)
+        if head_whole:
+            count["cv"]["body"] = count["cv"].get("body", 0) + extra_v
+            count["ci"]["body"] = count["ci"].get("body", 0) + extra_i
         whole_tiers = wide_plan(tiers, count["cv"], count["wv"], count["ci"], count["wi"], female)
         if not whole_tiers or ("hair" in tiers and "hair" not in whole_tiers):
             log("%s: no wide skin: %s (%d vertices with the rest as cut, %d allowed)" % (
                 name, "the hair whole does not fit a skin's vertices" if "hair" in tiers else "nothing of it fits a skin's vertices whole",
                 count["wv"].get("hair", 0) + sum(count["cv"].get(t, 0) for t in tiers if t != "hair"), SKIN_VERTEX_LIMIT - VERTEX_RESERVE))
         else:
-            wide_tris = {sec_index: (source_tris[sec_index] if tier_of_section[sec_index] in whole_tiers else cut[sec_index]) for sec_index in cut}
+            wide_tris = {sec_index: (source_tris[sec_index] if tier_of_section[sec_index] in whole_tiers or sec_index in head_whole
+                                     else cut[sec_index]) for sec_index in cut}
             plain = set(sec_index for sec_index in cut if wide_tris[sec_index] is not cut[sec_index])
             before = (dict(new_vertex), len(out_lookup))
             wide = build(wide_tris, lambda p: (WIDE_ORDER.index(tier_of(p[0])), p[0], p[1]), plain, True)
@@ -1565,6 +1597,9 @@ def convert(files, policy, out_dir, log=print):
                     name, len(wide[2]), len(wide[0]), len(wide[3]), sum(1 for sec in wide[3] if struct.unpack_from("<H", sec, 2)[0]),
                     ", ".join(t for t in WIDE_ORDER if t in whole_tiers),
                     "; as the cut skin: " + ", ".join(t for t in WIDE_ORDER if t in tiers and t not in whole_tiers) if len(whole_tiers) < len(tiers) else ""))
+                if head_whole:
+                    log("%s: wide head features whole: geosets %s (+%d vertices, +%d indices)" % (
+                        name, sorted(set(skin.sections[s][0] for s in head_whole)), extra_v, extra_i))
                 for t in sorted(sizes):
                     kept = sum(len(wide_tris[sec_index]) * 3 for n, sec_index, b in plan if tier_of(n) == t)
                     log("%s: wide %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
