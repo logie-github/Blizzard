@@ -20,13 +20,13 @@ object WrathppSkins {
     /**
      * The allied races' women take a donor race's Ralia body (the set has the ten races' women and the Forsaken men, none for the allied
      * races): game race id to the donor's, by the body she is built like (renders of the converted models, all in the classic body
-     * layout, show each donor's body picture on her model with no seam). The High Elf (23) has the Void Elf's files. The men have no
+     * layout, show each donor's body picture on her model with no seam). The High Elf (22) and the Void Elf (23) have the same files (ChrRaces: 22 HighElf, 23 VoidElf). The men have no
      * Ralia body: their lists are not filtered. The Worgen and the Vulpera have no skin colour list. Data, not the creator's: the creator
      * reads only what the app writes.
      */
     val DONORS: Map<Int, Int> = mapOf(9 to 7, 13 to 4, 14 to 11, 15 to 8, 16 to 6, 17 to 3, 19 to 2, 20 to 7, 21 to 8, 22 to 4, 23 to 4)
     val RACE_NAMES: Map<Int, String> = mapOf(9 to "Goblin", 13 to "Nightborne", 14 to "Lightforged", 15 to "Zandalari", 16 to "Highmountain", 17 to "DarkIron",
-        19 to "Maghar", 20 to "Mechagnome", 21 to "DarkTroll", 22 to "VoidElf", 23 to "HighElf")
+        19 to "Maghar", 20 to "Mechagnome", 21 to "DarkTroll", 22 to "HighElf", 23 to "VoidElf")
 
     /** The patch's file for [offered] (model key to its name and the skins' places); an empty table when nothing is filtered. */
     fun script(offered: Map<String, Pair<String, List<Int>>>?): ByteArray {

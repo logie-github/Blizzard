@@ -74,7 +74,7 @@ object WrathppSetup {
             if (taken != null) notes.append("ralia.zip found (${found?.parent}): $taken textures\n")
             WrathppRalia.apply(store, layout.wrathppClient, report::say)
         }
-            .onSuccess { notes.append("ralia: $it skins\n") }
+            .onSuccess { notes.append("ralia: $it skins, ${runCatching { WrathppRalia.faces(layout.wrathppClient) }.getOrDefault(0)} face textures matched to their new bodies\n") }
             .onFailure { e -> notes.append("ralia FAILED: ${e.message}\n") }
         lap("ralia")
         // Body options, when you imported their package (WrathppBody): the women's models with the body layer, the body
