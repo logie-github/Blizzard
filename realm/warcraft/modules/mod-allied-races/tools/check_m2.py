@@ -6,17 +6,23 @@ the skin's vertices, every sequence kept outside the file having its file, every
 such a sequence within that file, a global sequence's track's times within its loop, every bone's translations and scales real floats within 100
 yards (what tools/m2.py keeps).
 
-    python3 tools/check_m2.py DIR/Character/Race/Sex/Name.m2 [--verbose]
+    python3 tools/check_m2.py DIR/Character/Race/Sex/Name.m2 [--verbose] [--stock]
+
+A section's start is read as Wrath++'s client reads it (wide: the high half in the level, skinwide.py); --stock reports
+every start past 65535 (a stock 3.3.5 client reads 16-bit starts).
 """
 import math
 import os
 import struct
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from skinwide import wide_index_start  # noqa: E402
+
 FAR = 100.0                          # tools/m2.py leaves out translations and scales beyond this
 
 
-def check(path, verbose=False):
+def check(path, verbose=False, wide_ok=True):
     m = open(path, "rb").read()
     problems = []
     say = problems.append
@@ -204,11 +210,15 @@ def check(path, verbose=False):
     sections = [struct.unpack_from("<10H7f", s, so + i * 48) for i in range(sn)]
     for i, sec in enumerate(sections):
         level, vstart, vcount, istart, icount, bcount, bcombo, binfl = sec[1:9]
-        first = istart + level * 65536
+        # read the start as Wrath++'s client does (skinwide.py): the high half in the level, when its window lies in the skin
+        first = wide_index_start(ixn, level, istart, icount)
+        if level and first == istart:
+            say("section %d (geoset %d): level %d is no wide start (its window %d + %d lies outside the %d indices): the client "
+                "reads the 16-bit start %d" % (i, sec[0], level, (level << 16) | istart, icount, ixn, istart))
         if first + icount > ixn:
             say("section %d (geoset %d): indices beyond the skin's" % (i, sec[0]))
-        if level or istart + icount > 65535:
-            say("section %d (geoset %d): triangles start at %d: the game reads 16-bit starts, every section within 65535 indices" % (i, sec[0], first))
+        if first >= 65536 and not wide_ok:
+            say("section %d (geoset %d): triangles start at %d: a stock client reads 16-bit starts (wide starts are Wrath++'s)" % (i, sec[0], first))
         if bcount > 64:
             say("section %d (geoset %d): %d bones" % (i, sec[0], bcount))
         if bcombo + bcount > n_bone_lookup:
@@ -257,7 +267,7 @@ def check(path, verbose=False):
 
 
 if __name__ == "__main__":
-    problems = check(sys.argv[1], "--verbose" in sys.argv)
+    problems = check(sys.argv[1], "--verbose" in sys.argv, "--stock" not in sys.argv)
     for p in problems[:50]:
         print("  " + p)
     print("%s: %s" % (sys.argv[1], "ok" if not problems else "%d problems" % len(problems)))

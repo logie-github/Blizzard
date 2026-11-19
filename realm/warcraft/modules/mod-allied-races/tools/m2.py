@@ -39,13 +39,33 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import decimate  # noqa: E402
+from skinwide import wide_index_start  # noqa: E402,F401
 
 MAX_BONES = 64
-INDEX_BUDGET = 65535            # the game reads a section's triangle start as 16 bits: every section within this
+INDEX_BUDGET = 65535            # a stock 3.3.5 reads a section's triangle start as 16 bits: every section within this
+# Wide skin indices (Wrath++'s own client, WarcraftXL-Labs/client commit e3dc928, Model2/M2Data.h
+# M2SkinSectionIndexStart): a section's first index is (the section's "level" half-word << 16) | its 16-bit start, taken only
+# when the window [start, start + count) lies inside the skin's index array. So a skin may hold more than 65535 indices;
+# what stays 16-bit is each section's own index count, the section's vertex range and the skin's vertices (a skin index
+# names one of them): fewer than 65536 of those. A stock client reads the level as a marker, ignores it and draws the
+# wrong triangles from a section past 65535: set WRATHPP_WIDE_SKINS=0 (or WIDE_SKINS = False) to cut every model to 65535
+# again, as before.
+WIDE_SKINS = os.environ.get("WRATHPP_WIDE_SKINS", "1").strip().lower() not in ("0", "", "no", "off", "false")
+WIDE_INDEX_BUDGET = 262144      # the most indices a wide skin may hold (the client's instance buffer is 1M): the 65535 skin
+                                # vertices below are the limit in practice, a hard stop with a clear error if it is passed
+SKIN_VERTEX_LIMIT = 65535       # skin vertices (m_vertexStart, m_vertexCount and the skin's vertex lookup are 16-bit)
+VERTEX_RESERVE = 700            # skin vertices a cut model leaves free: the body layer's, and the bone-palette groups' duplicates
+SECTION_INDEX_LIMIT = 65535     # one section's m_indexCount is 16 bits
+
+
+def index_budget():
+    return WIDE_INDEX_BUDGET if WIDE_SKINS else INDEX_BUDGET
+
+
 # Indices a cut model leaves free: Wrath++'s body layer (wrathpp/tools/body_shapes/layer.py: at most 107 triangles on the
 # released looks' women) is added to the looks' own skin on the phone (WrathppBodyLayer), which cuts nothing itself.
 LAYER_RESERVE = 420
-# What gives way when a model has more than that (decimate.py), and how far: the gear first, then
+# What gives way when a model has more than the budget (decimate.py), and how far: the gear first, then
 # the features and the hair, the body (the face among it) last.
 TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]
 TIER_FLOORS_MORE = [("gear", 0.3), ("features", 0.4), ("hair", 0.4), ("body", 0.6)]
@@ -1293,10 +1313,16 @@ def convert(files, policy, out_dir, log=print):
             if s not in whole:
                 now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
         total = sum(now.values()) + kept_whole
-        if total <= INDEX_BUDGET - LAYER_RESERVE:
+        # the indices allowed, and the skin's vertices (a cut mesh's distinct vertices, a section's own copy of each):
+        # the tighter of the two sets the budget, scaled by how far over the vertices are
+        vertices_now = sum(len(np.unique(cut[s])) * copies[s] for s in tier_of_section) * 1.0
+        limit = index_budget() - LAYER_RESERVE
+        if vertices_now > SKIN_VERTEX_LIMIT - VERTEX_RESERVE:
+            limit = min(limit, int(total * (SKIN_VERTEX_LIMIT - VERTEX_RESERVE) / vertices_now) - 3)
+        if total <= limit:
             break
         floors = TIER_FLOORS if step == 0 else TIER_FLOORS_MORE if step == 1 else []
-        keep = decimate.plan(now, INDEX_BUDGET - LAYER_RESERVE - 300 - kept_whole, floors)
+        keep = decimate.plan(now, limit - 300 - kept_whole, floors)
         before = total
         for s, t in tier_of_section.items():
             if s in whole:
@@ -1306,7 +1332,7 @@ def convert(files, policy, out_dir, log=print):
                 cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))), locked=joins.get(s, ()))
         total = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section)
         if total >= before:
-            raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, INDEX_BUDGET - LAYER_RESERVE, total))
+            raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, limit, total))
     for t in sorted(sizes):
         kept = sum(len(cut[s]) * 3 for n, s, b in plan if tier_of(n) == t)
         log("%s: %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
@@ -1354,7 +1380,7 @@ def convert(files, policy, out_dir, log=print):
         for tri in cut[s]:
             tri = tuple(int(v) for v in tri)
             used = {bone for g in tri for bone, _ in bones_of[g]}
-            if not groups or len(set(groups[-1][0]) | used) > MAX_BONES:
+            if not groups or len(set(groups[-1][0]) | used) > MAX_BONES or len(groups[-1][1]) * 3 + 3 > SECTION_INDEX_LIMIT:
                 groups.append([[], []])
             palette = groups[-1][0]
             for bone in sorted(used):
@@ -1382,8 +1408,9 @@ def convert(files, policy, out_dir, log=print):
                     out_indices.append(place[g])
             combo_index = len(out_lookup)
             out_lookup.extend(palette)
-            out_sections.append(struct.pack("<10H7f", new_id, 0, vertex_start, len(place),
-                                            index_start, len(triangles) * 3, len(palette), combo_index,
+            # a section starting past 65535: its start's high half goes in the "level" half-word (see WIDE_SKINS)
+            out_sections.append(struct.pack("<10H7f", new_id, index_start >> 16, vertex_start, len(place),
+                                            index_start & 0xFFFF, len(triangles) * 3, len(palette), combo_index,
                                             max(1, influences), sec[9], *sec[10:17]))
             texture = texture_index[model.texture_lookup[b[9]]]
             if s in extra_sections and kind == BODY:
@@ -1397,10 +1424,16 @@ def convert(files, policy, out_dir, log=print):
             transform = b[12] + 1 if uv_kind == "second" and b[12] + 1 < len(model.transform_lookup) else b[12]
             out_batches.append(struct.pack("<BbHHHhHHHHHHH", flags, b[1], shader, len(out_sections) - 1, len(out_sections) - 1,
                                            -1, b[6], 0, 1, texture, 0, b[11] if b[11] < len(model.transparency_lookup) else 0, transform))
-    if len(out_vertices) > 65535:
-        raise ValueError("%s: too many vertices for one skin (%d)" % (name, len(out_vertices)))
-    if len(out_indices) > 65535:
-        raise ValueError("%s: too many indices for one skin (%d): the game reads 16-bit starts" % (name, len(out_indices)))
+    if len(out_vertices) > SKIN_VERTEX_LIMIT:
+        raise ValueError("%s: too many vertices for one skin (%d of %d): a skin index and a section's vertex range are 16 bits"
+                         % (name, len(out_vertices), SKIN_VERTEX_LIMIT))
+    if len(out_indices) > index_budget():
+        raise ValueError("%s: too many indices for one skin (%d of %d)%s" % (
+            name, len(out_indices), index_budget(),
+            "" if WIDE_SKINS else ": a stock client reads 16-bit starts (WRATHPP_WIDE_SKINS=1 writes wide ones)"))
+    wide_sections = sum(1 for sec in out_sections if struct.unpack_from("<H", sec, 2)[0])
+    log("%s: skin %d indices, %d vertices, %d sections (%d with a wide start)" % (
+        name, len(out_indices), len(out_vertices), len(out_sections), wide_sections))
     # vertices in the model: the ones drawn, in the skin's order, with their bones as the model's
     vertices = bytearray()
     for (index, kind), (new, data) in sorted(new_vertex.items(), key=lambda kv: kv[1][0]):

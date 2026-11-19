@@ -1,5 +1,5 @@
 """A converted character model (3.3.5 .m2 and its 00.skin) with chosen triangles split, finer where the body options
-reshape it, paid for by the worn gear's pieces cut down a little more, so the skin stays within 3.3.5's 65535 indices.
+reshape it, paid for by the worn gear's pieces cut down a little more, so the skin stays within its index budget (m2.index_budget(): 65535 for a stock client, wider for Wrath++'s).
 
   refine(m2_bytes, skin_bytes, pick, levels, reserve=0) -> (m2_bytes, skin_bytes, info)
 
@@ -11,6 +11,7 @@ import os, struct, sys
 import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'modules', 'mod-allied-races', 'tools'))
 import decimate, m2 as M2
+from skinwide import wide_index_start
 
 VERT = 48
 HAIR_FLOOR = 0.9            # the hair keeps at least this much of what the looks gave it
@@ -24,6 +25,12 @@ def read_skin(s):
     secs = [list(struct.unpack_from("<10H7f", s, so + i * 48)) for i in range(sn)]
     batches = s[bo:bo + bn * 24]
     return verts, idx, props, secs, batches, bn, mx
+
+
+def section_slice(idx, s):
+    """The slice of [idx] a section [s] draws, its start read as Wrath++'s client reads it (wide: skinwide.py)."""
+    st = wide_index_start(len(idx), s[1], s[4], s[5])
+    return slice(st, st + s[5])
 
 
 def write_skin(verts, idx, props, secs, batches, bn, mx):
@@ -65,8 +72,7 @@ def refine(m2b, skb, pick, levels=1, log=print, reserve=0):
     # each section's triangles as model vertex ids, and each (section, vertex)'s bone slots
     tris, slots = [], []
     for si, s in enumerate(secs):
-        st = s[4] + s[1] * 65536
-        loc = idx[st:st + s[5]].reshape(-1, 3)
+        loc = idx[section_slice(idx, s)].reshape(-1, 3)
         tris.append(verts[loc].copy())
         sl = {}
         for k in range(s[2], s[2] + s[3]): sl[int(verts[k])] = bytes(props[k])
@@ -144,7 +150,7 @@ def refine(m2b, skb, pick, levels=1, log=print, reserve=0):
     total = sum(len(t) * 3 for t in tris)
     P = np.array([struct.unpack_from("<3f", v, 0) for v in V])
     gear = [si for si, s in enumerate(secs) if M2.tier_of(s[0]) == "gear" and s[0] % 100 != 1 and len(tris[si]) > 4]
-    budget = M2.INDEX_BUDGET - 40 - reserve        # (reserve: indices kept free for what is added after, the body layer)
+    budget = M2.index_budget() - 40 - reserve        # (reserve: indices kept free for what is added after, the body layer)
     if total > budget:
         # where a piece meets what can be drawn with it (another group: the body, the bare pieces); a group's
         # variants are drawn one at a time and may part along their shared edges
@@ -183,7 +189,7 @@ def refine(m2b, skb, pick, levels=1, log=print, reserve=0):
                 tris[si] = decimate.decimate(P, tris[si], max(1, int(len(tris[si]) * frac)), locked=hjoins[si])
             log("hair cut to %.0f%% of what it had: %d indices" % (100.0 * sum(len(tris[si]) * 3 for si in hair) / h0, sum(len(t) * 3 for t in tris)))
     total = sum(len(t) * 3 for t in tris)
-    if total > M2.INDEX_BUDGET - reserve: raise ValueError("still %d indices" % total)
+    if total > M2.index_budget() - reserve: raise ValueError("still %d indices" % total)
     # the skin again
     out_v, out_i, out_p = [], [], []
     for si, s in enumerate(secs):
@@ -197,8 +203,10 @@ def refine(m2b, skb, pick, levels=1, log=print, reserve=0):
                     place[g] = len(out_v); out_v.append(g); out_p.append(slots[si][g])
                     infl = max(infl, sum(1 for x in V[g][12:16] if x))
                 out_i.append(place[g])
-        s[1] = 0; s[2] = vs; s[3] = len(place); s[4] = ist; s[5] = len(tris[si]) * 3; s[8] = max(1, infl)
-    if len(out_v) > 65535: raise ValueError("too many skin vertices")
+        # a start past 65535 goes in the level (the id's top half), as m2.py writes it
+        s[1] = ist >> 16; s[2] = vs; s[3] = len(place); s[4] = ist & 0xFFFF; s[5] = len(tris[si]) * 3; s[8] = max(1, infl)
+    if len(out_v) > M2.SKIN_VERTEX_LIMIT: raise ValueError("too many skin vertices")
+    if len(out_i) > M2.index_budget(): raise ValueError("too many skin indices (%d)" % len(out_i))
     skin = write_skin(out_v, out_i, np.frombuffer(b"".join(out_p), np.uint8).reshape(-1, 4), secs, batches, bn, mx)
     # the model's vertices: the new array at the end of the file
     while len(d) % 16: d.append(0)

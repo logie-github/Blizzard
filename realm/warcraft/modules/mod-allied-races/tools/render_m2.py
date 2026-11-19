@@ -27,6 +27,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import blp  # noqa: E402
+from skinwide import wide_index_start  # noqa: E402
 
 
 def arr(m, off):
@@ -370,9 +371,9 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             tx = np.full((4, 4, 4), 255, dtype=np.uint8)
         tx = np.asarray(tx)
         th, tw = tx.shape[:2]
-        # The game reads the 16-bit start alone: the modern format's high word (level) is lost on
-        # it, so a section placed past the first 65535 indices draws from the wrong triangles.
-        first = is_
+        # Wrath++'s client reads a section's start wide: the high half in the id's top half-word (level), when its
+        # window lies inside the skin (skinwide.py). A stock client reads the 16-bit start alone.
+        first = wide_index_start(len(skin.indices), level, is_, ic)
         tris = skin.indices[first:first + ic].reshape(-1, 3)
         for tri in tris:
             if not ok[tri].all():

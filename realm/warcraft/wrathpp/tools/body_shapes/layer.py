@@ -37,7 +37,8 @@ import struct
 
 import numpy as np
 
-from refine import VERT, read_skin, write_skin
+import refine
+from refine import VERT, read_skin, write_skin, section_slice, wide_index_start
 
 GEOSET = 1901
 SPAN, TOP = 0.21, 0.16
@@ -84,8 +85,7 @@ def triangles(P, skb, race):
     for si, s in enumerate(secs):
         if s[0] not in race["body"]:
             continue
-        st = s[4] + s[1] * 65536
-        T = verts[idx[st:st + s[5]]].reshape(-1, 3)
+        T = verts[idx[section_slice(idx, s)]].reshape(-1, 3)
         p = P[T]
         keep = (p[:, :, 2].max(1) >= zbot) & (p[:, :, 2].min(1) <= ztop) & (np.abs(p[:, :, 1]).min(1) <= span / 2)
         fn = np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0])
@@ -213,12 +213,14 @@ def add(m2b, skb, vertices, race, select=None, folder=None):
     props2 = np.concatenate([props, lprops])
     ist = len(idx)
     idx2 = np.concatenate([idx, np.array([nsv + local[int(g)] for g in T.ravel()], np.int64)])
-    if ist > 0xFFFF:
-        raise ValueError("the layer would start past the game's 65535 indices (%d)" % ist)
-    if len(idx2) > 0xFFFF:
+    # the layer's section starts where the skin's own indices end: past 65535 on a wide skin, where the high half goes in the
+    # section's level (skinwide.py); a stock skin (m2.WIDE_SKINS off) has to keep all of it within 65535
+    if len(idx2) > refine.M2.index_budget():
         raise ValueError("the skin has %d indices with the layer: refine with a larger reserve" % len(idx2))
-    if len(verts2) > 0xFFFF:
-        raise ValueError("too many skin vertices")
+    if len(verts2) > refine.M2.SKIN_VERTEX_LIMIT or nsv > 0xFFFF:
+        raise ValueError("too many skin vertices (%d with the layer)" % len(verts2))
+    if ist >= 1 << 32 or len(T) * 3 > 0xFFFF:
+        raise ValueError("the layer's section is too large")
     centre = Psel[used].mean(0)                                    # (the selecting shape's: one skin for every shape)
     radius = float(np.linalg.norm(Psel[used] - centre, axis=1).max())
     # the bone the layer hangs on most
@@ -228,7 +230,7 @@ def add(m2b, skb, vertices, race, select=None, folder=None):
             if w:
                 weight[int(b)] = weight.get(int(b), 0) + int(w)
     centre_bone = max(weight, key=weight.get)
-    sec = [GEOSET, 0, nsv, len(L), ist, len(T) * 3, len(bones), bc, infl, centre_bone] + list(centre) + list(centre) + [radius]
+    sec = [GEOSET, ist >> 16, nsv, len(L), ist & 0xFFFF, len(T) * 3, len(bones), bc, infl, centre_bone] + list(centre) + list(centre) + [radius]
     secs2 = [list(s) for s in secs] + [sec]
     B = [list(struct.unpack_from("<BbHHHHHHHHHHH", batches, i * 24)) for i in range(bn)]
     source = next(b for b in B if secs[b[3]][0] == secs[owners[0]][0])

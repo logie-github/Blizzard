@@ -153,11 +153,37 @@ class WrathppBodyLayerTest {
         assertEquals("her body's own coordinates stay", 0.25f, float(m, l + 32), 0f)
     }
 
+    @Test fun aLayerThatStartsPastTheFirst65535IndicesIsWrittenWideAndReadBack() {
+        // the skin has 70000 indices: the layer's section starts at 70000 = 1 * 65536 + 4464, the level (the id's top half-word) 1
+        val made = WrathppBodyLayer.add(model(), skin(70000 - 9), null, params, "Character\\Gnome\\Female")
+        val s = made.skin
+        assertEquals(70006, int(s, 12))
+        val sec = int(s, 32) + 48
+        assertEquals(listOf(1901, 1, 7, 4, 4464, 6, 1, 2, 1, 3), (0 until 10).map { short(s, sec + it * 2) })
+        assertEquals(70000, WrathppBodyLayer.wideStart(70006, 1, 4464, 6))
+        // a second pass finds the layer already there
+        try { WrathppBodyLayer.add(made.model, made.skin, null, params, "x"); fail("a model with the layer already") } catch (e: IOException) { }
+    }
+
+    @Test fun theClientsWideStartRule() {
+        assertEquals("no level: the 16-bit start stands", 1234, WrathppBodyLayer.wideStart(70000, 0, 1234, 300))
+        assertEquals(70000, WrathppBodyLayer.wideStart(70300, 1, 4464, 300))
+        assertEquals("the window past the skin's end: a marker, not a start", 4464, WrathppBodyLayer.wideStart(70299, 1, 4464, 300))
+        assertEquals("a level on a skin of 65535 indices or fewer", 10, WrathppBodyLayer.wideStart(65535, 5, 10, 3))
+    }
+
     @Test fun aSkinWithoutRoomOrABodyElsewhereIsRefused() {
-        try { WrathppBodyLayer.add(model(), skin(65535 - 9 - 5), null, params, "Character\\Gnome\\Female"); fail("no room") } catch (e: WrathppBodyLayer.NoRoom) {
+        val wide = WrathppBodyLayer.WIDE_MAX_INDICES
+        try { WrathppBodyLayer.add(model(), skin(wide - 9 - 5), null, params, "Character\\Gnome\\Female"); fail("no room") } catch (e: WrathppBodyLayer.NoRoom) {
             assertEquals(5, e.free); assertEquals(6, e.needed)
         }
-        assertNotNull(WrathppBodyLayer.add(model(), skin(65535 - 9 - 6), null, params, "Character\\Gnome\\Female"))
+        assertNotNull(WrathppBodyLayer.add(model(), skin(wide - 9 - 6), null, params, "Character\\Gnome\\Female"))
+        // a stock client's skin (16-bit starts: maxIndices = MAX_INDICES) has its own, smaller room
+        val stock = WrathppBodyLayer.MAX_INDICES
+        try { WrathppBodyLayer.add(model(), skin(stock - 9 - 5), null, params, "x", stock); fail("no room") } catch (e: WrathppBodyLayer.NoRoom) {
+            assertEquals(5, e.free); assertEquals(6, e.needed)
+        }
+        assertNotNull(WrathppBodyLayer.add(model(), skin(stock - 9 - 6), null, params, "x", stock))
         for (bad in listOf(WrathppBodyLayer.Params(1.0, 3.0, setOf(0), intArrayOf(4, 3)), WrathppBodyLayer.Params(1.0, 1.0, setOf(401), intArrayOf(4, 3)),
             WrathppBodyLayer.Params(1.0, 1.0, setOf(0), intArrayOf(4, 3), x = 0.5))) {
             try { WrathppBodyLayer.add(model(), skin(), null, bad, "x"); fail("no body under the layer") } catch (e: WrathppBodyLayer.NoRoom) { fail("room") } catch (e: IOException) { }

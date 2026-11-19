@@ -29,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "..", "..", "modules", "mod-allied-races", "tools"))
 import render_m2 as r  # noqa: E402
+from skinwide import wide_index_start  # noqa: E402
 
 TABLES = {"CharSections": "iiiisssiii", "CharHairGeosets": "iiiiii", "CharacterFacialHairStyles": "iiiiiiii"}
 GRID = 16
@@ -77,7 +78,7 @@ def body_sections(m, sk, dbc, race):
 
 
 def fold_of(m, sk, body, k, thigh, w, hz):
-    bv = np.unique(np.concatenate([sk.vertices[sk.indices[s[4] + s[1] * 65536: s[4] + s[1] * 65536 + s[5]]] for s in sk.sections if s[0] in body]))
+    bv = np.unique(np.concatenate([sk.vertices[sk.indices[(lambda st: slice(st, st + s[5]))(wide_index_start(len(sk.indices), s[1], s[4], s[5]))]] for s in sk.sections if s[0] in body]))
     P, N = m.pos[bv], m.normals[bv]
     mid = (np.abs(P[:, 1]) < 0.12 * w) & (P[:, 2] > hz - 0.6 * thigh) & (P[:, 2] < hz + 0.25 * thigh)
     down = mid & (N[:, 2] < -0.5)

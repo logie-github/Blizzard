@@ -272,7 +272,7 @@ class WrathppBodyTest {
         WrathppBody.remove(store)
         WrathppBody.apply(store, client, server, data)
         assertArrayEquals(looks, File(female(client), "HumanFemale.m2").readBytes())
-        File(female(client), "HumanFemale00.skin").writeBytes(WrathppBodyLayerTest.skin(65535 - 9 - 5))
+        File(female(client), "HumanFemale00.skin").writeBytes(WrathppBodyLayerTest.skin(WrathppBodyLayer.WIDE_MAX_INDICES - 9 - 5))
         bodyZip(l).inputStream().use { WrathppBody.importZip(store, it) }
         val full = WrathppBody.apply(store, client, server, data)
         assertTrue(full, full.contains("Human: made for other looks, and these leave the layer no room (5 indices free, 6 needed): left as drawn"))

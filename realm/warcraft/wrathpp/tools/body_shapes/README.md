@@ -26,7 +26,7 @@ vertex data and a skin made from the looks' own model.
    it is drawn with; the package's list carries each race's entry (`layer`) for the app to make the layer itself.
 8. `check.py PACKAGE.zip LOOKS_CLIENT_DIR`: every model the package makes checked as the 3.3.5 client loads it (the
    header's arrays and texture names in the file, the combiner list, the skin's arrays, each section's vertices, indices
-   and bones, each batch's references, the 16-bit section starts, the layer's batch and section).
+   and bones, each batch's references, the section starts read wide, the layer's batch and section).
 
 9. `measure.py LOOKS_DIR RACES.json Name=id ...`: a race's entry of `races.json` measured on the looks' own woman (her scale
    from the hip and knee key bones, the fold estimated, the body's sections, the hair patch; a race without hair

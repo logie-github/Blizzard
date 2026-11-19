@@ -2,12 +2,14 @@
 
 Each model the package makes, checked as the 3.3.5 client loads it (the pinned decompilation): every header array
 inside the file (M2Init), texture names inside it, the combiner list there when flag 0x8 is set; the skin's arrays
-inside it; each section's vertices, indices and bones in range, its first index within 16 bits; each batch's section,
+inside it; each section's vertices, indices and bones in range, its first index read as the Wrath++ client reads it (wide: the level, skinwide.py); each batch's section,
 material, textures, coordinates, weights, transforms and combiner in range; the layer's batch and section as meant."""
 import sys, struct, json, zipfile, hashlib
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import layer
+import refine
+from skinwide import wide_index_start
 LOOKS = sys.argv[2]
 z = zipfile.ZipFile(sys.argv[1]); man = json.loads(z.read('wrathpp-body.json'))
 SIZES = {0x08: 1, 0x14: 4, 0x1C: 64, 0x24: 2, 0x2C: 88, 0x34: 2, 0x3C: 48, 0x48: 40, 0x50: 16, 0x58: 20, 0x60: 60, 0x68: 2, 0x70: 4,
@@ -47,12 +49,15 @@ for mo in man['models']:
     props = sk[hdr[5]:hdr[5] + 4 * hdr[4]]
     secs = [struct.unpack_from('<10H7f', sk, hdr[7] + i * 48) for i in range(hdr[6])]
     bats = [struct.unpack_from('<BbHHHHHHHHHHH', sk, hdr[9] + i * 24) for i in range(hdr[8])]
-    need(len(si) <= 0xFFFF, '%d indices' % len(si))
+    need(len(si) <= refine.M2.index_budget(), '%d indices' % len(si))
+    need(len(sv) <= refine.M2.SKIN_VERTEX_LIMIT, '%d skin vertices' % len(sv))
     need(all(v < nverts for v in sv), 'skin vertex past the model vertices')
     for k, s in enumerate(secs):
-        need(s[2] + s[3] <= len(sv) and s[4] + s[5] <= len(si), 'section %d range' % k)
+        st = wide_index_start(len(si), s[1], s[4], s[5])       # the client's read of the start (skinwide.py)
+        need(s[1] == 0 or st != s[4], 'section %d: level %d is no wide start' % (k, s[1]))
+        need(s[2] + s[3] <= len(sv) and st + s[5] <= len(si), 'section %d range' % k)
         need(s[7] + s[6] <= len(boneC), 'section %d bones' % k)
-        idx = si[s[4]:s[4] + s[5]]
+        idx = si[st:st + s[5]]
         need(all(s[2] <= i < s[2] + s[3] for i in idx), 'section %d index outside its vertices' % k)
         for j in range(s[2], s[2] + s[3]):
             w = m[A[0x3C][1] + sv[j] * 48 + 12:A[0x3C][1] + sv[j] * 48 + 16]
@@ -69,7 +74,7 @@ for mo in man['models']:
     lay = [b for b in bats if secs[b[3]][0] == 1901]
     need(len(lay) == 1 and lay[0][8] == 2 and lay[0][2] == layer.LAYER_COMBINER and [tex[texc[lay[0][9]]][0], tex[texc[lay[0][9] + 1]][0]] == [first, 11]
          and coordc[lay[0][10]:lay[0][10] + 2] == [0, 1], 'the layer batch')
-    need(sum(1 for s in secs if s[0] == 1901) == 1 and [s for s in secs if s[0] == 1901][0][4] <= 0xFFFF, 'the layer section')
+    need(sum(1 for s in secs if s[0] == 1901) == 1 and wide_index_start(len(si), [s for s in secs if s[0] == 1901][0][1], [s for s in secs if s[0] == 1901][0][4], [s for s in secs if s[0] == 1901][0][5]) + [s for s in secs if s[0] == 1901][0][5] == len(si), 'the layer section (the skin\'s last indices)')
     need(all(b[2] == 0 for b in bats if secs[b[3]][0] != 1901), 'other batches combiner 0')
     print('%-10s shape %d: %d batches, %d sections, %d indices: %s' % (mo['race'], mo['shape'], len(bats), len(secs), len(si), 'ok' if not probs else probs[:5]))
     total += len(probs)

@@ -15,7 +15,7 @@ N0 = rec[:, 20:32].copy().view('<f4').reshape(nv, 3).astype(np.float64)
 UV0 = rec[:, 32:40].copy().view('<f4').reshape(nv, 2).astype(np.float64)
 d = json.load(open(data)); mv = np.frombuffer(base64.b64decode(d['mv']), np.uint32).astype(np.int64)
 v, ix, pp, secs, bt, bn, mx = refine.read_skin(skb)
-tris = np.concatenate([v[ix[s[4] + s[1] * 65536: s[4] + s[1] * 65536 + s[5]]].reshape(-1, 3) for s in secs])
+tris = np.concatenate([v[ix[refine.section_slice(ix, s)]].reshape(-1, 3) for s in secs])
 f = lambda s: np.frombuffer(base64.b64decode(s), np.float32).astype(np.float64)
 key = np.round(P0, 5); _, weld = np.unique(key, axis=0, return_inverse=True); weld = weld.ravel()
 def vnormals(P):

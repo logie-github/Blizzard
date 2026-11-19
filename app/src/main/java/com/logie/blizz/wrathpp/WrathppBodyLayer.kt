@@ -40,7 +40,21 @@ object WrathppBodyLayer {
     private const val FLAG_COMBINERS = 0x8
     private const val MAX_BONES = 64
     private const val VERT = 48
+    /** What a stock 3.3.5 skin holds: a section's start is 16 bits there. */
     const val MAX_INDICES = 0xFFFF
+    /**
+     * What a wide skin holds (Wrath++'s own client reads a section's start wide, `skinwide.py` / `wide_index_start`: the high
+     * half in the section's level, the id's top half-word, taken when the window lies inside the skin): the converter's
+     * `m2.WIDE_INDEX_BUDGET`. The skin's vertices stay under 65536 and a section's own count under 65536.
+     */
+    const val WIDE_MAX_INDICES = 262144
+    const val MAX_SKIN_VERTICES = 0xFFFF
+
+    /** The client's M2SkinSectionIndexStart: [level] << 16 | [start], when its window of [count] lies inside the skin's [total] indices. */
+    fun wideStart(total: Int, level: Int, start: Int, count: Int): Int {
+        val wide = (level shl 16) or start
+        return if (wide != start && wide <= total && count <= total - wide) wide else start
+    }
 
     // the header's arrays this changes
     private const val NAME = 0x08
@@ -136,7 +150,7 @@ object WrathppBodyLayer {
      * layer's would pass [maxIndices], [IOException] for a model this can't be done to (not 3.3.5's, a combiner list of its
      * own, no body under the layer, more bones than a section takes).
      */
-    fun add(m2: ByteArray, skin: ByteArray, vertices: ByteArray?, p: Params, folder: String, maxIndices: Int = MAX_INDICES): Made {
+    fun add(m2: ByteArray, skin: ByteArray, vertices: ByteArray?, p: Params, folder: String, maxIndices: Int = WIDE_MAX_INDICES): Made {
         if (m2.size < 0x138 || String(m2, 0, 4, Charsets.ISO_8859_1) != "MD20") throw IOException("not a 3.3.5 model")
         val h = le(m2)
         val flags = h.getInt(0x10)
@@ -157,8 +171,8 @@ object WrathppBodyLayer {
         var owner = -1
         for ((si, s) in sk.secs.withIndex()) {
             if (u16(s, 0) !in p.body) continue
-            val st = u16(s, 8) + u16(s, 2) * 65536
             val count = u16(s, 10)
+            val st = wideStart(sk.idx.size, u16(s, 2), u16(s, 8), count)
             if (st < 0 || st + count > sk.idx.size) throw IOException("a section's indices leave the skin")
             var t = 0
             while (t + 2 < count) {
@@ -183,8 +197,8 @@ object WrathppBodyLayer {
         val local = HashMap<Int, Int>()
         used.forEachIndexed { j, g -> local[g] = j }
         val free = maxIndices - sk.idx.size
-        if (sk.idx.size > 0xFFFF || tris.size * 3 > free) throw NoRoom(free, tris.size * 3)
-        if (sk.verts.size + used.size > 0xFFFF) throw IOException("too many skin vertices")
+        if (tris.size * 3 > free || tris.size * 3 > 0xFFFF) throw NoRoom(free, tris.size * 3)
+        if (sk.verts.size + used.size > MAX_SKIN_VERTICES) throw IOException("too many skin vertices")
 
         // the layer's vertices: the body's own lifted, both texture coordinates its own
         val layer = ByteArray(used.size * VERT)
@@ -293,7 +307,7 @@ object WrathppBodyLayer {
         val verts2 = sk.verts + IntArray(used.size) { nv + it }
         val idx2 = sk.idx + IntArray(tris.size * 3) { nsv + local.getValue(tris[it / 3][it % 3]) }
         val section = ByteBuffer.allocate(48).order(ByteOrder.LITTLE_ENDIAN)
-        for (x in intArrayOf(GEOSET, 0, nsv, used.size, start, tris.size * 3, bones.size, bc, influences, centreBone)) section.putShort(x.toShort())
+        for (x in intArrayOf(GEOSET, start ushr 16, nsv, used.size, start and 0xFFFF, tris.size * 3, bones.size, bc, influences, centreBone)) section.putShort(x.toShort())
         for (x in centre) section.putFloat(x.toFloat())
         for (x in centre) section.putFloat(x.toFloat())
         section.putFloat(radius.toFloat())

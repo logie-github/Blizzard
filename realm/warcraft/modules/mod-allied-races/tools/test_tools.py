@@ -326,5 +326,52 @@ try:
         check(True, "a geoset the model lacks is refused")
 finally:
     m2.chunks_of, m2.OwnSkeleton, m2.Model, m2.Skin, m2.map_bones = _real
+
+# Wide skin indices (skinwide.py: Wrath++'s client, M2SkinSectionIndexStart): the high half of a section's start in its level.
+import skinwide  # noqa: E402
+check(skinwide.wide_index_start(70000, 0, 1234, 300) == 1234, "no level: the 16-bit start stands")
+check(skinwide.wide_index_start(100000, 1, 4464, 300) == 70000, "level 1, start 4464: the section starts at 70000")
+check(skinwide.wide_index_start(70300, 1, 4464, 300) == 70000, "...its window ends exactly at the skin's last index")
+check(skinwide.wide_index_start(70299, 1, 4464, 300) == 4464, "...a window past the skin's end: the 16-bit start stands (a marker, not a start)")
+check(skinwide.wide_index_start(65535, 5, 10, 3) == 10, "a level on a skin of 65535 indices or fewer is no start")
+check(skinwide.wide_index_start(200000, 2, 0, 65535) == 131072, "level 2, start 0, the most a section can count")
+check(skinwide.geoset_id(100000, 1801, 1, 4464, 300) == 1801 and skinwide.geoset_id(100000, 1801, 0, 5, 3) == 1801,
+      "the geoset id is the low half when the wide start was taken")
+check(skinwide.geoset_id(100, 1801, 1, 4464, 300) == (1 << 16 | 1801), "...the whole field when the level was no start")
+
+
+def _wide_skin(sections, n_indices):
+    """A skin file (the layout m2.py writes): [sections] as (id, level, vstart, vcount, istart, icount); n_indices indices."""
+    body = bytearray()
+    head = 48
+
+    def put(payload):
+        while (head + len(body)) % 16:
+            body.append(0)
+        at = head + len(body)
+        body.extend(payload)
+        return at
+    n_vertices = 9
+    parts = [(n_vertices, put(struct.pack("<%dH" % n_vertices, *range(n_vertices)))),
+             (n_indices, put(struct.pack("<%dH" % n_indices, *[(i % 3) + 3 * ((i // 3) % 3) for i in range(n_indices)]))),
+             (n_vertices, put(bytes(4 * n_vertices))),
+             (len(sections), put(b"".join(struct.pack("<10H7f", i, lv, vs, vc, ist, ic, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0) for i, lv, vs, vc, ist, ic in sections))),
+             (0, put(b""))]
+    out = bytearray(b"SKIN")
+    for count, offset in parts:
+        out += struct.pack("<II", count, offset)
+    out += struct.pack("<I", 64)
+    return bytes(out) + bytes(body)
+
+
+import render_m2  # noqa: E402
+_wide = _wide_skin([(1, 0, 0, 9, 0, 6), (2, 1, 4464, 9, 4464, 6)], 70006)
+with tempfile.TemporaryDirectory() as _d:
+    _p = os.path.join(_d, "w.skin")
+    open(_p, "wb").write(_wide)
+    _rs = render_m2.Skin(_p)
+    check(len(_rs.indices) == 70006 and _rs.sections[1][1] == 1 and _rs.sections[1][4] == 4464, "the renderer reads a wide skin's level and start")
+    _starts = [skinwide.wide_index_start(len(_rs.indices), s[1], s[4], s[5]) for s in _rs.sections]
+    check(_starts == [0, 70000], "...and the wide start of its second section: %s" % _starts)
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)

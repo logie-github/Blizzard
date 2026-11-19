@@ -70,7 +70,7 @@ def f32(rec, a, b):
 def body_of(skb, ids):
     """(the body's vertices, its triangles, every triangle of the skin) as model vertex ids"""
     verts, idx, _, secs, _, _, _ = refine.read_skin(skb)
-    tri = lambda s: verts[idx[s[4] + s[1] * 65536: s[4] + s[1] * 65536 + s[5]]].reshape(-1, 3)
+    tri = lambda s: verts[idx[refine.section_slice(idx, s)]].reshape(-1, 3)
     body = np.concatenate([tri(s) for s in secs if s[0] in ids])
     return np.unique(body), body, np.concatenate([tri(s) for s in secs])
 
@@ -265,8 +265,8 @@ def carry_race(field, base, skin, R, log):
     # triangle costs about 10 indices (its own three more, its neighbours' halves)
     verts, idx, _, secs, _, _, _ = refine.read_skin(skin)
     tier = lambda s: M2.tier_of(s[0])
-    room = (65535 - len(idx)) + 0.5 * sum(s[5] for s in secs if tier(s) == "gear" and s[0] % 100 != 1) + 0.08 * sum(s[5] for s in secs if tier(s) == "hair")
-    every = np.concatenate([verts[idx[s[4] + s[1] * 65536: s[4] + s[1] * 65536 + s[5]]].reshape(-1, 3) for s in secs])
+    room = min(M2.index_budget() - len(idx), 6 * (M2.SKIN_VERTEX_LIMIT - len(verts))) + 0.5 * sum(s[5] for s in secs if tier(s) == "gear" and s[0] % 100 != 1) + 0.08 * sum(s[5] for s in secs if tier(s) == "hair")
+    every = np.concatenate([verts[idx[refine.section_slice(idx, s)]].reshape(-1, 3) for s in secs])
     of_tri = np.sort(np.array([max(reach.get(int(v), 0.0) for v in t) for t in every]))[::-1]
     most = max(1, int(0.4 * room / 10))
     th = max(PICK * k, float(of_tri[min(most, len(of_tri) - 1)]))
