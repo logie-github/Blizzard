@@ -196,7 +196,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
     # Void tentacles: today a switch beside the hair style, each style with its own shape (a
     # group 2 geoset). They go on the feature slider (below), one variant a shape, named for the
     # style the shape was made for: a copy of every style with its tentacles on would double the
-    # hair's triangles, and 3.3.5 can address 65535 indices in a model (m2.py).
+    # hair's triangles, and a skin has a budget of indices and vertices (m2.py: wide skins, 262144 indices, 65535 vertices).
     tentacles = tables.option_choices(model_id, "Tentacles", only_available=False)
     hardcoded = {}
     hardcoded_files = {}

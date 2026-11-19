@@ -1,5 +1,5 @@
 """Parts a mod hangs on a character (wxl.m2): models of their own, posed by the character's bones every frame
-(WXL_M2_ATTACH_FOLLOW_BONES), for the Shadowlands options a 3.3.5 skin has no room for: a skin holds 65535 indices and
+(WXL_M2_ATTACH_FOLLOW_BONES), for the Shadowlands options a 3.3.5 skin has no room for: a skin has a budget of indices and vertices (m2.py) and
 the character's hair and gear already fill them.
 
   head_shell(read, model, out_dir, log)   a shell over the character's head (today's head geosets, group 32, lifted 0.4 mm),

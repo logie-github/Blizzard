@@ -4,9 +4,10 @@ every vertex keeps its texture coordinates, normal and bones). Boundaries and te
 kept: a vertex on an open edge, or sharing its position with another vertex (the two sides of a
 seam), stays where it is.
 
-3.3.5 reads a mesh section's triangle start as a 16-bit number (the modern format's high word is
-lost on it), so a model's sections have to fit in 65535 indices; today's character models have
-twice that, and the HD look's models were cut down the same way.
+A stock 3.3.5 reads a mesh section's triangle start as a 16-bit number, so a model's sections have to fit in
+65535 indices; today's character models have twice that. Wrath++'s client reads wide starts (m2.py, skinwide.py), so
+m2.convert cuts only what would pass the skin's vertex limit (65535) or the wide budget (m2.WIDE_INDEX_BUDGET), or
+everything to 65535 with WRATHPP_WIDE_SKINS=0.
 """
 import heapq
 
