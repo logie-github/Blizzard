@@ -10,7 +10,8 @@ HUMAN_V1.zip: the format 1 zip (pack.py) of her shapes, made for the looks given
 refined model before the shapes (refine.py's, Character/Human/Female/HumanFemale.m2), whose vertices the zip's
 blocks are in the order of. The field is yours as the zip is: never in the repository.
 
-carry: for each race of RACES.json (or those named; the Human's own entry is copied from HUMAN_V1.zip), a format 1
+carry: for each race of RACES.json (or those named; the Human's own entry is copied from HUMAN_V1.zip, or with "-" in
+its place she takes the field on her own mesh as the others do), a format 1
 entry in OUT_V1.zip, which pack2.py takes as it takes the Human's:
   - by region: a vertex of her body takes the field of the Human's body at the same place of the body texture (the 4
     nearest of the Human's vertices there, on the same side of the body; nothing where the Human has no vertex near);
@@ -306,8 +307,10 @@ def carry_race(field, base, skin, R, log):
 def carry(source, human_v1, looks, races_json, out, only=()):
     field = Field(source)
     races = json.load(open(races_json))
-    hz = zipfile.ZipFile(human_v1)
-    hman = json.loads(hz.read("wrathpp-body.json"))
+    # (HUMAN_V1 "-": no zip of the Human's own shapes, which were made for one looks' model; she takes the field as every
+    # other race does, on her own mesh: what CI does, with the field alone, for whatever looks are released)
+    hz = zipfile.ZipFile(human_v1) if human_v1 != "-" else None
+    hman = json.loads(hz.read("wrathpp-body.json")) if hz else None
     man = {"format": 1, "kind": "wrathpp-body", "presets": PRESETS, "default": "Curvy", "models": []}
     report = {}
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
@@ -316,7 +319,7 @@ def carry(source, human_v1, looks, races_json, out, only=()):
                 continue
             rel = "Character/%s/Female/%sFemale" % (race, race)
             base = open(os.path.join(looks, "client", rel + ".m2"), "rb").read()
-            if race == "Human":
+            if race == "Human" and hz:
                 e = next(m for m in hman["models"] if m["race"] == "Human")
                 if e["looks_sha256"] != sha(base) and e.get("looks_struct_sha256") != struct_sha(base):
                     raise SystemExit("the Human's shapes were made for other looks: rebase.py first")

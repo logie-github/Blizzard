@@ -2,9 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/WarcraftXL-Labs/sdk/2920b6e3143169a4244dde6e9d832cd7721f2489/schema/mod.json",
   "id": "wrathpp.native",
   "name": "Wrath++ native",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "abi": "0.1.46",
-  "description": "What Wrath++'s interface can't do in the stock 32-bit client: the creator's choices per customization (WrathPP_Get/SetCustomization), who is made (GetCreating), the outfit (SetGear), the log (WrathPP_Log), the screen for the app's touch (SetScreen), the body options' layer on bare legs (a GeosRenderPrep detour), the parts a character wears (SetOverlay, ApplyLook) a woman's soft body (SetSoftBody: breast bone springs) and creatures' skins composed (an Init detour).",
+  "description": "What Wrath++'s interface can't do in the stock 32-bit client: the creator's choices per customization (WrathPP_Get/SetCustomization), who is made (GetCreating), the outfit (SetGear), the log (WrathPP_Log), the screen for the app's touch (SetScreen), the body options' layer on bare legs (a GeosRenderPrep detour) and shape in the creator (SetBodyShape), the parts a character wears (SetOverlay, ApplyLook) a woman's soft body (SetSoftBody: breast bone springs) and creatures' skins composed (an Init detour).",
   "binaries": {
     "win-x86": "bin/x86/wrathpp-native.dll"
   },
@@ -17,6 +17,10 @@
   "optional": [
     {
       "service": "wxl.hook.raw",
+      "version": 1
+    },
+    {
+      "service": "wxl.point",
       "version": 1
     },
     {

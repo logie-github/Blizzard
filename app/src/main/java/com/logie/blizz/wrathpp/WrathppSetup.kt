@@ -85,6 +85,17 @@ object WrathppSetup {
             val found = runCatching { ImportFinder.find(*WrathppBody.NAMES) }.getOrNull()
             val taken = runCatching { WrathppBody.lookFor(store, found) }.onFailure { e -> notes.append("body options package not read: ${e.message}\n") }.getOrNull()
             if (taken != null) notes.append("body options package found (${found?.parent}): $taken models\n")
+            // (Wrath++'s own package, from its release, where nothing of yours as complete is in: WrathppBodyFetch. Without a
+            // package no body option is drawn: the Body tab's rows are there and saved, and every woman stays as drawn.)
+            runCatching {
+                val has = WrathppBody.installed(store)
+                WrathppBodyFetch.ensure(store, java.io.File(layout.wrathppClient.parentFile, "wrathpp-body.zip.part"),
+                    "https://github.com/${com.logie.blizz.BuildConfig.UPDATE_REPO}/releases/download/${WrathppBodyFetch.RELEASE}",
+                    update = refresh, removed = WrathppBody.removed(store), installed = if (has) WrathppBody.sha(store) else null,
+                    models = if (has) WrathppBody.list(store)?.optJSONArray("models")?.length() ?: 0 else 0,
+                    fetchText = WrathppAddon::fetchText, download = WrathppAddon::download, sha256 = WrathppAddon::sha256,
+                    importZip = { WrathppBody.importZip(store, it) }, say = report::say)
+            }.onSuccess { notes.append("body options package: $it\n") }.onFailure { e -> notes.append("body options package FAILED: ${e.message}\n") }
             WrathppBody.apply(store, layout.wrathppClient, layout.wrathppServer, layout.data, report::say)
         }
             .onSuccess { notes.append("body options: $it\n") }
@@ -253,7 +264,12 @@ object WrathppSetup {
                 "Wrath++ start: build ${com.logie.blizz.BuildConfig.VERSION_CODE}, add-on ${addon.take(8)}, looks ${looks.take(8)}",
                 com.logie.blizz.reports.BugReports.body("Wrath++ start", "What Wrath++'s game was started with",
                     listOf("Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
-                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- the world server's load: its >> Loaded ... in N ms lines (world.out) ---\n$worldLoad\n\n--- WarcraftXL.log ---\n$wxlLog"),
+                    // (the body keeps the end of its log, 20,000 characters: the setup's lines last, where they are kept. Until build 407 they
+                    // were first, before the world server's 400 load lines and the runtime's 120, and no start report since those were
+                    // added said a word of the setup: the looks, the body options, the creator's patch. The long logs are comments now.)
+                    log = startLog(files, archives, creator, realm, setup)),
+                comments = com.logie.blizz.reports.BugReports.chunks("The world server's load: its >> Loaded ... in N ms lines (world.out)", com.logie.blizz.reports.BugReports.redact(worldLoad)) +
+                    com.logie.blizz.reports.BugReports.chunks("WarcraftXL.log (its last 120 lines)", com.logie.blizz.reports.BugReports.redact(wxlLog)),
             ))
             last.parentFile?.mkdirs()
             last.writeText(state)
@@ -265,6 +281,14 @@ object WrathppSetup {
      * reads, and when it says the world is initialized. Kept in the start report so a phone's real timings show where the
      * start goes (nothing of the sort was recorded before). At most 400 lines, the colours of the console taken out.
      */
+    /**
+     * The start report's own log (its issue's body, which keeps the end of it): the files and archives, the creator's lines, the
+     * realm's Wrath++ lines, and last the setup's (`setup.log`: the add-on, looks, body options, undead skins, creator patch).
+     */
+    internal fun startLog(files: String, archives: String, creator: List<String>, realm: String, setup: String): String =
+        "$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n" +
+            "--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- the setup (setup.log) ---\n${setup.trimEnd()}"
+
     internal fun worldLoadLines(file: java.io.File): String {
         if (!file.isFile) return "no ${file.name}"
         val text = java.io.RandomAccessFile(file, "r").use { f ->
