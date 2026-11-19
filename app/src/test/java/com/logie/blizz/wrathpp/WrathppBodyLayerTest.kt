@@ -155,7 +155,7 @@ class WrathppBodyLayerTest {
 
     @Test fun aLayerThatStartsPastTheFirst65535IndicesIsWrittenWideAndReadBack() {
         // the skin has 70000 indices: the layer's section starts at 70000 = 1 * 65536 + 4464, the level (the id's top half-word) 1
-        val made = WrathppBodyLayer.add(model(), skin(70000 - 9), null, params, "Character\\Gnome\\Female")
+        val made = WrathppBodyLayer.add(model(), skin(70000 - 9), null, params, "Character\\Gnome\\Female", WrathppBodyLayer.WIDE_MAX_INDICES)
         val s = made.skin
         assertEquals(70006, int(s, 12))
         val sec = int(s, 32) + 48
@@ -174,10 +174,10 @@ class WrathppBodyLayerTest {
 
     @Test fun aSkinWithoutRoomOrABodyElsewhereIsRefused() {
         val wide = WrathppBodyLayer.WIDE_MAX_INDICES
-        try { WrathppBodyLayer.add(model(), skin(wide - 9 - 5), null, params, "Character\\Gnome\\Female"); fail("no room") } catch (e: WrathppBodyLayer.NoRoom) {
+        try { WrathppBodyLayer.add(model(), skin(wide - 9 - 5), null, params, "Character\\Gnome\\Female", wide); fail("no room") } catch (e: WrathppBodyLayer.NoRoom) {
             assertEquals(5, e.free); assertEquals(6, e.needed)
         }
-        assertNotNull(WrathppBodyLayer.add(model(), skin(wide - 9 - 6), null, params, "Character\\Gnome\\Female"))
+        assertNotNull(WrathppBodyLayer.add(model(), skin(wide - 9 - 6), null, params, "Character\\Gnome\\Female", wide))
         // a stock client's skin (16-bit starts: maxIndices = MAX_INDICES) has its own, smaller room
         val stock = WrathppBodyLayer.MAX_INDICES
         try { WrathppBodyLayer.add(model(), skin(stock - 9 - 5), null, params, "x", stock); fail("no room") } catch (e: WrathppBodyLayer.NoRoom) {

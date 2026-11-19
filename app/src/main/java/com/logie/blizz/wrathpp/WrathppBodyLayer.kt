@@ -150,7 +150,7 @@ object WrathppBodyLayer {
      * layer's would pass [maxIndices], [IOException] for a model this can't be done to (not 3.3.5's, a combiner list of its
      * own, no body under the layer, more bones than a section takes).
      */
-    fun add(m2: ByteArray, skin: ByteArray, vertices: ByteArray?, p: Params, folder: String, maxIndices: Int = WIDE_MAX_INDICES): Made {
+    fun add(m2: ByteArray, skin: ByteArray, vertices: ByteArray?, p: Params, folder: String, maxIndices: Int = MAX_INDICES): Made {
         if (m2.size < 0x138 || String(m2, 0, 4, Charsets.ISO_8859_1) != "MD20") throw IOException("not a 3.3.5 model")
         val h = le(m2)
         val flags = h.getInt(0x10)
