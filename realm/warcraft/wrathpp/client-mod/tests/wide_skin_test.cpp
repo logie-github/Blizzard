@@ -277,6 +277,15 @@ int main(int argc, char** argv)
         Check(Calibrate(pool.data(), p, s.indices.data()) == Rebase::Unknown, "a pool that is not the stock pass's: not calibrated, nothing is written");
     }
 
+    {
+        const Skin s = Make({300, 600, 900});
+        Check(Sane(s.sections.data(), 3, s.batches.data(), 3, s.indices.data(), 1800, s.vertices), "a skin read where it is reads as one");
+        Check(!Sane(s.sections.data() + 1, 2, s.batches.data(), 3, s.indices.data(), 1800, s.vertices), "  read from another place: a batch of no section, not one");
+        Check(!Sane(s.sections.data(), 3, s.batches.data(), 3, s.indices.data(), 900, s.vertices) &&
+              !Sane(s.sections.data(), 3, s.batches.data(), 3, s.indices.data(), 1800, 10) && !Sane(nullptr, 3, s.batches.data(), 3, s.indices.data(), 1800, s.vertices),
+              "  nor with fewer indices or vertices than its sections name, nor with no sections");
+    }
+
     std::printf("-- names, the list, the switch\n");
     Check(ModelOfSkin("Character\\Human\\Female\\HumanFemale00.skin") == "character\\human\\female\\humanfemale", "the model of a first skin profile");
     Check(ModelOfSkin("character/human/female/humanfemale00.SKIN") == "character\\human\\female\\humanfemale", "  whatever its case and slashes");

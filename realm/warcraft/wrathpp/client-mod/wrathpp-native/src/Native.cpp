@@ -1264,6 +1264,9 @@ namespace
     std::atomic<bool> g_wideOn{false};
     std::atomic<bool> g_wideStarted{false};
     std::atomic<uint32_t> g_wideGiven{0}, g_wideRefused{0};
+    std::atomic<bool> g_wideProven{false};           // a skin of the game's was seen parsed and read right (WideParsed)
+    std::atomic<bool> g_widePending{false};
+    std::vector<std::pair<uintptr_t, WideSkin>> g_wideParsed;   // skins parsed, for the drawing thread to take (g_wideLock)
     std::mutex g_wideLock;
     std::map<std::string, wide::Listed> g_wideListed;      // the looks' list, by model
     std::map<std::string, WideModel> g_wideModels;         // the model files parsed, by model
@@ -1365,6 +1368,28 @@ namespace
             }
     }
 
+    /// The skins parsed since the last draw into the drawing thread's own list (a skin is parsed wherever the loader's
+    /// callback runs; only the drawing thread reads the list). An entry that is no wide skin takes off what was at its address.
+    void WideTake()
+    {
+        std::vector<std::pair<uintptr_t, WideSkin>> parsed;
+        {
+            std::lock_guard<std::mutex> hold(g_wideLock);
+            parsed.swap(g_wideParsed);
+            g_widePending.store(false, std::memory_order_release);
+        }
+        for (auto& entry : parsed)
+        {
+            const auto old = g_wideSkins.find(entry.first);
+            if (old != g_wideSkins.end())
+            {
+                WideForget(&old->second, 0);
+                g_wideSkins.erase(old);
+            }
+            if (entry.second.plan.valid) g_wideSkins.emplace(entry.first, std::move(entry.second));
+        }
+    }
+
     /// A check did not hold: the far sections empty again (the stock function fills the pool for that), for good.
     void WideTakeBack(void* shared, WideSkin& w, uintptr_t copies, uintptr_t buf, const char* why)
     {
@@ -1387,7 +1412,8 @@ namespace
             // (the first fill, or a pool made anew: one instance of the skin's indices, 16 bits each)
             if (itemSize != 2 || items < w.plan.total || items > 0x40000)
             {
-                WideTakeBack(shared, w, w.whole ? copies : 0, buf, "the shared pool is not one of 16-bit indices for the skin");
+                // (not this skin's pool: nothing of the shared is touched)
+                WideTakeBack(shared, w, 0, buf, "the shared pool is not one of 16-bit indices for the skin");
                 return;
             }
             WideForget(&w, buf);
@@ -1437,6 +1463,7 @@ namespace
 
     int32_t __fastcall SharedSetIndicesDetour(void* shared, void* /*edx*/)
     {
+        if (g_widePending.load(std::memory_order_acquire)) WideTake();
         if (g_wideSkins.empty() && g_wideBufs.empty()) return g_sharedSetIndices(shared);
         uintptr_t skin = 0, buf = 0, copies = 0, pool = 0;
         uint32_t itemSize = 0, items = 0;
@@ -1634,40 +1661,61 @@ namespace
         wxl::Log(WXL_LOG_INFO, kTag, "wide skins: on: the looks have a whole skin for {} models", count);
     }
 
-    /// A skin profile has been parsed (the main thread): a wide one is read, rewritten for the stock client and kept.
-    void WideParsed(std::string_view path, void* skin)
+    /// A skin profile has been parsed: a wide one is read, rewritten for the stock client and handed to the drawing thread.
+    void WideParsedBody(const std::string_view* path, void* skin)
     {
-        if (!skin) return;
         const uintptr_t at = reinterpret_cast<uintptr_t>(skin);
-        const auto old = g_wideSkins.find(at);
-        if (old != g_wideSkins.end())
-        {
-            WideForget(&old->second, 0);        // (what was at this address is gone)
-            g_wideSkins.erase(old);
-        }
-        if (!wxl::M2FileService::Available()) return;
         const uint8_t* base = static_cast<const uint8_t*>(skin);
         const auto indices = wxl::M2FileService::Elements<uint16_t>(base + kSkinIndices);
         const auto sections = wxl::M2FileService::Elements<wide::Section>(base + kSkinSections);
         const auto batches = wxl::M2FileService::Elements<wide::Batch>(base + kSkinBatches);
         const uint32_t vertices = *reinterpret_cast<const uint32_t*>(base + kSkinVertices);
-        wide::Plan plan = wide::Read(sections.data, sections.size(), batches.data, batches.size(), indices.data, indices.size(), vertices);
-        if (!plan.wide) return;
-        wide::Normalize(sections.data, sections.size(), plan);
-        if (!plan.valid)
+        WideSkin w;
+        w.plan = wide::Read(sections.data, sections.size(), batches.data, batches.size(), indices.data, indices.size(), vertices);
+        if (!w.plan.wide)
         {
-            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {}: not a skin this can draw whole ({}): its sections past 65,535 stay empty", path, plan.why);
-            return;
+            // (one of the game's own: that it reads as a skin shows the arrays are where this looks for them; only then is
+            // any whole skin asked for)
+            if (!g_wideProven.load(std::memory_order_relaxed) && wide::Sane(sections.data, sections.size(), batches.data, batches.size(), indices.data, indices.size(), vertices))
+            {
+                g_wideProven.store(true);
+                wxl::Log(WXL_LOG_INFO, kTag, "wide skins: the game's skins read right ({}: {} indices, {} sections): whole skins may be read", *path, indices.size(), sections.size());
+            }
         }
-        if (!g_wideHooked)
+        else
         {
-            wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {}: a whole skin with the hooks not in: its {} sections past 65,535 stay empty", path, plan.farSections);
-            return;
+            wide::Normalize(sections.data, sections.size(), w.plan);
+            if (!w.plan.valid)
+                wxl::Log(WXL_LOG_WARN, kTag, "wide skins: {}: not a skin this can draw whole ({}): its sections past 65,535 stay empty", *path, w.plan.why);
+            w.indices = indices.data;
+            w.name = std::string(*path);
         }
-        WideSkin& w = g_wideSkins[at];
-        w.plan = std::move(plan);
-        w.indices = indices.data;
-        w.name = std::string(path);
+        // (to the drawing thread: the skin now at this address, or that what was there is gone)
+        std::lock_guard<std::mutex> hold(g_wideLock);
+        g_wideParsed.emplace_back(at, std::move(w));
+        g_widePending.store(true, std::memory_order_release);
+    }
+
+    bool WideParsedGuarded(const std::string_view* path, void* skin)
+    {
+        __try
+        {
+            WideParsedBody(path, skin);
+            return true;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+
+    void WideParsed(std::string_view path, void* skin)
+    {
+        // (nothing is read while the whole skins are off: the switch turns all of this off)
+        if (!skin || !g_wideOn.load(std::memory_order_relaxed)) return;
+        if (WideParsedGuarded(&path, skin)) return;
+        g_wideOn.store(false);
+        wxl::Log(WXL_LOG_ERROR, kTag, "wide skins: off: a fault while reading {}; the cut skins are drawn from here on", path);
     }
 
     class WideAssets final : public wxl::AssetScript
@@ -1698,6 +1746,7 @@ namespace
                 else if (parsed->second.vertices != listed->second.vertices || parsed->second.bytes != listed->second.bytes)
                     why = "its model file is not the one the whole skin was made for (the body options' own, or other looks)";
             }
+            if (!why && !g_wideProven.load(std::memory_order_relaxed)) why = "no skin of the game's has been seen read right yet";
             if (!why && !WideDevice()) why = "the game is not drawing with Direct3D 9";
             if (!why && !redirect.Write(wide::WideName(asked))) why = "no room for the name";
             if (why)

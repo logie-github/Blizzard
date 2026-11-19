@@ -198,6 +198,33 @@ namespace wrathpp::wide
     }
 
     /**
+     * Whether what was read as a parsed skin is one: sections, indices and batches there, each section's window inside the
+     * index array, whole triangles, its vertices the skin's, each batch a section's. Native.cpp asks this of the game's own
+     * skins before it lets a whole skin be read at all: that the arrays are found where it looks for them is then seen.
+     */
+    inline bool Sane(const Section* sections, uint32_t sectionCount, const Batch* batches, uint32_t batchCount,
+                     const uint16_t* indices, uint32_t indexCount, uint32_t vertexCount)
+    {
+        if (!sections || !batches || !indices || !sectionCount || !batchCount || indexCount < 3 || !vertexCount) return false;
+        if (sectionCount > 4096 || batchCount > 16384 || indexCount > 0x100000 || vertexCount > 0x10000) return false;
+        uint32_t total = 0;
+        for (uint32_t i = 0; i < sectionCount; i++)
+        {
+            const Section& s = sections[i];
+            const uint32_t start = FileStart(indexCount, s);
+            if (start > indexCount || s.indexCount > indexCount - start || s.indexCount % 3) return false;
+            if (static_cast<uint32_t>(s.vertexStart) + s.vertexCount > vertexCount) return false;
+            total += s.indexCount;
+        }
+        if (!total || total > indexCount) return false;
+        for (uint32_t b = 0; b < batchCount; b++)
+            if (batches[b].sectionIndex >= sectionCount) return false;
+        for (uint32_t j = 0; j < indexCount; j++)
+            if (indices[j] >= vertexCount) return false;
+        return true;
+    }
+
+    /**
      * The sections as the stock client is to see them (in memory, when the skin has been parsed): no level, and a far
      * section empty. A wide skin that failed its checks loses every section that carries a level the same way.
      */
