@@ -26,7 +26,7 @@ class WrathppSkinsTest {
             row(5, 1, 0, 0, "Character\\Human\\Male\\HumanMaleSkin00_00.blp", 0), row(6, 1, 0, 0, "Character\\Human\\Male\\HumanMaleSkin00_01.blp", 1),
             row(7, 5, 1, 0, "Character\\Scourge\\Female\\ScourgeFemaleUndeadSkin.blp", 0)))
         File(patch, "DBFilesClient/CharSections.dbc").writeBytes(table.write())
-        File(patch, WrathppRalia.STAMP).writeText("abc looks donors1 faces1\n")           // (as WrathppRalia.apply leaves it: the set is in the looks)
+        File(patch, WrathppRalia.STAMP).writeText("abc looks donors1 untinted1\n")           // (as WrathppRalia.apply leaves it: the set is in the looks)
         File(patch, WrathppRalia.NAMES).writeText("""{"format": 1, "models": {
             "1_1": {"name": "HumanFemale", "race": 1, "sex": 1, "skins": [
                 {"index": 0, "path": "Character\\Human\\Female\\HumanFemaleSkin00_00.blp", "retail": "humanfemaleskin00_00_hd.blp"},

@@ -162,7 +162,7 @@ object WrathppRalia {
         val rowsFile = File(patch, ROWS)
         val zipSha = if (installed(store)) sha(store) else null
         val looks = File(patch, WrathppLooks.MARKER).takeIf { it.isFile }?.readText()?.trim().orEmpty()
-        val want = "$zipSha $looks donors1 faces1"
+        val want = "$zipSha $looks donors1 untinted1"
         if (zipSha != null && stamp.isFile && stamp.readText().trim() == want) return rowsFile.takeIf { it.isFile }?.let { JSONObject(it.readText()).optInt("skins") } ?: 0
         // what an earlier set put in comes out first: the looks' own skins back, the underwear's textures back
         if (stamp.isFile || rowsFile.isFile) takeOut(patch, table, rowsFile)
@@ -227,12 +227,10 @@ object WrathppRalia {
         }
         val sourceOf = HashMap<Named, Named>()
         for ((n, src) in carriedFrom) sourceOf[n] = src
-        val tonedFaces = HashSet<String>()                      // face textures matched to their skin's new body (each once: the first skin naming it)
         val named = direct + carriedFrom.map { it.first }
         val changed = JSONArray()
         val added = JSONArray()
         var done = 0
-        var faces = 0
         for ((at, skin) in named.withIndex()) {
             say("Putting in Ralia's skins: ${at + 1} of ${named.size}", at.toFloat() / named.size)
             // the body: the set's left half as the 512 x 512 skin 3.3.5 composes from, over the looks' own (kept beside it)
@@ -247,22 +245,9 @@ object WrathppRalia {
             }
             if (body != null) {
                 over(target, Blp.writePalette(body))
-                // The head is not in the skin: 3.3.5 lays the face row's texture over the skin's face region, and the looks' face
-                // textures were made for the looks' own body. Where the set's body is another tone by the neck than the looks' own,
-                // this colour's face textures take the same change (the user: "skin tones aren't lining up").
-                val gain = looksOwn?.let { gain(neck(body), neck(it)) }
-                // (both of a face row's textures: the lower face, which meets the neck, and the upper one, which meets the lower)
-                if (gain != null && off(gain)) for (row in dbc.rows) {
-                    if (row[1] != skin.race || row[2] != skin.sex || row[3] != FACE || row[9] != skin.index) continue
-                    for (column in 4..5) {
-                        val path = row[column] as String
-                        if (path.isEmpty() || !tonedFaces.add(path.lowercase())) continue
-                        val face = File(patch, path.replace('\\', '/')).takeIf { it.isFile } ?: continue
-                        val picture = runCatching { Blp.read((File(face.path + ".orig").takeIf { it.isFile } ?: face).readBytes()) }.getOrNull() ?: continue
-                        over(face, Blp.writePalette(toned(picture, gain), alpha = translucent(picture)))
-                        faces++
-                    }
-                }
+                // (The face textures are left as the looks made them: they were made from today's own body textures, as the set's bodies
+                // were, so the head meets the body as it is. A tint of them by the difference at the neck, tried on 20 November 2026,
+                // acted only on skins carried over from another body (and one Draenei colour) and made 57 of its 83 neck seams worse by more than 0.5 dE, Nightborne most: README, Ralia and the faces.)
             }
             // its underwear (the row's two textures, pelvis and torso): the set's of the same number. An empty picture
             // (the women's: their bodies are drawn without) leaves the row without one; a painted one (the Forsaken
@@ -294,49 +279,10 @@ object WrathppRalia {
         }
         val allied = JSONArray()
         for (n in fromDonor) allied.put(JSONArray(listOf(n.race, n.sex, n.index)))
-        rowsFile.writeText(JSONObject().put("skins", done).put("faces", faces).put("rows", changed).put("added", added).put("allied", allied).toString())
+        rowsFile.writeText(JSONObject().put("skins", done).put("rows", changed).put("added", added).put("allied", allied).toString())
         write(table, dbc.write())
         stamp.writeText("$want\n")
         return done
-    }
-
-    /** How many face textures the set's skins had matched to them at the last [apply] (0: none needed it, or nothing is in). */
-    fun faces(client: File): Int = File(client, "Data/${WrathppLooks.PATCH}/$ROWS").takeIf { it.isFile }
-        ?.let { runCatching { JSONObject(it.readText()).optInt("faces") }.getOrNull() } ?: 0
-
-    /**
-     * A body picture's tone by the neck: the mean colour of the top rows of its right half (the upper torso's top edge in the body
-     * layout every model of the looks has: the converted models' neck seams lie in its first 8 rows of 512, read off their vertices).
-     */
-    internal fun neck(image: Blp.Image): DoubleArray {
-        val sum = DoubleArray(3)
-        val rows = maxOf(1, image.height / 32)
-        var n = 0
-        for (y in 0 until rows) for (x in image.width / 2 until image.width) {
-            val at = (y * image.width + x) * 4
-            for (c in 0 until 3) sum[c] += (image.rgba[at + c].toInt() and 255).toDouble()
-            n++
-        }
-        return DoubleArray(3) { sum[it] / maxOf(1, n) }
-    }
-
-    /** What takes the tone [from] to the tone [to], channel by channel (as [carried] does a pixel), within a half and twice. */
-    internal fun gain(to: DoubleArray, from: DoubleArray) = DoubleArray(3) { ((to[it] + 8.0) / (from[it] + 8.0)).coerceIn(0.5, 2.0) }
-
-    /** Whether a change of tone is one to make (4% in a channel; less is the palette's own noise). */
-    internal fun off(gain: DoubleArray) = gain.any { Math.abs(it - 1.0) >= 0.04 }
-
-    /** Whether a picture has any pixel not wholly opaque (a face texture's alpha is kept when it has one). */
-    private fun translucent(image: Blp.Image): Boolean { for (i in 0 until image.width * image.height) if ((image.rgba[i * 4 + 3].toInt() and 255) != 255) return true; return false }
-
-    /** [image] with each colour channel times its [gain]; the alpha as it was. */
-    internal fun toned(image: Blp.Image, gain: DoubleArray): Blp.Image {
-        val out = image.rgba.copyOf()
-        for (i in 0 until image.width * image.height) for (c in 0 until 3) {
-            val k = i * 4 + c
-            out[k] = ((image.rgba[k].toInt() and 255) * gain[c] + 0.5).toInt().coerceIn(0, 255).toByte()
-        }
-        return Blp.Image(image.width, image.height, out)
     }
 
     private fun mean(image: Blp.Image): DoubleArray {
