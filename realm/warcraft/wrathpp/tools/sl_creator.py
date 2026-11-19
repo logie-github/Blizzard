@@ -170,7 +170,7 @@ def build_model(tables, categories, race_id, sex, model, key_race=None):
                 # the Ralia import supplies: the creator offers it (`keep`) beside the skins the app's WrathppSkins.lua lists. A choice's
                 # number v is its skin's place in the looks (= its index in wrathpp-skins.json), which is what that list is of
                 for e, c in zip(option["choices"], have):
-                    if c["ID"] in tables.unlocked:
+                    if c["ID"] in tables.unlocked or c.get("keep"):
                         e["keep"] = True
         else:
             option["choices"] = [entry(tables, c, i) for i, c in enumerate(c for c in choices if tables.available(c))]

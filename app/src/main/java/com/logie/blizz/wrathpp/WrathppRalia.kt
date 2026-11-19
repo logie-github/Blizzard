@@ -165,6 +165,7 @@ object WrathppRalia {
         fun torso(retail: String) = retail.replace("skin00_", "nakedtorsoskin00_")
         val direct = names(patch).filter { has(it.retail) || has(pelvis(it.retail)) || has(torso(it.retail)) }
         if (direct.isEmpty()) return 0
+        val ownPicture = names(patch).filter { it.retail.isEmpty() }
         val dbc = WrathppUndead.Dbc.read(table.readBytes(), WrathppUndead.KINDS)
         // the looks' own picture of a skin (kept beside it once a set was put over it)
         fun own(path: String): Blp.Image? {
@@ -179,7 +180,8 @@ object WrathppRalia {
         for (skin in direct) ralia(skin.retail)?.let { bodies[skin] = it }
         val carriedFrom = ArrayList<Pair<Named, Named>>()
         for ((key, sources) in bodies.keys.groupBy { it.race to it.sex }) {
-            val known = direct.filter { (it.race to it.sex) == key }.map { it.index }.toSet()
+            // (skins the looks added from a picture of today's game, listed with no file name: their own picture is never replaced or carried over)
+            val known = (direct + ownPicture).filter { (it.race to it.sex) == key }.map { it.index }.toSet()
             val withLooks = sources.mapNotNull { src -> own(src.path)?.let { src to it } }
             if (withLooks.isEmpty()) continue
             val rows = dbc.rows.filter { it[1] == key.first && it[2] == key.second && it[3] == 0 && it[8] == 0 && (it[4] as String).isNotEmpty() &&

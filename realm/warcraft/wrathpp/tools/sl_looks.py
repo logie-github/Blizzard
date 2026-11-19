@@ -491,12 +491,17 @@ def table_rows(looks):
                 # (the second texture is the skin extra, which the game puts on the model's texture type 8: a model with fur has
                 # one a skin, textures.py; the Forsaken's is the whole texture of today, m2.py's bony pieces)
                 sections.append([race, sex, 0, names.skin(m, c), names.skin_extra(m, c) if m.get("skin_extra") or s.get("extra") else "", "", 17, 0, c])
-                if s["pelvis"]:
+                if s.get("bare"):
+                    sections.append([race, sex, 4, "", "", "", 17, 0, c])        # (an extra skin: its picture has the underwear painted in; the row stays)
+                elif s["pelvis"]:
                     sections.append([race, sex, 4, names.pelvis(m, c), names.torso(m, c) if s["torso"] else "", "", 17, 0, c])
             for fi, face in enumerate(m["faces"]):
                 for s in m["skins"]:
                     fid = names.face_file(m, face, s)
                     for eye in m["eyes"]:
+                        if s.get("bare"):                # an extra skin has its face and eyes painted in: the row stays, with no textures
+                            sections.append([race, sex, 1, "", "", "", 17, names.face_variation(m, fi, eye["index"]), s["index"]])
+                            continue
                         # 17 (0x11): a face of every class's, a death knight's too. 3.3.5's own faces are 1 (every class
                         # but a death knight) with a death knight's own faces beside them (5); today's game has no faces
                         # of a death knight's own, and with 1 the game counted NO face for a death knight of these races
@@ -628,7 +633,7 @@ def npc_numbers(m, race, sex, classic):
     def places(entries, number):
         ids = {}
         for i, e in enumerate(entries):
-            if "choice" in e:
+            if str(e.get("choice", "")).isdigit():              # (an extra skin's choice is a name: no creature has it)
                 ids.setdefault(int(e["choice"]), number(e, i))
         if not ids:
             return lambda n: 0
@@ -956,6 +961,13 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
     if specs:                                            # (the Dark Troll's tinted colours: made-up file ids, made when asked for)
         import dark_troll
         read = dark_troll.Resolver(read, specs)
+    extra_files = {}
+    for entry in looks["races"].values():
+        for model in entry["models"].values():
+            extra_files.update(model.get("extra_files", {}))
+    if extra_files:                                      # (extra skins: a made-up file id for a picture of today's game, extra_skins.py)
+        import extra_skins
+        read = extra_skins.Reader(read, extra_files, lambda build: allied_package.cached(os.path.join(cache, build), allied_package.wago_at(build)))
     client = os.path.join(out_dir, "client")
     written = []
     fallbacks = {}                                       # model name -> the (id, variation) of its sequences drawn as another animation
@@ -1317,6 +1329,9 @@ def main(argv):
         return 0
     if len(argv) == 4 and argv[1] in ("races", "allied"):
         looks = build_races(argv[2], ALLIED if argv[1] == "allied" else None)
+        if argv[1] == "races":
+            import extra_skins                           # (a picture of today's game made one more skin: extra_skins.EXTRA_SKINS)
+            extra_skins.extend(looks)
         with open(argv[3], "w") as f:
             json.dump(looks, f, indent=1, sort_keys=True)
         for entry in looks["races"].values():
