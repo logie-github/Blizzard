@@ -57,7 +57,6 @@ object WowLogin {
     fun versionOf(clientVersion: String?): String = when (clientVersion) {
         com.logie.blizz.game.OctoClientSetup.VERSION -> OCTO
         com.logie.blizz.game.LegionClientSetup.VERSION -> LEGION
-        "forever" -> com.logie.blizz.forever.ForeverPlay.VERSION // its own realm's account, not Wrath's
         else -> WRATH
     }
 

@@ -85,6 +85,13 @@ class WowGestureView(
      * as each character comes into the world.
      */
     private val interfaceFile = java.io.File(runFolder, "interface")
+    /**
+     * Wrath++'s creator's word on whether it is up and where its lists drag ([CreatorScreen]); only what was written since
+     * this screen was made counts (a second's slack for the file system's clock).
+     */
+    private val creatorFile = java.io.File(com.logie.blizz.wow.WowLayout.of(activity).wrathppClient, "Logs/wrathpp-screen.txt")
+    private val startedAt = System.currentTimeMillis() - 1000
+    private fun creatorWord(): String? = CreatorScreen.read(creatorFile, startedAt)
     private var lastTapX = 0f
     private var lastTapY = 0f
 
@@ -105,13 +112,13 @@ class WowGestureView(
     /** The text prompt on screen, if one is. */
     private var prompt: ComponentDialog? = null
     private var loginShown = false
+
     /**
-     * World of Warcraft: Forever only ([com.logie.blizz.game.GestureView.EXTRA_LAUNCHER]): the Forever Launcher (a
-     * Windows GUI) is on screen before the game. While it is up a tap is a plain left click at that point (its buttons),
-     * not the 3D game's cursor-reading tap, and no password is typed into it. It flips to the normal WoW gestures and
-     * login as soon as the game's own full-screen window appears ([watchForGameWindow]).
+     * Wrath++ run by WarcraftXL only ([com.logie.blizz.game.GestureView.EXTRA_READY_LOG]): its log, which says when the login
+     * screen's code is loaded; the password is typed then ([whenGameReady]). [readySince]: a log written before is another launch's.
      */
-    private var inLauncher = activity.intent.getBooleanExtra(com.logie.blizz.game.GestureView.EXTRA_LAUNCHER, false)
+    private val readyLog = activity.intent.getStringExtra(com.logie.blizz.game.GestureView.EXTRA_READY_LOG)?.let { java.io.File(it) }
+    private val readySince = System.currentTimeMillis() - READY_SLACK_MS
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
     /** The account in the game's login box (Config.wtf), if the launcher knows which. */
     private val account: String? get() = activity.intent.getStringExtra(EXTRA_LOGIN_NAME)
@@ -232,10 +239,6 @@ class WowGestureView(
 
     /** The game's first window is up (the loading screen closed): the login screen wants the password. */
     fun onGameWindowShown() {
-        // Forever: the first window is the Forever Launcher, not the game. Show the cursor (it is a mouse GUI, and
-        // taps are plain clicks while [inLauncher]), do not type a password into it, and wait for the game's own
-        // window; this runs again — cleared of [inLauncher] — when that appears, and the real login begins then.
-        if (inLauncher) { xServer.renderer.isCursorVisible = true; watchForGameWindow(); return }
         // The pointer is there for the game (where taps click, what the cursor offers) but never
         // drawn: on a touch screen the finger is the pointer. The game screen shows it with its
         // first window; this comes right after.
@@ -253,9 +256,24 @@ class WowGestureView(
         // What the login did, for the report a game sends (never the password).
         com.logie.blizz.game.GameLog.note(
             "login: password ${if (activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD) != null) "given" else "not given"}, account " +
-                "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "Legion" else "classic"} wait ${wait / 1000} s",
+                "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "late login screen" else "classic"} wait ${wait / 1000} s",
         )
-        if (login != null) {
+        if (readyLog != null && !legion) {
+            // Wrath++: when its runtime says the login screen is loaded, however long that takes (with Project Reforged's
+            // archives in it took 15.6 s on the phone, past the classic 15 s after which the password was typed into nothing).
+            // Not ready within [READY_WAIT_MS]: asked, never typed blind.
+            com.logie.blizz.game.GameLog.note("login: waiting for the runtime's \"stage ready\" (${readyLog.path})")
+            whenGameReady(SystemClock.uptimeMillis(), readyLog, timedOut = {
+                com.logie.blizz.game.GameLog.note("login: no \"stage ready\" after ${READY_WAIT_MS / 1000} s; asked")
+                ask(PromptKind.PASSWORD)
+            }) {
+                com.logie.blizz.game.GameLog.note("login: game ready after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
+                if (login != null) {
+                    type(login.password, enter = true)
+                    if (newAccount) postDelayed({ ask(PromptKind.NAME) }, NAME_PROMPT_DELAY_MS)
+                } else ask(PromptKind.PASSWORD)
+            }
+        } else if (login != null) {
             // (a Legion client not at its login screen when the wait ends: asked, not typed blind
             // into whatever is up, its loading screen or a dialog)
             whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait,
@@ -287,39 +305,7 @@ class WowGestureView(
      * when the cursor offered more (talk, attack, loot, gather) and still does after the click, a
      * right click, which does it, as on a PC.
      */
-    /** Forever launcher only: a plain left click at the tapped point (its buttons), no cursor-reading or interaction. */
-    private fun plainClick(x: Float, y: Float) {
-        pointerTo(x, y)
-        val moves = pointerMoves
-        postDelayed({ if (moves == pointerMoves) click(Button.LEFT) }, CURSOR_SETTLE_MS)
-    }
-
-    private val gameWatch = Runnable { watchForGameWindow() }
-
-    /**
-     * Forever launcher only: waits for the game's own window (the launcher's Play opens it) and hands over to the
-     * normal WoW controls and login. The launcher is a small fixed window; the game fills the screen, so a renderable
-     * window about the size of the screen is the game. Polled every [GAME_WATCH_MS] while [inLauncher].
-     */
-    private fun watchForGameWindow() {
-        if (!inLauncher) return
-        val sw = xServer.screenInfo.width.toInt()
-        val sh = xServer.screenInfo.height.toInt()
-        val game = xServer.windowManager.focusedWindow?.takeIf {
-            it.isRenderable && it.width.toInt() >= sw * 9 / 10 && it.height.toInt() >= sh * 9 / 10
-        }
-        if (game != null) {
-            inLauncher = false
-            com.logie.blizz.game.GameLog.note("forever: game window up; WoW controls on")
-            onGameWindowShown()
-        } else {
-            removeCallbacks(gameWatch)
-            postDelayed(gameWatch, GAME_WATCH_MS)
-        }
-    }
-
     override fun tapAt(x: Float, y: Float) {
-        if (inLauncher) return plainClick(x, y)
         val now = SystemClock.uptimeMillis()
         // The same spot tapped again, not quick enough for a double tap: see below.
         val again = now - lastTapAt in TouchGestures.DOUBLE_TAP_MS..AGAIN_MS &&
@@ -387,7 +373,6 @@ class WowGestureView(
      * its own.
      */
     override fun doubleTapAt(x: Float, y: Float) {
-        if (inLauncher) return plainClick(x, y)
         // On the action bars, quick taps are presses of the buttons, as many as there are; on the
         // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
         // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
@@ -460,6 +445,18 @@ class WowGestureView(
     }
 
     /** A fingerprint of the game's cursor where the pointer is, or null when there's none to see. */
+    private var nudged = false
+
+    /** The pointer a pixel aside and back on the next call (within the screen): motion for Wine, no place for the game. */
+    private fun nudgePointer() = runCatching {
+        val x = xServer.pointer.x.toInt()
+        val y = xServer.pointer.y.toInt()
+        val step = if (nudged) -1 else 1
+        val nx = (x + step).coerceIn(0, xServer.screenInfo.width - 1)
+        nudged = !nudged
+        xServer.injectPointerMove(nx, y)
+    }
+
     private fun cursorHere(): Long? = runCatching {
         xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER, XServer.Lockable.INPUT_DEVICE).use {
             var window = xServer.inputDeviceManager.pointWindow
@@ -489,7 +486,7 @@ class WowGestureView(
     }
 
     /** On a window whose icons drag, by what the app's add-on last said ([InterfaceNote]). */
-    override fun turnsModel() = characterCreation
+    override fun turnsModel() = CreatorScreen.up(creatorWord()) ?: characterCreation
 
     /**
      * A small picture of the game's window (Winlator draws it, at most 256 pixels high, on its
@@ -538,15 +535,19 @@ class WowGestureView(
         }
     }.getOrNull()
 
-    override fun dragsAt(x: Float, y: Float): Boolean = inAreas(x, y) { InterfaceNote.dragAreas(it) }
+    override fun dragsAt(x: Float, y: Float): Boolean =
+        inAreas(x, y) { InterfaceNote.dragAreas(it) } || inAreas(x, y, creatorWord()) { CreatorScreen.dragAreas(it) }
 
     /** On the bags, the bank, the character pane, the talents, the action bars or the spellbook. */
     override fun rightClicksAt(x: Float, y: Float): Boolean =
         inAreas(x, y) { InterfaceNote.holdAreas(it) + InterfaceNote.dragAreas(it) }
 
     /** Whether the screen's [x], [y] is in one of the areas the add-on's last note gives. */
-    private fun inAreas(x: Float, y: Float, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean {
-        val areas = areasOf(runCatching { interfaceFile.readText() }.getOrNull())
+    private fun inAreas(x: Float, y: Float, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean =
+        inAreas(x, y, runCatching { interfaceFile.readText() }.getOrNull(), areasOf)
+
+    private fun inAreas(x: Float, y: Float, note: String?, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean {
+        val areas = areasOf(note)
         if (areas.isEmpty()) return false
         val point = XForm.transformPoint(xform, x, y)
         val width = xServer.screenInfo.width.toFloat()
@@ -621,12 +622,12 @@ class WowGestureView(
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { onLeave.run() },
         onReport = {
-            com.logie.blizz.reports.BugReports.report(
-                activity.applicationContext, "World of Warcraft in-game report", "Sent from the game menu",
+            com.logie.blizz.reports.BugReports.reportTelling(
+                activity,
+                "World of Warcraft in-game report", "Sent from the game menu",
                 listOf("Game" to "wow-client", "Device" to Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
                 log = com.logie.blizz.game.GameLog.snapshot().ifEmpty { null },
             )
-            android.widget.Toast.makeText(activity, "Report sent (it goes out when the phone is online).", android.widget.Toast.LENGTH_LONG).show()
         },
     )
 
@@ -641,6 +642,11 @@ class WowGestureView(
      */
     private fun whenLoginScreen(since: Long, seen: Int, legion: Boolean, baseline: Long?, wait: Long,
                                 timedOut: (() -> Unit)? = null, then: () -> Unit) {
+        // Wine gives the X server a program's new cursor only when the pointer moves (read on the X server rig, 13
+        // November 2026: the game's cursor set every tick, the server's unchanged until a move). On a touch screen the
+        // pointer stays still while the login screen loads, so the game's cursor was never seen: the pointer is moved by
+        // a pixel, one way then back, at each look.
+        if (legion) nudgePointer()
         val cursor = cursorHere()
         val base = if (legion && baseline == null) cursor else baseline
         val now = if (cursor != null && (!legion || cursor != base)) seen + 1 else 0
@@ -653,6 +659,20 @@ class WowGestureView(
             return
         }
         postDelayed({ whenLoginScreen(since, now, legion, base, wait, timedOut, then) }, LOGIN_POLL_MS)
+    }
+
+    /** [then] a moment after [log] says the game's interface is up ([com.logie.blizz.wrathpp.WrathppLogs.ready]), [timedOut] after [READY_WAIT_MS]. */
+    private fun whenGameReady(since: Long, log: java.io.File, timedOut: () -> Unit, then: () -> Unit) {
+        Thread {
+            val ready = com.logie.blizz.wrathpp.WrathppLogs.ready(log, readySince)
+            post {
+                when {
+                    ready -> postDelayed(then, LOGIN_SETTLE_MS)
+                    SystemClock.uptimeMillis() - since >= READY_WAIT_MS -> timedOut()
+                    else -> postDelayed({ whenGameReady(since, log, timedOut, then) }, READY_POLL_MS)
+                }
+            }
+        }.start()
     }
 
     private fun ask(kind: PromptKind) {
@@ -773,10 +793,12 @@ class WowGestureView(
         /** A Legion client loads its 40 GB of data before its login screen: under Box64, minutes. */
         private const val LEGION_LOGIN_WAIT_MS = 180_000L
         private const val LOGIN_SETTLE_MS = 1500L
+        /** Wrath++: how often its runtime's log is read for "stage ready", how long at most, and the clock's leeway for its date. */
+        private const val READY_POLL_MS = 500L
+        private const val READY_WAIT_MS = 180_000L
+        private const val READY_SLACK_MS = 5_000L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
-        /** Forever: how often, while the launcher is up, to look for the game's own window and hand over to WoW controls. */
-        private const val GAME_WATCH_MS = 400L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
         private const val AGAIN_MS = 1500L
         /** How long a tap waits for the realm to say what it selected, and how often it looks. */

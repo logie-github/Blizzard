@@ -45,7 +45,18 @@ class GestureView(
     private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
-    init { GameLog.start(); com.logie.blizz.selftest.RunningGame.attach(activity) }
+    init {
+        GameLog.start(); com.logie.blizz.selftest.RunningGame.attach(activity)
+        // The game screen's own comings and goings, in the run's log: a window that went black after the person left the app is
+        // not one that went black by itself.
+        activity.lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onStart(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: shown (onStart)") }
+            override fun onResume(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: in front (onResume)") }
+            override fun onPause(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: out of front (onPause)") }
+            override fun onStop(owner: androidx.lifecycle.LifecycleOwner) { GameLog.note("game screen: hidden (onStop: the app went to the background)") }
+            override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) { GameLog.finish() }
+        })
+    }
     private val gameId = activity.intent.getStringExtra(EXTRA_GAME)
     /**
      * World of Warcraft's client has the World of Warcraft app's own controls ([WowGestureView]: its touch gestures, cursor reading,
@@ -389,13 +400,13 @@ class GestureView(
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { leave() },
         onReport = {
-            com.logie.blizz.reports.BugReports.report(
-                activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
+            com.logie.blizz.reports.BugReports.reportTelling(
+                activity,
+                "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
                 "Sent from the game menu",
                 listOf("Game" to gameId, "Device" to android.os.Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
                 log = GameLog.snapshot().ifEmpty { null },
             )
-            android.widget.Toast.makeText(activity, "Report sent (it goes out when the phone is online).", android.widget.Toast.LENGTH_LONG).show()
         },
     )
 
@@ -513,11 +524,10 @@ class GestureView(
         /** Its control profile ([LaunchProfile.id]). */
         const val EXTRA_PROFILE = "com.logie.blizz.PROFILE"
         /**
-         * World of Warcraft: Forever only: the program started is the Forever Launcher (a Windows GUI), not the game.
-         * While it is up the touch controls are plain tap-to-click (its buttons are clicked, not read as the 3D game's
-         * cursor, and no password is typed into it); the WoW gestures and login begin when the game's own window appears.
+         * Wrath++ with WarcraftXL's runtime only: its log (`Logs/WarcraftXL.log`), which says when the login screen is up
+         * ([com.logie.blizz.wrathpp.WrathppLogs.ready]); auto-login types the password then instead of after a fixed time.
          */
-        const val EXTRA_LAUNCHER = "com.logie.blizz.LAUNCHER"
+        const val EXTRA_READY_LOG = "com.logie.blizz.READY_LOG"
 
         const val EXTRA_LOGIN_NAME = "com.logie.blizz.LOGIN_NAME"
         const val EXTRA_LOGIN_PASSWORD = "com.logie.blizz.LOGIN_PASSWORD"

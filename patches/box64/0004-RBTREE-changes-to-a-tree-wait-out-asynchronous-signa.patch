@@ -1,0 +1,144 @@
+From f25fd1398c402a0ed5465c84f87aa35617e8cc84 Mon Sep 17 00:00:00 2001
+From: blizz <blizz@users.noreply.github.com>
+Date: Sat, 14 Nov 2026 20:19:57 +0000
+Subject: [PATCH] RBTREE: changes to a tree wait out asynchronous signals
+
+A tree is changed in steps that leave it inconsistent in between. Box64
+runs the guest's handler for a signal on the interrupted thread after
+releasing the locks that thread held (signals.c: unlockMutex), so a
+signal arriving in the middle of a change let another thread change the
+same tree meanwhile. Wine suspends threads with SIGUSR1, which a game's
+protection does all the time: World of Warcraft: Forever 70707 under
+Winlator printed "unstable Red-Black tree memprot", then faulted on
+protections that were never set and spun in lookups that never end.
+rb_set_64, rb_unset, rb_inc and rb_dec now block asynchronous signals
+for the length of the change; the synchronous ones a fault raises
+(SEGV, BUS, ILL, FPE, TRAP) are left alone.
+---
+ src/tools/rbtree.c | 67 +++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 63 insertions(+), 4 deletions(-)
+
+diff --git a/src/tools/rbtree.c b/src/tools/rbtree.c
+index 2993cce..ffb6bbb 100644
+--- a/src/tools/rbtree.c
++++ b/src/tools/rbtree.c
+@@ -1,3 +1,5 @@
++#include <signal.h>
++#include <pthread.h>
+ #include <stdbool.h>
+ #include <stddef.h>
+ #include <stdint.h>
+@@ -59,6 +61,27 @@ void rbtree_delete(rbtree_t *tree) {
+     rbtreeFree(tree);
+ }
+ 
++
++/*
++ * A tree is changed in steps that leave it inconsistent in between. Box64 runs the guest's handler for a signal on the
++ * interrupted thread after releasing the locks that thread held (signals.c: unlockMutex), so a signal arriving in the middle
++ * of a change let another thread change the same tree then (Wine suspends threads with SIGUSR1, which a game's protection
++ * does all the time): "unstable Red-Black tree \"memprot\"", then protections that weren't set and lookups that never end
++ * (World of Warcraft: Forever 70707 under Winlator, 14 November 2026). Asynchronous signals wait for the change to end; the
++ * synchronous ones a fault raises are left alone.
++ */
++static void block_async_signals(sigset_t* old)
++{
++    sigset_t set;
++    sigfillset(&set);
++    sigdelset(&set, SIGSEGV);
++    sigdelset(&set, SIGBUS);
++    sigdelset(&set, SIGILL);
++    sigdelset(&set, SIGFPE);
++    sigdelset(&set, SIGTRAP);
++    pthread_sigmask(SIG_BLOCK, &set, old);
++}
++
+ #define IS_LEFT  0x1
+ #define IS_BLACK 0x2
+ 
+@@ -632,7 +655,7 @@ int rb_get_end_64(rbtree_t* tree, uintptr_t addr, uint64_t* val, uintptr_t* end)
+     return 0;
+ }
+ 
+-int rb_set_64(rbtree_t *tree, uintptr_t start, uintptr_t end, uint64_t data) {
++static int rb_set_64_unguarded(rbtree_t *tree, uintptr_t start, uintptr_t end, uint64_t data) {
+ // printf("rb_set( "); rbtree_print(tree); printf(" , 0x%lx, 0x%lx, %hhu);\n", start, end, data); fflush(stdout);
+ dynarec_log(LOG_DEBUG, "set %s: 0x%lx, 0x%lx, 0x%x\n", tree->name, start, end, data);
+     if (!tree->root) {
+@@ -765,11 +788,20 @@ dynarec_log(LOG_DEBUG, "set %s: 0x%lx, 0x%lx, 0x%x\n", tree->name, start, end, d
+     return add_range_next_to(tree, last->left ? pred_node(last) : last, start, end, data);
+ }
+ 
++int rb_set_64(rbtree_t *tree, uintptr_t start, uintptr_t end, uint64_t data) {
++    sigset_t old;
++    block_async_signals(&old);
++    int ret = rb_set_64_unguarded(tree, start, end, data);
++    pthread_sigmask(SIG_SETMASK, &old, NULL);
++    return ret;
++}
++
++
+ int rb_set(rbtree_t *tree, uintptr_t start, uintptr_t end, uint32_t data) {
+     return rb_set_64(tree, start, end, data);
+ }
+ 
+-int rb_unset(rbtree_t *tree, uintptr_t start, uintptr_t end) {
++static int rb_unset_unguarded(rbtree_t *tree, uintptr_t start, uintptr_t end) {
+ // printf("rb_unset( "); rbtree_print(tree); printf(" , 0x%lx, 0x%lx);\n", start, end); fflush(stdout);
+ dynarec_log(LOG_DEBUG, "unset: %s 0x%lx, 0x%lx);\n", tree->name, start, end);
+     if (!tree->root) return 0;
+@@ -831,7 +863,16 @@ dynarec_log(LOG_DEBUG, "unset: %s 0x%lx, 0x%lx);\n", tree->name, start, end);
+     return 0;
+ }
+ 
+-uint64_t rb_inc(rbtree_t *tree, uintptr_t start, uintptr_t end) {
++int rb_unset(rbtree_t *tree, uintptr_t start, uintptr_t end) {
++    sigset_t old;
++    block_async_signals(&old);
++    int ret = rb_unset_unguarded(tree, start, end);
++    pthread_sigmask(SIG_SETMASK, &old, NULL);
++    return ret;
++}
++
++
++static uint64_t rb_inc_unguarded(rbtree_t *tree, uintptr_t start, uintptr_t end) {
+     // printf("rb_inc( "); rbtree_print(tree); printf(" , 0x%lx, 0x%lx);\n", start, end); fflush(stdout);
+     dynarec_log(LOG_DEBUG, "inc %s: 0x%lx, 0x%lx\n", tree->name, start, end);
+     if (!tree->root) {
+@@ -968,7 +1009,16 @@ uint64_t rb_inc(rbtree_t *tree, uintptr_t start, uintptr_t end) {
+     return data;
+ }
+ 
+-uint64_t rb_dec(rbtree_t *tree, uintptr_t start, uintptr_t end) {
++uint64_t rb_inc(rbtree_t *tree, uintptr_t start, uintptr_t end) {
++    sigset_t old;
++    block_async_signals(&old);
++    uint64_t ret = rb_inc_unguarded(tree, start, end);
++    pthread_sigmask(SIG_SETMASK, &old, NULL);
++    return ret;
++}
++
++
++static uint64_t rb_dec_unguarded(rbtree_t *tree, uintptr_t start, uintptr_t end) {
+     // printf("rb_dec( "); rbtree_print(tree); printf(" , 0x%lx, 0x%lx);\n", start, end); fflush(stdout);
+     dynarec_log(LOG_DEBUG, "dec %s: 0x%lx, 0x%lx\n", tree->name, start, end);
+     if (!tree->root) {
+@@ -1141,6 +1191,15 @@ uint64_t rb_dec(rbtree_t *tree, uintptr_t start, uintptr_t end) {
+     return data;
+ }
+ 
++uint64_t rb_dec(rbtree_t *tree, uintptr_t start, uintptr_t end) {
++    sigset_t old;
++    block_async_signals(&old);
++    uint64_t ret = rb_dec_unguarded(tree, start, end);
++    pthread_sigmask(SIG_SETMASK, &old, NULL);
++    return ret;
++}
++
++
+ uintptr_t rb_get_rightmost(rbtree_t* tree)
+ {
+ dynarec_log(LOG_DEBUG, "rb_get_rightmost(%s);\n", tree->name);
+-- 
+2.43.0
+

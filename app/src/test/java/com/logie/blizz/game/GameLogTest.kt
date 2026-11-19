@@ -54,7 +54,7 @@ class GameLogTest {
         for (id in listOf("warcraft3_roc", "warcraft3_tft", "diablo2", "starcraft", "diablo", "installer", null)) {
             assertEquals(id ?: "null", listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, "Software\\Wine\\WineDbg", "ShowCrashDialog", 0)), WineCrashDialog.writes(id))
         }
-        for (id in listOf("wow-client", "wow", "wow_forever")) {
+        for (id in listOf("wow-client", "wow")) {
             assertEquals(id, listOf(Wc3Setup.Write(Wc3Setup.Hive.USER, "Software\\Wine\\WineDbg", "ShowCrashDialog", 1)), WineCrashDialog.writes(id))
         }
     }

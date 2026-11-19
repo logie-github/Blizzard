@@ -1,0 +1,1 @@
+WoW Forever: Play starts the game once the realm is up (it opened a file manager instead: the game's folder had no drive letter).

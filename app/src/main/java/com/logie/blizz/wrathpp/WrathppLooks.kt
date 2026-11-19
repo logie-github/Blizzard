@@ -21,12 +21,38 @@ object WrathppLooks {
     const val PATCH = "patch-Z.MPQ"
     /** In the patch and in the server's dbc folder: the package's SHA-256, written last. */
     const val MARKER = "wrathpp-looks.stamp"
+    /** In the patch folder (a folder the game reads as an archive: it ignores this one): the server's tables, to put back after a new server package. */
+    const val SERVER_COPY = "wrathpp-server-dbc"
+    /**
+     * In the patch folder: each file of the package's `client/` as it was written (its length, its CRC-32 and its path in the folder),
+     * so that what is on the phone can be held to the package later ([WrathppModelCheck]) without the package. A patch put in before
+     * this was written has none.
+     */
+    const val SIZES = "wrathpp-looks.sizes"
+
+    /**
+     * What an install that was stopped (the app closed while it put the looks in) left beside the patch and the server's tables: the
+     * half-made `.new` and `.changes` folders and the `.old` one being deleted, each as large as the looks (the game never reads them:
+     * it opens only `Data/patch-?.MPQ`, Client.cpp's PatchFiles). Taken away when the patch they were for is in place. Returns how many.
+     */
+    fun clearLeftovers(client: File, server: File): Int {
+        val data = File(client, "Data")
+        if (!File(data, "$PATCH/$MARKER").isFile) return 0
+        var cleared = 0
+        for (f in listOf(File(data, "$PATCH.new"), File(data, "$PATCH.changes"), File(data, "$PATCH.old"), File(server, "share/dbc.new"), File(server, "share/dbc.old"))) {
+            if (f.exists() && f.deleteRecursively()) cleared++
+        }
+        return cleared
+    }
 
     /** The game's patch is [sha]'s and the server's tables aren't (a server package installed since): copied from the patch. */
     fun restoreServer(client: File, server: File, sha: String): Boolean {
         val patch = File(client, "Data/$PATCH")
         if (File(patch, MARKER).takeIf { it.isFile }?.readText()?.trim() != sha) return false
-        val tables = File(patch, "DBFilesClient").listFiles { f -> f.isFile && f.name.endsWith(".dbc", ignoreCase = true) } ?: return false
+        // (a patch put in before the packages carried changes has no server copy: its DBFilesClient holds the package's whole
+        // tables, the server's own)
+        val dir = File(patch, SERVER_COPY).takeIf { it.isDirectory } ?: File(patch, "DBFilesClient")
+        val tables = dir.listFiles { f -> f.isFile && f.name.endsWith(".dbc", ignoreCase = true) } ?: return false
         if (tables.none { it.name.equals("CharSections.dbc", ignoreCase = true) }) return false
         val dbcNew = File(server, "share/dbc.new").apply { deleteRecursively(); mkdirs() }
         try {
@@ -50,19 +76,37 @@ object WrathppLooks {
      * they aren't the ones in. Offline with some in: kept. No release yet: an [IOException] (Wrath++ plays with the
      * game's own looks).
      */
-    fun ensure(client: File, server: File, say: (String, Float?) -> Unit) {
+    fun ensure(client: File, server: File, say: (String, Float?) -> Unit, update: Boolean = true, repair: Boolean = false) {
+        // [repair] ([WrathppModelCheck]): the looks put in again over what is in even when the release is the one installed; through the
+        // delta that fetches only the files whose length or CRC-32 isn't the package's (missing, cut short or replaced ones).
+        runCatching { clearLeftovers(client, server) }
+        // The game's patch is in and the server's tables aren't (a server package put in since): the server's are put back from
+        // the patch first, whatever is published, so that a failed download or a package this app can't take keeps the game and
+        // its server on the same looks.
+        File(client, "Data/$PATCH/$MARKER").takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }?.let { sha ->
+            if (installedSha(client, server) == null) runCatching { restoreServer(client, server, sha) }
+        }
+        // Not [update] (Play, after the pieces were refreshed for this build of the app: [WrathppParts]): the looks in stay, and
+        // their 20,500 files are not fetched and written again each time the release is rebuilt.
+        if (!update && !repair && installedSha(client, server) != null) return
         val published = runCatching { WrathppAddon.parseManifest(WrathppAddon.fetchText("$BASE/wrathpp-looks.json")) }.getOrElse { e ->
             if (installedSha(client, server) != null) return
             throw IOException("Wrath++'s looks couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")
         }
-        if (published.sha256.equals(installedSha(client, server), ignoreCase = true)) return
+        if (!repair && published.sha256.equals(installedSha(client, server), ignoreCase = true)) return
         // A new server package took its share/ (and the tables with it): they are the patch's own, put back from there.
-        if (restoreServer(client, server, published.sha256.lowercase())) return
+        if (!repair && restoreServer(client, server, published.sha256.lowercase())) return
         val zip = File(client.parentFile, "wrathpp-looks.zip.part")
         val free = (client.parentFile ?: client).usableSpace
         if (free in 1 until published.size * 3) {
             throw IOException("Not enough space for Wrath++'s looks: about ${published.size * 3 shr 20} MB is needed, ${free shr 20} MB is free.")
         }
+        // Only what changed since the installed looks, where there are some and the server does ranges (WrathppLooksDelta); else the whole.
+        val viaDelta = runCatching {
+            WrathppLooksDelta.update(client, server, WrathppLooksDelta.HttpRanges("$BASE/wrathpp-looks.zip", published.size), published.sha256.lowercase(),
+                File(client.parentFile, "wrathpp-looks.delta"), say)
+        }.getOrDefault(false)
+        if (viaDelta) return
         say("Downloading Shadowlands' looks for Wrath++", 0f)
         WrathppAddon.download("$BASE/wrathpp-looks.zip", zip) { done, total ->
             say("Downloading Shadowlands' looks for Wrath++: ${done shr 20} / ${total shr 20} MB", if (total > 0) done.toFloat() / total else null)
@@ -71,51 +115,103 @@ object WrathppLooks {
             if (!WrathppAddon.sha256(zip).equals(published.sha256, ignoreCase = true)) {
                 throw IOException("Wrath++'s looks download didn't match its checksum; try again.")
             }
-            install(client, server, zip, published.sha256.lowercase()) { n -> say("Putting in Wrath++'s looks: $n files", null) }
+            install(client, server, zip, published.sha256.lowercase(), progress = { n -> say("Putting in Wrath++'s looks: $n files", null) })
         } finally {
             zip.delete()
         }
     }
 
+    /** The game's own table [name] (`DBFilesClient\\X.dbc`) as the game reads it: from the last archive of [data] that has it, this patch aside. */
+    private fun gameTables(data: File): Pair<(String) -> ByteArray?, () -> Unit> {
+        val game = com.logie.blizz.wowclient.Mpq.Game(data, skip = listOf(PATCH.lowercase()))
+        val read: (String) -> ByteArray? = { name -> game.read(name) }
+        val close: () -> Unit = { game.close() }
+        return Pair(read, close)
+    }
+
     /**
-     * Installs the looks package [zip] (`client/...`, `dbc/...`). Each part is written beside its place and put in whole,
-     * the server's tables first and the game's patch last; a part that fails leaves what was there. Paths leaving the
-     * package are refused.
+     * Installs the looks package [zip] (`client/...`: models, textures, sounds; `changes/<Table>.txt`: changes to the game's tables;
+     * `dbc/...`: the server's tables). Each part is written beside its place and put in whole, the server's tables first and the
+     * game's patch last; a part that fails leaves what was there. Paths leaving the package are refused. The changes are applied to
+     * the tables the game reads ([tables]: the client's own, the HD look's patches' included) into the patch's DBFilesClient.
      */
-    fun install(client: File, server: File, zip: File, sha: String, progress: (Int) -> Unit = {}) {
+    fun install(client: File, server: File, zip: File, sha: String, progress: (Int) -> Unit = {}, tables: ((String) -> ByteArray?)? = null) {
+        installFrom(client, server, { entry ->
+            ZipInputStream(zip.inputStream().buffered()).use { z ->
+                while (true) {
+                    val e = z.nextEntry ?: break
+                    if (e.isDirectory) continue
+                    entry(e.name, object : java.io.FilterInputStream(z) { override fun close() {} })
+                }
+            }
+        }, sha, progress, tables)
+    }
+
+    /**
+     * [install]'s work over any source of the package's entries: [source] calls its argument once for each file entry (a name and
+     * a stream that is read whole before the next entry; closing it does nothing). [WrathppLooksDelta] gives it the unchanged files
+     * from the installed patch and only the changed ones from the release.
+     */
+    internal fun installFrom(client: File, server: File, source: ((String, java.io.InputStream) -> Unit) -> Unit, sha: String, progress: (Int) -> Unit = {}, tables: ((String) -> ByteArray?)? = null) {
         val data = File(client, "Data")
         if (!data.isDirectory) throw IOException("Wrath++'s copy of the game has no Data folder")
+        val changesNew = File(data, "$PATCH.changes").apply { deleteRecursively() }
         val patchNew = File(data, "$PATCH.new").apply { deleteRecursively() }
         val dbcDir = File(server, "share/dbc")
         val dbcNew = File(server, "share/dbc.new").apply { deleteRecursively() }
         var count = 0
+        val sizes = StringBuilder()
         try {
-            ZipInputStream(zip.inputStream().buffered()).use { z ->
-                while (true) {
-                    val entry = z.nextEntry ?: break
-                    if (entry.isDirectory) continue
-                    val name = entry.name.replace('\\', '/')
-                    if (name.startsWith("/") || name.split('/').any { it == ".." || it.isEmpty() }) throw IOException("Bad path in the looks: ${entry.name}")
-                    val out = when {
-                        name.startsWith("client/") -> File(patchNew, name.removePrefix("client/"))
-                        name.startsWith("dbc/") && !name.removePrefix("dbc/").contains('/') -> File(dbcNew, name.removePrefix("dbc/"))
-                        else -> continue
-                    }
+            source { entryName, input ->
+                val name = entryName.replace('\\', '/')
+                if (name.startsWith("/") || name.split('/').any { it == ".." || it.isEmpty() }) throw IOException("Bad path in the looks: $entryName")
+                val out = when {
+                    name.startsWith("client/") -> File(patchNew, name.removePrefix("client/"))
+                    name.startsWith("dbc/") && !name.removePrefix("dbc/").contains('/') -> File(dbcNew, name.removePrefix("dbc/"))
+                    name.startsWith("changes/") && name.endsWith(".txt") && !name.removePrefix("changes/").contains('/') -> File(changesNew, name.removePrefix("changes/"))
+                    else -> null
+                }
+                if (out != null) {
                     out.parentFile?.mkdirs()
-                    out.outputStream().use { z.copyTo(it) }
+                    // (read to its end: the zip's and the delta's streams check the entry's CRC-32 there; the length and CRC kept for [SIZES])
+                    val crc = java.util.zip.CRC32()
+                    var length = 0L
+                    out.outputStream().buffered(1 shl 16).use { o ->
+                        val buffer = ByteArray(1 shl 16)
+                        while (true) { val n = input.read(buffer); if (n < 0) break; o.write(buffer, 0, n); crc.update(buffer, 0, n); length += n }
+                    }
+                    if (name.startsWith("client/")) sizes.append(length).append('\t').append("%08x".format(crc.value)).append('\t').append(name.removePrefix("client/")).append('\n')
                     if (++count % 500 == 0) progress(count)
                 }
             }
-            if (!File(dbcNew, "CharSections.dbc").isFile || !File(patchNew, "DBFilesClient/CharSections.dbc").isFile) {
+            val changeFiles = changesNew.listFiles { f -> f.name.endsWith(".txt") }?.sortedBy { it.name }.orEmpty()
+            if (!File(dbcNew, "CharSections.dbc").isFile || changeFiles.none { it.name == "CharSections.txt" }) {
                 throw IOException("The looks package has no character tables")
             }
+            val own = if (tables == null) gameTables(data) else null
+            try {
+                val read = tables ?: own!!.first
+                File(patchNew, "DBFilesClient").mkdirs()
+                for (f in changeFiles) {
+                    val table = f.name.removeSuffix(".txt")
+                    val bytes = read("DBFilesClient\\$table.dbc") ?: throw IOException("The game has no $table table to change")
+                    val t = try { DbcTable(bytes).also { it.apply(f.readText()) } } catch (e: IOException) { throw IOException("$table: ${e.message}") }
+                    File(patchNew, "DBFilesClient/$table.dbc").writeBytes(t.write())
+                }
+            } finally {
+                own?.second?.invoke()
+            }
+            File(patchNew, SIZES).writeText(sizes.toString())
             File(dbcNew, MARKER).writeText("$sha\n")
             File(patchNew, MARKER).writeText("$sha\n")
+            File(patchNew, SERVER_COPY).mkdirs()
+            dbcNew.listFiles { f -> f.name.endsWith(".dbc") }?.forEach { it.copyTo(File(patchNew, "$SERVER_COPY/${it.name}")) }
             swap(dbcNew, dbcDir)
             swap(patchNew, File(data, PATCH))
         } finally {
             patchNew.deleteRecursively()
             dbcNew.deleteRecursively()
+            changesNew.deleteRecursively()
         }
     }
 

@@ -1,0 +1,1 @@
+Wrath++: hair styles cut short now show their hair colour on the crown for the Human, Blood Elf, Night Elf, Forsaken and Troll women too (they had bare skin there).

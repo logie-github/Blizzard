@@ -1,0 +1,1 @@
+World of Warcraft: Forever downloads its game on 16 connections at once and without voice-over audio (about 3 GB less), many times faster than before.

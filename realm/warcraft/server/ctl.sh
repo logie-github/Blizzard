@@ -48,6 +48,9 @@ DATA_MODULES="$FILES/data-modules"
 # release the app downloads; mod-worgen-goblin's README): client/ for the game's patch, server/ for
 # the world server's data (zones_data).
 ZONES="$FILES/zones"
+# The launcher's Converter's results (Settings, Games, Legion): <expansion>/release/ packs of Cataclysm's to Legion's content in 3.3.5a's format, kept where
+# Wrath++ and the realms can reach them ($FILES/converter). Nothing reads them yet: put in only when the user says so.
+CONVERTED="$FILES/converter"
 # What the modules the app's user picked bring for the game's files (scripts/module-files.py).
 MODULE_FILES="$SERVER/share"
 # The modules whose SQL went into the world database (ctl.sh modules); goes with the databases.
@@ -257,7 +260,17 @@ configure_realm() {
 	# message at every login ("This server is running the Worgoblin module") is off.
 	worgen_conf="$R_ETC/modules/mod_worgen_goblin.conf"
 	if [ -f "$worgen_conf" ]; then
-		if [ "$REALM" != main ]; then
+		if [ "$REALM" = wrathpp ]; then
+			# Wrath++ has the Worgen and Goblins at the module's own ids (9 and 12: its High Elf and Void Elf are at 22 and 23). Their
+			# Cataclysm starting areas are on when the app has downloaded the package (WrathppZones: files/zones; zones_data_realm puts
+			# its maps in Wrath++'s own data folder); without it they start with the Night Elves and the Orcs.
+			setkey "$worgen_conf" WorgenGoblin.Enable 1
+			if [ -f "$ZONES/client/files.txt" ] && [ -d "$ZONES/server/maps" ]; then
+				setkey "$worgen_conf" WorgenGoblin.StartingAreas 1
+			else
+				setkey "$worgen_conf" WorgenGoblin.StartingAreas 0
+			fi
+		elif [ "$REALM" != main ]; then
 			setkey "$worgen_conf" WorgenGoblin.Enable 0
 		else
 			setkey "$worgen_conf" WorgenGoblin.Enable 1
@@ -408,8 +421,9 @@ run_dbimport() {
 #   rows OR its races' bits into the rows the other race modules' SQL puts in).
 realm_sql() {
 	if [ "$REALM" = wrathpp ]; then
-		# Wrath++ takes nothing of the other realms' own SQL (its module's is in its db-* folders).
-		set --
+		# Wrath++ takes nothing of the other realms' own SQL (its module's is in its db-* folders) but mod-worgoblin's (the Worgen and Goblins'
+		# starts, outfits and spells at the ids 9 and 12 Wrath++ gives them too: mod-worgen-goblin's package step puts it in this folder).
+		set -- "mod-worgen-goblin/data/sql/chromiecraft/world acore_world_wrathpp"
 	elif [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
@@ -497,6 +511,43 @@ modules() {
 	module_client
 }
 
+# The starting areas' maps for a realm that keeps its own data folder (Wrath++): in [new] (its data folder being made, links to the shared
+# data) maps, vmaps, mmaps and cameras become folders of links to the shared data's files and to the package's, so the shared data
+# is never written (zones_data, ChromieCraft's, links into it): a package's file never stands in place of one that is there, and a
+# file the package keeps once for several names (server/same.txt) is linked under each. Without the package: nothing.
+zones_data_realm() {
+	new=$1
+	[ -f "$ZONES/TAG" ] && [ -d "$ZONES/server/maps" ] || return 0
+	count=0
+	for part in maps vmaps mmaps cameras; do
+		[ -d "$ZONES/server/$part" ] || continue
+		rm -f "$new/$part"
+		mkdir -p "$new/$part"
+		if [ -d "$DATA/$part" ]; then
+			for file in "$DATA/$part"/*; do
+				[ -f "$file" ] || continue
+				ln -s "$file" "$new/$part/${file##*/}"
+			done
+		fi
+		for file in "$ZONES/server/$part"/*; do
+			[ -f "$file" ] || continue
+			dest="$new/$part/${file##*/}"
+			[ -e "$dest" ] && continue
+			ln -s "$file" "$dest"
+			count=$((count + 1))
+		done
+	done
+	if [ -f "$ZONES/server/same.txt" ]; then
+		while IFS="$(printf '\t')" read -r name kept; do
+			[ -n "$name" ] && [ ! -e "$new/$name" ] || continue
+			mkdir -p "$new/${name%/*}"
+			ln -s "$ZONES/server/$kept" "$new/$name"
+			count=$((count + 1))
+		done < "$ZONES/server/same.txt"
+	fi
+	echo "The starting areas' maps are in Wrath++'s own data ($count files)"
+}
+
 # A module that adds races or classes (mod-arac, mod-worgoblin) changes DBC files, which its README
 # has copied over the server's (data/dbc). The world server reads $DATA_MODULES instead: links to
 # the game's data, with the module's files in place of the game's of the same name (whatever its
@@ -523,6 +574,7 @@ module_data() {
 		ln -s "$file" "$R_DATA_MODULES.new/dbc/${game:-$name}"
 		count=$((count + 1))
 	done
+	[ "$REALM" != wrathpp ] || zones_data_realm "$R_DATA_MODULES.new"
 	rm -rf "$R_DATA_MODULES"
 	mv "$R_DATA_MODULES.new" "$R_DATA_MODULES"
 	setkey "$R_ETC/worldserver.conf" DataDir "\"$R_DATA_MODULES\""
@@ -788,7 +840,8 @@ world)
 	# (Wrath++'s own game folder for Wrath++: its modules' patches never reach the shared one.)
 	export WOW_CLIENT_DIR="$R_CLIENT"
 	# The Worgen's and Goblins' starting areas (mod-worgen-goblin), ChromieCraft's alone.
-	if [ "$REALM" = main ] && [ -f "$ZONES/client/files.txt" ]; then
+	# (Wrath++ too, with the package the app downloaded: its maps are in its own data folder, never the shared one.)
+	if { [ "$REALM" = main ] || [ "$REALM" = wrathpp ]; } && [ -f "$ZONES/client/files.txt" ]; then
 		export WOW_ZONES_DIR="$ZONES"
 	fi
 	exec "$SERVER/bin/worldserver" -c "$R_ETC/worldserver.conf"

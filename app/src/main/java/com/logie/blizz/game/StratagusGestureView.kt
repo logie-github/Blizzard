@@ -149,11 +149,11 @@ class StratagusGestureView(
             val log = listOf("stderr.txt", "stdout.txt").joinToString("\n") { name ->
                 runCatching { java.io.File(dir, name).readLines().takeLast(40).joinToString("\n", "$name:\n") }.getOrDefault("")
             }
-            com.logie.blizz.reports.BugReports.report(
-                activity.applicationContext, "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
+            com.logie.blizz.reports.BugReports.reportTelling(
+                activity,
+                "${com.logie.blizz.Games.find(gameId)?.fullTitle ?: gameId} in-game report",
                 "Sent from the game menu", listOf("Game" to gameId, "Device" to android.os.Build.MODEL), log = log.ifBlank { null },
             )
-            android.widget.Toast.makeText(activity, "Report sent (it goes out when the phone is online).", android.widget.Toast.LENGTH_LONG).show()
         },
     )
 

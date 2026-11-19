@@ -69,7 +69,7 @@ internal fun RaliaDialog(onDismiss: () -> Unit) {
             FrameTitle("Ralia's mod (Wrath++)", style = MaterialTheme.typography.titleLarge)
             Text(
                 "Ralia's character textures on Wrath++, from your own zip of them (ralia.zip). A skin of the game's that the " +
-                    "zip has a texture for takes it (the Forsaken's too), drawn without underwear as the set is made; the others " +
+                    "zip has a texture for takes it (the Forsaken's too), with the set's own body options; the others " +
                     "stay the game's. The undead skins are pictures of their own and keep theirs. They go into Wrath++'s game the " +
                     "next time you press Play on it, which also looks for ralia.zip in Download by itself; Remove puts the game's " +
                     "own back and stops the looking.",

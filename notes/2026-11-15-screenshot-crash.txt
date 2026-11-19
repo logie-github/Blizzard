@@ -1,0 +1,1 @@
+Fixed a crash when a game picture was taken while the app went to the background.

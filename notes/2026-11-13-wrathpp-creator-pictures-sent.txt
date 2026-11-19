@@ -1,0 +1,1 @@
+Wrath++ creator: the first time each of its screens is up on a new version, the game takes a picture of it and the app sends it with its reports, so that faults only the game shows are seen and fixed (only the character creation screen, three pictures at most).

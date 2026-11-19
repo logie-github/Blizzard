@@ -79,4 +79,16 @@ class WrathppLogsTest {
         assertFalse(WrathppLogs.creatorOff(logs, 228))                                  // the next build starts with it again
         assertFalse(WrathppLogs.creatorOff(logs, 227))
     }
+
+    @Test fun theLoginScreenIsUpWhenThisLaunchsLogSaysStageReady() {
+        val log = File(tmp.newFolder(), "WarcraftXL.log")
+        val start = System.currentTimeMillis()
+        assertFalse(WrathppLogs.ready(log, start))                              // no log yet
+        log.writeText("[17:43:50.702] [INFO ] [core] stage early\n")
+        assertFalse(WrathppLogs.ready(log, start - 1000))                      // still loading
+        log.appendText("[17:44:05.578] [INFO ] [wrathpp] creator: built\n[17:44:06.221] [INFO ] [core] stage ready\n")
+        assertTrue(WrathppLogs.ready(log, start - 1000))
+        log.setLastModified(start - 60_000)                                     // the last launch's log, which said it too
+        assertFalse(WrathppLogs.ready(log, start - 1000))
+    }
 }

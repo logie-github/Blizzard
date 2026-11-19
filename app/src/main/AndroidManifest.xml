@@ -36,7 +36,8 @@
         android:allowBackup="false"
         android:supportsRtl="true"
         android:appCategory="game"
-        android:isGame="true">
+        android:isGame="true"
+        android:largeHeap="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

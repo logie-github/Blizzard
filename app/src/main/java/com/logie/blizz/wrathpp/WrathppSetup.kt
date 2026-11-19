@@ -4,28 +4,67 @@ import android.content.Context
 import com.logie.blizz.wow.WowLayout
 
 /**
- * What Play on Wrath++'s page does before its realm starts: its server package ([WrathppServerPackage], downloaded the
- * first time and when a newer one is published) and its own copy of the game ([WrathppClient], made once from Wrath+'s).
+ * What Play on Wrath++'s page does before its realm starts: its server package ([WrathppServerPackage]) and its own copy of
+ * the game ([WrathppClient], made once from Wrath+'s), the add-on, the looks and the creator's art. Those downloaded pieces
+ * are fetched the first time and then kept on the phone: refreshed only at the first Play after the app was updated and by
+ * the settings page's Update ([WrathppParts], [refreshParts]), never at every start.
  * Each step reports its words and share done, thinned out ([Reports]) so the screen moves without being flooded.
  */
 object WrathppSetup {
     fun run(context: Context, say: (String, Float?) -> Unit) {
         val layout = WowLayout.of(context)
         val report = Reports(say)
-        WrathppServerPackage.ensure(layout, report::say)
+        // The downloaded pieces stay as they are on the phone unless this is the first Play of this build of the app.
+        val refresh = WrathppParts.due(context.filesDir, com.logie.blizz.BuildConfig.VERSION_CODE)
+        val reached = WrathppServerPackage.ensure(layout, report::say, update = refresh)
+        var partsOk = true
         if (!WrathppClient.isMade(layout.wrathppClient)) {
             report.say("Making Wrath++'s copy of the game (step 2 of 2)", 0f)
             WrathppClient.make(layout.client, layout.wrathppClient, report::say)
         }
         // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.
         val notes = StringBuilder()
-        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say) }
+        // How long each step took (in the start report): what is slow is read from it, not guessed.
+        var lapAt = System.nanoTime()
+        fun lap(name: String) { val now = System.nanoTime(); notes.append("time $name: ${(now - lapAt) / 1_000_000} ms\n"); lapAt = now }
+        // Project Reforged's parts chosen on Wrath++'s settings page (Reforged): what finished downloading put in, what was
+        // turned off taken out (a shared archive of Wrath+'s it stood in for linked back), the glue screens kept the game's own.
+        // Before the creator's patch, whose table of contents is read from the game. Its downloads go on in the background.
+        runCatching {
+            notes.append(Reforged.prepare(layout.wrathppClient, java.io.File(layout.client, "Data"), Reforged.chosen(context.filesDir)))
+            WrathppClient.addMissing(layout.client, layout.wrathppClient)
+        }.onFailure { e -> notes.append("reforged FAILED: ${e.message}\n") }
+        runCatching { ReforgedDownloads.start(context) }
+        lap("reforged")
+        // The Worgen's and Goblins' starting areas (WrathppZones): downloaded once (735 MB) and kept; without them (offline, no space) the two
+        // races start with the Night Elves and the Orcs as before. The realm turns them on when the package is in (ctl.sh).
+        runCatching { WrathppZones.ensure(layout, report::say) }
+            .onSuccess { notes.append("starting areas: ${WrathppZones.installedSha(layout)?.take(8) ?: "none"}\n") }
+            .onFailure { e -> notes.append("starting areas FAILED: ${e.message}\n") }
+        lap("starting areas")
+        runCatching { WrathppAddon.ensure(layout.wrathppClient, report::say, update = refresh) }
             .onSuccess { notes.append("add-on: ${WrathppAddon.installedSha(layout.wrathppClient) ?: "none"}\n") }
-            .onFailure { e -> notes.append("add-on FAILED: ${e.message}\n") }
+            .onFailure { e -> partsOk = false; notes.append("add-on FAILED: ${e.message}\n") }
+        lap("add-on")
         // Shadowlands' looks for the ten races (WrathppLooks): without them, the game's own.
-        runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
+        runCatching { WrathppLooks.ensure(layout.wrathppClient, layout.wrathppServer, report::say, update = refresh) }
             .onSuccess { notes.append("looks: ${WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer) ?: "none"}\n") }
-            .onFailure { e -> notes.append("looks FAILED: ${e.message}\n") }
+            .onFailure { e -> partsOk = false; notes.append("looks FAILED: ${e.message}\n") }
+        lap("looks")
+        // Each race's model in the looks' patch, held to the package (WrathppModelCheck, report #332): one missing, cut short or not the
+        // package's is fetched again (once per looks), before the steps below put their own into the patch.
+        runCatching { WrathppModelCheck.ensure(layout.wrathppClient, layout.wrathppServer, report::say) }
+            .onSuccess { notes.append(it) }
+            .onFailure { e -> notes.append("race models: not checked (${e.message})\n") }
+        lap("race models")
+        // Shadowlands' creator's own art (WrathppArt): without it the creator draws with 3.3.5's pictures in the same places.
+        runCatching { WrathppArt.ensure(layout.wrathppClient, report::say, update = refresh) }
+            .onSuccess { notes.append("creator art: ${WrathppArt.installedSha(layout.wrathppClient) ?: "none"}\n") }
+            .onFailure { e -> partsOk = false; notes.append("creator art FAILED: ${e.message}\n") }
+        lap("creator art")
+        // Refreshed for this build only when the release was reached and nothing failed: else the next Play tries again.
+        if (refresh && reached && partsOk) runCatching { WrathppParts.markDone(context.filesDir, com.logie.blizz.BuildConfig.VERSION_CODE) }
+        notes.append("downloaded pieces: ${if (refresh) "refreshed for this build (${if (reached && partsOk) "done" else "not complete: again at the next Play"})" else "kept as they are (refreshed for build ${WrathppParts.refreshedFor(context.filesDir)})"}\n")
         // Ralia's mod, when you imported it (WrathppRalia): its skins in place of the looks' they are named for.
         // Its zip is looked for by its name where downloads are (ImportFinder), and taken in by itself the first time.
         runCatching {
@@ -37,16 +76,51 @@ object WrathppSetup {
         }
             .onSuccess { notes.append("ralia: $it skins\n") }
             .onFailure { e -> notes.append("ralia FAILED: ${e.message}\n") }
+        lap("ralia")
+        // Body options, when you imported their package (WrathppBody): the women's models with the body layer, the body
+        // shapes' models, the designs, and the display rows the realm gives each woman by her creator's Body tab choices.
+        // The package is looked for by its name too, and taken in by itself the first time.
+        runCatching {
+            val store = WrathppBody.store(context)
+            val found = runCatching { ImportFinder.find(*WrathppBody.NAMES) }.getOrNull()
+            val taken = runCatching { WrathppBody.lookFor(store, found) }.onFailure { e -> notes.append("body options package not read: ${e.message}\n") }.getOrNull()
+            if (taken != null) notes.append("body options package found (${found?.parent}): $taken models\n")
+            WrathppBody.apply(store, layout.wrathppClient, layout.wrathppServer, layout.data, report::say)
+        }
+            .onSuccess { notes.append("body options: $it\n") }
+            .onFailure { e -> notes.append("body options FAILED: ${e.message}\n") }
+        lap("body options")
         // The undead skins you imported (WrathppUndead): new colours after each race's own in the looks' tables, taken out
         // again when the import is removed. Without the looks there is nothing to add them to.
         val undead = runCatching { WrathppUndead.apply(WrathppUndead.store(context), layout.wrathppClient, layout.wrathppServer) }
             .onSuccess { notes.append("undead skins: ${if (it != null) "in" else "none"}\n") }
             .onFailure { e -> notes.append("undead skins FAILED: ${e.message}\n") }
             .getOrNull()
-        // The women are drawn without underwear (WrathppBare), whatever the three above put into the table.
+        lap("undead")
+        // The models the looks' variants give a character (the Orc man's Upright): their display rows, after the body options' tables.
+        runCatching { WrathppVariants.apply(layout.wrathppClient, layout.wrathppServer, layout.data) }
+            .onSuccess { notes.append("model variants: ${it ?: "none"}\n") }
+            .onFailure { e -> notes.append("model variants FAILED: ${e.message}\n") }
+        lap("variants")
+        // Body option: the women's underwear layer off (WrathppBare), whatever the three above put into the table.
         runCatching { WrathppBare.apply(layout.wrathppClient) }
-            .onSuccess { notes.append("women's underwear: $it rows cleared now\n") }
-            .onFailure { e -> notes.append("women's underwear FAILED: ${e.message}\n") }
+            .onSuccess { notes.append("body option (underwear layer): $it rows cleared now\n") }
+            .onFailure { e -> notes.append("body option (underwear layer) FAILED: ${e.message}\n") }
+        lap("underwear")
+        // The character table in the order the game's component code needs (WrathppSections, issue 294): every race, sex, section and
+        // variation one run of rows, after every step above that adds rows.
+        runCatching { WrathppSections.apply(layout.wrathppClient) }
+            .onSuccess { notes.append("character sections: $it\n") }
+            .onFailure { e -> notes.append("character sections FAILED: ${e.message}\n") }
+        lap("sections")
+        // The game's creation screen crashes at Create Character when a race's display row is missing (report #272): named here when it is.
+        runCatching {
+            val added = WrathppDisplayCheck.repair(layout.wrathppClient)
+            (if (added > 0) "$added rows put back from the looks' copy; " else "") + WrathppDisplayCheck.check(layout.wrathppClient)
+        }
+            .onSuccess { notes.append("race displays: $it\n") }
+            .onFailure { e -> notes.append("race displays: not checked (${e.message})\n") }
+        lap("displays")
         // The creator (Shadowlands' two screens), from the app itself, whatever happened to the add-on; with it what it
         // shows: the looks' own list of options (made with them: sl_creator.py) and the undead skins' (written above).
         report.say("Putting in Wrath++'s character creator", null)
@@ -55,8 +129,18 @@ object WrathppSetup {
         runCatching { reportCrashes(context) }
         val creatorOff = WrathppLogs.creatorOff(java.io.File(layout.wrathppClient, "Logs"), com.logie.blizz.BuildConfig.VERSION_CODE)
         runCatching {
-            val files = if (creatorOff) mapOf(OFF_NOTE to offNote(com.logie.blizz.BuildConfig.VERSION_CODE).toByteArray(Charsets.UTF_8))
-            else glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead)
+            // (pictures of the creator as the game draws it are asked for until those of this build, art and looks went: WrathppPictures)
+            val shots = WrathppPictures.flag(java.io.File(layout.wrathppClient, "Logs"), WrathppPictures.state(com.logie.blizz.BuildConfig.VERSION_CODE,
+                WrathppArt.installedSha(layout.wrathppClient), WrathppLooks.installedSha(layout.wrathppClient, layout.wrathppServer)))
+            val creator = if (creatorOff) mapOf(OFF_NOTE to offNote(com.logie.blizz.BuildConfig.VERSION_CODE).toByteArray(Charsets.UTF_8))
+            else glue(context.assets.open(GLUE_ASSET).use { it.readBytes() }, layout.wrathppClient, undead, shots)
+            // (the allied races' race buttons, pictures and texts are for the game's own screen as for the creator's: always)
+            val creator0 = creator + ALLIED_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
+            // (the soft body's level, for the add-on: WrathppSoftBody)
+            // (the skin colours the creator offers once Ralia's mod is in: WrathppSkins; an empty list when it isn't)
+            val (skins, skinLine) = WrathppSkins.build(WrathppRalia.store(context), layout.wrathppClient)
+            notes.append("skins offered: ${skinLine ?: "all (no Ralia import, or none of its skins named)"}\n")
+            val files = creator0 + (WrathppSoftBody.FILE_NAME to WrathppSoftBody.script(WrathppSoftBody.chosen(context.filesDir))) + (WrathppSkins.FILE_NAME to skins)
             WrathppAddon.writeGluePatch(layout.wrathppClient, files)
             files
         }.onSuccess { files ->
@@ -66,7 +150,39 @@ object WrathppSetup {
         runCatching { log.parentFile?.mkdirs(); log.writeText(notes.toString()) }
     }
 
+    /**
+     * The settings page's **Update now**: the server, add-on, looks and creator art fetched again when the release has newer
+     * ones ([WrathppParts]). Returns a sentence saying what happened. Call off the main thread; not while the realm runs.
+     */
+    fun refreshParts(context: Context, say: (String, Float?) -> Unit): String {
+        val layout = WowLayout.of(context)
+        val client = layout.wrathppClient
+        val report = Reports(say)
+        fun shas() = listOf(
+            "server" to WrathppServerPackage.installedSha(layout), "add-on" to WrathppAddon.installedSha(client),
+            "looks" to WrathppLooks.installedSha(client, layout.wrathppServer), "creator art" to WrathppArt.installedSha(client),
+        )
+        val before = shas()
+        val reached = WrathppServerPackage.ensure(layout, report::say, update = true)
+        val failures = ArrayList<String>()
+        if (WrathppClient.isMade(client)) {
+            runCatching { WrathppAddon.ensure(client, report::say) }.onFailure { failures += "the add-on (${it.message})" }
+            runCatching { WrathppLooks.ensure(client, layout.wrathppServer, report::say) }.onFailure { failures += "the looks (${it.message})" }
+            runCatching { WrathppArt.ensure(client, report::say) }.onFailure { failures += "the creator art (${it.message})" }
+        }
+        if (reached && failures.isEmpty()) WrathppParts.markDone(context.filesDir, com.logie.blizz.BuildConfig.VERSION_CODE)
+        val changed = shas().zip(before).filter { (now, was) -> now.second != was.second }.map { it.first.first }
+        return when {
+            failures.isNotEmpty() -> "Not everything could be updated: ${failures.joinToString("; ")}. What was on the phone is kept."
+            !reached -> "Couldn't reach the downloads (offline?). What is on the phone is kept."
+            changed.isEmpty() -> "Everything on the phone is the newest published."
+            else -> "Updated: ${changed.joinToString(", ")}. It takes effect at the next Play."
+        }
+    }
+
     const val GLUE_ASSET = "wrathpp/WrathppCreate.lua"
+    /** The allied races' interface files (assets/wrathpp), loaded before the creator ([WrathppAddon.loadOrder]: frames before scripts, by name). */
+    val ALLIED_FILES = listOf("WrathppAlliedRaces.xml", "WrathppAlliedRaces.lua")
     const val LOOKS_DATA = "WrathppLooks.lua"
     const val OFF_NOTE = "WrathppCreateOff.lua"
 
@@ -82,13 +198,17 @@ object WrathppSetup {
     """.trimIndent() + "\n"
 
     /**
-     * The creator's files for its patch: the script ([creator]), the looks' options from the looks in [client] when they
-     * are in (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
+     * The creator's files for its patch: the script ([creator]), the asking for pictures of it ([shots], [WrathppPictures.flag]),
+     * Shadowlands' art's table when the art is in ([WrathppArt]),
+     * the looks' options from the looks in [client] when they are in
+     * (`Data/patch-Z.MPQ/Interface/GlueXML/WrathppLooks.lua`), and the undead skins' ([undead], [WrathppUndead.apply]'s).
      * The script reads the other two when the creator opens, so the order they load in doesn't matter.
      */
-    fun glue(creator: ByteArray, client: java.io.File, undead: String?): Map<String, ByteArray> {
+    fun glue(creator: ByteArray, client: java.io.File, undead: String?, shots: String? = null): Map<String, ByteArray> {
         val files = LinkedHashMap<String, ByteArray>()
         files["WrathppCreate.lua"] = creator
+        if (shots != null) files[WrathppPictures.FLAG] = shots.toByteArray(Charsets.UTF_8)
+        WrathppArt.atlas(client)?.let { files[WrathppArt.ATLAS] = it.readBytes() }
         java.io.File(client, "Data/${WrathppLooks.PATCH}/Interface/GlueXML/$LOOKS_DATA").takeIf { it.isFile }?.let { files[LOOKS_DATA] = it.readBytes() }
         if (undead != null) files[WrathppUndead.LUA] = undead.toByteArray(Charsets.UTF_8)
         return files
@@ -111,6 +231,10 @@ object WrathppSetup {
         val lines = runCatching { wxl.readLines() }.getOrNull()
         val wxlLog = lines?.takeLast(120)?.joinToString("\n") ?: "no Logs/WarcraftXL.log (the runtime didn't start, or wrote elsewhere)"
         val creator = WrathppLogs.lastCreatorLines(logs)
+        // the realm's own lines about Wrath++ (its module: the registry it serves, the clients that said hello, the body
+        // options' displays), from the end of its Server.log
+        val worldLoad = runCatching { worldLoadLines(java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "world.out")) }.getOrNull() ?: "no world.out"
+        val realm = runCatching { realmLines(java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "Server.log")) }.getOrNull() ?: "no Server.log"
         val files = listOf(WrathppAddon.EXE, "WarcraftXL.dll", "Mods/wrathpp.native/bin/x86/wrathpp-native.dll", "Mods/wxl.lua/bin/x86/wxl-lua.dll",
             "Mods/wxl.glue-unlock/bin/x86/glue-unlock.dll", "Data/${WrathppAddon.PATCH}", "WowPatched.exe", "Wow.exe")
             .joinToString("\n") { name -> val f = java.io.File(client, name); "$name: ${if (f.exists()) "${f.length()} bytes" else "missing"}" }
@@ -127,11 +251,41 @@ object WrathppSetup {
                 "Wrath++ start: build ${com.logie.blizz.BuildConfig.VERSION_CODE}, add-on ${addon.take(8)}, looks ${looks.take(8)}",
                 com.logie.blizz.reports.BugReports.body("Wrath++ start", "What Wrath++'s game was started with",
                     listOf("Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
-                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- WarcraftXL.log ---\n$wxlLog"),
+                    log = "$setup\n$files\n$archives\n\n--- the creator's lines (this launch, or the one before) ---\n${creator.joinToString("\n")}\n\n--- the realm's Wrath++ lines (Server.log) ---\n$realm\n\n--- the world server's load: its >> Loaded ... in N ms lines (world.out) ---\n$worldLoad\n\n--- WarcraftXL.log ---\n$wxlLog"),
             ))
             last.parentFile?.mkdirs()
             last.writeText(state)
         }
+    }
+
+    /**
+     * The world server's loading lines of its last start: AzerothCore's ">> Loaded N things in M ms" for each table it
+     * reads, and when it says the world is initialized. Kept in the start report so a phone's real timings show where the
+     * start goes (nothing of the sort was recorded before). At most 400 lines, the colours of the console taken out.
+     */
+    internal fun worldLoadLines(file: java.io.File): String {
+        if (!file.isFile) return "no ${file.name}"
+        val text = java.io.RandomAccessFile(file, "r").use { f ->
+            val from = maxOf(0L, f.length() - (4 shl 20))
+            f.seek(from)
+            ByteArray((f.length() - from).toInt()).also { f.readFully(it) }
+        }
+        val ansi = Regex("\u001B\\[[0-9;]*m")
+        val lines = String(text, Charsets.UTF_8).lines().map { it.replace(ansi, "") }
+            .filter { ">>" in it && " ms" in it || "initialized" in it || "Starting up" in it }.takeLast(400)
+        return if (lines.isEmpty()) "none (the world server hasn't started, or its log has none)" else lines.joinToString("\n")
+    }
+
+    /** The last lines of [file] (its last megabyte) that are the Wrath++ module's ("Wrath++"), or what there is instead. */
+    internal fun realmLines(file: java.io.File): String {
+        if (!file.isFile) return "no ${file.name}"
+        val tail = java.io.RandomAccessFile(file, "r").use { f ->
+            val from = maxOf(0L, f.length() - (1 shl 20))
+            f.seek(from)
+            ByteArray((f.length() - from).toInt()).also { f.readFully(it) }
+        }
+        val lines = String(tail, Charsets.UTF_8).lines().filter { "Wrath++" in it }.takeLast(40)
+        return if (lines.isEmpty()) "none (the module said nothing: off, or not this realm)" else lines.joinToString("\n")
     }
 
     /**
@@ -146,6 +300,8 @@ object WrathppSetup {
         val client = layout.wrathppClient
         val logs = java.io.File(client, "Logs")
         if (!logs.isDirectory) return
+        // (the creator's pictures of itself, taken since the app asked for them: sent now that the game was left)
+        runCatching { WrathppPictures.send(context) }
         val setup = runCatching { java.io.File(layout.realmLogs(com.logie.blizz.wow.Realm.WRATHPP), "setup.log").readText() }.getOrDefault("no setup.log")
         for (crash in WrathppLogs.unreported(logs)) {
             if (crash.creatorUp) WrathppLogs.creatorCrashed(logs, com.logie.blizz.BuildConfig.VERSION_CODE)

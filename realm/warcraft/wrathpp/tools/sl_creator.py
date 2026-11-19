@@ -18,7 +18,7 @@ options apart again, as Shadowlands does; this file is the key between the two:
               An option with no field is one nothing draws yet (the native mod's work): listed, and not chosen from.
     }
 
-    python3 tools/sl_creator.py data CSV_DIR LOOKS.json OUT.lua
+    python3 tools/sl_creator.py data CSV_DIR LOOKS.json OUT.lua [RACES.json]   (RACES.json: the allied races, sl_looks.py data)
 
 CSV_DIR and LOOKS.json: sl_looks.py's (fetch, races). Made by wrathpp-looks.yml into the looks package
 (client/Interface/GlueXML/WrathppLooks.lua); the app puts it in the creator's patch beside the script.
@@ -29,7 +29,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import sl_looks                                 # noqa: E402
+import sl_looks
+import sl_parts
+import names                                 # noqa: E402
 from sl_looks import allied                     # noqa: E402
 
 DK, DH = 1 << 5, 1 << 11
@@ -95,7 +97,9 @@ def digits_of(tables, model, chr_model):
                 skin_parts.append(len(digits))
                 break
     base = model["base_skins"]
-    out["Skin Color"] = ("skin", len(skin_parts), {s["choice"]: s["base"] for s in model["skins"][:base]})
+    # (a colour's digit is its place among the base skins: the table's colour number. It is the skin's "base" for the ten races; the
+    # High Elf's skins are the Void Elf's less the void ones, numbered again, their "base" the Void Elf's, which the face textures go by)
+    out["Skin Color"] = ("skin", len(skin_parts), {s["choice"]: k for k, s in enumerate(model["skins"][:base])})
     skin_parts.append(base)
     out["Face"] = ("face", 0, {f["choice"]: i for i, f in enumerate(model["faces"])})
     out["Eye Color"] = ("face", 1, {e["choice"]: e["index"] for e in model["eyes"]})
@@ -105,6 +109,8 @@ def digits_of(tables, model, chr_model):
     for c in tables.option_choices(chr_model, "Hair Color"):
         if [f for _, fs in tables.choice_materials(c, allied.TARGET_HAIR) for f in fs]:
             colours[c["ID"]] = len(colours)
+    for c in model.get("extra_choices", {}).get("Hair Color", []):          # (the Dark Troll's: the Night Elves' colours, added)
+        colours[c["ID"]] = len(colours)
     if len(colours) != len(model["hair_colors"]):
         raise ValueError("%s: %d hair colours here, %d in the looks" % (model["name"], len(colours), len(model["hair_colors"])))
     colour_name = next(today for today, asked in aliases.items() if asked == "Hair Color")
@@ -127,13 +133,24 @@ def digits_of(tables, model, chr_model):
     return out, fields
 
 
-def build_model(tables, categories, race_id, sex, model):
+def _parts_ids():
+    path = os.path.join(os.path.dirname(HERE), "registry", "parts_ids.json")
+    return json.load(open(path)).get("keys", {}) if os.path.exists(path) else {}
+
+
+PARTS_IDS = _parts_ids()
+
+
+def build_model(tables, categories, race_id, sex, model, key_race=None):
     chr_model = model["chr_model"]
     for asked, today in sl_looks.ALIASES.get(race_id, {}).items():
         tables.aliases[(str(chr_model), asked)] = today
     tables.only_available[str(chr_model)] = sl_looks.AVAILABLE_ONLY.get((race_id, sex), set())
     tables.unlock(chr_model, sl_looks.UNLOCKED_ACHIEVEMENTS.get(race_id, set()))
     drawn, fields = digits_of(tables, model, chr_model)
+    if sl_looks.BASE_ONLY:                              # base options only (sl_looks.BASE_ONLY): no piece, overlay, variant or picker
+        model = dict(model, overlays=[], variants=[], parts=[], pickers=[])
+        model.pop("part_types", None)
     options, used = [], {}
     mine = sorted((o for o in tables.options.values() if o["ChrModelID"] == str(chr_model)), key=lambda o: int(o["OrderIndex"]))
     for o in mine:
@@ -145,9 +162,80 @@ def build_model(tables, categories, race_id, sex, model):
         if o["Name_lang"] in drawn:
             field, part, digits = drawn[o["Name_lang"]]
             option["field"], option["part"] = field, part + 1
-            option["choices"] = [entry(tables, c, digits[c["ID"]]) for c in choices if c["ID"] in digits]
+            have = [c for c in choices if c["ID"] in digits]
+            have += [c for c in model.get("extra_choices", {}).get(o["Name_lang"], []) if c["ID"] in digits and c["ID"] not in {x["ID"] for x in have}]
+            option["choices"] = [entry(tables, c, digits[c["ID"]]) for c in have]
+            if o["Name_lang"] == "Skin Color":
+                # a skin only an unlocked achievement opens (the Blood Elves' Dark Ranger: sl_looks.UNLOCKED_ACHIEVEMENTS) is kept whatever
+                # the Ralia import supplies: the creator offers it (`keep`) beside the skins the app's WrathppSkins.lua lists. A choice's
+                # number v is its skin's place in the looks (= its index in wrathpp-skins.json), which is what that list is of
+                for e, c in zip(option["choices"], have):
+                    if c["ID"] in tables.unlocked or c.get("keep"):
+                        e["keep"] = True
         else:
             option["choices"] = [entry(tables, c, i) for i, c in enumerate(c for c in choices if tables.available(c))]
+        # A picture laid over the head (eyebrows, makeup, scars...): its choices name their picture (a path of the game's, for any
+        # hair colour or for each hair colour's index), drawn by the native mod on the head shell (sl_parts)
+        overlay = next((x for x in model.get("overlays", []) if x["name"] == o["Name_lang"]), None)
+        if overlay is not None and "field" not in option:
+            files = {c["id"]: c["files"] for c in overlay["choices"]}
+            c_body = {c["id"]: c.get("body", {}) for c in overlay["choices"]}
+            for e, c in zip(option["choices"], (c for c in choices if tables.available(c))):
+                pictures = {k: names.overlay(model, fid) for k, fid in files.get(c["ID"], {}).items()}
+                if pictures:
+                    e["ov"] = pictures
+                bodies = {k: names.body_overlay(model, fid) for k, fid in c_body.get(c["ID"], {}).items()}
+                if bodies:
+                    e["bov"] = bodies
+                if overlay.get("style") or overlay.get("depends"):
+                    e["id"] = int(c["ID"])             # a paint's style: the colours' pictures name it by this id
+            if overlay.get("style"):
+                option["style"] = True                 # kept by the registry, no picture of its own: its colour option draws
+            else:
+                option["overlay"] = names.shell(model)
+                if any(c.get("body") for c in overlay["choices"]):
+                    option["bodyoverlay"] = names.body_shell(model)
+                if overlay.get("depends"):
+                    option["depends"] = list(overlay["depends"])
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
+            if reg:
+                option["reg"] = reg                    # the registry's category: the realm keeps the character's choice (registry_parts.py)
+        # A model piece (ears, headdress, vines, a tail...): the native mod hangs its model (sl_parts.geoset_part) and shows the chosen
+        # choice's geosets; a texture picker (a jewellery's or a vine's colour) is kept beside it and its picture put on the piece
+        part = next((x for x in model.get("parts", []) if x["name"] == o["Name_lang"]), None)
+        picker = next((x for x in model.get("pickers", []) if x["name"] == o["Name_lang"]), None) if model.get("parts") else None
+        variant = next((x for x in model.get("variants", []) if x["name"] == o["Name_lang"]), None)
+        if variant is not None and "field" not in option:
+            option["variant"] = True                  # another model: kept for the character and shown in the world (not in the creator's preview)
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
+            if reg:
+                option["reg"] = reg
+        if "field" in option and part is not None and part.get("feature"):
+            # a slider's option drawn again as a piece (its colour): the choice's number is the slider's digit + 1, kept by the registry as well
+            option["geoset"] = sl_parts.part_model_path(model, part)
+            option["types"] = list(model.get("part_types", {}).get(part["name"], []))
+            if 13 in option["types"] and model.get("pickers"):
+                option["picker"] = model["pickers"][0]["name"]
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
+            if reg:
+                option["reg"] = reg
+        if "field" not in option and "overlay" not in option and "style" not in option and (part is not None or picker is not None):
+            reg = PARTS_IDS.get("%d_%d:%s" % (key_race or race_id, sex, o["Name_lang"]))
+            if part is not None and any(c["geosets"] for c in part["choices"]):
+                option["geoset"] = sl_parts.part_model_path(model, part)
+                types = model.get("part_types", {}).get(part["name"], [])
+                option["types"] = list(types)
+                if 13 in types and model.get("pickers"):
+                    option["picker"] = model["pickers"][0]["name"]
+            elif picker is not None:
+                option["texture"] = True
+                for e, c in zip(option["choices"], picker["choices"]):
+                    if c["file"]:
+                        e["tex"] = names.picker(model, c["file"])
+            if reg and ("geoset" in option or "texture" in option):
+                option["reg"] = reg
+        if sl_looks.BASE_ONLY and "field" not in option:
+            continue                                    # not carried by the five numbers: not in the list at all (no "Not drawn yet" rows)
         if len(option["choices"]) < 2:
             continue
         options.append(option)
@@ -155,16 +243,43 @@ def build_model(tables, categories, race_id, sex, model):
     cats = [{"id": int(c["ID"]), "name": c["CategoryName_lang"].split(" (")[0], "order": int(c["OrderIndex"]),
              "zoom": int(c.get("CameraZoomLevel") or 0)} for c in used.values()]
     cats.sort(key=lambda c: (c["order"], c["id"]))
-    return {"race": race_id, "sex": sex, "name": model["name"], "fields": fields, "categories": cats, "options": options}
+    out = {"race": race_id, "sex": sex, "name": model["name"], "fields": fields, "categories": cats, "options": options}
+    if model.get("parts"):
+        out["hairtex"] = names.hair_template(model)
+        out["skintex"] = [names.skin(model, x["index"]) for x in model["skins"][:model["base_skins"]]]
+    return out
 
 
-def build(csv_dir, looks):
+def game_race_ids():
+    """The allied races' race ids in the game, by key (sl_looks.allied_game_ids)."""
+    return sl_looks.allied_game_ids()
+
+
+def build(csv_dir, looks, allied_races=None):
+    """The creator's data for the races of [looks] (looks.json: the ten of 3.3.5, keyed by their own race id) and, when given, the
+    allied races of [allied_races] (races.json: keyed by name, each with Shadowlands' race id), keyed by the race id the game gives
+    them (races_profile.KEY), which is what the creator asks the game for. The High Elf is the Void Elf's models ("alias_of")."""
     tables = sl_looks.Tables(csv_dir)
     categories = {c["ID"]: c for c in allied.rows(csv_dir, "ChrCustomizationCategory")}
     models = {}
     for race in looks["races"].values():
         for sex, model in sorted(race["models"].items()):
             models["%d_%d" % (race["race"], int(sex))] = build_model(tables, categories, race["race"], int(sex), model)
+    if allied_races:
+        game = game_race_ids()
+        for key, entry in sorted(allied_races.items()):
+            if key not in game:
+                continue
+            alias = entry.get("alias_of")
+            # (the High Elf is the Void Elf's, an allied race; the Dark Troll the Troll's, one of the ten: race "8" of the looks)
+            source = (allied_races.get(alias) or looks["races"].get(str(alias))) if alias else entry
+            if source is None:
+                raise ValueError("%s: alias_of %r is neither an allied race nor one of the ten" % (key, alias))
+            sl_race = int(source["race"])              # Shadowlands' race id: its options, aliases and unlocks
+            for sex, model in sorted(entry["models"].items()):
+                m = build_model(tables, categories, sl_race, int(sex), model, key_race=game[key])
+                m["race"] = game[key]
+                models["%d_%d" % (game[key], int(sex))] = m
     return {"build": looks.get("build", sl_looks.BUILD), "models": models}
 
 
@@ -181,14 +296,14 @@ def lua_value(v, indent=0):
     if isinstance(v, str):
         return '"%s"' % v.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
     if isinstance(v, (list, tuple)):
-        if all(not isinstance(x, (dict, list, tuple)) for x in v) or all(isinstance(x, dict) and set(x) <= {"v", "n", "s", "s2", "c"} for x in v):
+        if all(not isinstance(x, (dict, list, tuple)) for x in v) or all(isinstance(x, dict) and set(x) <= {"v", "n", "s", "s2", "c", "keep"} for x in v):
             return "{ " + ", ".join(lua_value(x) for x in v) + (" }" if v else "}")
         return "{\n" + "".join("%s\t%s,\n" % (pad, lua_value(x, indent + 1)) for x in v) + pad + "}"
     if isinstance(v, dict):
         keys = sorted(v, key=lambda k: (k not in ("name", "race", "sex"), str(k)))
         key = lambda k: k if isinstance(k, str) and k.isidentifier() else '["%s"]' % k
-        if set(v) <= {"v", "n", "s", "s2", "c"}:
-            return "{ " + ", ".join("%s = %s" % (k, lua_value(v[k])) for k in ("v", "n", "s", "s2", "c") if k in v) + " }"
+        if set(v) <= {"v", "n", "s", "s2", "c", "keep"}:
+            return "{ " + ", ".join("%s = %s" % (k, lua_value(v[k])) for k in ("v", "n", "s", "s2", "c", "keep") if k in v) + " }"
         return "{\n" + "".join("%s\t%s = %s,\n" % (pad, key(k), lua_value(v[k], indent + 1)) for k in keys) + pad + "}"
     raise TypeError(type(v))
 
@@ -199,10 +314,14 @@ def lua(data):
 
 
 def main(argv):
-    if len(argv) == 5 and argv[1] == "data":
+    if len(argv) in (5, 6) and argv[1] == "data":
         with open(argv[3]) as f:
             looks = json.load(f)
-        data = build(argv[2], looks)
+        allied_races = None
+        if len(argv) == 6:
+            with open(argv[5]) as f:
+                allied_races = json.load(f)
+        data = build(argv[2], looks, allied_races)
         os.makedirs(os.path.dirname(os.path.abspath(argv[4])), exist_ok=True)
         with open(argv[4], "w", encoding="utf-8", newline="\n") as f:
             f.write(lua(data))

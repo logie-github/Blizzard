@@ -178,7 +178,9 @@ object WrathppUndead {
             first[m.key] = n
             for ((k, s) in m.skins.withIndex()) {
                 val colour = n + k
-                rows.add(arrayOf(nextId++, m.race, m.sex, SKIN, s.skin, "", "", firstSkin[7], 0, colour))
+                // (the second texture: the first skin's extra, where the race's skins have one: the Forsaken's bony
+                // pieces are drawn from it, m2.py's skin extra; an empty one leaves them without a picture)
+                rows.add(arrayOf(nextId++, m.race, m.sex, SKIN, s.skin, firstSkin[5], "", firstSkin[7], 0, colour))
                 val own = m.underwear == "race" && underwear != null
                 rows.add(arrayOf(nextId++, m.race, m.sex, UNDERWEAR, if (own) underwear!![4] else "", if (own) underwear!![5] else "", "", underwear?.get(7) ?: firstSkin[7], 0, colour))
                 for (f in faces) rows.add(arrayOf(nextId++, m.race, m.sex, FACE, s.face, f[5], "", f[7], f[8], colour))

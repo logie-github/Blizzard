@@ -1,0 +1,1 @@
+Wrath++ creator: the reset-view button has a picture the game has (the one it named is of a later game and would have shown as a green square); every picture the creator names is now checked against the game's own files before a build ships.

@@ -1,0 +1,1 @@
+Wrath++'s creator no longer drops to the game's five options when something errors; it stays and keeps going.

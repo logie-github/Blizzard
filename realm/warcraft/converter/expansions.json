@@ -1,0 +1,9 @@
+{
+  "_comment": "The converter's expansions (the launcher's Converter screen lists them in this order). `id` is the Map table's ExpansionID; `build` is wago.tools' build the files and tables are taken from (Legion 7.3.5.26972 is the client the Legion version of the launcher plays; Cataclysm Classic is the tool's own pin); `with_revamped`: also the maps 3.3.5a has that the expansion made over (the Cataclysm continents). A build wago.tools does not serve is the first thing a run says.",
+  "expansions": [
+    {"key": "cataclysm", "name": "Cataclysm", "id": 3, "build": "4.4.2.60895", "with_revamped": true},
+    {"key": "mop", "name": "Mists of Pandaria", "id": 4, "build": "7.3.5.26972", "with_revamped": false},
+    {"key": "wod", "name": "Warlords of Draenor", "id": 5, "build": "7.3.5.26972", "with_revamped": false},
+    {"key": "legion", "name": "Legion", "id": 6, "build": "7.3.5.26972", "with_revamped": false}
+  ]
+}

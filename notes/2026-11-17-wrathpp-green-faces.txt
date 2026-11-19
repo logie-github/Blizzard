@@ -1,0 +1,1 @@
+Faces and bodies no longer turn bright green when eyebrows, makeup or scars are chosen; the bounce stays on the chest.

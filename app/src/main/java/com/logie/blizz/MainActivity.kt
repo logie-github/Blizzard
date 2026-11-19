@@ -15,6 +15,8 @@ class MainActivity : ComponentActivity() {
         com.logie.blizz.reports.BugReports.start(this)
         // A crash of Wrath++'s game that was never reported (its runtime's logs stay on the phone) goes as the app starts.
         applicationContext.let { app -> Thread { runCatching { com.logie.blizz.wrathpp.WrathppSetup.reportCrashes(app) } }.start() }
+        // World of Warcraft: Forever is out of the app: what it left on the phone (its 50 GB of game, maps and database) goes now.
+        applicationContext.let { app -> Thread { runCatching { WindowsRuntime.wipeForeverLeftovers(app) } }.start() }
         // World of Warcraft: Play starts the realm through this.
         com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
         com.logie.blizz.wow.WowCtl.nativeWrapper = java.io.File(applicationInfo.nativeLibraryDir, "libblizzmaria.so")

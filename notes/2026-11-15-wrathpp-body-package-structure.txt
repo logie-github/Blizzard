@@ -1,0 +1,1 @@
+Wrath++: the body options package no longer stops matching after the looks are rebuilt (it is made for the model's structure; put the new wrathpp-body.zip in).

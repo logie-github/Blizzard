@@ -153,27 +153,22 @@ def skin_batches(data):
 
 
 def single_textures(stage, conv):
-    """A batch whose Cataclysm shader 3.3.5a hasn't (an 0x8000 shader id: its colour texture with an
-    environment reflection, say) the converter resets to 3.3.5a's default with its two or three
-    textures kept, which 3.3.5a draws black (seen on a phone: Kezan's pipes): drawn with its first
-    texture alone, its colour."""
+    """A batch the converter leaves on 3.3.5a's default shader (0, Opaque_Opaque) with two or three
+    textures drawn over each other: the last (a mask, an environment map, a black fade) covers the
+    colour, black in the game (seen on a phone: Kezan's pipes, and the Gilneas braziers, cauldrons
+    and cooking pots, whose fire has a black mask second, flickering as the fire's frames play).
+    That is a Cataclysm shader with the 0x8000 bit (its colour texture with a reflection) and any
+    other one 3.3.5a hasn't a combiner for: drawn with its first texture alone, its colour."""
     fixed = 0
     for root, _, names in os.walk(conv):
         for name in names:
             if not name.endswith(".skin"):
                 continue
             out_path = os.path.join(root, name)
-            src_path = os.path.join(stage, os.path.relpath(out_path, conv))
-            if not os.path.exists(src_path):
-                continue
-            src, out = open(src_path, "rb").read(), bytearray(open(out_path, "rb").read())
-            a, b = skin_batches(src), skin_batches(out)
-            if not a or len(a) != len(b):
-                continue
+            out = bytearray(open(out_path, "rb").read())
             changed = False
-            for sa, ob in zip(a, b):
-                shader = struct.unpack_from("<H", src, sa + 2)[0]
-                if shader & 0x8000 and struct.unpack_from("<H", out, ob + 2)[0] == 0 and struct.unpack_from("<H", out, ob + 14)[0] > 1:
+            for ob in skin_batches(out):
+                if struct.unpack_from("<H", out, ob + 2)[0] == 0 and struct.unpack_from("<H", out, ob + 14)[0] > 1:
                     struct.pack_into("<H", out, ob + 14, 1)
                     changed = True
                     fixed += 1

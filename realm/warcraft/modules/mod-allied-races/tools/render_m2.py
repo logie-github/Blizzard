@@ -27,6 +27,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import blp  # noqa: E402
+from skinwide import wide_index_start  # noqa: E402
 
 
 def arr(m, off):
@@ -59,6 +60,7 @@ class Model:
         self.vbones = self.vertices[:, 16:20].astype(np.int32)
         self.normals = np.frombuffer(self.vertices[:, 20:32].tobytes(), dtype="<f4").reshape(n, 3)
         self.uv = np.frombuffer(self.vertices[:, 32:40].tobytes(), dtype="<f4").reshape(n, 2)
+        self.uv1 = np.frombuffer(self.vertices[:, 40:48].tobytes(), dtype="<f4").reshape(n, 2)
         n, o = arr(m, 80)
         self.textures = []
         for i in range(n):
@@ -277,7 +279,11 @@ def look_at(eye, target, up=(0, 0, 1)):
     return view
 
 
-def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir):
+def render(model, skin, texture, hair_tex, files, shown, world, camera, size, light_dir, extra_tex=None, design_tex=None):
+    """... design_tex: a display's texture variation (type 11), for a two-texture batch (the body layer: the first
+    texture by the first coordinates, repeated, times the second by the second, clamped; Combiners_Mod_Mod, or
+    Combiners_Opaque_Mod, the second's alpha alone, where the model's combiner list says the first is opaque). A batch
+    whose type 11 texture is missing is left out, as Wrath++'s native mod leaves the layer hidden then."""
     W, H = size
     fov, near, far, eye, target = camera
     view = look_at(eye, target)
@@ -323,6 +329,7 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
     nl = normals / np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-6)
     shade = 0.45 + 0.55 * np.clip(nl @ light_dir, 0, 1)
     uv = model.uv[skin.vertices]
+    uv1 = model.uv1[skin.vertices]
     drawn = 0
     def blend_of(b):
         return model.materials[b[6]][1] if b[6] < len(model.materials) else 0
@@ -335,12 +342,27 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
         unlit = bool(mflags & 0x1)
         tex = model.textures[model.tex_lookup[b[9]]] if b[9] < len(model.tex_lookup) else (1, "")
         kind, name = tex
+        second = None
+        if b[8] == 2 and b[9] + 1 < len(model.tex_lookup):
+            kind2 = model.textures[model.tex_lookup[b[9] + 1]][0]
+            second = design_tex if kind2 == 11 else None
+            if second is None:
+                continue
+            second = np.asarray(second)
+        # the first texture's operation of a two-texture batch: the model's combiner list at the batch's index (flag 0x8), else MOD
+        first_op = 1
+        if struct.unpack_from("<I", model.m, 0x10)[0] & 0x8:
+            cn, co = arr(model.m, 0x130)
+            if b[2] < cn:
+                first_op = struct.unpack_from("<H", model.m, co + b[2] * 2)[0]
         if kind == 1:
             tx = texture
         elif kind == 6:
             tx = hair_tex
         elif kind == 2:
             continue                                             # cape: none at creation
+        elif kind == 8:
+            tx = extra_tex                                       # the skin extra: the skin row's second texture
         elif kind == 0:
             tx = read_blp(files, name)
         else:
@@ -349,9 +371,9 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             tx = np.full((4, 4, 4), 255, dtype=np.uint8)
         tx = np.asarray(tx)
         th, tw = tx.shape[:2]
-        # The game reads the 16-bit start alone: the modern format's high word (level) is lost on
-        # it, so a section placed past the first 65535 indices draws from the wrong triangles.
-        first = is_
+        # Wrath++'s client reads a section's start wide: the high half in the id's top half-word (level), when its
+        # window lies inside the skin (skinwide.py). A stock client reads the 16-bit start alone.
+        first = wide_index_start(len(skin.indices), level, is_, ic)
         tris = skin.indices[first:first + ic].reshape(-1, 3)
         for tri in tris:
             if not ok[tri].all():
@@ -384,6 +406,15 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             tj = np.clip((u % 1.0) * tw, 0, tw - 1).astype(int)
             texel = tx[ti, tj]
             alpha = texel[:, :, 3].astype(np.float32) / 255.0
+            if second is not None:
+                sh2, sw2 = second.shape[:2]
+                u1 = l0 * uv1[tri[0], 0] + l1 * uv1[tri[1], 0] + l2 * uv1[tri[2], 0]
+                v1 = l0 * uv1[tri[0], 1] + l1 * uv1[tri[1], 1] + l2 * uv1[tri[2], 1]
+                t2 = second[np.clip(v1 * sh2, 0, sh2 - 1).astype(int), np.clip(u1 * sw2, 0, sw2 - 1).astype(int)].astype(np.float32)
+                first_alpha = texel[:, :, 3:4].astype(np.float32) if first_op else 255.0   # (Opaque_Mod: the second's alpha alone)
+                texel = np.concatenate([texel[:, :, :3].astype(np.float32) * t2[:, :, :3] / 255.0,
+                                        (first_alpha * t2[:, :, 3:4] / 255.0)], axis=2)
+                alpha = texel[:, :, 3] / 255.0
             if blend == 1:                                       # alpha key: the game's test
                 hit &= texel[:, :, 3] >= 224
                 if not hit.any():

@@ -1,0 +1,1 @@
+Wrath++: its server, looks and creator art stay on the phone instead of downloading at every start; Settings, Wrath++, Downloads, Update now fetches newer ones, and they refresh once after the app updates.

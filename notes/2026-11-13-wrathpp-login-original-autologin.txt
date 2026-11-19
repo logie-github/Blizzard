@@ -1,0 +1,1 @@
+Wrath++: the login screen is Wrath's own again (Sindragosa) with Project Reforged on, and the saved password is typed once the login screen has loaded, however long that takes.

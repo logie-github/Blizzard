@@ -1,0 +1,1 @@
+Wrath++'s race buttons take more columns on a short screen so the Alliance's and Horde's eleven or more no longer run into the class row.

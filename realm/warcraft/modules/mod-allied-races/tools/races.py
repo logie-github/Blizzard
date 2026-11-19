@@ -73,10 +73,12 @@ EARS_OPTIONS = ("Ears", "Ear Gauge")
 AVAILABLE = "3"                 # ChrCustomizationReq.ReqType of a choice any player picks
 TARGET_BODY, TARGET_FACE, TARGET_HAIR, TARGET_TENTACLES, TARGET_PELVIS, TARGET_TORSO, TARGET_TATTOO, TARGET_EYES, TARGET_EYE_FACE, TARGET_JEWELRY = \
     "1", "5", "10", "11", "13", "14", "16", "25", "36", "38"
+# the scalp: a layer over the face in the head's place of the skin, the hair's own colour where a style is cut short (its target number is the model's)
 BODY_TATTOOS = ("Body Tattoo", "Tattoo")    # a skin overlay with colours of its own (nightborne; lightforged and zandalari)
 # Today's geoset groups the 3.3.5 game picks from its tables, so every variant stays:
 TABLE_GROUPS = {0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 15, 18}
 GLOW_GROUP, EARS_GROUP = 17, 7
+SKIN_EXTRA_TYPE = "8"           # ChrModelTextureLayer.TextureType of the skin extra (3.3.5's texture type 8: a skin row's second texture)
 
 
 def rows(csv_dir, table):
@@ -98,6 +100,7 @@ class Tables:
         for e in r("ChrCustomizationElement"):
             self.elements[e["ChrCustomizationChoiceID"]].append(e)
         self.materials = {m["ID"]: m for m in r("ChrCustomizationMaterial")}
+        self.layers = r("ChrModelTextureLayer") if os.path.exists(os.path.join(csv_dir, "ChrModelTextureLayer.csv")) else []
         self.geosets = {g["ID"]: g for g in r("ChrCustomizationGeoset")}
         self.skinned = {g["ID"]: g for g in r("ChrCustomizationSkinnedModel")}
         self.reqs = {q["ID"]: q for q in r("ChrCustomizationReq")}
@@ -105,6 +108,7 @@ class Tables:
         for t in r("TextureFileData"):
             self.textures[t["MaterialResourcesID"]].append(int(t["FileDataID"]))
         self.model_data = {m["ID"]: m for m in r("CreatureModelData")}
+        self.cond_models = {c["ID"]: c for c in r("ChrCustomizationCondModel")} if os.path.exists(os.path.join(csv_dir, "ChrCustomizationCondModel.csv")) else {}
         self.chr_models = {m["ID"]: m for m in r("ChrModel")}
         self.displays = {}
         display_path = os.path.join(csv_dir, "CreatureDisplayInfo.csv")
@@ -192,7 +196,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
     # Void tentacles: today a switch beside the hair style, each style with its own shape (a
     # group 2 geoset). They go on the feature slider (below), one variant a shape, named for the
     # style the shape was made for: a copy of every style with its tentacles on would double the
-    # hair's triangles, and 3.3.5 can address 65535 indices in a model (m2.py).
+    # hair's triangles, and a skin has a budget of indices and vertices (m2.py: wide skins, 262144 indices, 65535 vertices).
     tentacles = tables.option_choices(model_id, "Tentacles", only_available=False)
     hardcoded = {}
     hardcoded_files = {}
@@ -223,10 +227,33 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
 
     # Hair colours.
     hair_colors = []
+    colour_of_choice = {}
     for i, c in enumerate(tables.option_choices(model_id, "Hair Color")):
         files = [f for _, fs in tables.choice_materials(c, TARGET_HAIR) for f in fs]
         if files:
-            hair_colors.append({"index": len(hair_colors), "file": files[0]})
+            colour_of_choice[c["ID"]] = len(hair_colors)
+            hair_colors.append({"index": len(hair_colors), "file": files[0], "choice": c["ID"]})
+
+    # The scalp (3.3.5's ScalpLower, a layer of a hair row over the face): a hair style cut short or shaved shows the hair's
+    # colour on the skin where the mesh has none. Today's game hangs it on a style (a picture for each colour it is related
+    # to, one for any colour) or on a colour (a picture for each style). hair[i]["scalp"]: {colour index or "*": file}.
+    # (the target's number is the model's: 11 for the Dwarf and the Orc, 12 for the Human woman; it is whatever the styles'
+    # materials are on beside the hair's own)
+    scalp_targets = sorted({tables.material_files(e)[0] for c in styles for e in tables.elements[c["ID"]] if e["ChrCustomizationMaterialID"] != "0"} - {TARGET_HAIR})
+    style_of_choice = {h["choice"]: h for h in hair}
+    for h in hair:
+        h["scalp"] = {}
+        for target in scalp_targets:
+            for related, files in tables.choice_materials(tables.choice_by_id[h["choice"]], target):
+                if files and related in colour_of_choice:
+                    h["scalp"][str(colour_of_choice[related])] = files[0]
+                elif files and related == "0":
+                    h["scalp"]["*"] = files[0]
+    for choice_id, index in colour_of_choice.items():
+        for target in scalp_targets:
+            for related, files in tables.choice_materials(tables.choice_by_id[choice_id], target):
+                if files and related in style_of_choice:
+                    style_of_choice[related]["scalp"][str(index)] = files[0]
 
     # Skins: body, underwear; nightborne with each body tattoo.
     # A skin without underwear of its own (the Lightforged's) takes the first jewelry colour's
@@ -239,6 +266,12 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         fs = [f for _, files in tables.choice_materials(jewelry_first[0], TARGET_TORSO) for f in files]
         jewelry_torso = fs[0] if fs else 0
     skin_choices = tables.option_choices(model_id, "Skin Color")
+    # The skin extra: today's layer of texture type 8 in the model's layout (the Tauren's and the Worgen's fur, the Draenei men's
+    # crests), a picture of the skin colour's own that the model's sections of that type draw. 3.3.5 has the layer too (a skin
+    # row's second texture): m2.py keeps those sections for a model whose skins name it.
+    layout_id = tables.chr_models.get(str(model_id), {}).get("CharComponentTextureLayoutID")
+    extra_targets = sorted({row["ChrModelTextureTargetID_0"] for row in tables.layers
+                            if row["CharComponentTextureLayoutsID"] == layout_id and row["TextureType"] == SKIN_EXTRA_TYPE})
     tattoos = []
     for oname in BODY_TATTOOS:
         tattoos = tables.option_choices(model_id, oname, only_available=False)
@@ -260,6 +293,9 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         if not body:
             continue
         base_skins.append({"choice": c["ID"], "order": int(c["OrderIndex"]), "body": body[0], "pelvis": pelvis[0] if pelvis else jewelry_pelvis, "torso": torso[0] if torso else jewelry_torso})
+        extra = [f for target in extra_targets for _, fs in tables.choice_materials(c, target) for f in fs]
+        if extra:
+            base_skins[-1]["extra"] = extra[0]
     for t, (files, tname) in enumerate(zip(tattoo_files, tattoo_names)):
         for b in base_skins:
             skins.append(dict(b, index=len(skins), base=base_skins.index(b), tattoo=files, tattoo_name=tname))

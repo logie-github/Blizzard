@@ -1,0 +1,1 @@
+Wrath++ puts the game's character table in the order its customization code needs, against a crash when opening Customize.

@@ -55,4 +55,33 @@
 - **A fault in a game's clicks or keys is reproduced on Winlator's own X server** (`tools/xrig/README.md`: the server in a unit
   test, the phone's Wine connected to it), where the phone's input differs from Xvfb: pointer grabs, the stretch, which window
   gets the event. A change to the input path, the keeper or Winlator's server is run there before it is pushed.
+- **World of Warcraft: Forever is removed** (the user, 18 November 2026: "Delete it all. Then make it so the app wipes any leftover
+  downloaded data like the 50gb file"). Don't build it again unless the user asks; `game/LeftoverData` deletes what it left on the
+  phone and stays. (`mod-forever-quests` and the Forever racials of the Wrath realms are other work and stay.)
 - Never commit build outputs, downloaded tools, or any game files.
+- **The phone's Wrath++ runs on ChromieCraft's HD pack** (the user, 17 November 2026: "Remember under that I'm using
+  chromiecrafts hd pack"; the start report's "HD look", its patches in Wrath++'s copy of the game). The looks' `patch-Z` sits
+  over it, so everything Wrath++'s looks name (models, textures, `CharSections` rows) is drawn beside and over the HD pack's own
+  files and tables, not stock 3.3.5's: check a look, a table change or a texture name against that base, and read a phone
+  picture as the HD pack plus the looks.
+
+## Wrath++: the whole Shadowlands creator, every option, every race (the user's standing rule)
+
+The user (14 November 2026): "We are using 3.3.5 modified client. It allows for more options because we are using the
+shadowlands character creator. So all of this shit needs to be available and I should NOT have to keep repeating this
+over and over."
+
+- Wrath++ is **not stock 3.3.5**: it is the 3.3.5a client run through WarcraftXL's runtime with Wrath++'s own native mod
+  (`client-mod/wrathpp-native`), its appearance add-on (`client-mod/wrathpp`), its realm module
+  (`mod-wrathpp-customization`, the extended appearance protocol and registry) and the Shadowlands character creator
+  (`app/src/main/assets/wrathpp/WrathppCreate.lua`). Its limits are what those can be made to do, not the stock client's.
+- **Every option Shadowlands' creator has for a race and sex is available in Wrath++ and seen in the game**, per character:
+  every race and both sexes (the Blood Elf man included), every category and option (Face, Hair, Accessories, Body,
+  Markings: scars, paints, tattoos, horns, ears, vines, jewellery, makeup, face shape, Upright, the lot), and Wrath++'s own
+  body options (Shape, Style, Density) for every race's women with every shape. "3.3.5 keeps five numbers" is never the
+  end of it: what the five numbers can't carry goes through the extended appearance (registry categories, stored per
+  character by the realm) and is drawn by the native mod (geosets, texture layers, extra models, bones) or by displays.
+- An option greyed as "Not drawn yet", a race left on the old look, a shape only some races have or an animation that
+  falls back to standing is **unfinished work, not an answer**. Never present it as done; list what is left and keep
+  working through it (task #19 and the body options' races). Don't ask the user whether to wire something the creator
+  shows: wire it.

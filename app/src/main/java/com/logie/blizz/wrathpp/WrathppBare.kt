@@ -4,7 +4,7 @@ import java.io.File
 import java.io.IOException
 
 /**
- * The women on Wrath++ are drawn without underwear (the user: "There should be no underwear for the women"). Each
+ * Body option on Wrath++: the women's underwear layer is off. Each
  * woman's underwear row of the game's character table (`CharSections`, section 4, in the looks' patch folder) keeps its
  * place, which the game asks for before it offers a skin, and loses its two textures: the game lays nothing over the
  * skin for a row without a name (the client's own code: `if (*underwearRec->m_textureName[0] && ...)`, and the same for

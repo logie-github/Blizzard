@@ -115,6 +115,7 @@ object WindowsRuntime {
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
 
         _state.value = State.Preparing(Step.RUNTIME, 0f, WowPlay.splashIdOf(entry))
+        com.logie.blizz.reports.SessionLog.event("windows", "run: ${entry.gameId} ${entry.title} (${entry.clientVersion ?: "-"}), ${entry.executable}, window ${size.first}x${size.second}")
         val installed = withContext(Dispatchers.IO) {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
@@ -129,24 +130,10 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId, options) }
         // Legion: the Battle.net certificate bundle the patched client trusts goes into the game's Windows.
         val legion = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == LegionClientSetup.VERSION
-        // World of Warcraft: Forever's client: modern WoW with the same Wow_loader.dll start-up protection as Legion.
-        val foreverClient = entry.gameId == "wow-client" && entry.clientVersion == "forever"
-        // Forever starts the Forever Launcher (a Windows GUI) before the game: its touch controls are plain tap-to-click
-        // while it is up ([GestureView.EXTRA_LAUNCHER]), not the WoW game gestures, so its buttons can be pressed.
-        val foreverLauncher = foreverClient && withContext(Dispatchers.IO) { com.logie.blizz.forever.ForeverLayout.of(context).hasLauncher() }
-        // Forever runs a .NET launcher (WinForms) and then the WoW client. Box64's aggressive PERFORMANCE preset
-        // corrupts .NET under ARM — its concurrent GC and lock-free code assume x86's strong memory ordering, which
-        // Box64 only emulates under STABILITY (STRONGMEM=2, SAFEFLAGS=2, no big blocks). That is the most likely cause
-        // of the launcher drawing its window and then crashing. Give the whole Forever session that safe preset.
-        if (foreverClient) withContext(Dispatchers.IO) {
-            container.setBox64Preset(com.winlator.box64.Box64Preset.STABILITY)
-            container.saveData()
-        }
-        if (legion) {
-            withContext(Dispatchers.IO) {
-                val layout = com.logie.blizz.wow.WowLayout.legion(context)
-                LegionClientSetup.installCertificateBundle(com.logie.blizz.wow.RealmSpecsAccess.certBundle(layout), File(container.rootDir, ".wine/drive_c"))
-            }
+        // Wine's esync on, as Winlator sets it: an earlier version turned it off in this shared container for one game.
+        withContext(Dispatchers.IO) {
+            val env = EsyncSetting.apply(container.getEnvVars(), on = true)
+            if (env != container.getEnvVars()) { container.setEnvVars(env); container.saveData() }
         }
         // Diablo II: Windows 98 for Game.exe before 1.14, 800x600 in game ([Diablo2Setup]).
         if (entry.gameId == "diablo2") withContext(Dispatchers.IO) { runCatching { Diablo2Setup.apply(container.rootDir, entry.clientVersion) } }
@@ -160,35 +147,6 @@ object WindowsRuntime {
         Borderless.dialogFlag = if (keeper) Borderless.dialogFile(container.rootDir) else null
         // A game that dies of a fault ends without Wine's "Program Error" box: the launcher is back and the app reports it ([WineCrashDialog]).
         withContext(Dispatchers.IO) { runCatching { WineCrashDialog.apply(container.rootDir, entry.gameId) } }
-        // Wine's GetAdaptersAddresses walks an empty adapter list as a full one here (this Wine lists no adapters), which
-        // ended World of Warcraft: Forever in its first second: answered "no adapters" instead ([WineAdapterFix], the one
-        // known iphlpapi.dll only, in every game's Wine alike so they all run the same one).
-        withContext(Dispatchers.IO) { runCatching { com.logie.blizz.forever.WineAdapterFix.apply(RootFS.find(context).rootDir, container.rootDir) } }
-        // World of Warcraft: Forever: the phone's own CA (ctl.sh make_certificates) into the client's Windows, so it
-        // trusts the realm's HTTPS login server (the Forever Launcher sets the game-server key, not this).
-        if (foreverClient) {
-            val driveC = File(container.rootDir, ".wine/drive_c")
-            withContext(Dispatchers.IO) {
-                val layout = com.logie.blizz.forever.ForeverLayout.of(context)
-                if (layout.caFile.isFile) LegionClientSetup.installCertificateBundle(layout.caFile, driveC)
-                // The Forever Launcher is a WinForms (.NET) program, and Winlator's Wine ships no .NET runtime, so a
-                // .NET program finds none and does not start. Put wine-mono in place (files only — Wine 10.10 finds it
-                // at C:\windows\mono by path, no installer and no first-run race), then seed the launcher's config so
-                // it opens straight on "This PC (own server)". Only when a launcher is set: the bare client needs neither.
-                if (layout.hasLauncher()) {
-                    runCatching {
-                        if (!com.logie.blizz.forever.WineMono.installed(driveC)) {
-                            _state.value = State.Preparing(Step.STARTING, 0f, WowPlay.splashIdOf(entry))
-                            com.logie.blizz.forever.WineMono.ensure(driveC) { done, total ->
-                                _state.value = State.Preparing(Step.STARTING, if (total > 0) done.toFloat() / total else null, WowPlay.splashIdOf(entry))
-                            }
-                        }
-                    }
-                    // Seed even if the runtime step above threw, so the launcher still opens on "This PC (own server)".
-                    runCatching { com.logie.blizz.forever.ForeverLauncher.seedConfig(driveC) }
-                }
-            }
-        }
         // Warcraft III: its screen and install path in the games' registry ([Wc3Setup]).
         if (entry.gameId.startsWith("warcraft3")) {
             withContext(Dispatchers.IO) {
@@ -199,9 +157,12 @@ object WindowsRuntime {
         }
         // Wine's errors, its exception trace (seh: what faulted, where, which handler ran) and the libraries it loads, kept for the reports ([GameLog]).
         android.preference.PreferenceManager.getDefaultSharedPreferences(context).edit()
-            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll").apply()
+            .putBoolean("enable_wine_debug", true).putString("wine_debug_channels", "err,seh,loaddll")
+            // Box64's own log is off: at level 2 it writes a register dump for every fault a game handles, which slows a start badly.
+            .putInt("box64_logs", 0).apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
+        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion) LegionClientSetup.BOX64 else "default"}")
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
@@ -209,14 +170,15 @@ object WindowsRuntime {
             // (patches/winlator/0005): paths in them would otherwise break that conversion.
             .putExtra("exec_path", program.path)
             .putExtra("exec_args", GameArguments.of(entry.gameId, entry.arguments, LaunchOptionsStore(context).get(entry.gameId).extraArgs, entry.clientVersion))
-            // Legion and the Forever client share the Wow_loader.dll start-up protection, which needs the Box64 with
+            // Legion's Wow_loader.dll start-up protection needs the Box64 with
             // the signal-flags fix (Winlator patch 0007); without it the loader deadlocks on Wine's loader lock.
-            .apply { if (legion || foreverClient) putExtra("box64_version", LegionClientSetup.BOX64) }
+            .apply { if (legion) putExtra("box64_version", LegionClientSetup.BOX64) }
             // The session's keeper before winhandler.exe and the game (Winlator patch 0009).
             .apply { if (keeper) putExtra("exec_wrapper", Borderless.command(entry.gameId)) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
-            .apply { if (foreverLauncher) putExtra(GestureView.EXTRA_LAUNCHER, true) }
+            // Wrath++ run by WarcraftXL: its log says when the login screen is up, for auto-login (GestureView.EXTRA_READY_LOG).
+            .apply { if (entry.executable.equals(com.logie.blizz.wrathpp.WrathppAddon.EXE, ignoreCase = true)) putExtra(GestureView.EXTRA_READY_LOG, File(folder, "Logs/WarcraftXL.log").path) }
             .putExtra(GestureView.EXTRA_GAME, entry.gameId)
             // The loading screen of the version played (Wrath+, Legion, OctoWoW share one client entry).
             .putExtra(GestureView.EXTRA_SPLASH, WowPlay.splashIdOf(entry))
@@ -241,6 +203,21 @@ object WindowsRuntime {
         File(etc, "nsswitch.conf").writeText(Offline.nsswitch())
     }
 
+    /**
+     * Removes what World of Warcraft: Forever left on the phone ([LeftoverData]), off the main thread as the app starts; says
+     * in the run's log what went. Not while a game runs (its Windows' registry is then Wine's to write).
+     */
+    fun wipeForeverLeftovers(context: Context) {
+        if (_state.value !is State.Idle) return
+        val app = context.applicationContext
+        val containers = runCatching { ContainerManager(app).containers.map { it.rootDir } }.getOrDefault(emptyList())
+        val result = LeftoverData.wipe(app.filesDir, containers) { pid -> android.os.Process.killProcess(pid) } ?: return
+        runCatching { app.getSharedPreferences("wow_login", Context.MODE_PRIVATE).edit().remove("wow_forever_name").remove("wow_forever_password").apply() }
+        runCatching { (app.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager).deleteNotificationChannel("wow-forever") }
+        com.logie.blizz.reports.SessionLog.event("windows", "World of Warcraft: Forever's leftovers removed: ${result.bytes shr 20} MB in ${result.folders.joinToString()}; " +
+            "${result.processes} of its programs ended; ${result.certificates} certificate keys out of the games' Windows")
+    }
+
     /** The drives: D: the games, S: their saves (the app's folders). */
     fun drives(context: Context): String {
         val paths = GameImportManager.paths(context)
@@ -248,10 +225,7 @@ object WindowsRuntime {
         paths.saves.mkdirs()
         paths.staging.mkdirs()
         // T: the importers' work folder, where a game's own installer is run ([com.logie.blizz.importer.InstallerRun]).
-        // F: World of Warcraft: Forever's folder (its client, downloaded or copied there: files/forever/client), which
-        // Winlator otherwise can't turn into a Windows path.
-        val forever = com.logie.blizz.forever.ForeverLayout.of(context).root.apply { mkdirs() }
-        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path + "F:" + forever.path
+        return "D:" + paths.games.path + "S:" + paths.saves.path + "T:" + paths.staging.path
     }
 
     /**
@@ -268,20 +242,6 @@ object WindowsRuntime {
     }
 
     /** The games' Windows: made the first time, its screen, drives and launch options set every time. */
-    /**
-     * Clears World of Warcraft: Forever's own setup from the shared container so the next Play rebuilds it from
-     * the current version: the .NET runtime ([com.logie.blizz.forever.WineMono]), the launcher's seeded config
-     * ([com.logie.blizz.forever.ForeverLauncher]), and `C:\webview2` (an earlier version's browser runtime, now
-     * unused). The container is shared by every game, so only these Forever-specific paths are touched. Off the
-     * main thread; harmless when the container isn't made yet.
-     */
-    fun clearForeverRuntime(context: Context) {
-        val container = ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME } ?: return
-        val driveC = File(container.rootDir, ".wine/drive_c")
-        com.logie.blizz.forever.WineMono.remove(driveC)
-        com.logie.blizz.forever.ForeverLauncher.clearConfig(driveC)
-        File(driveC, "webview2").deleteRecursively()
-    }
 
     private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved): Container {
         // (disk: the manager reads every container's file, the drives make their folders)

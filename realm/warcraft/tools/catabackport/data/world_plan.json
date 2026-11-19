@@ -1,0 +1,359 @@
+{
+ "_": "The mechanical part of the world port, as data (CATA_BACKPORT.md 4.2): table by table, which CPP rows (TrinityCore 4.3.4 TDB, database {CPP}) become which AzerothCore rows ({AC}). Columns present in both are copied by name; `set` gives a column's expression (backticked CPP columns); a column only in CPP is dropped and counted; one only in AzerothCore keeps its default. Variables: {map} the CPP map id, {new_map} its id here, {E} the entry offset (6000000), {G} this map's spawn offset, {P} the path offset (600000000). `ids` names a scratch table the first steps fill. Ranges are the zones' (mod-worgen-goblin tools/zones/build_world.py: ENTRY, GUID, PATH). Not here, and reported as `not_built` with counts: smart_scripts, conditions, creature/gameobject loot referenced by SmartAI, spells and items (zones/spells.py, items.py), phases, vehicles, areatriggers, display tables.",
+ "scratch": [
+  {
+   "name": "cb_creature_guid",
+   "sql": "SELECT `guid`, {G} + ROW_NUMBER() OVER (ORDER BY `guid`) AS `new_guid` FROM {CPP}.`creature` WHERE `map` = {map}"
+  },
+  {
+   "name": "cb_creature_id",
+   "sql": "SELECT DISTINCT `id` FROM {CPP}.`creature` WHERE `map` = {map}"
+  },
+  {
+   "name": "cb_go_guid",
+   "sql": "SELECT `guid`, {G} + ROW_NUMBER() OVER (ORDER BY `guid`) AS `new_guid` FROM {CPP}.`gameobject` WHERE `map` = {map}"
+  },
+  {
+   "name": "cb_go_id",
+   "sql": "SELECT DISTINCT `id` FROM {CPP}.`gameobject` WHERE `map` = {map}"
+  },
+  {
+   "name": "cb_quest",
+   "sql": "SELECT `quest` AS `id` FROM {CPP}.`creature_queststarter` WHERE `id` IN (SELECT `id` FROM {TMP}.cb_creature_id) UNION SELECT `quest` FROM {CPP}.`creature_questender` WHERE `id` IN (SELECT `id` FROM {TMP}.cb_creature_id) UNION SELECT `quest` FROM {CPP}.`gameobject_queststarter` WHERE `id` IN (SELECT `id` FROM {TMP}.cb_go_id) UNION SELECT `quest` FROM {CPP}.`gameobject_questender` WHERE `id` IN (SELECT `id` FROM {TMP}.cb_go_id)"
+  },
+  {
+   "name": "cb_menu",
+   "sql": "SELECT DISTINCT `gossip_menu_id` AS `id` FROM {CPP}.`creature_template` WHERE `entry` IN (SELECT `id` FROM {TMP}.cb_creature_id) AND `gossip_menu_id` <> 0"
+  }
+ ],
+ "steps": [
+  {
+   "table": "creature",
+   "where": "`map` = {map}",
+   "key": [
+    "guid"
+   ],
+   "set": {
+    "guid": "(SELECT g.`new_guid` FROM {TMP}.cb_creature_guid g WHERE g.`guid` = {CPP}.`creature`.`guid`)",
+    "map": "{new_map}",
+    "npcflag": "`npcflag` & 67108863",
+    "dynamicflags": "0",
+    "zoneId": "0",
+    "areaId": "0",
+    "spawnMask": "1",
+    "id1": "`id` + {E}",
+    "wander_distance": "`spawndist`"
+   }
+  },
+  {
+   "table": "creature_addon",
+   "where": "`guid` IN (SELECT `guid` FROM {TMP}.cb_creature_guid)",
+   "key": [
+    "guid"
+   ],
+   "set": {
+    "guid": "(SELECT g.`new_guid` FROM {TMP}.cb_creature_guid g WHERE g.`guid` = {CPP}.`creature_addon`.`guid`)",
+    "path_id": "IF(`waypointPathId` = 0, 0, `waypointPathId` + {P})"
+   }
+  },
+  {
+   "table": "creature_template",
+   "where": "`entry` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "entry"
+   ],
+   "set": {
+    "entry": "`entry` + {E}",
+    "lootid": "IF(`lootid` = 0, 0, `lootid` + {E})",
+    "gossip_menu_id": "IF(`gossip_menu_id` = 0, 0, `gossip_menu_id` + {E})",
+    "npcflag": "`npcflag` & 67108863",
+    "ScriptName": "''",
+    "AIName": "''",
+    "difficulty_entry_1": "0",
+    "difficulty_entry_2": "0",
+    "difficulty_entry_3": "0"
+   }
+  },
+  {
+   "table": "creature_template_model",
+   "custom": "INSERT IGNORE INTO {AC}.`creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) SELECT `entry` + {E}, 0, IF(`modelid1` IN (SELECT `id` FROM {TMP}.cb_stock_display), `modelid1`, 11686), IF(`scale` = 0, 1, `scale`), 1, 0 FROM {CPP}.`creature_template` WHERE `entry` IN (SELECT `id` FROM {TMP}.cb_creature_id) AND `modelid1` <> 0 UNION ALL SELECT `entry` + {E}, 1, IF(`modelid2` IN (SELECT `id` FROM {TMP}.cb_stock_display), `modelid2`, 11686), IF(`scale` = 0, 1, `scale`), 1, 0 FROM {CPP}.`creature_template` WHERE `entry` IN (SELECT `id` FROM {TMP}.cb_creature_id) AND `modelid2` <> 0 UNION ALL SELECT `entry` + {E}, 2, IF(`modelid3` IN (SELECT `id` FROM {TMP}.cb_stock_display), `modelid3`, 11686), IF(`scale` = 0, 1, `scale`), 1, 0 FROM {CPP}.`creature_template` WHERE `entry` IN (SELECT `id` FROM {TMP}.cb_creature_id) AND `modelid3` <> 0 UNION ALL SELECT `entry` + {E}, 3, IF(`modelid4` IN (SELECT `id` FROM {TMP}.cb_stock_display), `modelid4`, 11686), IF(`scale` = 0, 1, `scale`), 1, 0 FROM {CPP}.`creature_template` WHERE `entry` IN (SELECT `id` FROM {TMP}.cb_creature_id) AND `modelid4` <> 0;",
+   "needs": [
+    "creature_template"
+   ],
+   "key": [
+    "CreatureID",
+    "Idx"
+   ]
+  },
+  {
+   "table": "creature_template_addon",
+   "where": "`entry` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "entry"
+   ],
+   "set": {
+    "entry": "`entry` + {E}",
+    "path_id": "IF(`waypointPathId` = 0, 0, `waypointPathId` + {P})"
+   }
+  },
+  {
+   "table": "creature_template_movement",
+   "where": "`CreatureId` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "CreatureId"
+   ],
+   "set": {
+    "CreatureId": "`CreatureId` + {E}"
+   }
+  },
+  {
+   "table": "creature_equip_template",
+   "where": "`CreatureID` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "CreatureID",
+    "ID"
+   ],
+   "set": {
+    "CreatureID": "`CreatureID` + {E}"
+   }
+  },
+  {
+   "table": "creature_text",
+   "where": "`CreatureID` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "CreatureID",
+    "GroupID",
+    "ID"
+   ],
+   "set": {
+    "CreatureID": "`CreatureID` + {E}"
+   }
+  },
+  {
+   "table": "creature_queststarter",
+   "where": "`id` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "id",
+    "quest"
+   ],
+   "set": {
+    "id": "`id` + {E}",
+    "quest": "`quest` + {E}"
+   }
+  },
+  {
+   "table": "creature_questender",
+   "where": "`id` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "id",
+    "quest"
+   ],
+   "set": {
+    "id": "`id` + {E}",
+    "quest": "`quest` + {E}"
+   }
+  },
+  {
+   "table": "npc_vendor",
+   "where": "`entry` IN (SELECT `id` FROM {TMP}.cb_creature_id)",
+   "key": [
+    "entry",
+    "item"
+   ],
+   "set": {
+    "entry": "`entry` + {E}"
+   }
+  },
+  {
+   "table": "gameobject",
+   "where": "`map` = {map}",
+   "key": [
+    "guid"
+   ],
+   "set": {
+    "guid": "(SELECT g.`new_guid` FROM {TMP}.cb_go_guid g WHERE g.`guid` = {CPP}.`gameobject`.`guid`)",
+    "id": "`id` + {E}",
+    "map": "{new_map}",
+    "zoneId": "0",
+    "areaId": "0",
+    "spawnMask": "1"
+   }
+  },
+  {
+   "table": "gameobject_addon",
+   "where": "`guid` IN (SELECT `guid` FROM {TMP}.cb_go_guid)",
+   "key": [
+    "guid"
+   ],
+   "set": {
+    "guid": "(SELECT g.`new_guid` FROM {TMP}.cb_go_guid g WHERE g.`guid` = {CPP}.`gameobject_addon`.`guid`)"
+   }
+  },
+  {
+   "table": "gameobject_template",
+   "where": "`entry` IN (SELECT `id` FROM {TMP}.cb_go_id)",
+   "key": [
+    "entry"
+   ],
+   "set": {
+    "entry": "`entry` + {E}",
+    "ScriptName": "''",
+    "AIName": "''"
+   }
+  },
+  {
+   "table": "gameobject_template_addon",
+   "where": "`entry` IN (SELECT `id` FROM {TMP}.cb_go_id)",
+   "key": [
+    "entry"
+   ],
+   "set": {
+    "entry": "`entry` + {E}"
+   }
+  },
+  {
+   "table": "gameobject_queststarter",
+   "where": "`id` IN (SELECT `id` FROM {TMP}.cb_go_id)",
+   "key": [
+    "id",
+    "quest"
+   ],
+   "set": {
+    "id": "`id` + {E}",
+    "quest": "`quest` + {E}"
+   }
+  },
+  {
+   "table": "gameobject_questender",
+   "where": "`id` IN (SELECT `id` FROM {TMP}.cb_go_id)",
+   "key": [
+    "id",
+    "quest"
+   ],
+   "set": {
+    "id": "`id` + {E}",
+    "quest": "`quest` + {E}"
+   }
+  },
+  {
+   "table": "quest_template",
+   "where": "`ID` IN (SELECT `id` FROM {TMP}.cb_quest)",
+   "key": [
+    "ID"
+   ],
+   "set": {
+    "ID": "`ID` + {E}",
+    "AllowableRaces": "(SELECT IF(a.`AllowableRaces` = 0, 0, IF((a.`AllowableRaces` & 1791) = 0, 1073741824, a.`AllowableRaces` & 1791)) FROM {CPP}.`quest_template_addon` a WHERE a.`ID` = {CPP}.`quest_template`.`ID`)",
+    "TimeAllowed": "IFNULL((SELECT a.`TimeAllowed` FROM {CPP}.`quest_template_addon` a WHERE a.`ID` = {CPP}.`quest_template`.`ID`), 0)"
+   }
+  },
+  {
+   "table": "quest_template_addon",
+   "where": "`ID` IN (SELECT `id` FROM {TMP}.cb_quest)",
+   "key": [
+    "ID"
+   ],
+   "set": {
+    "ID": "`ID` + {E}",
+    "PrevQuestID": "IF(`PrevQuestID` = 0, 0, IF(ABS(`PrevQuestID`) IN (SELECT `id` FROM {TMP}.cb_quest), SIGN(`PrevQuestID`) * (ABS(`PrevQuestID`) + {E}), 0))",
+    "NextQuestID": "IF(`NextQuestID` = 0, 0, IF(ABS(`NextQuestID`) IN (SELECT `id` FROM {TMP}.cb_quest), SIGN(`NextQuestID`) * (ABS(`NextQuestID`) + {E}), 0))",
+    "ExclusiveGroup": "IF(`ExclusiveGroup` = 0, 0, SIGN(`ExclusiveGroup`) * (ABS(`ExclusiveGroup`) + {E}))",
+    "BreadcrumbForQuestId": "0"
+   }
+  },
+  {
+   "table": "quest_offer_reward",
+   "where": "`ID` IN (SELECT `id` FROM {TMP}.cb_quest)",
+   "key": [
+    "ID"
+   ],
+   "set": {
+    "ID": "`ID` + {E}"
+   }
+  },
+  {
+   "table": "quest_request_items",
+   "where": "`ID` IN (SELECT `id` FROM {TMP}.cb_quest)",
+   "key": [
+    "ID"
+   ],
+   "set": {
+    "ID": "`ID` + {E}"
+   }
+  },
+  {
+   "table": "quest_details",
+   "where": "`ID` IN (SELECT `id` FROM {TMP}.cb_quest)",
+   "key": [
+    "ID"
+   ],
+   "set": {
+    "ID": "`ID` + {E}"
+   }
+  },
+  {
+   "table": "gossip_menu",
+   "where": "`MenuID` IN (SELECT `id` FROM {TMP}.cb_menu)",
+   "key": [
+    "MenuID",
+    "TextID"
+   ],
+   "set": {
+    "MenuID": "`MenuID` + {E}",
+    "TextID": "`TextID` + {E}"
+   }
+  },
+  {
+   "table": "gossip_menu_option",
+   "where": "`MenuID` IN (SELECT `id` FROM {TMP}.cb_menu)",
+   "key": [
+    "MenuID",
+    "OptionID"
+   ],
+   "set": {
+    "MenuID": "`MenuID` + {E}",
+    "ActionMenuID": "0",
+    "OptionID": "`OptionIndex`"
+   }
+  },
+  {
+   "table": "npc_text",
+   "where": "`ID` IN (SELECT `TextID` FROM {CPP}.`gossip_menu` WHERE `MenuID` IN (SELECT `id` FROM {TMP}.cb_menu))",
+   "key": [
+    "ID"
+   ],
+   "set": {
+    "ID": "`ID` + {E}"
+   }
+  },
+  {
+   "table": "waypoint_data",
+   "where": "`id` IN (SELECT `waypointPathId` FROM {CPP}.`creature_addon` WHERE `guid` IN (SELECT `guid` FROM {TMP}.cb_creature_guid) AND `waypointPathId` <> 0)",
+   "key": [
+    "id",
+    "point"
+   ],
+   "set": {
+    "id": "`id` + {P}"
+   }
+  }
+ ],
+ "not_built": [
+  "smart_scripts",
+  "conditions",
+  "creature_loot_template",
+  "gameobject_loot_template",
+  "reference_loot_template",
+  "item_template",
+  "spell_dbc rows",
+  "spell_area",
+  "graveyard_zone",
+  "areatrigger*",
+  "vehicle_template_accessory",
+  "npc_spellclick_spells",
+  "creature_model_info",
+  "creature_formations",
+  "phases"
+ ],
+ "stock_display": "the ids of the stock CreatureDisplayInfo (data/stock_ids.json display_ids), loaded as {TMP}.cb_stock_display"
+}

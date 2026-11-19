@@ -252,6 +252,70 @@ inline Appearance Resolve(const Registry& reg, const Appearance& stored, uint8_t
     return out;
 }
 
+// ---- Wrath++'s own body options (registry categories 1101-1103: Shape, Style, Density) --------------
+//
+// The realm turns a woman's three choices into her display (UNIT_FIELD_DISPLAYID and the native one): a row of
+// CreatureDisplayInfo the app writes into the game's and the server's tables when the body options package is imported
+// (WrathppBody), whose model is the shape's and whose TextureVariation_1 is the style's design at the density. The
+// numbering here is the app's (WrathppBody.displayId): change both together.
+//   display = kBodyDisplayBase + slot * 260 + shape * 65 + layer
+//   slot: the race's place in kBodyRaces (the ten of 3.3.5, then the Goblin, the Worgen and the allied races by their
+//   Wrath++ ids: every race's women, 18 November 2026); shape 0..3; layer 0 (Style or Density None), else
+//   1 + (style - 1) * 4 + (density - 1), style 1..16, density 1..4 (25% .. 100%).
+// 0: nothing to change (As drawn, no style): the race's own display stays.
+// The base was 42000 until 18 November 2026: the eighth slot's displays (the Troll's, 43820 to 44079) ran into the model
+// variants' (kVariantDisplayBase, 44000). kBodyDisplayOld: what a character of before may still have as her display.
+constexpr uint16_t kBodyShape = 1101, kBodyStyle = 1102, kBodyDensity = 1103;
+constexpr uint32_t kBodyDisplayBase = 45000;
+constexpr uint32_t kBodyDisplayOld = 42000, kBodyDisplayOldEnd = 44000;
+constexpr int kBodyRaceCount = 23;
+constexpr uint8_t kBodyRaces[kBodyRaceCount] = {1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+
+inline bool IsBodyDisplay(uint32_t display) {
+    return (display >= kBodyDisplayBase && display < kBodyDisplayBase + uint32_t(kBodyRaceCount) * 260) ||
+           (display >= kBodyDisplayOld && display < kBodyDisplayOldEnd);
+}
+
+inline uint32_t BodyDisplay(const Registry& reg, const Appearance& resolved, uint8_t race) {
+    int slot = -1;
+    for (int i = 0; i < kBodyRaceCount; ++i) if (kBodyRaces[i] == race) slot = i;
+    if (slot < 0) return 0;
+    auto value = [&](uint16_t category) -> int {
+        const Category* c = reg.FindCategory(category);
+        const Entry* e = resolved.Find(category);
+        const Option* o = c && e ? FindOption(*c, e->option) : nullptr;
+        return o ? int(o->value) : -1;
+    };
+    int shape = value(kBodyShape), style = value(kBodyStyle), density = value(kBodyDensity);
+    if (shape < 0 || shape > 3 || style < 0 || style > 16 || density < 0 || density > 4) return 0;
+    int layer = (style == 0 || density == 0) ? 0 : 1 + (style - 1) * 4 + (density - 1);
+    if (shape == 0 && layer == 0) return 0;
+    return kBodyDisplayBase + uint32_t(slot) * 260 + uint32_t(shape) * 65 + uint32_t(layer);
+}
+
+// Model variants (registry categories 1500 to 1505, parts_ids.json): options that give a character another model of the game's, each
+// a display the app (WrathppVariants) writes into the game's and the server's tables: kVariantDisplayBase + (category - 1500) * 16 +
+// the option's value. 1500 the Orc man's Upright, 1501 and 1502 the Human man's and woman's Face Shape, 1503 and 1504 the Forsaken's
+// Skin Type, 1505 the Mag'har man's Hunched (race 19: races_profile.py). 0: nothing to change (no such display in the tables: the
+// race's own stays).
+constexpr uint16_t kFirstVariant = 1500, kVariantCount = 6;
+constexpr uint8_t kVariantRace[kVariantCount] = {2, 1, 1, 5, 5, 19};
+constexpr uint8_t kVariantSex[kVariantCount] = {0, 0, 1, 0, 1, 0};
+constexpr uint32_t kVariantDisplayBase = 44000;
+
+inline uint32_t VariantDisplay(const Registry& reg, const Appearance& resolved, uint8_t race, uint8_t sex) {
+    for (uint16_t i = 0; i < kVariantCount; ++i) {
+        if (kVariantRace[i] != race || kVariantSex[i] != sex)
+            continue;
+        const Category* c = reg.FindCategory(kFirstVariant + i);
+        const Entry* e = resolved.Find(kFirstVariant + i);
+        const Option* o = c && e ? FindOption(*c, e->option) : nullptr;
+        if (o && o->value < 16)
+            return kVariantDisplayBase + uint32_t(i) * 16 + o->value;
+    }
+    return 0;
+}
+
 inline void WriteRegistry(Writer& w, const Registry& reg) {
     w.u16(reg.version);
     w.u16(uint16_t(reg.categories.size()));

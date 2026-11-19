@@ -6,7 +6,9 @@ import common
 import db
 
 # The zones' quests by their sort (zone): whose they are (3.3.5a's race bits: the Worgen 12, the Goblins 9).
-WORGEN, GOBLIN = 1 << 11, 1 << 8
+import os as _os
+_GOBLIN_RACE, _WORGEN_RACE = (int(x) for x in _os.environ.get("WORGEN_GOBLIN_RACES", "9,12").split(","))     # (a realm's own ids: tools/build_data.py)
+WORGEN, GOBLIN = 1 << (_WORGEN_RACE - 1), 1 << (_GOBLIN_RACE - 1)
 QUEST_ZONES = {4714: WORGEN, 4755: WORGEN, 4737: GOBLIN, 4720: GOBLIN}
 # The class quests' spells a 3.3.5a character hasn't at the start (Cataclysm's trainers taught them at
 # level 1; 3.3.5a's teach them later, or never: Primal Strike): the class's own starting spell in

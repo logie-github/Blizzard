@@ -1,0 +1,12 @@
+{
+  "build": "4.4.2.60895",
+  "wrath_build": "3.4.5.63697",
+  "converter": {"repo": "https://github.com/Bar3b0n3s/Converter", "commit": "d71523c645ebe1313e15fe47fbea57577adf8c80"},
+  "dbdefs": {"repo": "https://github.com/wowdev/WoWDBDefs", "branch": "master", "commit": ""},
+  "listfile": {"url": "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv", "sha256": ""},
+  "cpp_tdb": {"repo": "The-Cataclysm-Preservation-Project/TrinityCore", "pattern": "TDB_full_world_434*", "sha256": ""},
+  "core": {"repo": "https://github.com/chromiecraft/azerothcore-wotlk", "commit": "4ce7da02a361af539f2ef33f43add70844672d77"},
+  "pack_epoch": 1763424000,
+  "max_expansion": 3,
+  "notes": "Empty sha256/commit fields are filled in by the first real run (its report prints them); until then the run records what it used."
+}

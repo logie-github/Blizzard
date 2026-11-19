@@ -103,7 +103,11 @@ class WrathppClientTest {
         File(layout.wrathppServer, WrathppServerPackage.MARKER).writeText("ab\n")
         assertFalse(WrathppServerPackage.needsInstall(layout, m))  // the same (case-insensitive)
         assertFalse(WrathppServerPackage.needsInstall(layout, null)) // offline: what is installed
-        assertTrue(WrathppServerPackage.needsInstall(layout, m.copy(sha256 = "cd")))
+        // another package waits for the settings page's button (a Play used to fetch all 251 MB each time the server was rebuilt)
+        assertFalse(WrathppServerPackage.needsInstall(layout, m.copy(sha256 = "cd")))
+        assertTrue(WrathppServerPackage.needsInstall(layout, m.copy(sha256 = "cd"), update = true))
+        assertFalse(WrathppServerPackage.needsInstall(layout, m, update = true))
+        assertEquals(1, WrathppServerPackage.installedProtocol(layout))   // no marker: protocol 1
         // Tar paths never leave the folder.
         val base = tmp.newFolder("base")
         assertEquals(File(base, "server/bin/x"), WrathppServerPackage.entryTarget(base, "./server/bin/x"))

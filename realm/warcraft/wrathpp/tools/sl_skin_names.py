@@ -35,7 +35,7 @@ def fetch(looks, known, search=wago_search, log=print, save=lambda: None):
     """Adds to [known] (file id: name) the names of the looks' skins' files it hasn't; a search that fails costs its model."""
     for entry in looks["races"].values():
         for sex, model in sorted(entry["models"].items()):
-            wanted = {str(s["body"]) for s in model["skins"]}
+            wanted = {str(s["body"]) for s in model["skins"] if not s.get("added")}
             if wanted <= set(known):
                 continue
             for word in ((model["name"] + "skin").lower(), model["name"].lower()):
@@ -61,6 +61,9 @@ def build(looks, known, log=print):
         for sex, model in sorted(entry["models"].items()):
             skins = [{"index": s["index"], "path": names.skin(model, s["index"]), "retail": known[str(s["body"])]}
                      for s in model["skins"] if not s.get("tattoo") and str(s["body"]) in known]
+            # an extra skin (extra_skins.py) has no file of today's to match by name: listed with none, so that the app knows the skin is
+            # its own (the Ralia import never carries a set's skin over it)
+            skins += [{"index": s["index"], "path": names.skin(model, s["index"]), "retail": "", "added": True} for s in model["skins"] if s.get("added")]
             if skins:
                 out["models"]["%d_%d" % (entry["race"], int(sex))] = {"name": model["name"], "race": entry["race"], "sex": int(sex), "skins": skins}
             log("%s: %d of %d skins named" % (model["name"], len(skins), sum(1 for s in model["skins"] if not s.get("tattoo"))))

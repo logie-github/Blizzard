@@ -51,7 +51,7 @@ class WrathppUndeadTest {
 
     /** A human woman with two skins and two faces x two eye colours, an orc man with one skin, a tauren (not in the import). */
     private fun table() = WrathppUndead.Dbc(WrathppUndead.KINDS, mutableListOf(
-        row(1, 1, 1, 0, "HF\\Skin00.blp", "", 17, 0, 0), row(2, 1, 1, 0, "HF\\Skin01.blp", "", 17, 0, 1),
+        row(1, 1, 1, 0, "HF\\Skin00.blp", "HF\\Skin00_Extra.blp", 17, 0, 0), row(2, 1, 1, 0, "HF\\Skin01.blp", "", 17, 0, 1),
         row(3, 1, 1, 4, "HF\\Pelvis00.blp", "HF\\Torso00.blp", 17, 0, 0), row(4, 1, 1, 4, "HF\\Pelvis01.blp", "HF\\Torso01.blp", 17, 0, 1),
         row(5, 1, 1, 1, "HF\\FaceLowerA.blp", "HF\\FaceUpper00.blp", 1, 0, 0), row(6, 1, 1, 1, "HF\\FaceLowerA.blp", "HF\\FaceUpper01.blp", 1, 1, 0),
         row(7, 1, 1, 1, "HF\\FaceLowerB.blp", "HF\\FaceUpper00.blp", 1, 2, 0), row(8, 1, 1, 1, "HF\\FaceLowerB.blp", "HF\\FaceUpper01.blp", 1, 3, 0),
@@ -78,6 +78,8 @@ class WrathppUndeadTest {
         val human = t.rows.filter { it[1] == 1 && it[2] == 1 }
         assertEquals(listOf(0, 1, 2, 3), human.filter { it[3] == 0 }.map { it[9] })
         assertEquals("Character\\Human\\Female\\HumanFemaleSkinUndead00_01.blp", human.first { it[3] == 0 && it[9] == 3 }[4])
+        // the race's skin extra (the parts drawn on the skin's second texture, as the Forsaken's bones) kept on each new colour
+        assertEquals(listOf("HF\\Skin00_Extra.blp", "HF\\Skin00_Extra.blp"), human.filter { it[3] == 0 && (it[9] as Int) >= 2 }.map { it[5] })
         // a face row for every face number, with that number's own eyes, on each new colour
         val faces = human.filter { it[3] == 1 && it[9] == 2 }
         assertEquals(listOf(0, 1, 2, 3), faces.map { it[8] })

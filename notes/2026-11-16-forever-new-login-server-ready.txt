@@ -1,0 +1,1 @@
+WoW Forever: the login server is no longer given up on when it has started (the app was waiting for words it never says).

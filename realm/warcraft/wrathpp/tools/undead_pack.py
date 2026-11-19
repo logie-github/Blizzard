@@ -10,7 +10,7 @@ as the looks name it (HumanFemale), holding a folder a skin, in the order they a
 
     SKINS/HumanFemale/1_Grave Blue/body.png   today's body texture (twice as wide as tall: the body in its left half)
                                    face.png   today's face texture (square: the head as today's model maps it)
-    SKINS/HumanFemale/underwear.txt           "none" (the skins are drawn without underwear) or "race" (the race's own
+    SKINS/HumanFemale/underwear.txt           "none" (no underwear layer: body option) or "race" (the race's own
                                               over them: the default)
 
 Each skin becomes what Wrath++'s converted models draw (the allied races' textures.py does the same for the game's own):

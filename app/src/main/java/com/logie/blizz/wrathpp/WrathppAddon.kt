@@ -38,8 +38,12 @@ object WrathppAddon {
     fun baseExecutable(client: File): File? =
         listOf(com.logie.blizz.game.WowClientSetup.PATCHED_EXE, com.logie.blizz.game.WowClientSetup.EXE).map { File(client, it) }.firstOrNull { it.isFile }
 
-    /** Downloads and installs the newest add-on into [client] (Wrath++'s copy) when it isn't the one in. Offline with one in: kept. */
-    fun ensure(client: File, say: (String, Float?) -> Unit) {
+    /**
+     * Downloads and installs the newest add-on into [client] (Wrath++'s copy) when it isn't the one in. Offline with one in: kept.
+     * Not [update] (Play, after the pieces were refreshed for this build of the app: [WrathppParts]): the one in stays.
+     */
+    fun ensure(client: File, say: (String, Float?) -> Unit, update: Boolean = true) {
+        if (!update && installedSha(client) != null && File(client, EXE).isFile) return
         val published = runCatching { parseManifest(fetchText("$BASE/wrathpp-client-addon.json")) }.getOrElse { e ->
             if (installedSha(client) != null) return
             throw IOException("Wrath++'s add-on couldn't be fetched (${e.message ?: e.javaClass.simpleName}); the release $RELEASE may not exist yet.")
@@ -93,7 +97,7 @@ object WrathppAddon {
         val game = Mpq.Game(data, skip = listOf(PATCH.lowercase()))
         try {
             val original = game.read(TOC)?.toString(Charsets.UTF_8) ?: throw IOException("The game's GlueXML.toc couldn't be read")
-            val text = toc(original, glue.keys.sorted()) { game.has(it) }
+            val text = toc(original, loadOrder(glue.keys)) { game.has(it) }
             val tmp = File(data, "$PATCH.tmp")
             val writer = Mpq.Writer(tmp)
             writer.add(TOC, text.toByteArray(Charsets.UTF_8))
@@ -105,6 +109,9 @@ object WrathppAddon {
             game.close()
         }
     }
+
+    /** The order the interface loads [names]: by name, a frame file (.xml) before the script (.lua) of the same name, so the creator's scripts find their frames. */
+    fun loadOrder(names: Collection<String>): List<String> = names.sortedWith(compareBy({ it.substringBeforeLast('.') }, { !it.endsWith(".xml") }, { it }))
 
     /** The zip's files by path (`wrathpp-client-addon/` taken off), refusing any path that would leave it. */
     fun unzip(zip: ByteArray): Map<String, ByteArray> {
@@ -134,16 +141,25 @@ object WrathppAddon {
         c.disconnect()
     }
 
-    private fun connect(url: String): HttpURLConnection {
+    /** The bytes [start] to [endInclusive] of [url]'s file (a ranged request, through the redirects); an [IOException] where the server doesn't do ranges. */
+    internal fun openRange(url: String, start: Long, endInclusive: Long): java.io.InputStream {
+        val c = connect(url, "bytes=$start-$endInclusive")
+        if (c.responseCode != HttpURLConnection.HTTP_PARTIAL) { c.disconnect(); throw IOException("The server doesn't answer a range") }
+        return c.inputStream
+    }
+
+    private fun connect(url: String, range: String? = null): HttpURLConnection {
         var current = URL(url)
         repeat(6) {
             val c = (current.openConnection() as HttpURLConnection).apply {
                 connectTimeout = 30_000; readTimeout = 60_000; instanceFollowRedirects = false
                 setRequestProperty("User-Agent", "Blizzard-Launcher")
+                if (range != null) setRequestProperty("Range", range)
             }
             when (c.responseCode) {
                 in 300..399 -> { current = URL(current, c.getHeaderField("Location")); c.disconnect() }
                 HttpURLConnection.HTTP_OK -> return c
+                HttpURLConnection.HTTP_PARTIAL -> if (range != null) return c else { c.disconnect(); throw IOException("Download failed (206)") }
                 else -> { val code = c.responseCode; c.disconnect(); throw IOException("Download failed ($code)") }
             }
         }

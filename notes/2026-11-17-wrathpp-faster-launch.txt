@@ -1,0 +1,1 @@
+Wrath++: the update download runs in parallel and the launch steps skip work that is already done.

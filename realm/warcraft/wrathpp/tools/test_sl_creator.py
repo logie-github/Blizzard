@@ -5,10 +5,12 @@ protocol/tests/run.sh (python3 -I)."""
 import os
 import sys
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import sl_creator  # noqa: E402
+import sl_looks  # noqa: E402
 
 DK, DH = 1 << 5, 1 << 11
 
@@ -87,7 +89,11 @@ MODEL = {"name": "HumanFemale", "chr_model": 2, "tattoos": ["None", "Wolf"], "ba
 
 
 class CreatorDataTest(unittest.TestCase):
+    """Today's options with everything (sl_looks.BASE_ONLY off)."""
     def setUp(self):
+        patch = mock.patch.object(sl_looks, "BASE_ONLY", False)
+        patch.start()
+        self.addCleanup(patch.stop)
         self.m = sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, MODEL)
         self.by = {o["name"]: o for o in self.m["options"]}
 
@@ -129,10 +135,72 @@ class CreatorDataTest(unittest.TestCase):
         self.assertIn('{ v = 1, n = "", s = 15648168 }', text)
         self.assertTrue(text.startswith("-- Wrath++'s creator"))
 
+    def test_a_skin_only_an_achievement_opens_is_marked_kept(self):
+        """The Dark Ranger skin (sl_looks.UNLOCKED_ACHIEVEMENTS) stays in the creator's Skin Color whatever the Ralia import supplies (`keep`)."""
+        self.assertFalse(any("keep" in c for c in self.by["Skin Color"]["choices"]))
+        tables = Tables(OPTIONS, CHOICES, REQS, FILES)
+        tables.unlocked.add("111")
+        m = sl_creator.build_model(tables, CATEGORIES, 1, 1, MODEL)
+        skin = {c["v"]: c for c in next(o for o in m["options"] if o["name"] == "Skin Color")["choices"]}
+        self.assertEqual({v for v, c in skin.items() if c.get("keep")}, {1})                    # choice 111 is the skin at place 1; v is its place
+        text = sl_creator.lua({"build": "9.2.7.45745", "models": {"1_1": m}})
+        self.assertEqual(text.count("keep = true"), 1)
+        self.assertRegex(text, r'\{ v = 1, n = "", s = \d+, keep = true \}')                    # one line, as the other choices
+
     def test_parts_must_make_the_looks_count(self):
         bad = dict(MODEL, features=[{"variation": i} for i in range(5)])
         with self.assertRaises(ValueError):
             sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, bad)
+
+
+class BaseOnlyCreatorTest(unittest.TestCase):
+    """sl_looks.BASE_ONLY (the default): only what the five numbers carry; no piece, overlay, variant, picker or greyed row."""
+    EXTRAS = dict(overlays=[{"name": "Makeup", "target": "head", "choices": [{"name": "None", "id": "170", "files": {}}, {"name": "Smoky", "id": "171", "files": {"*": 5}}]}],
+                  parts=[{"name": "Flower", "choices": [{"id": "200", "geosets": []}, {"id": "201", "geosets": [[1, 2]]}]}],
+                  variants=[], pickers=[{"name": "Flower Color", "type": 10, "choices": [{"name": "Red", "id": "1", "file": 7}]}],
+                  part_types={"Flower": [11]})
+
+    def test_only_the_options_the_five_numbers_carry(self):
+        self.assertTrue(sl_looks.BASE_ONLY)
+        m = sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, dict(MODEL, **self.EXTRAS))
+        self.assertEqual([o["name"] for o in m["options"]], ["Face", "Skin Color", "Hair Style", "Hair Color", "Eye Color", "Piercings", "Necklace", "Tattoo"])
+        for o in m["options"]:
+            self.assertIn("field", o)
+            for k in ("overlay", "bodyoverlay", "geoset", "texture", "variant", "style", "reg", "picker", "types"):
+                self.assertNotIn(k, o)
+            for c in o["choices"]:
+                self.assertNotIn("ov", c)
+                self.assertNotIn("tex", c)
+        self.assertNotIn("hairtex", m)
+        self.assertNotIn("skintex", m)
+        self.assertNotIn("Not drawn yet", sl_creator.lua({"build": "x", "models": {"1_1": m}}))
+
+    def test_off_it_is_todays(self):
+        with mock.patch.object(sl_looks, "BASE_ONLY", False):
+            m = sl_creator.build_model(Tables(OPTIONS, CHOICES, REQS, FILES), CATEGORIES, 1, 1, dict(MODEL, folder="Character\\Human\\Female", **self.EXTRAS))
+        names = [o["name"] for o in m["options"]]
+        self.assertIn("Makeup", names)
+        self.assertIn("Flower", names)
+        by = {o["name"]: o for o in m["options"]}
+        self.assertIn("overlay", by["Makeup"])
+        self.assertIn("geoset", by["Flower"])
+
+
+class AlliedRaceIdsTest(unittest.TestCase):
+    def test_the_allied_races_take_the_ids_the_game_gives_them(self):
+        ids = sl_creator.game_race_ids()
+        self.assertEqual(ids["voidelf"], 23)
+        self.assertEqual(ids["highelf"], 22)
+        self.assertTrue(all(r < 64 for r in ids.values()))      # (the native mod's moved saved choices' array holds race ids up to 63)
+        self.assertEqual(len(set(ids.values())), len(ids))
+
+
+class HighElfSkinDigitsTest(unittest.TestCase):
+    def test_a_skin_colour_s_digit_is_its_place_among_the_base_skins(self):
+        # the High Elf's skins: the Void Elf's less the void ones, numbered again; "base" keeps the Void Elf's number
+        model = {"skins": [{"choice": "c%d" % j, "base": j + 6, "index": j} for j in range(3)], "base_skins": 3}
+        digits = {s["choice"]: k for k, s in enumerate(model["skins"][:model["base_skins"]])}
+        self.assertEqual(digits, {"c0": 0, "c1": 1, "c2": 2})
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1 @@
+Wrath++'s race screen no longer stops at a race it has no icon for, so the Horde's races are laid out.

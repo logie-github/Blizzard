@@ -123,7 +123,10 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   there; one the build hasn't is the `_s` file under the plain name: `package.py`). A model's batch whose Cataclysm shader 3.3.5a hasn't
   (an `0x8000` shader id, its colour texture with a reflection: 341 of them, Kezan's pipes, the hot rod,
   the crocolisks) the converter resets to 3.3.5a's default with both textures kept, which 3.3.5a draws
-  black (seen on a phone); `package.py` (`single_textures`) has it drawn with its colour texture alone. And every converted model is
+  black (seen on a phone); `package.py` (`single_textures`) has it drawn with its colour texture alone. So is every batch left on that
+  default with two textures whatever its Cataclysm shader was (98 more: the Gilneas braziers, cauldrons and cooking pots, whose fire has a black
+  mask second and flickered black as its frames played, the waterfalls, rain drips and dwelling water): the second texture (a mask, a reflection)
+  drawn over the first covered it. And every converted model is
   made as 3.3.5a's own are (`package.py`, `fix_models`; seen on a phone: Gilneas's carts, barrels and
   stalls coming and going and swapping at the least turn of the camera, the game's own models beside
   them steady): its internal name (the converter leaves it empty, as retail's newer files have it; 3.3.5a

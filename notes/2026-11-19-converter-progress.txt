@@ -1,0 +1,1 @@
+The Converter shows a progress bar and what it is converting, and keeps its results where Wrath++ can reach them.

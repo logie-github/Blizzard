@@ -1,0 +1,1 @@
+Wrath++ creator: the list of options on the right scrolls smoothly under a finger and glides on when flicked.

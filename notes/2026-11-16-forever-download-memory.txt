@@ -1,0 +1,1 @@
+World of Warcraft: Forever's game download no longer runs out of memory or looks stuck while it reads Blizzard's file list.

@@ -252,9 +252,9 @@ internal class ClassicRealmController(
                 continue
             }
             val dead = when {
-                world?.isAlive == false -> "The world server stopped (code ${world!!.exitValue()})." to worldLog
+                world?.isAlive == false -> "The world server stopped (${WowLogs.exitInWords(world!!.exitValue())})." to worldLog
                 login?.isAlive == false -> "The login server stopped (code ${login!!.exitValue()})." to File(layout.logs, spec.loginLog)
-                db?.isAlive == false -> "The database stopped (code ${db!!.exitValue()})." to File(layout.logs, "mariadb.log")
+                db?.isAlive == false -> "The database stopped (${WowLogs.exitInWords(db!!.exitValue())})." to File(layout.logs, "mariadb.log")
                 else -> null
             } ?: continue
             withContext(kotlinx.coroutines.NonCancellable) { lock.withLock { if (!stopping) fail(dead.first, dead.second) } }

@@ -313,8 +313,8 @@ facial hair styles and the Skeleton's voice row stayed at 15 to 18 beside the ne
     triangle start as 16 bits, so every section has to begin within the first 65535 indices, and
     today's models have 85,000 to 140,000; quadric-error half-edge collapses, which keep every
     vertex's texture coordinates, normal and bones and leave boundaries and seams alone, take
-    from the gear first, then the features and the hair, the body last: the log says how much of
-    each); every batch one texture (body, cape, hair; the tentacle and jewellery textures fixed); mesh
+    from the gear first, then the features and the hair, the body last, the head (group 32: the
+    face with the inside of the mouth) and the eyeballs (33) never: the log says how much of each); every batch one texture (body, cape, hair; the tentacle and jewellery textures fixed); mesh
     sections of at most 64 bones, each section's bone combo naming the very bones its vertices
     carry (the game draws with the combo); cameras in 3.3.5's layout. `<Name>.layout.json` tells the
     texture tool where the head went. **`tools/check_m2.py`** checks a model the way the game

@@ -1,0 +1,48 @@
+{
+  "_comment": "What massconv.py audit checks in the looks package: every race (id, name, token as the creator names it, classes it allows) and the Cataclysm zones' maps. Add an entry to cover a new race or zone.",
+  "races": [
+    {
+      "id": 9,
+      "name": "Goblin",
+      "token": "Goblin",
+      "models": {
+        "Male": "Character\\Goblin\\Male\\GoblinMale.m2",
+        "Female": "Character\\Goblin\\Female\\GoblinFemale.m2"
+      }
+    },
+    {
+      "id": 12,
+      "name": "Worgen",
+      "token": "Worgen",
+      "models": {
+        "Male": "Character\\Worgen\\Male\\WorgenMale.m2",
+        "Female": "Character\\Worgen\\Female\\WorgenFemale.m2"
+      }
+    },
+    {
+      "id": 21,
+      "name": "Dark Troll",
+      "token": "DarkTroll"
+    },
+    {
+      "id": 22,
+      "name": "High Elf",
+      "token": "HighElf"
+    },
+    {
+      "id": 23,
+      "name": "Void Elf",
+      "token": "VoidElf"
+    }
+  ],
+  "zones": [
+    {
+      "name": "Gilneas",
+      "map": "Gilneas"
+    },
+    {
+      "name": "Kezan",
+      "map": "KezanMap"
+    }
+  ]
+}

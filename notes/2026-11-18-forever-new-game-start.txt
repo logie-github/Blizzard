@@ -1,0 +1,1 @@
+WoW Forever: the game no longer closes two seconds after Play; five faults in its start are fixed, and a game already downloaded is put right at Play without downloading it again.

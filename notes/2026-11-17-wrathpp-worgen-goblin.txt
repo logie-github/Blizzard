@@ -1,0 +1,1 @@
+Wrath++: the Worgen and Goblins are added (the High Elf and Void Elf move to race ids 22 and 23); they start in the Night Elf and Orc areas.

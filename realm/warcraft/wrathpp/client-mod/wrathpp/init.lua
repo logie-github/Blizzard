@@ -170,6 +170,138 @@ function WPP.onRegistry(r)
     fire("WRATHPP_READY")
 end
 
+-- The parts (tools/sl_parts.py: Wrathpp\parts.txt in the looks' package): what a character's registry choices of the
+-- Shadowlands options mean as pictures on head shells. Tab separated, `S race sex slot category shell` and
+-- `C race sex category option colour picture`. The native mod hangs them (WrathPP_ApplyLook) on the model each character of the
+-- world draws with.
+WPP.parts = nil
+WPP.HAIR_COLOUR = 1190
+WPP.SKIN_COLOUR = 1191
+WPP.MAX_PARTS = 8
+
+function WPP.loadParts()
+    if WPP.parts then return WPP.parts end
+    local parts = { slots = {}, pictures = {}, bodyPictures = {}, hair = {}, skins = {}, pickers = {}, soft = {} }
+    if not (wxl.storage and wxl.storage.Read) then return parts end
+    local ok, text = pcall(wxl.storage.Read, "Wrathpp\\parts.txt")
+    if not ok or type(text) ~= "string" then return parts end      -- (a package without parts: asked again next time)
+    WPP.parts = parts
+    local function slot(key, entry)
+        local list = parts.slots[key] or {}
+        parts.slots[key] = list
+        list[#list + 1] = entry
+    end
+    local function picture(where, key, category, option, colour, path)
+        local byCategory = where[key] or {}
+        where[key] = byCategory
+        local options = byCategory[category] or {}
+        byCategory[category] = options
+        local colours = options[option] or {}
+        options[option] = colours
+        colours[colour] = path
+    end
+    for line in text:gmatch("[^\r\n]+") do
+        local f = {}
+        for x in (line .. "\t"):gmatch("([^\t]*)\t") do f[#f + 1] = x end
+        local kind, key = f[1], f[2] and f[3] and (f[2] .. ":" .. f[3])
+        if key and #kind == 1 then
+            if kind == "S" then slot(key, { category = tonumber(f[5]), shell = f[6] })
+            elseif kind == "P" then slot(key, { category = tonumber(f[5]), style = tonumber(f[6]), shell = f[7] })     -- a paint: its colour's category, then its style's
+            elseif kind == "T" then slot(key, { category = tonumber(f[5]), shell = f[6], body = true })                  -- the same on the body shell (its pictures: D lines)
+            elseif kind == "U" then slot(key, { category = tonumber(f[5]), style = tonumber(f[6]), shell = f[7], body = true })
+            elseif kind == "D" then picture(parts.bodyPictures, key, tonumber(f[4]), tonumber(f[5]), f[6], f[7])
+            elseif kind == "C" then picture(parts.pictures, key, tonumber(f[4]), tonumber(f[5]), f[6], f[7])
+            elseif kind == "G" then      -- a model piece: its model, the texture types it takes, the category of the picker of its type 13 texture
+                local types = {}
+                for t in (f[7] or ""):gmatch("%d+") do types[tonumber(t)] = true end
+                slot(key, { category = tonumber(f[5]), model = f[6], types = types, picker = tonumber(f[8]) or 0, attach = tonumber(f[9]) or 0 })
+            elseif kind == "B" then      -- a woman's breast bones: the native mod's soft body (count, parent, then bone, x, y, z, below for each)
+                parts.soft[#parts.soft + 1] = { count = tonumber(f[4]), parent = tonumber(f[5]), sides = {
+                    { bone = tonumber(f[6]), x = tonumber(f[7]), y = tonumber(f[8]), z = tonumber(f[9]), below = f[10] or "" },
+                    { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } }, name = f[16] }
+            elseif kind == "Q" then      -- her seat's bones, the same fields: sprung as the chest's (WrathPP_SetSoftSeat)
+                parts.soft[#parts.soft + 1] = { seat = true, count = tonumber(f[4]), parent = tonumber(f[5]), sides = {
+                    { bone = tonumber(f[6]), x = tonumber(f[7]), y = tonumber(f[8]), z = tonumber(f[9]), below = f[10] or "" },
+                    { bone = tonumber(f[11]), x = tonumber(f[12]), y = tonumber(f[13]), z = tonumber(f[14]), below = f[15] or "" } }, name = f[16] }
+            elseif kind == "H" then parts.hair[key] = f[4]
+            elseif kind == "K" then parts.skins[key] = parts.skins[key] or {}; parts.skins[key][tonumber(f[4])] = f[5]
+            elseif kind == "Z" then picture(parts.pickers, key, tonumber(f[4]), tonumber(f[5]), "*", f[6])
+            end
+        end
+    end
+    WPP.setSoftBody(parts.soft)
+    return parts
+end
+
+-- Tells the native mod where the women's breast bones are (it springs them: WrathPP_SetSoftBody), and the level the app's Settings chose
+-- (its interface patch's WrathppSoftBody.lua: `WrathppSoftBodyLevel = 2`).
+function WPP.setSoftBody(list)
+    if not (wxl.script and wxl.script.Run) then return end
+    if wxl.storage and wxl.storage.Read then
+        local ok, text = pcall(wxl.storage.Read, "Interface\\GlueXML\\WrathppSoftBody.lua")
+        local level = ok and type(text) == "string" and tonumber(text:match("WrathppSoftBodyLevel%s*=%s*(%d)"))
+        if level then pcall(wxl.script.Run, "if WrathPP_SetSoftBodyLevel then WrathPP_SetSoftBodyLevel(" .. level .. ") end", "wrathpp-soft") end
+    end
+    for _, c in ipairs(list) do
+        local a, b = c.sides[1], c.sides[2]
+        if c.count and c.parent and a.bone and b.bone then
+            -- (the model's name last: the native mod springs that model and its variants and body shapes only, not another race's
+            -- model of the same bone count, nor the head's shell or a piece hung on her, which have her bones)
+            -- (the seat's through a call of its own: a native mod of before has none, and keeps the chest's)
+            local call = c.seat and "WrathPP_SetSoftSeat" or "WrathPP_SetSoftBody"
+            pcall(wxl.script.Run, string.format("if " .. call .. " then " .. call .. "(%d,%d,%d,%.5f,%.5f,%.5f,%q,%d,%.5f,%.5f,%.5f,%q,%q) end",
+                c.count, c.parent, a.bone, a.x or 0, a.y or 0, a.z or 0, a.below, b.bone, b.x or 0, b.y or 0, b.z or 0, b.below, c.name or ""), "wrathpp-soft")
+        end
+    end
+end
+
+-- The slots a look names: { { shell, choice, p11, p12, p13 }, ... } (no more than the native mod keeps).
+function WPP.partsOf(look)
+    local parts = WPP.loadParts()
+    local who = look.race .. ":" .. look.sex
+    local list = parts.slots[who]
+    local out = {}
+    if not list then return out end
+    local colour = tostring((look.entries[WPP.HAIR_COLOUR] or 1) - 1)
+    for _, slot in ipairs(list) do
+        if #out >= WPP.MAX_PARTS then break end
+        if slot.model then
+            local has = slot.types
+            local p11 = has[11] and parts.skins[who] and parts.skins[who][look.entries[WPP.SKIN_COLOUR] or 1] or ""
+            local p12 = has[12] and parts.hair[who] and string.format(parts.hair[who], (look.entries[WPP.HAIR_COLOUR] or 1) - 1) or ""
+            local p13 = ""
+            if has[13] and slot.picker ~= 0 then
+                local options = parts.pickers[who] and parts.pickers[who][slot.picker]
+                local colours = options and options[look.entries[slot.picker] or 1]
+                p13 = colours and colours["*"] or ""
+            end
+            out[#out + 1] = { shell = slot.model, choice = look.entries[slot.category] or 1, p11 = p11, p12 = p12, p13 = p13, attach = slot.attach }
+        else
+            local options = (slot.body and parts.bodyPictures or parts.pictures)[who]
+            options = options and options[slot.category]
+            local colours = options and options[look.entries[slot.category] or 1]
+            local picture = colours and (colours["*"] or colours[colour] or (slot.style and colours["s" .. (look.entries[slot.style] or 1)]))
+            if picture then out[#out + 1] = { shell = slot.shell, choice = 0, p11 = picture, p12 = "", p13 = "", attach = 0 } end
+        end
+    end
+    return out
+end
+
+-- Gives the native mod a character's parts (it hangs them once the character's model is in the world, and again whenever
+-- the model is made again). The text runs in the client's own Lua, where the native mod's WrathPP_* functions are.
+function WPP.applyParts(guid)
+    local look = WPP.looks[guid]
+    if not look or not (wxl.script and wxl.script.Run) then return false end
+    local list = WPP.partsOf(look)
+    local args = { string.format("%q", guid) }
+    for i = 1, WPP.MAX_PARTS do
+        local part = list[i]
+        args[#args + 1] = string.format("%q", part and (part.shell .. "|" .. part.choice .. "|" .. part.p11 .. "|" .. part.p12 .. "|" .. part.p13 .. "|" .. part.attach) or "")
+    end
+    local ok = pcall(wxl.script.Run, "if WrathPP_ApplyLook then WrathPP_ApplyLook(" .. table.concat(args, ",") .. ") end", "wrathpp-parts")
+    return ok
+end
+
 function WPP.onAppearance(r)
     local count = r:U8()
     if not r:Ok() or count > WPP.MAX_BATCH then return end
@@ -180,6 +312,7 @@ function WPP.onAppearance(r)
         WPP.looks[guid] = { race = race, sex = sex, class = class, version = version, entries = entries }
         wanted[guid], asked[guid] = nil, nil
         fire("WRATHPP_APPEARANCE", guid)
+        WPP.applyParts(guid)
     end
 end
 

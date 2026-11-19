@@ -1,0 +1,1 @@
+Wrath++: the allied races take race ids the creation screen can hold (tapping a race crashed the game).

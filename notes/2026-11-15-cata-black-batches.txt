@@ -1,0 +1,1 @@
+Gilneas and Kezan: fires, waterfalls and rain drips no longer draw black (the starting areas download again).

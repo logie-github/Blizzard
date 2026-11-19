@@ -1,0 +1,1 @@
+WoW Forever: the realm's map data can now be made from the downloaded game (it found no files in it before); a game already downloaded is completed with about 130 MB more, not downloaded again.
