@@ -664,7 +664,8 @@ local function skinFilter(model, key, option)
 	if ( type(list) ~= "table" or not model or not model.fields or not model.fields.skin ) then return nil end
 	if ( not (option.field == "skin" and option.part == #model.fields.skin) ) then return nil end
 	local set = {}
-	for _, v in ipairs(list) do set[v] = true end
+	local base = model.fields.skin[#model.fields.skin]      -- (a skin of the looks' tattoo blocks has its colour's place after the blocks before it: its place is the rest)
+	for _, v in ipairs(list) do set[v % base] = true end
 	local pass = function(choice) return choice.keep == true or set[choice.v] == true end
 	for _, c in ipairs(option.choices) do if ( pass(c) ) then return pass end end
 	return nil

@@ -104,7 +104,7 @@ for _, key in ipairs(KEYS) do
 		end
 		-- a list that names none of the model's skins, and no kept one, filters nothing; a model the list doesn't name, nothing
 		local nokeep = keeps == 0
-		POLICY = { [key] = { 9999 } }
+		POLICY = { [key] = {} }
 		R = start(race, sex)
 		row = skinRow(R)
 		if ( nokeep ) then
