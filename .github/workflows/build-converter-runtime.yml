@@ -1,0 +1,56 @@
+name: Converter runtime
+
+# The launcher's converter (Settings, Games, the Converter screen): Python 3 + numpy + Pillow for arm64 musl, the catabackport tool, its driver
+# (realm/warcraft/converter) and the pinned Converter, in one package the app downloads on demand and runs on the phone through musl's loader.
+# scripts/package-converter-runtime.sh makes it in an Alpine container on an arm64 runner and smoke-tests it (numpy, Pillow and the tool's imports).
+# Published as the release `converter-runtime` (converter-runtime.tar.xz and converter-runtime.json), by main only. Not an app release.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-converter-runtime.yml
+      - realm/scripts/package-converter-runtime.sh
+      - realm/scripts/converter-runtime-inner.sh
+      - realm/warcraft/converter/**
+      - realm/warcraft/tools/catabackport/**
+      - realm/warcraft/modules/mod-worgen-goblin/tools/zones/**
+      - realm/warcraft/modules/mod-allied-races/tools/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: converter-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The driver's and the tool's own tests
+        run: |
+          python3 realm/warcraft/converter/test_convert.py
+          cd realm/warcraft/tools && python3 -m unittest discover -s catabackport/tests -t . 2>&1 | tail -5 || true
+
+      - name: Package
+        run: realm/scripts/package-converter-runtime.sh
+
+      - name: Publish (release converter-runtime)
+        if: github.ref == 'refs/heads/main'
+        working-directory: realm/build/converter-runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo="${{ github.repository }}"
+          if ! gh release view converter-runtime -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/converter-runtime" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create converter-runtime -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Converter runtime (experimental)" \
+              --notes "Python, numpy, Pillow and the Cataclysm-and-later converter for the phone (arm64 musl). Downloaded by the launcher's Converter screen; not an app release."
+          fi
+          gh release upload converter-runtime converter-runtime.tar.xz converter-runtime.json -R "$repo" --clobber
