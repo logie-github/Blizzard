@@ -43,23 +43,56 @@ from skinwide import wide_index_start  # noqa: E402,F401
 
 MAX_BONES = 64
 INDEX_BUDGET = 65535            # a stock 3.3.5 reads a section's triangle start as 16 bits: every section within this
-# Wide skin indices (Wrath++'s own client, WarcraftXL-Labs/client commit e3dc928, Model2/M2Data.h
-# M2SkinSectionIndexStart): a section's first index is (the section's "level" half-word << 16) | its 16-bit start, taken only
-# when the window [start, start + count) lies inside the skin's index array. So a skin may hold more than 65535 indices;
-# what stays 16-bit is each section's own index count, the section's vertex range and the skin's vertices (a skin index
-# names one of them): fewer than 65536 of those. A stock client reads the level as a marker, ignores it and draws the
-# wrong triangles from a section past 65535: WRATHPP_WIDE_SKINS=1 writes them; OFF by default since 19 Nov (the phone drew garbled triangles), every model is cut to 65535
-# again, as before.
-WIDE_SKINS = os.environ.get("WRATHPP_WIDE_SKINS", "0").strip().lower() not in ("0", "", "no", "off", "false")
-WIDE_INDEX_BUDGET = 262144      # the most indices a wide skin may hold (the client's instance buffer is 1M): the 65535 skin
-                                # vertices below are the limit in practice, a hard stop with a clear error if it is passed
+# Two skins of one model (19 November 2026; the user: "It needs to be hair kept 100 on all. Find a new way to do this in the
+# code if it doesn't work"). <Model>00.skin is the one any 3.3.5 client draws: cut to 65535 indices (decimate.py). Beside it
+# <Model>00w.skin is the whole one ("wide"): every hair style at 100%, and what else the vertex limit and the model's use
+# allow (wide_plan). Its sections past 65535 carry the high half of their start in the "level" half-word (skinwide.py), as
+# the 19 November attempt did, but the phone's client is the STOCK Wow.exe: it is Wrath++'s native mod that makes it draw
+# them (client-mod/wrathpp-native/src/WideSkin.hpp), reading <Model>00w.skin in place of <Model>00.skin only when its
+# hooks are in. Both skins name vertices of the one .m2 (the wide one's own after the cut one's), so the package does
+# not double. What the native mod needs of a wide skin, and check_m2 holds it to:
+#   - fewer than WIDE_INDEX_BUDGET indices (below 3 * 65536 no two sections' starts share their low 16 bits);
+#   - every batch a material index of its own (the m2's material list repeats the entries): two batches that match would
+#     be merged into an "optimized geometry" made of the file's sections, which the mod leaves empty past 65535;
+#   - what must be drawn even where the mod fails comes first (the body, the features, the gear), the hair last: a
+#     section within the first 65535 indices is drawn by the stock code alone.
+# WRATHPP_WIDE_SKINS=0 writes no wide skins.
+WIDE_SKINS = os.environ.get("WRATHPP_WIDE_SKINS", "1").strip().lower() not in ("0", "", "no", "off", "false")
+WIDE_INDEX_BUDGET = 3 * 65536 - 1
+WIDE_ORDER = ["body", "bare", "features", "gear", "hair"]      # the wide skin's sections: the hair last
+# A woman's model is one Wrath++'s body options rewrite on the phone (WrathppBody: the layer made from the body's
+# triangles, the shapes carried onto the looks' vertices by what they were): what a shape moves has to be the same
+# triangles and vertices in both skins, so her wide skin keeps the cut skin's body and gear and is whole in the hair and
+# the features (the head: no shape moves it).
+WIDE_TIERS_FEMALE = ("hair", "features")
+WIDE_GIVE = ["gear", "bare", "body", "features"]               # what goes back to the cut skin's when the vertices don't fit
 SKIN_VERTEX_LIMIT = 65535       # skin vertices (m_vertexStart, m_vertexCount and the skin's vertex lookup are 16-bit)
 VERTEX_RESERVE = 700            # skin vertices a cut model leaves free: the body layer's, and the bone-palette groups' duplicates
 SECTION_INDEX_LIMIT = 65535     # one section's m_indexCount is 16 bits
 
 
 def index_budget():
-    return WIDE_INDEX_BUDGET if WIDE_SKINS else INDEX_BUDGET
+    """The indices <Model>00.skin may hold (the wide skin beside it: WIDE_INDEX_BUDGET)."""
+    return INDEX_BUDGET
+
+
+def wide_plan(tiers, cut_vertices, whole_vertices, cut_indices, whole_indices, female, limit=None, index_limit=None):
+    """Which tiers the wide skin has whole: every one a man's model has (a woman's: WIDE_TIERS_FEMALE), given back to the
+    cut skin's, WIDE_GIVE in order, while the skin's vertices (or indices) would not fit. [cut_vertices], [whole_vertices],
+    [cut_indices], [whole_indices]: each tier's count either way. None when even the hair alone does not fit."""
+    limit = SKIN_VERTEX_LIMIT - VERTEX_RESERVE if limit is None else limit
+    index_limit = WIDE_INDEX_BUDGET - LAYER_RESERVE if index_limit is None else index_limit
+    whole = set(t for t in tiers if not female or t in WIDE_TIERS_FEMALE)
+
+    def fits():
+        v = sum(whole_vertices.get(t, 0) if t in whole else cut_vertices.get(t, 0) for t in tiers)
+        i = sum(whole_indices.get(t, 0) if t in whole else cut_indices.get(t, 0) for t in tiers)
+        return v <= limit and i <= index_limit
+    for t in [None] + WIDE_GIVE:
+        whole.discard(t)
+        if fits():
+            return whole
+    return None
 
 
 # Indices a cut model leaves free: Wrath++'s body layer (wrathpp/tools/body_shapes/layer.py: at most 107 triangles on the
@@ -1245,11 +1278,12 @@ def convert(files, policy, out_dir, log=print):
     layout = head_layout(model, skin, [s for s in body_sections if s not in extra_sections])
     out_vertices, out_props, out_indices, out_sections, out_batches, out_lookup = [], [], [], [], [], []
     new_vertex = {}
+    unlifted = {}                 # a vertex the cut skin moved out (sink_lifts): as the model has it, for the wide skin
 
-    def vertex(index, kind):
-        key = (index, kind)
+    def vertex(index, kind, plain=False):
+        key = (index, kind, "plain") if plain and index in unlifted else (index, kind)
         if key not in new_vertex:
-            v = bytearray(model.vertices[index])
+            v = bytearray(unlifted[index] if len(key) == 3 else model.vertices[index])
             if kind == "second":                  # (a card drawn by its shape's coordinates: glyph_card)
                 struct.pack_into("<ff", v, 32, *struct.unpack_from("<ff", v, 40))
                 new_vertex[key] = (len(new_vertex), bytes(v))
@@ -1406,6 +1440,7 @@ def convert(files, policy, out_dir, log=print):
     for v, height in lifts.items():
         n = normals[v] / max(np.linalg.norm(normals[v]), 1e-9)
         moved = bytearray(model.vertices[v])
+        unlifted[v] = model.vertices[v]
         struct.pack_into("<3f", moved, 0, *(positions[v] + n * height))
         model.vertices[v] = bytes(moved)
     if lifts:
@@ -1414,117 +1449,171 @@ def convert(files, policy, out_dir, log=print):
             if h:
                 log("%s: %s: %d vertices moved out (median %.1f mm, most %.1f mm)" % (name, t, len(h), 1000.0 * h[len(h) // 2], 1000.0 * h[-1]))
 
-    vertices_bytes = []
-    for new_id, s, b in sorted(plan, key=lambda p: (tier_of(p[0]) == "body", p[0], p[1])):
-        sec = skin.sections[s]
-        kind = texture_types[model.texture_lookup[b[9]]]
-        uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
-        if s in extra_sections and kind == BODY:
-            uv_kind = "same"
-        if glyph_card(b) or eye_glow(b):
-            uv_kind = "second"
-        # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
-        # drawing with a section's combo, puts a vertex on the bone its slot names there: the
-        # combos made here must name these).
-        bones_of = {}
-        for g in set(int(v) for v in cut[s].ravel()):
-            w = model.vertices[g][12:16]
-            vb = model.vertices[g][16:20]
-            bones_of[g] = [(vb[j], w[j]) for j in range(4) if w[j]]
-        groups = []
-        for tri in cut[s]:
-            tri = tuple(int(v) for v in tri)
-            used = {bone for g in tri for bone, _ in bones_of[g]}
-            if not groups or len(set(groups[-1][0]) | used) > MAX_BONES or len(groups[-1][1]) * 3 + 3 > SECTION_INDEX_LIMIT:
-                groups.append([[], []])
-            palette = groups[-1][0]
-            for bone in sorted(used):
-                if bone not in palette:
-                    palette.append(bone)
-            groups[-1][1].append(tri)
-        for palette, triangles in groups:
-            place = {}
-            vertex_start, index_start = len(out_vertices), len(out_indices)
-            influences = 0
-            for tri in triangles:
-                for g in tri:
-                    if g not in place:
-                        place[g] = len(out_vertices)
-                        out_vertices.append(vertex(g, uv_kind))
-                        w = model.vertices[g][12:16]
-                        slot = [0, 0, 0, 0]
-                        n = 0
-                        for j in range(4):
-                            if w[j]:
-                                slot[j] = palette.index(bones_of[g][n][0])
-                                n += 1
-                        influences = max(influences, n)
-                        out_props.append(bytes(slot))
-                    out_indices.append(place[g])
-            combo_index = len(out_lookup)
-            out_lookup.extend(palette)
-            # a section starting past 65535: its start's high half goes in the "level" half-word (see WIDE_SKINS)
-            out_sections.append(struct.pack("<10H7f", new_id, index_start >> 16, vertex_start, len(place),
-                                            index_start & 0xFFFF, len(triangles) * 3, len(palette), combo_index,
-                                            max(1, influences), sec[9], *sec[10:17]))
-            texture = texture_index[model.texture_lookup[b[9]]]
+    extra_materials = []
+
+    def build(tris_of, order, plain, own_materials):
+        """One skin of the model: each section's triangles ([tris_of], by the source's section), the sections in [order]
+        (a key of the plan's entries), [plain]: the sections whose vertices are the model's own, not the cut skin's
+        moved ones; [own_materials]: every batch a material entry of its own (a wide skin: see WIDE_SKINS)."""
+        out_vertices, out_props, out_indices, out_sections, out_batches = [], [], [], [], []
+        for new_id, s, b in sorted(plan, key=order):
+            sec = skin.sections[s]
+            kind = texture_types[model.texture_lookup[b[9]]]
+            uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
             if s in extra_sections and kind == BODY:
-                texture = extra_texture
-            if eye_glow(b):
-                texture = glow_texture(b, s)
-            shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
-            flags = b[0] & 0x1F
-            # (a glyph card's texture moves as its glyph's stage does, the second: the band's scroll,
-            # the first, slid the atlas's glyphs across the card)
-            transform = b[12] + 1 if uv_kind == "second" and b[12] + 1 < len(model.transform_lookup) else b[12]
-            out_batches.append(struct.pack("<BbHHHhHHHHHHH", flags, b[1], shader, len(out_sections) - 1, len(out_sections) - 1,
-                                           -1, b[6], 0, 1, texture, 0, b[11] if b[11] < len(model.transparency_lookup) else 0, transform))
+                uv_kind = "same"
+            if glyph_card(b) or eye_glow(b):
+                uv_kind = "second"
+            # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
+            # drawing with a section's combo, puts a vertex on the bone its slot names there: the
+            # combos made here must name these).
+            bones_of = {}
+            for g in set(int(v) for v in tris_of[s].ravel()):
+                w = model.vertices[g][12:16]
+                vb = model.vertices[g][16:20]
+                bones_of[g] = [(vb[j], w[j]) for j in range(4) if w[j]]
+            groups = []
+            for tri in tris_of[s]:
+                tri = tuple(int(v) for v in tri)
+                used = {bone for g in tri for bone, _ in bones_of[g]}
+                if not groups or len(set(groups[-1][0]) | used) > MAX_BONES or len(groups[-1][1]) * 3 + 3 > SECTION_INDEX_LIMIT:
+                    groups.append([[], []])
+                palette = groups[-1][0]
+                for bone in sorted(used):
+                    if bone not in palette:
+                        palette.append(bone)
+                groups[-1][1].append(tri)
+            for palette, triangles in groups:
+                place = {}
+                vertex_start, index_start = len(out_vertices), len(out_indices)
+                influences = 0
+                for tri in triangles:
+                    for g in tri:
+                        if g not in place:
+                            place[g] = len(out_vertices)
+                            out_vertices.append(vertex(g, uv_kind, s in plain))
+                            w = model.vertices[g][12:16]
+                            slot = [0, 0, 0, 0]
+                            n = 0
+                            for j in range(4):
+                                if w[j]:
+                                    slot[j] = palette.index(bones_of[g][n][0])
+                                    n += 1
+                            influences = max(influences, n)
+                            out_props.append(bytes(slot))
+                        out_indices.append(place[g])
+                combo_index = len(out_lookup)
+                out_lookup.extend(palette)
+                # a section starting past 65535: its start's high half goes in the "level" half-word (see WIDE_SKINS)
+                out_sections.append(struct.pack("<10H7f", new_id, index_start >> 16, vertex_start, len(place),
+                                                index_start & 0xFFFF, len(triangles) * 3, len(palette), combo_index,
+                                                max(1, influences), sec[9], *sec[10:17]))
+                texture = texture_index[model.texture_lookup[b[9]]]
+                if s in extra_sections and kind == BODY:
+                    texture = extra_texture
+                if eye_glow(b):
+                    texture = glow_texture(b, s)
+                shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
+                flags = b[0] & 0x1F
+                # (a glyph card's texture moves as its glyph's stage does, the second: the band's scroll,
+                # the first, slid the atlas's glyphs across the card)
+                transform = b[12] + 1 if uv_kind == "second" and b[12] + 1 < len(model.transform_lookup) else b[12]
+                material = b[6]
+                if own_materials:
+                    material = len(model.materials) + len(extra_materials)
+                    extra_materials.append(model.materials[b[6]])
+                out_batches.append(struct.pack("<BbHHHhHHHHHHH", flags, b[1], shader, len(out_sections) - 1, len(out_sections) - 1,
+                                               -1, material, 0, 1, texture, 0, b[11] if b[11] < len(model.transparency_lookup) else 0, transform))
+        return out_vertices, out_props, out_indices, out_sections, out_batches
+
+    out_vertices, out_props, out_indices, out_sections, out_batches = build(
+        cut, lambda p: (tier_of(p[0]) == "body", p[0], p[1]), (), False)
     if len(out_vertices) > SKIN_VERTEX_LIMIT:
         raise ValueError("%s: too many vertices for one skin (%d of %d): a skin index and a section's vertex range are 16 bits"
                          % (name, len(out_vertices), SKIN_VERTEX_LIMIT))
     if len(out_indices) > index_budget():
-        raise ValueError("%s: too many indices for one skin (%d of %d)%s" % (
-            name, len(out_indices), index_budget(),
-            "" if WIDE_SKINS else ": a stock client reads 16-bit starts (WRATHPP_WIDE_SKINS=1 writes wide ones)"))
-    wide_sections = sum(1 for sec in out_sections if struct.unpack_from("<H", sec, 2)[0])
-    log("%s: skin %d indices, %d vertices, %d sections (%d with a wide start)" % (
-        name, len(out_indices), len(out_vertices), len(out_sections), wide_sections))
+        raise ValueError("%s: too many indices for one skin (%d of %d)" % (name, len(out_indices), index_budget()))
+    log("%s: skin %d indices, %d vertices, %d sections" % (name, len(out_indices), len(out_vertices), len(out_sections)))
+    # The whole skin beside it (WIDE_SKINS): made only when it has more than the cut one.
+    wide = None
+    female = "female" in folder.lower() if policy.get("wide_female") is None else bool(policy.get("wide_female"))
+    if WIDE_SKINS and any(cut[s] is not source_tris[s] for s in cut):
+        tiers = sorted(set(tier_of_section.values()))
+        count = {"cv": {}, "wv": {}, "ci": {}, "wi": {}}
+        for sec_index, t in tier_of_section.items():
+            for key, tris in (("c", cut[sec_index]), ("w", source_tris[sec_index])):
+                count[key + "v"][t] = count[key + "v"].get(t, 0) + len(np.unique(tris)) * copies[sec_index]
+                count[key + "i"][t] = count[key + "i"].get(t, 0) + len(tris) * 3 * copies[sec_index]
+        whole_tiers = wide_plan(tiers, count["cv"], count["wv"], count["ci"], count["wi"], female)
+        if whole_tiers is None or "hair" not in whole_tiers:
+            log("%s: no wide skin: the hair whole does not fit a skin's vertices (%d with the rest as cut, %d allowed)" % (
+                name, count["wv"].get("hair", 0) + sum(count["cv"].get(t, 0) for t in tiers if t != "hair"), SKIN_VERTEX_LIMIT - VERTEX_RESERVE))
+        else:
+            wide_tris = {sec_index: (source_tris[sec_index] if tier_of_section[sec_index] in whole_tiers else cut[sec_index]) for sec_index in cut}
+            plain = set(sec_index for sec_index in cut if wide_tris[sec_index] is not cut[sec_index])
+            before = (dict(new_vertex), len(out_lookup))
+            wide = build(wide_tris, lambda p: (WIDE_ORDER.index(tier_of(p[0])), p[0], p[1]), plain, True)
+            if len(wide[0]) > SKIN_VERTEX_LIMIT or len(wide[2]) > WIDE_INDEX_BUDGET or len(new_vertex) > SKIN_VERTEX_LIMIT + 1:
+                log("%s: no wide skin: %d skin vertices, %d indices, %d model vertices" % (name, len(wide[0]), len(wide[2]), len(new_vertex)))
+                wide = None
+                new_vertex.clear()
+                new_vertex.update(before[0])
+                del out_lookup[before[1]:]
+            else:
+                log("%s: wide skin %d indices, %d vertices, %d sections (%d past 65535): whole %s%s" % (
+                    name, len(wide[2]), len(wide[0]), len(wide[3]), sum(1 for sec in wide[3] if struct.unpack_from("<H", sec, 2)[0]),
+                    ", ".join(t for t in WIDE_ORDER if t in whole_tiers),
+                    "; as the cut skin: " + ", ".join(t for t in WIDE_ORDER if t in tiers and t not in whole_tiers) if len(whole_tiers) < len(tiers) else ""))
+                for t in sorted(sizes):
+                    kept = sum(len(wide_tris[sec_index]) * 3 for n, sec_index, b in plan if tier_of(n) == t)
+                    log("%s: wide %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
+    if extra_materials:
+        if wide is None:
+            del extra_materials[:]
+        else:
+            every = list(model.materials) + extra_materials
+            blob.array(112, len(every), b"".join(struct.pack("<HH", flags & 0x1F, min(blend, 6) if blend != 7 else 4) for flags, blend in every))
     # vertices in the model: the ones drawn, in the skin's order, with their bones as the model's
     vertices = bytearray()
-    for (index, kind), (new, data) in sorted(new_vertex.items(), key=lambda kv: kv[1][0]):
+    for _key, (new, data) in sorted(new_vertex.items(), key=lambda kv: kv[1][0]):
         vertices += data
     blob.array(60, len(new_vertex), bytes(vertices))
     struct.pack_into("<I", d, 68, 1)
     blob.array(120, len(out_lookup), struct.pack("<%dH" % len(out_lookup), *out_lookup))
 
-    # The skin file.
-    header = 48
-    body = bytearray()
+    # The skin file(s).
+    def skin_file(vertices_, props_, indices_, sections_, batches_):
+        header = 48
+        body = bytearray()
 
-    def put(payload):
-        while (header + len(body)) % 16:
-            body.append(0)
-        at = header + len(body)
-        body.extend(payload)
-        return at
+        def put(payload):
+            while (header + len(body)) % 16:
+                body.append(0)
+            at = header + len(body)
+            body.extend(payload)
+            return at
 
-    parts = [
-        (len(out_vertices), put(struct.pack("<%dH" % len(out_vertices), *out_vertices))),
-        (len(out_indices), put(struct.pack("<%dH" % len(out_indices), *out_indices))),
-        (len(out_props), put(b"".join(out_props))),
-        (len(out_sections), put(b"".join(out_sections))),
-        (len(out_batches), put(b"".join(out_batches))),
-    ]
-    head = bytearray(b"SKIN")
-    for count, offset in parts:
-        head += struct.pack("<II", count, offset)
-    head += struct.pack("<I", MAX_BONES)
-    skin_out = bytes(head) + bytes(body)
+        parts = [
+            (len(vertices_), put(struct.pack("<%dH" % len(vertices_), *vertices_))),
+            (len(indices_), put(struct.pack("<%dH" % len(indices_), *indices_))),
+            (len(props_), put(b"".join(props_))),
+            (len(sections_), put(b"".join(sections_))),
+            (len(batches_), put(b"".join(batches_))),
+        ]
+        head = bytearray(b"SKIN")
+        for count_, offset in parts:
+            head += struct.pack("<II", count_, offset)
+        head += struct.pack("<I", MAX_BONES)
+        return bytes(head) + bytes(body)
+
+    skin_out = skin_file(out_vertices, out_props, out_indices, out_sections, out_batches)
 
     # Files.
     written = {}
     written["%s\\%s.m2" % (folder, name)] = bytes(blob.data)
     written["%s\\%s00.skin" % (folder, name)] = skin_out
+    if wide is not None:
+        written["%s\\%s00w.skin" % (folder, name)] = skin_file(wide[0], wide[1], wide[2], wide[3], wide[4])
     for j, (sid, var), fid in external:
         path = "%s\\%s%04d-%02d.anim" % (folder, name, sid, var)
         if path not in written:
@@ -1541,7 +1630,8 @@ def convert(files, policy, out_dir, log=print):
     with open(os.path.join(out_dir, folder.replace("\\", "/"), name + ".layout.json"), "w") as out:
         json.dump({"head": layout, "eyes": [0.0, 0.625, 0.5, 0.75], "sequences": merged.n, "vertices": len(out_vertices),
                    "sections": len(out_sections), "textures": [(k, p) for k, _, p in textures],
-                   "extra": bool(extra_sections)}, out, indent=1)
+                   "extra": bool(extra_sections), "model_vertices": len(new_vertex),
+                   "wide": None if wide is None else {"indices": len(wide[2]), "vertices": len(wide[0]), "sections": len(wide[3])}}, out, indent=1)
     log("%s: %d sequences (%d in their own files), %d bones, %d vertices, %d sections, %d textures" % (
         name, merged.n, len(external), len(child.bones), len(out_vertices), len(out_sections), len(textures)))
     return sorted(written)

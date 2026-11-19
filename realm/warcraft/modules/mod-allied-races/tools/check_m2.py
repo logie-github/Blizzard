@@ -8,8 +8,9 @@ yards (what tools/m2.py keeps).
 
     python3 tools/check_m2.py DIR/Character/Race/Sex/Name.m2 [--verbose] [--stock]
 
-A section's start is read as Wrath++'s client reads it (wide: the high half in the level, skinwide.py); --stock reports
-every start past 65535 (a stock 3.3.5 client reads 16-bit starts).
+<Name>00.skin has to be one a stock client reads (every section's start within 65535, no level). The whole skin beside it,
+<Name>00w.skin (tools/m2.py's WIDE_SKINS), is checked too when it is there: its starts read wide (the high half in the level,
+skinwide.py) and what Wrath++'s native mod needs of it to draw it (WideSkin.hpp).
 """
 import math
 import os
@@ -19,6 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from skinwide import wide_index_start  # noqa: E402
 
+WIDE_MOST = 3 * 65536 - 1            # tools/m2.py's WIDE_INDEX_BUDGET
 FAR = 100.0                          # tools/m2.py leaves out translations and scales beyond this
 
 
@@ -190,79 +192,113 @@ def check(path, verbose=False, wide_ok=True):
     if n_lights or n_ribbons or n_particles:
         say("lights, ribbons or particles are in the model")
 
-    # The skin.
-    skin_path = os.path.join(folder, name + "00.skin")
-    if not os.path.exists(skin_path):
-        say("no skin " + skin_path)
-        return problems
-    s = open(skin_path, "rb").read()
-    vn, vo, ixn, ixo, pn, po, sn, so, bn, bo, max_bones = struct.unpack_from("<11I", s, 4)
-    if max_bones > 64:
-        say("skin: %d bones a section" % max_bones)
-    vertices = struct.unpack_from("<%dH" % vn, s, vo)
-    indices = struct.unpack_from("<%dH" % ixn, s, ixo)
-    if vn != pn:
-        say("skin: %d vertices, %d bone property entries" % (vn, pn))
-    for v in vertices:
-        if v >= n_verts:
-            say("skin: vertex %d of the model's %d" % (v, n_verts))
-            break
-    sections = [struct.unpack_from("<10H7f", s, so + i * 48) for i in range(sn)]
-    for i, sec in enumerate(sections):
-        level, vstart, vcount, istart, icount, bcount, bcombo, binfl = sec[1:9]
-        # read the start as Wrath++'s client does (skinwide.py): the high half in the level, when its window lies in the skin
-        first = wide_index_start(ixn, level, istart, icount)
-        if level and first == istart:
-            say("section %d (geoset %d): level %d is no wide start (its window %d + %d lies outside the %d indices): the client "
-                "reads the 16-bit start %d" % (i, sec[0], level, (level << 16) | istart, icount, ixn, istart))
-        if first + icount > ixn:
-            say("section %d (geoset %d): indices beyond the skin's" % (i, sec[0]))
-        if first >= 65536 and not wide_ok:
-            say("section %d (geoset %d): triangles start at %d: a stock client reads 16-bit starts (wide starts are Wrath++'s)" % (i, sec[0], first))
-        if bcount > 64:
-            say("section %d (geoset %d): %d bones" % (i, sec[0], bcount))
-        if bcombo + bcount > n_bone_lookup:
-            say("section %d (geoset %d): bone combo beyond the lookup" % (i, sec[0]))
-        for k in indices[first:first + icount]:
-            if not vstart <= k < vstart + vcount:
-                say("section %d (geoset %d): index %d outside its vertices %d..%d" % (i, sec[0], k, vstart, vstart + vcount))
+    # The skins: the one every client draws (<Name>00.skin, within 65535 indices) and, when the model has one, the whole one
+    # beside it (<Name>00w.skin: tools/m2.py's WIDE_SKINS), both naming this model's vertices.
+    for skin_path, wide in ((os.path.join(folder, name + "00.skin"), False), (os.path.join(folder, name + "00w.skin"), True)):
+        if not os.path.exists(skin_path):
+            if wide:
+                continue
+            say("no skin " + skin_path)
+            return problems
+        say = (lambda text: problems.append("wide skin: " + text)) if wide else problems.append
+        s = open(skin_path, "rb").read()
+        vn, vo, ixn, ixo, pn, po, sn, so, bn, bo, max_bones = struct.unpack_from("<11I", s, 4)
+        if max_bones > 64:
+            say("skin: %d bones a section" % max_bones)
+        vertices = struct.unpack_from("<%dH" % vn, s, vo)
+        indices = struct.unpack_from("<%dH" % ixn, s, ixo)
+        if vn != pn:
+            say("skin: %d vertices, %d bone property entries" % (vn, pn))
+        for v in vertices:
+            if v >= n_verts:
+                say("skin: vertex %d of the model's %d" % (v, n_verts))
                 break
-        # Each vertex's bone slots name bones of the section's combo, and through the model's bone
-        # lookup the very bones the vertex itself names (the game draws with the combo: a slot
-        # naming another bone puts the vertex on it).
-        bone_lookup = struct.unpack_from("<%dH" % n_bone_lookup, m, bone_lookup_at)
-        wrong = 0
-        for k in range(vstart, min(vstart + vcount, pn)):
-            v = vertices[k]
-            for j in range(4):
-                if v < n_verts and m[verts_at + v * 48 + 12 + j]:
-                    slot = s[po + k * 4 + j]
-                    if slot >= bcount or bone_lookup[bcombo + slot] != m[verts_at + v * 48 + 16 + j]:
-                        wrong += 1
-        if wrong:
-            say("section %d (geoset %d): %d vertex bone slots name other bones than the vertices" % (i, sec[0], wrong))
-    batches = [struct.unpack_from("<BbHHHhHHHHHHH", s, bo + i * 24) for i in range(bn)]
-    for i, b in enumerate(batches):
-        if b[3] >= sn:
-            say("batch %d: section %d of %d" % (i, b[3], sn))
-        if b[6] >= n_mats:
-            say("batch %d: material %d of %d" % (i, b[6], n_mats))
-        if b[8] != 1:
-            say("batch %d: %d textures" % (i, b[8]))
-        if b[9] + b[8] > n_tex_lookup:
-            say("batch %d: texture combo beyond the lookup" % i)
-        if b[10] >= n_unit:
-            say("batch %d: texture unit %d of %d" % (i, b[10], n_unit))
-        if b[11] >= n_transp:
-            say("batch %d: transparency %d of %d" % (i, b[11], n_transp))
-        if b[12] >= n_tf_lookup:
-            say("batch %d: texture transform %d of %d" % (i, b[12], n_tf_lookup))
-    if verbose:
-        import collections
-        print("%s: %d sequences, %d bones, %d vertices (%d in the skin), %d sections, %d batches, %d textures, %d events, %d cameras" % (
-            name, n_seqs, n_bones, n_verts, vn, sn, bn, n_tex, n_events, n_cams))
-        print(" geosets:", sorted(collections.Counter(sec[0] for sec in sections).items()))
-        print(" textures:", [(t[0], m[t[3]:t[3] + t[2] - 1].decode("latin1")) for t in textures])
+        sections = [struct.unpack_from("<10H7f", s, so + i * 48) for i in range(sn)]
+        for i, sec in enumerate(sections):
+            level, vstart, vcount, istart, icount, bcount, bcombo, binfl = sec[1:9]
+            # read the start as Wrath++'s client does (skinwide.py): the high half in the level, when its window lies in the skin
+            first = wide_index_start(ixn, level, istart, icount)
+            if level and first == istart:
+                say("section %d (geoset %d): level %d is no wide start (its window %d + %d lies outside the %d indices): the client "
+                    "reads the 16-bit start %d" % (i, sec[0], level, (level << 16) | istart, icount, ixn, istart))
+            if first + icount > ixn:
+                say("section %d (geoset %d): indices beyond the skin's" % (i, sec[0]))
+            if (first >= 65536 or level) and not wide:
+                say("section %d (geoset %d): triangles start at %d (level %d): a stock client reads 16-bit starts (the whole skin is %s00w.skin)" % (i, sec[0], first, level, name))
+            if icount % 3:
+                say("section %d (geoset %d): %d indices are not whole triangles" % (i, sec[0], icount))
+            if bcount > 64:
+                say("section %d (geoset %d): %d bones" % (i, sec[0], bcount))
+            if bcombo + bcount > n_bone_lookup:
+                say("section %d (geoset %d): bone combo beyond the lookup" % (i, sec[0]))
+            for k in indices[first:first + icount]:
+                if not vstart <= k < vstart + vcount:
+                    say("section %d (geoset %d): index %d outside its vertices %d..%d" % (i, sec[0], k, vstart, vstart + vcount))
+                    break
+            # Each vertex's bone slots name bones of the section's combo, and through the model's bone
+            # lookup the very bones the vertex itself names (the game draws with the combo: a slot
+            # naming another bone puts the vertex on it).
+            bone_lookup = struct.unpack_from("<%dH" % n_bone_lookup, m, bone_lookup_at)
+            wrong = 0
+            for k in range(vstart, min(vstart + vcount, pn)):
+                v = vertices[k]
+                for j in range(4):
+                    if v < n_verts and m[verts_at + v * 48 + 12 + j]:
+                        slot = s[po + k * 4 + j]
+                        if slot >= bcount or bone_lookup[bcombo + slot] != m[verts_at + v * 48 + 16 + j]:
+                            wrong += 1
+            if wrong:
+                say("section %d (geoset %d): %d vertex bone slots name other bones than the vertices" % (i, sec[0], wrong))
+        batches = [struct.unpack_from("<BbHHHhHHHHHHH", s, bo + i * 24) for i in range(bn)]
+        for i, b in enumerate(batches):
+            if b[3] >= sn:
+                say("batch %d: section %d of %d" % (i, b[3], sn))
+            if b[6] >= n_mats:
+                say("batch %d: material %d of %d" % (i, b[6], n_mats))
+            if b[8] != 1:
+                say("batch %d: %d textures" % (i, b[8]))
+            if b[9] + b[8] > n_tex_lookup:
+                say("batch %d: texture combo beyond the lookup" % i)
+            if b[10] >= n_unit:
+                say("batch %d: texture unit %d of %d" % (i, b[10], n_unit))
+            if b[11] >= n_transp:
+                say("batch %d: transparency %d of %d" % (i, b[11], n_transp))
+            if b[12] >= n_tf_lookup:
+                say("batch %d: texture transform %d of %d" % (i, b[12], n_tf_lookup))
+        if wide:
+            # What Wrath++'s native mod holds a whole skin to (client-mod/wrathpp-native/src/WideSkin.hpp, Read): it draws the
+            # sections past 65535 only then.
+            starts = [wide_index_start(ixn, sec[1], sec[4], sec[5]) for sec in sections]
+            if ixn > WIDE_MOST:
+                say("%d indices: more than the %d the pool starts' low halves tell apart" % (ixn, WIDE_MOST))
+            if sum(sec[5] for sec in sections) > ixn:
+                say("the sections hold more indices than the skin")
+            pool = near = 0
+            lows = {}
+            for i, sec in enumerate(sections):
+                if starts[i] < 65536 and sec[5] and near >= 65536:
+                    say("section %d (geoset %d): a section the stock client reads after more than 65535 such indices" % (i, sec[0]))
+                if sec[5] and (pool & 0xFFFF) in lows:
+                    say("sections %d and %d: their pool starts share their low half (%d)" % (lows[pool & 0xFFFF], i, pool & 0xFFFF))
+                if sec[5]:
+                    lows[pool & 0xFFFF] = i
+                pool += sec[5]
+                if starts[i] < 65536:
+                    near += sec[5]
+            seen = {}
+            for i, b in enumerate(batches):
+                key = (b[5], b[6], b[9], b[11], b[12])
+                if key in seen:
+                    say("batches %d and %d would be drawn as one (the same colour, material %d, texture, weight and transform): the client "
+                        "then makes an optimized geometry, which has none of the sections past 65535" % (seen[key], i, b[6]))
+                    break
+                seen[key] = i
+        if verbose:
+            import collections
+            print("%s: %d sequences, %d bones, %d vertices (%d in the skin), %d sections, %d batches, %d textures, %d events, %d cameras" % (
+                name, n_seqs, n_bones, n_verts, vn, sn, bn, n_tex, n_events, n_cams))
+            print(" geosets:", sorted(collections.Counter(sec[0] for sec in sections).items()))
+            print(" textures:", [(t[0], m[t[3]:t[3] + t[2] - 1].decode("latin1")) for t in textures])
     return problems
 
 

@@ -754,6 +754,37 @@ def write_npc_list(looks, client):
     return path
 
 
+WIDE_LIST = "Wrathpp\\wide.txt"
+
+
+def write_wide_list(client):
+    """Wrathpp/wide.txt in [client] (the game's patch), for the native mod (Native.cpp, "wide skins"): every model that has a whole
+    skin beside its own (<Model>00w.skin, m2.py's WIDE_SKINS), with what its model file is ("path without extension<TAB>vertices
+    <TAB>bytes"): the mod reads <Model>00w.skin in place of <Model>00.skin only for a model file of that vertex count and size (one
+    the app's body options rewrote has another: it keeps its cut skin). Made from the files as they are at the end of the run (a
+    woman's soft body changes her model after it is converted); the ten races' run and the allied races' share the folder.
+    Returns the lines' count."""
+    lines = []
+    for folder, _, names in sorted(os.walk(client)):
+        for name in sorted(names):
+            if not name.endswith("00w.skin"):
+                continue
+            model = os.path.join(folder, name[:-len("00w.skin")] + ".m2")
+            if not os.path.exists(model) or not os.path.exists(model[:-3] + "00.skin"):
+                raise ValueError("%s has no model or no skin of its own beside it" % os.path.join(folder, name))
+            with open(model, "rb") as f:
+                head = f.read(68)
+            vertices = struct.unpack_from("<I", head, 60)[0]
+            rel = os.path.relpath(model[:-3], client).replace("/", "\\")
+            lines.append("%s\t%d\t%d\n" % (rel, vertices, os.path.getsize(model)))
+    path = os.path.join(client, "Wrathpp", "wide.txt")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("# Wrath++ (sl_looks.py): the models with a whole skin (<Model>00w.skin): model, its vertices, its bytes (Native.cpp)\n")
+        f.write("".join(lines))
+    return len(lines)
+
+
 # The character tables whose rows the looks replace race by race (drop, then put): the first dir's (the looks' own) go last, after
 # every other dir's, so that a module that makes a race the looks redo (mod-worgen-goblin's Worgen and Goblins: Cataclysm's models
 # and textures) has its rows of that race dropped and the looks' put instead; its other races' rows stay.
@@ -1101,6 +1132,9 @@ def package(looks_path, cache, dbc_dir, out_dir, log=print):
                         races[key]["models"][sex]["part_types"] = m["part_types"]
             with open(looks_path, "w") as f:
                 json.dump(saved, f, indent=1, sort_keys=True)
+    # (the whole skins' list: every model of the folder, this run's and the other's)
+    log("wide skins: %d models have a whole skin beside their own (%s)" % (write_wide_list(client), WIDE_LIST))
+    written.append(WIDE_LIST)
     check_fallbacks(fallbacks, dbc_dir, out_dir, log)
     missing = verify(looks, out_dir)
     if missing:

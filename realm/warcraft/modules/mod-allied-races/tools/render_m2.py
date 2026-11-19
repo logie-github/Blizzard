@@ -9,7 +9,7 @@ what the converter has to satisfy.
 
     python3 tools/render_m2.py MODEL.m2 FILES DBC_DIR OUT.png [--race 15 --sex 1 --skin 0 --face 0
                                                               --hair 0 --feature 0 --time 400
-                                                              --camera 1 --size 480x720]
+                                                              --camera 1 --size 480x720 --wide]
 
 FILES: the package (tools/package.py's output: the textures by the paths the tables name);
 DBC_DIR: the module's data/client/dbc (CharSections, CharHairGeosets, CharacterFacialHairStyles).
@@ -462,10 +462,11 @@ def main():
     ap.add_argument("--target", default="0,0,1")
     ap.add_argument("--fov", type=float, default=0.9)
     ap.add_argument("--size", default="480x720")
+    ap.add_argument("--wide", action="store_true", help="draw the whole skin beside the model's (<Name>00w.skin: m2.py's WIDE_SKINS)")
     a = ap.parse_args()
     W, H = (int(x) for x in a.size.lower().split("x"))
     model = Model(a.model)
-    skin = Skin(os.path.join(model.folder, model.name + "00.skin"))
+    skin = Skin(os.path.join(model.folder, model.name + ("00w.skin" if a.wide else "00.skin")))
     seq = next((i for i, s in enumerate(model.seqs) if s[0] == a.sequence and s[1] == 0), 0)
     length = model.seqs[seq][2]
     t = a.time % max(1, length)

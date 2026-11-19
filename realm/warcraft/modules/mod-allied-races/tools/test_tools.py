@@ -374,6 +374,23 @@ with tempfile.TemporaryDirectory() as _d:
     _starts = [skinwide.wide_index_start(len(_rs.indices), s[1], s[4], s[5]) for s in _rs.sections]
     check(_starts == [0, 70000], "...and the wide start of its second section: %s" % _starts)
 
+# The whole skin beside the cut one (m2.wide_plan): what it has whole.
+_tiers = ["bare", "body", "features", "gear", "hair"]
+_cv = {"bare": 800, "body": 3000, "features": 2500, "gear": 4000, "hair": 12000}
+_wv = {"bare": 800, "body": 4000, "features": 4200, "gear": 16000, "hair": 21000}
+_ci = {t: v * 3 for t, v in _cv.items()}
+_wi = {t: v * 3 for t, v in _wv.items()}
+check(m2.wide_plan(_tiers, _cv, _wv, _ci, _wi, False) == set(_tiers), "a man's wide skin has every tier whole where the vertices fit")
+check(m2.wide_plan(_tiers, _cv, _wv, _ci, _wi, True) == {"hair", "features"},
+      "a woman's keeps the cut skin's body and gear (the body options are made of them on the phone): whole hair and features")
+check(m2.wide_plan(_tiers, _cv, _wv, _ci, _wi, False, limit=40000) == {"bare", "body", "features", "hair"}, "vertices that don't fit: the gear goes back to the cut skin's first")
+check(m2.wide_plan(_tiers, _cv, _wv, _ci, _wi, False, limit=31500) == {"hair"}, "...then the bare parts, the body and the features: the hair stays whole")
+check(m2.wide_plan(_tiers, _cv, _wv, _ci, _wi, False, limit=30000) is None, "the hair whole not fitting at all: no wide skin")
+check(m2.wide_plan(_tiers, _cv, _wv, _ci, _wi, False, index_limit=103000) == {"bare", "body", "features", "hair"}, "the index budget gives the same way")
+check(m2.index_budget() == 65535 and m2.WIDE_INDEX_BUDGET == 196607, "the cut skin's budget is the stock client's; the wide one's is below 3 x 65536")
+_far = _wide_skin([(1, 0, 0, 9, 0, 6), (2, 1, 0, 9, 4464, 6)], 70006)
+check(skinwide.wide_index_start(70006, 1, 4464, 6) == 70000, "(the fixture's second section starts at 70000)")
+
 # Hair-aware cutting (19 November 2026): texture coordinates are part of the error, a collapse never turns a triangle over
 # in the texture, the open outline of a card stays, and the budget goes to the hair last.
 def _uv_area(uv, t):

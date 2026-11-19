@@ -161,6 +161,28 @@ class NpcTest(unittest.TestCase):
         self.assertTrue(lines[0].startswith("#"))
         self.assertEqual(lines[1:], ["4\t0", "4\t1", "11\t1", "15\t0"])
 
+    def test_the_whole_skins_list_for_the_native_mod(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = os.path.join(d, "Character", "Human", "Female")
+            os.makedirs(folder)
+            os.makedirs(os.path.join(d, "Character", "Orc", "Male"))
+            head = bytearray(304)
+            struct.pack_into("<I", head, 60, 33953)
+            for name, data in (("HumanFemale.m2", bytes(head) + bytes(96)), ("HumanFemale00.skin", b"SKIN"), ("HumanFemale00w.skin", b"SKIN")):
+                with open(os.path.join(folder, name), "wb") as f:
+                    f.write(data)
+            for name in ("OrcMale.m2", "OrcMale00.skin"):                    # a model nothing was cut of: no whole skin, not listed
+                with open(os.path.join(d, "Character", "Orc", "Male", name), "wb") as f:
+                    f.write(bytes(head))
+            self.assertEqual(sl_looks.write_wide_list(d), 1)
+            with open(os.path.join(d, "Wrathpp", "wide.txt"), encoding="utf-8") as f:
+                lines = [l.rstrip("\n") for l in f]
+            self.assertTrue(lines[0].startswith("#"))
+            self.assertEqual(lines[1:], ["Character\\Human\\Female\\HumanFemale\t33953\t400"])
+            os.remove(os.path.join(folder, "HumanFemale00.skin"))            # a whole skin with no skin of its own beside it: refused
+            with self.assertRaises(ValueError):
+                sl_looks.write_wide_list(d)
+
     def test_the_rule_goes_after_the_other_dirs(self):
         self.assertIn("CreatureDisplayInfoExtra.txt", sl_looks.LOOKS_LAST)
 

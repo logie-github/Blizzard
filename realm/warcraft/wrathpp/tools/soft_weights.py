@@ -136,6 +136,11 @@ def soften(model_path, soft_map=None, log=lambda *a: None):
     P = rec[:, 0:12].copy().view("<f4").reshape(nv, 3).astype(np.float64)
     UV = rec[:, 32:40].copy().view("<f4").reshape(nv, 2).astype(np.float64)
     verts, idx, props, secs, batches, bn, mx = refine.read_skin(skb)
+    # the whole skin beside it (<Model>00w.skin, m2.py's WIDE_SKINS): the same vertices' weights are its too, so its sections
+    # get the same bones and slots; a vertex only it draws is not the body's and keeps its weights
+    wide_path = model_path[:-3] + "00w.skin"
+    wide = refine.read_skin(open(wide_path, "rb").read()) if os.path.exists(wide_path) else None
+    both = [(verts, secs)] + ([(wide[0], wide[3])] if wide else [])
     # the vertices the body's texture draws (the body, and what is worn over it with its texture)
     nt, ot = arr(m, TEXTURES)
     types = [struct.unpack_from("<I", m, ot + i * 16)[0] for i in range(nt)]
@@ -166,14 +171,18 @@ def soften(model_path, soft_map=None, log=lambda *a: None):
     new_bone = {r: nb + i for i, r in enumerate(kept)}
     # a section whose bone list has no room for a vertex's new bone: that vertex stays as it was
     need = {}
-    for si, s in enumerate(secs):
-        ks = np.arange(s[2], s[2] + s[3])
-        mine = ks[w[verts[ks]] > 0]
-        need[si] = sorted({new_bone[int(region[verts[k]])] for k in mine})
-        if s[6] + len(need[si]) > MAX_BONES:
-            log("section %d (geoset %d) has %d bones: its vertices stay as they are" % (si, s[0], s[6]))
-            w[verts[mine]] = 0
-            need[si] = []
+    for which, (verts_, secs_) in enumerate(both):
+        for si, s in enumerate(secs_):
+            ks = np.arange(s[2], s[2] + s[3])
+            mine = ks[w[verts_[ks]] > 0]
+            if s[6] + len({new_bone[int(region[verts_[k]])] for k in mine}) > MAX_BONES:
+                log("section %d (geoset %d)%s has %d bones: its vertices stay as they are" % (si, s[0], " of the wide skin" if which else "", s[6]))
+                w[verts_[mine]] = 0
+    for which, (verts_, secs_) in enumerate(both):          # (after every section of both skins had its say on w)
+        for si, s in enumerate(secs_):
+            ks = np.arange(s[2], s[2] + s[3])
+            mine = ks[w[verts_[ks]] > 0]
+            need[which, si] = sorted({new_bone[int(region[verts_[k]])] for k in mine})
     centre = {}
     for r in kept:
         sel = (region == r) & (w > 0)
@@ -211,17 +220,20 @@ def soften(model_path, soft_map=None, log=lambda *a: None):
     ncb, ocb = arr(m, BONE_COMBOS)
     bone_combos = list(struct.unpack_from("<%dH" % ncb, m, ocb))
     props = props.copy()
-    for si, s in enumerate(secs):
-        if not need[si]:
-            continue
-        palette = bone_combos[s[7]:s[7] + s[6]] + need[si]
-        s[7], s[6] = len(bone_combos), len(palette)
-        bone_combos += palette
-        for k in range(s[2], s[2] + s[3]):
-            v = verts[k]
-            if w[v] > 0:
-                props[k] = [palette.index(int(rec[v, 16 + j])) if rec[v, 12 + j] else 0 for j in range(4)]
-                s[8] = max(s[8], int((rec[v, 12:16] > 0).sum()))
+    wide_props = wide[2].copy() if wide else None
+    for which, (verts_, secs_) in enumerate(both):
+        props_ = wide_props if which else props
+        for si, s in enumerate(secs_):
+            if not need[which, si]:
+                continue
+            palette = bone_combos[s[7]:s[7] + s[6]] + need[which, si]
+            s[7], s[6] = len(bone_combos), len(palette)
+            bone_combos += palette
+            for k in range(s[2], s[2] + s[3]):
+                v = verts_[k]
+                if w[v] > 0:
+                    props_[k] = [palette.index(int(rec[v, 16 + j])) if rec[v, 12 + j] else 0 for j in range(4)]
+                    s[8] = max(s[8], int((rec[v, 12:16] > 0).sum()))
     while len(m) % 16:
         m.append(0)
     struct.pack_into("<II", m, BONES, len(bones), len(m))
@@ -235,6 +247,9 @@ def soften(model_path, soft_map=None, log=lambda *a: None):
         f.write(bytes(m))
     with open(skin_path, "wb") as f:
         f.write(refine.write_skin(verts, idx, props, secs, batches, bn, max(mx, max(s[6] for s in secs))))
+    if wide:
+        with open(wide_path, "wb") as f:
+            f.write(refine.write_skin(wide[0], wide[1], wide_props, wide[3], wide[4], wide[5], max(wide[6], max(s[6] for s in wide[3]))))
     side = lambda r: [new_bone[r]] + [round(float(x), 5) for x in centre[r]] + [[]]
     out = {"count": len(bones), "parent": chest, "bones": [side(0), side(1)]}
     if 2 in kept and 3 in kept:
