@@ -387,6 +387,9 @@ local function initCharacterComponents(data, randomize)
 	local P = { race = data.race, sex = data.sex, class = data.class or 0, hairColor = data.hairColor or 0, skin = data.skin or 0, face = data.face or 0,
 		facialHair = data.facialHair or 0, hairStyle = data.hairStyle or 0 }
 	G.character = P
+	-- (the model file the game makes her from: her race's, or the body shape's the native mod hands it in its place)
+	P.shape = G.bodyShape and G.bodyShape[2] or ""
+	G.inits = (G.inits or 0) + 1
 	if ( randomize ) then randomSkin(P); randomHairColor(P); randomHairStyle(P); randomFace(P); randomFacialFeature(P) end
 	G.prev = { skin = P.skin, face = P.face, hairColor = P.hairColor, hairStyle = P.hairStyle, facialHair = P.facialHair }
 	dress()
@@ -641,7 +644,16 @@ function G.define()
 		G.bodyPreview = path
 		return true
 	end
-	function WrathPP_NativeVersion() return "0.10.0" end
+	-- the body shape's model in place of her race's, for the characters the game makes from now on; no for a file the game
+	-- hasn't (G.noShapes: no body options package in)
+	G.bodyShape = { "", "" }
+	function WrathPP_SetBodyShape(model, shaped)
+		if ( type(model) ~= "string" or type(shaped) ~= "string" ) then error("WrathPP_SetBodyShape(model, shape's model): two paths, the second empty for as drawn", 2) end
+		if ( shaped ~= "" and G.noShapes ) then return false, "not in the game" end
+		G.bodyShape = { model, shaped }
+		return true
+	end
+	function WrathPP_NativeVersion() return "0.11.0" end
 end
 
 return G

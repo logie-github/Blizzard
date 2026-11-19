@@ -1,0 +1,135 @@
+name: Wrath++ body options
+
+# The body options package (README, "Body options"; realm/warcraft/wrathpp/tools/body_shapes/README.md) made from the
+# published looks and released as wrathpp-body (wrathpp-body.zip and .json), which the app takes in by itself
+# (WrathppBodyFetch.kt): until 19 November 2026 the package was an import of the user's only, and a phone without one
+# drew none of the Body tab's choices. For every race's women: her model with the body layer, her three shapes (the
+# Human's field, body_shapes/data/human_shapes.npz, carried onto her own mesh: shapes.py), and the layer's designs
+# (drawn by code: designs.py). Made of the looks' own models (Blizzard's files: never in the repository; the release
+# holds them as patches of the looks' models, as the looks release holds the models).
+# Runs after each looks run, when the tools change, and by hand; a package whose inputs (the looks, the tools) are the
+# published one's is not made again, so a phone downloads it only when something changed.
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: make and publish the package even when its inputs are the published one's
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: ["Wrath++ looks"]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/wrathpp-body.yml
+      - realm/warcraft/wrathpp/tools/body_shapes/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wrathpp-body
+  cancel-in-progress: true
+
+jobs:
+  body:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: What it is made from, and whether that is published already
+        id: inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          repo="${{ github.repository }}"
+          gh release download wrathpp-looks -R "$repo" -p wrathpp-looks.json -O looks.json --clobber
+          looks="$(sed -n 's/.*"sha256": "\([0-9a-f]*\)".*/\1/p' looks.json)"
+          [ -n "$looks" ] || { echo "the looks release names no package"; exit 1; }
+          tools="$(git rev-parse HEAD:realm/warcraft/wrathpp/tools/body_shapes) $(git rev-parse HEAD:realm/warcraft/modules/mod-allied-races/tools/m2.py) $(git rev-parse HEAD:realm/warcraft/modules/mod-allied-races/tools/blp.py)"
+          inputs="$(printf '%s %s' "$looks" "$tools" | sha256sum | cut -d' ' -f1)"
+          published=""
+          if gh release download wrathpp-body -R "$repo" -p wrathpp-body.json -O published.json --clobber > /dev/null 2>&1; then
+            published="$(sed -n 's/.*"inputs": "\([0-9a-f]*\)".*/\1/p' published.json)"
+          fi
+          echo "looks=$looks" >> "$GITHUB_OUTPUT"
+          echo "inputs=$inputs" >> "$GITHUB_OUTPUT"
+          if [ "$inputs" = "$published" ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "the package of these looks and tools is the published one: nothing to make"
+            echo "make=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "make=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.inputs.outputs.make == 'yes'
+        with:
+          python-version: '3.12'
+
+      - name: The looks' women (their models and skins, out of the looks release)
+        if: steps.inputs.outputs.make == 'yes'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          pip install --quiet numpy scipy pillow
+          gh release download wrathpp-looks -R "${{ github.repository }}" -p wrathpp-looks.zip -O wrathpp-looks.zip
+          echo "${{ steps.inputs.outputs.looks }}  wrathpp-looks.zip" | sha256sum -c -
+          mkdir looks
+          unzip -q wrathpp-looks.zip 'client/Character/*/Female/*Female.m2' 'client/Character/*/Female/*Female00.skin' -d looks
+          rm wrathpp-looks.zip
+          ls looks/client/Character | wc -l
+
+      - name: The tools' tests
+        if: steps.inputs.outputs.make == 'yes'
+        working-directory: realm/warcraft/wrathpp/tools/body_shapes
+        run: python3 -m unittest -q test_body_package
+
+      - name: The package (the shapes carried onto every race, the layer, the designs)
+        if: steps.inputs.outputs.make == 'yes'
+        working-directory: realm/warcraft/wrathpp/tools/body_shapes
+        run: |
+          set -eu
+          W="$GITHUB_WORKSPACE"
+          python3 designs.py "$W/maps"
+          python3 shapes.py carry data/human_shapes.npz - "$W/looks" races.json "$W/v1_all.zip" | tee "$W/carry.log"
+          if grep -q "NOT MADE" "$W/carry.log"; then echo "a race's shapes were not made (above)"; exit 1; fi
+          python3 pack2.py "$W/wrathpp-body.zip" "$W/looks/client" races.json "$W/maps" "$W/v1_all.zip" | tee "$W/pack.log"
+          python3 check.py "$W/wrathpp-body.zip" "$W/looks/client" | tee "$W/check.log"
+          python3 manifest.py "$W/wrathpp-body.zip" "${{ steps.inputs.outputs.looks }}" "${{ steps.inputs.outputs.inputs }}" "${{ github.sha }}" > "$W/wrathpp-body.json"
+          cat "$W/wrathpp-body.json"
+
+      - name: The logs
+        if: always() && steps.inputs.outputs.make == 'yes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wrathpp-body-logs
+          path: |
+            carry.log
+            pack.log
+            check.log
+            v1_all.zip.report.json
+            wrathpp-body.json
+          if-no-files-found: ignore
+
+      - name: Release
+        if: steps.inputs.outputs.make == 'yes' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          repo="${{ github.repository }}"
+          if ! gh release view wrathpp-body -R "$repo" > /dev/null 2>&1; then
+            gh api -X POST "repos/$repo/git/refs" -f ref="refs/tags/wrathpp-body" -f sha="${{ github.sha }}" > /dev/null || true
+            gh release create wrathpp-body -R "$repo" --verify-tag --prerelease --latest=false \
+              --title "Wrath++ body options: every race's women (experimental)" \
+              --notes "The body options of Wrath++'s creator (Shape, Style, Density) for the looks of the release wrathpp-looks: each woman's model with the body layer, her shapes and the layer's designs. Downloaded by the app; not an app release."
+          fi
+          # (the list last: a phone that reads the new list finds the new package)
+          gh release upload wrathpp-body wrathpp-body.zip -R "$repo" --clobber
+          gh release upload wrathpp-body wrathpp-body.json -R "$repo" --clobber

@@ -36,7 +36,7 @@ import java.util.zip.ZipInputStream
 object WrathppBody {
     const val DIR = "wrathpp-body"
     const val STAMP = "wrathpp-body.stamp"
-    private const val TABLES_VERSION = 3
+    private const val TABLES_VERSION = 4
     const val LIST = "wrathpp-body.json"
     private const val SOURCE = "source"
     private const val ORIG = ".body-orig"
@@ -89,6 +89,9 @@ object WrathppBody {
     }
 
     private fun off(store: File) = File(store.path + ".off")
+
+    /** Taken off by hand ([remove]) and nothing picked since: no package is looked for or fetched ([WrathppBodyFetch]). */
+    fun removed(store: File): Boolean = off(store).exists()
 
     /**
      * The package looked for by its name ([NAMES], where downloads are: [ImportFinder]) taken in by itself when nothing is
@@ -187,6 +190,7 @@ object WrathppBody {
         val models = list.getJSONArray("models")
         val shapesOf = HashMap<String, MutableSet<Int>>()
         val remade = HashMap<String, MutableList<Int>>()
+        val whole = HashMap<String, MutableList<Int>>()   // made here from a package for these looks, for the looks' whole skin
         val wideLines = ArrayList<String>()          // the models made here that have a whole skin: [WrathppWideSkins.BODY_LIST]
         for (i in 0 until models.length()) {
             val m = models.getJSONObject(i)
@@ -205,33 +209,43 @@ object WrathppBody {
             val out: ByteArray
             val skin: ByteArray
             var wideSkin: ByteArray? = null
-            if (rightLooks) {
+            // The looks' whole skin of her model, beside her own (`<Model>00w.skin`, [WrathppWideSkins]): where the looks have one, her
+            // model is made here on the looks' own mesh even from a package made for these very looks, because the same layer then
+            // goes on the whole skin too and she keeps her whole hair and gear; the package's own model has a finer chest and seat
+            // for a shape, and vertices no whole skin of the looks names (19 November 2026: before, a package made for the looks in
+            // took every woman's whole skin away).
+            val looksSkin = File(patch, if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin")
+                .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
+            val looksWide = File(patch, WrathppWideSkins.wideName(if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin"))
+                .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
+            var here: WrathppBodyLayer.Made? = null
+            if (!rightLooks || looksWide.isFile) {
+                // Looks the package was not made for (a looks release changed her model) too: made here on the looks' own model
+                // and skin ([WrathppBodyLayer]), so one package lasts; a shape's vertices carried onto the looks' own mesh.
+                here = try {
+                    if (!looksSkin.isFile) throw IOException("the looks have no skin for her")
+                    onTheseLooks(list, files, m, base, looksSkin.readBytes(), looksWide.takeIf { it.isFile }?.readBytes())
+                } catch (e: WrathppBodyLayer.NoRoom) {
+                    if (shape == 0 && !rightLooks) done.add("$race: made for other looks, and these leave the layer no room (${e.free} indices free, ${e.needed} needed): left as drawn")
+                    null
+                } catch (e: IOException) {
+                    if (shape == 0 && !rightLooks) done.add("$race: made for other looks, left as drawn (${e.message})")
+                    null
+                }
+                // (made here without a whole skin, for looks the package fits: the package's own, finer, is the better one)
+                if (here != null && rightLooks && here.wideSkin == null) here = null
+                if (here == null && !rightLooks) continue
+            }
+            if (here == null) {
                 out = withPatch(base, File(files, m.getJSONObject("patch").getString("file")).readBytes())
                 val madeRight = if (byStructure) structSha256(out, base) == m.getString("made_struct_sha256") else sha256(out) == m.getString("made_sha256")
                 if (!madeRight) throw IOException("$race: the package's model doesn't make what it says")
                 skin = File(files, m.getJSONObject("skin_file").getString("file")).readBytes()
             } else {
-                // Looks the package was not made for (a looks release changed her model): made here on the looks' own model
-                // and skin ([WrathppBodyLayer]), so one import lasts; a shape's vertices carried onto the looks' own mesh.
-                val looksSkin = File(patch, if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin")
-                    .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
-                // (the looks' whole skin of her model, beside her own: the same layer goes on it)
-                val looksWide = File(patch, WrathppWideSkins.wideName(if (shape == 0) m.getString("skin") else m.getString("anims_of") + "00.skin"))
-                    .let { f -> File(f.path + ORIG).takeIf { shape != 0 && it.isFile } ?: f }
-                val made = try {
-                    if (!looksSkin.isFile) throw IOException("the looks have no skin for her")
-                    onTheseLooks(list, files, m, base, looksSkin.readBytes(), looksWide.takeIf { it.isFile }?.readBytes())
-                } catch (e: WrathppBodyLayer.NoRoom) {
-                    if (shape == 0) done.add("$race: made for other looks, and these leave the layer no room (${e.free} indices free, ${e.needed} needed): left as drawn")
-                    null
-                } catch (e: IOException) {
-                    if (shape == 0) done.add("$race: made for other looks, left as drawn (${e.message})")
-                    null
-                } ?: continue
-                out = made.model
-                skin = made.skin
-                wideSkin = made.wideSkin
-                remade.getOrPut(race) { ArrayList() }.add(shape)
+                out = here.model
+                skin = here.skin
+                wideSkin = here.wideSkin
+                if (rightLooks) whole.getOrPut(race) { ArrayList() }.add(shape) else remade.getOrPut(race) { ArrayList() }.add(shape)
             }
             val model = File(patch, m.getString("model"))
             val skinFile = File(patch, m.getString("skin"))
@@ -318,6 +332,8 @@ object WrathppBody {
         done.add(0, "$summary; $withRows races' displays")
         if (remade.isNotEmpty()) done.add(1, "made here for these looks (the package was made for others): " + remade.entries.sortedBy { it.key }
             .joinToString(", ") { (race, s) -> if (s.any { it != 0 }) "$race (its shapes on the looks' own mesh)" else race })
+        if (whole.isNotEmpty()) done.add(1, "with their whole skins (made here on the looks' own mesh): " + whole.entries.sortedBy { it.key }
+            .joinToString(", ") { (race, s) -> if (s.size > 1) "$race (${s.size - 1} shapes)" else race })
         stamps.forEach { it.parentFile?.mkdirs(); it.writeText("$want\n" + done.joinToString("\n") + "\n") }
         return done.joinToString("; ")
     }

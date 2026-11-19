@@ -29,7 +29,7 @@ check(not R.visible("CharacterCreateRaceButton1") and not R.visible("CharacterCr
 -- (the log without the look lines: race, sex and the five numbers, written when they change)
 local LOG = {}
 for _, text in ipairs(R.G.log) do if not text:find("^look on the race screen: race %d+, sex %d, skin ") then LOG[#LOG + 1] = text end end
-check(LOG[1] == "built" and LOG[2]:match("^opened: native 0.10.0, looks' options in") and LOG[3]:match("^appearance add%-on: ") and LOG[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
+check(LOG[1] == "built" and LOG[2]:match("^opened: native 0.11.0, looks' options in") and LOG[3]:match("^appearance add%-on: ") and LOG[4] == "screen: race and class", "  the log: built, opened, the appearance add-on's state, the first screen ("..table.concat(R.G.log, " | ")..")")
 do
 	local looks = 0
 	for _, text in ipairs(R.G.log) do if text:find("^look on the race screen: race %d+, sex %d, skin %d+, face %d+, hair style %d+, hair colour %d+, feature %d+$") then looks = looks + 1 end end
@@ -332,6 +332,24 @@ if os.getenv("RIG_WPP") then
 	R.tap(shape.next, WrathppOptionList); R.frames(0.1)
 	shape = R.row("Shape")
 	check(shape.choice.label:GetText() == "Petite" and WrathPP_GetChoice(1101) == 2, "  next: Petite, kept by the add-on")
+	-- the creator's preview of the Shape: the native mod told her model and the shape's, and the game's character made again
+	-- from it with the same five numbers, still without her gear
+	local five = function() local c = R.G.character; return table.concat({ c.skin, c.face, c.hairStyle, c.hairColor, c.facialHair }, " ") end
+	check(R.G.bodyShape[1] == "Character\\Human\\Female\\HumanFemale.m2" and R.G.bodyShape[2] == "Character\\Human\\Female\\HumanFemaleWpp1.m2",
+		"  the native mod is told her model and the shape's: "..tostring(R.G.bodyShape[1]).." -> "..tostring(R.G.bodyShape[2]))
+	check(R.G.character.shape == "Character\\Human\\Female\\HumanFemaleWpp1.m2", "  the game's character is made again from the shape's model: "..tostring(R.G.character.shape))
+	check(R.G.character.dressed == false, "  and is still without her gear on the Body tab")
+	local numbers, inits = five(), R.G.inits
+	R.tap(R.row("Shape").next, WrathppOptionList); R.frames(0.1)
+	check(R.G.character.shape == "Character\\Human\\Female\\HumanFemaleWpp2.m2" and R.G.inits == inits + 1 and five() == numbers,
+		"  Curvy: made once more, from Wpp2, with the same five numbers ("..five()..")")
+	R.tap(R.row("Style").next, WrathppOptionList); R.frames(0.1)
+	check(R.G.inits == inits + 1, "  a Style doesn't make the character again")
+	R.tap(R.row("Style").previous, WrathppOptionList)
+	R.tap(R.row("Shape").previous, WrathppOptionList); R.tap(R.row("Shape").previous, WrathppOptionList); R.frames(0.1)
+	check(R.G.bodyShape[2] == "" and R.G.character.shape == "" and R.G.inits == inits + 3, "  back to As drawn: her race's own model again")
+	R.tap(R.row("Shape").next, WrathppOptionList); R.frames(0.1)
+	check(R.G.character.shape == "Character\\Human\\Female\\HumanFemaleWpp1.m2", "  Petite again")
 	style = R.row("Style"); R.tap(style.next, WrathppOptionList); R.tap(R.row("Style").next, WrathppOptionList); R.frames(0.1)
 	check(R.row("Style").choice.label:GetText() == "2" and WrathPP_GetChoice(1102) == 3, "  Style twice next: 2")
 	-- the creator's preview: the design file of her layer (Style 2 of Human, Density 100%) given to the native mod, none for the
@@ -365,7 +383,27 @@ if os.getenv("RIG_WPP") then
 	for k = 1, 8 do if R.visible("WrathppCategory"..k) and _G["WrathppCategory"..k].label:GetText() == "Body" then any = true end end
 	check(not any and not R.row("Shape"), "  a man: no Body tab of them")
 	check(R.G.bodyPreview == "", "  a man: no design for the native mod")
+	check(R.G.bodyShape[2] == "" and R.G.character.shape == "", "  a man: no shape's model")
 	check(WrathPP_GetChoice(1101) == 1, "  a new screen: the defaults again")
+	-- a shape whose model the game hasn't (no body options package in): she stays as drawn and isn't made again
+	R = make({ race = 1, sex = 1, class = 1 })
+	R.G.noShapes = true
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	local tab
+	for k = 1, 8 do if R.visible("WrathppCategory"..k) and _G["WrathppCategory"..k].label:GetText() == "Body" then tab = k end end
+	R.tap("WrathppCategory"..tab); R.frames(0.1)
+	local made = R.G.inits
+	R.tap(R.row("Shape").next, WrathppOptionList); R.frames(0.1)
+	check(WrathPP_GetChoice(1101) == 2 and R.G.character.shape == "" and R.G.inits == made, "  a shape the game has no model of: kept as her choice, drawn as she is, not made again")
+	-- closing the creator takes the shape's model off (the character list's women are their race's own)
+	R = make({ race = 4, sex = 1, class = 1 })
+	R.open(); R.tap("WrathppCustomizeButton"); R.frames(0.1)
+	for k = 1, 8 do if R.visible("WrathppCategory"..k) and _G["WrathppCategory"..k].label:GetText() == "Body" then tab = k end end
+	R.tap("WrathppCategory"..tab); R.frames(0.1)
+	R.tap(R.row("Shape").previous, WrathppOptionList); R.frames(0.1)
+	check(R.G.character.shape == "Character\\NightElf\\Female\\NightElfFemaleWpp3.m2", "  a Night Elf woman, Voluptuous: "..tostring(R.G.character.shape))
+	WrathppDriver:Hide()
+	check(R.G.bodyShape[2] == "", "  the creator closed: no shape's model for the character list")
 end
 
 -- without the appearance add-on (or before the realm answers): a woman's Body tab all the same, its three rows greyed,

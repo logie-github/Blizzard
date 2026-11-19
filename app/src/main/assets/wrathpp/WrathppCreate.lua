@@ -423,7 +423,7 @@ end
 
 -- The creator's preview of a woman's Style and Density: the design file of her layer (the package's WppLayer_<style>_<density>
 -- in her race's folder; WppLayer_0 is none) put on the creator's character by the native mod, which draws the layer where
--- nothing is on her legs (Gear off). The Shape row's models are the world's (the realm's displays): the creator keeps her as drawn.
+-- nothing is on her legs (Gear off). The Shape row: W.BodyShape below. Returns whether the game's character was made again.
 -- (every race's women, by Wrath++'s race ids; the High Elf, 22, is drawn with the Void Elf's files: WrathppBody's races)
 local RACE_FOLDER = { [1] = "Human", [2] = "Orc", [3] = "Dwarf", [4] = "NightElf", [5] = "Scourge", [6] = "Tauren", [7] = "Gnome", [8] = "Troll", [10] = "BloodElf", [11] = "Draenei",
 	[9] = "Goblin", [12] = "Worgen", [13] = "Nightborne", [14] = "Lightforged", [15] = "Zandalari", [16] = "Highmountain", [17] = "DarkIron", [18] = "Vulpera",
@@ -441,6 +441,48 @@ function W.BodyPreview()
 		path = "Character\\"..folder.."\\Female\\"..file..".blp"
 	end
 	pcall(WrathPP_SetBodyPreview, path)
+	return W.BodyShape()
+end
+
+-- The creator's preview of a woman's Shape (19 November 2026; the user: "you can select options but it doesn't actually change
+-- the appearance"). A shape is a model of its own beside her race's (<Race>FemaleWpp1.m2 to Wpp3: the app's WrathppBody; in
+-- the world the realm's display gives it to her), and the game makes the creator's character from her race's model file
+-- (CCharacterCreation::InitCharacterComponents). So the native mod is told both files (WrathPP_SetBodyShape(her model, the
+-- shape's), "" for as drawn; it hands the shape's file to the game where it asks for hers, and says no when the shape's file
+-- isn't in the game) and the game is made to make its character again, as it does when the class is chosen
+-- (SetSelectedClass with the class it has: the five numbers are kept). Returns whether the character was made again.
+local SHAPE_ROW = 1101
+function W.BodyShape()
+	if ( type(WrathPP_SetBodyShape) ~= "function" or type(WrathPP_GetCreating) ~= "function" ) then return end
+	local race, sex = WrathPP_GetCreating()
+	local folder = race and sex == 1 and RACE_FOLDER[race]
+	local model, shaped = "", ""
+	if ( folder and type(WrathPP_GetChoice) == "function" and type(WrathPP_GetNumCategories) == "function" ) then
+		local shape = (WrathPP_GetChoice(SHAPE_ROW) or 1) - 1          -- (the option ids run one above their values: As drawn 0)
+		model = "Character\\"..folder.."\\Female\\"..folder.."Female.m2"
+		if ( shape >= 1 and shape <= 3 ) then shaped = "Character\\"..folder.."\\Female\\"..folder.."FemaleWpp"..shape..".m2" end
+	end
+	local was = W.bodyShape or { "", "" }
+	if ( was[1] == model and was[2] == shaped ) then return end
+	local ok, set, why = pcall(WrathPP_SetBodyShape, model, shaped)
+	if ( not (ok and set) ) then
+		-- (the shape's model isn't in the game: no body options package in, or her race has no shapes; she stays as drawn here)
+		if ( shaped ~= "" ) then log("body shape: "..shaped.." not shown ("..tostring(why or set).."): as drawn") end
+		pcall(WrathPP_SetBodyShape, model, "")
+		shaped = ""
+		if ( was[1] == model and was[2] == shaped ) then return end
+	end
+	W.bodyShape = { model, shaped }
+	-- the character on the screen was made from another file than she now has: a shape to show, or one to take off
+	-- (another race's or a man's was made by the game from its own file just now)
+	if ( shaped == "" and not (was[1] == model and was[2] ~= "") ) then return end
+	if ( type(SetSelectedClass) ~= "function" or type(GetSelectedClass) ~= "function" ) then return end
+	local _, _, class = GetSelectedClass()
+	if ( not class ) then return end
+	log("body shape: "..(shaped ~= "" and shaped or "as drawn"))
+	SetSelectedClass(class)
+	W.Normalize(); W.Regear()
+	return true
 end
 
 -- Sends the body options with the character about to be made (the realm keeps them for the character the game makes next).
@@ -769,7 +811,8 @@ function W.Choose(row, k)
 	if ( row.body ) then
 		local c = row.choices[k]
 		if ( c and type(WrathPP_SetChoice) == "function" ) then WrathPP_SetChoice(row.body, c.v) end
-		W.BodyPreview()
+		-- (a Shape makes the game's character again: the screen is drawn again for it, as after a class is chosen)
+		if ( W.BodyPreview() ) then WrathppCreate_Refresh() end
 		return
 	end
 	local model, undead = looks()
@@ -2122,6 +2165,9 @@ driver:SetScript("OnShow", function() if ( not W.off ) then W.pending = 1 end en
 -- Closed (a character made, or Back): the next opening starts dressed, and the log says the creator was left.
 driver:SetScript("OnHide", function()
 	W.gear = true; W.pending = nil; W.made = nil; W.ovPicks, W.ovKey = {}, nil
+	-- (no body shape's model for the women of the character list: the creator's alone)
+	W.bodyShape = nil
+	if ( type(WrathPP_SetBodyShape) == "function" ) then pcall(WrathPP_SetBodyShape, "", "") end
 	if ( type(WrathPP_SetOverlay) == "function" ) then for k = 1, 3 do pcall(WrathPP_SetOverlay, k, "", "") end end
 	log("closed"); tellScreen(false)
 end)

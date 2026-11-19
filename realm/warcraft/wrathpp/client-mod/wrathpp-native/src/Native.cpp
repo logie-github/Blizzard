@@ -106,6 +106,7 @@
 #include "wxl/services/hook.hpp"
 #include "wxl/services/m2.hpp"
 #include "wxl/services/m2file.hpp"
+#include "wxl/services/point.hpp"
 #include "wxl/services/script.hpp"
 #include "wxl/services/storage.hpp"
 
@@ -773,6 +774,92 @@ namespace
         call.PushBool(true);
     }
 
+    // --- the body shapes in the creator ---------------------------------------------------------------------------------
+    // A body shape (Petite, Curvy, Voluptuous) is a model of its own beside the race's (<Race>FemaleWpp1.m2 to Wpp3, made on
+    // the phone by the app's WrathppBody); in the world the realm gives a woman its display. The creator's character is made
+    // from her race's model file by name (CCharacterCreation::InitCharacterComponents, 0x004E13A0: the scene's CreateModel of
+    // CreatureModelData's name), so until 0.11.0 the creator drew every Shape as drawn. Now the Lua names her model and the
+    // shape's (WrathPP_SetBodyShape) and the model cache's point (CM2Cache::CreateShared, the runtime's: every model goes
+    // through it by file name) hands the shape's file where hers is asked for; the Lua then has the game make its character
+    // again. Only while the creator has it set (the Lua takes it off when the creator closes), and only for a shape whose
+    // file the game has (wxl.storage: a model that isn't there would leave the creator without a character).
+    std::string g_shapeOf;                 // her race's model, lower case, without its ending ("character\\human\\female\\humanfemale")
+    std::string g_shapeTo;                 // the shape's model file, as the Lua named it
+    wxl::PointAttachment g_shapePoint;
+    bool g_shapeSaid = false;
+
+    /// A model's file name as the cache is asked for it (.m2, .mdx or .mdl, any case, either slash): lower case, without the ending.
+    std::string ModelKey(std::string_view name)
+    {
+        std::string key(name.substr(0, 260));
+        for (char& c : key) c = c == '/' ? '\\' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const size_t dot = key.rfind('.');
+        if (dot != std::string::npos && key.find('\\', dot) == std::string::npos) key.resize(dot);
+        return key;
+    }
+
+    void AttachShapes()
+    {
+        using CreateShared = wxl::points::CM2Cache_CreateShared;
+        g_shapePoint = CreateShared::Replace([](auto original, void* cache, void* name, uint32_t flags) {
+            if (name && !g_shapeOf.empty() && ModelKey(static_cast<const char*>(name)) == g_shapeOf)
+            {
+                if (!g_shapeSaid)
+                {
+                    g_shapeSaid = true;
+                    wxl::Log(WXL_LOG_INFO, kTag, "body shape: {} given where {} is asked for", g_shapeTo, static_cast<const char*>(name));
+                }
+                return original(cache, g_shapeTo.data(), flags);
+            }
+            return original(cache, name, flags);
+        });
+        if (g_shapePoint) wxl::Log(WXL_LOG_INFO, kTag, "body shapes in the creator: attached");
+        else wxl::Log(WXL_LOG_WARN, kTag, "body shapes in the creator: not attached ({}): the creator draws every Shape as drawn",
+                      CreateShared::Absent().empty() ? "no wxl.point" : CreateShared::Absent());
+    }
+
+    /// WrathPP_SetBodyShape(model, shape's model): the woman being made is drawn with the shape's model file in place of her
+    /// race's from the next time the game makes its character; "" for the shape: as drawn. True when set; false and why when
+    /// the shape's file isn't in the game or the point isn't here (the character is then left as drawn).
+    void SetBodyShapeCall(wxl::ScriptCall& call)
+    {
+        const auto model = call.String(0);
+        const auto shape = call.String(1);
+        if (!model || !shape)
+        {
+            call.Fail("WrathPP_SetBodyShape(model, shape's model): two paths, the second empty for as drawn");
+            return;
+        }
+        if (shape->empty() || model->empty())
+        {
+            g_shapeOf.clear();
+            g_shapeTo.clear();
+            call.PushBool(true);
+            return;
+        }
+        const char* why = nullptr;
+        if (!g_shapePoint) why = "the model cache's point isn't on this runtime";
+        else
+        {
+            const wxl::StorageService storage;
+            if (!storage) why = "no wxl.storage to look for the shape's model with";
+            else if (!storage.Exists(*shape)) why = "the shape's model isn't in the game (no body options package in, or none for her race)";
+        }
+        if (why)
+        {
+            g_shapeOf.clear();
+            g_shapeTo.clear();
+            wxl::Log(WXL_LOG_WARN, kTag, "body shape: {} not shown: {}", *shape, why);
+            call.PushBool(false);
+            call.PushString(why);
+            return;
+        }
+        g_shapeOf = ModelKey(*model);
+        g_shapeTo = std::string(shape->substr(0, 260));
+        g_shapeSaid = false;
+        call.PushBool(true);
+    }
+
     /// An overlay on the creator's character: slot 1 to 8, a shell's path and the picture's, both "" for none.
     void SetOverlayCall(wxl::ScriptCall& call)
     {
@@ -1107,7 +1194,7 @@ namespace
         call.PushBool(true);
     }
 
-    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.10.1"); }
+    void NativeVersion(wxl::ScriptCall& call) { call.PushString("0.11.0"); }
 
 #if defined(_M_IX86)
     // --- The race ids past 21 ---------------------------------------------------------------------------------------------
@@ -1858,6 +1945,7 @@ namespace
                                         std::pair{"WrathPP_Log", script.RegisterFunction<&LogCall>("WrathPP_Log")},
                                         std::pair{"WrathPP_SetScreen", script.RegisterFunction<&SetScreenCall>("WrathPP_SetScreen")},
                                         std::pair{"WrathPP_SetBodyPreview", script.RegisterFunction<&SetBodyPreviewCall>("WrathPP_SetBodyPreview")},
+                                        std::pair{"WrathPP_SetBodyShape", script.RegisterFunction<&SetBodyShapeCall>("WrathPP_SetBodyShape")},
                                         std::pair{"WrathPP_SetOverlay", script.RegisterFunction<&SetOverlayCall>("WrathPP_SetOverlay")},
                                         std::pair{"WrathPP_ApplyLook", script.RegisterFunction<&ApplyLookCall>("WrathPP_ApplyLook")},
                                         std::pair{"WrathPP_SetSoftBody", script.RegisterFunction<&SetSoftBodyCall>("WrathPP_SetSoftBody")},
@@ -1886,6 +1974,7 @@ namespace
             wxl::ScriptMgr::Add(&g_wideAssets);
 #endif
             AttachLayer();
+            AttachShapes();
             AttachCreatureSkins();
             AttachWide();
             MovePreferences();
