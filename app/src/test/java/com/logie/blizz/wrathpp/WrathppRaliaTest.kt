@@ -171,6 +171,37 @@ class WrathppRaliaTest {
         assertArrayEquals(before, table.readBytes())
     }
 
+    @Test fun anAlliedWomanTakesHerDonorRacesBodyAndIsOfferedWhole() {
+        // the set has the Dwarf woman; the Dark Iron woman's donor is the Dwarf (WrathppSkins.DONORS): both her colours take the set's body
+        val store = File(tmp.root, "store")
+        val client = tmp.newFolder("client-wrathpp")
+        val patch = File(client, "Data/patch-Z.MPQ")
+        File(patch, "DBFilesClient").mkdirs()
+        val table = WrathppUndead.Dbc(WrathppUndead.KINDS, mutableListOf(
+            row(1, 3, 1, 0, "Character\\Dwarf\\Female\\DwarfFemaleSkin00_00.blp", "", 0),
+            row(2, 17, 1, 0, "Character\\DarkIron\\Female\\DarkIronFemaleSkin00_00.blp", "", 0), row(3, 17, 1, 0, "Character\\DarkIron\\Female\\DarkIronFemaleSkin00_01.blp", "", 1),
+            row(4, 17, 1, 4, "DI\\Pelvis00.blp", "DI\\Torso00.blp", 0)))
+        File(patch, "DBFilesClient/CharSections.dbc").writeBytes(table.write())
+        File(patch, WrathppLooks.MARKER).writeText("looks1\n")
+        File(patch, WrathppRalia.NAMES).writeText("""{"format": 1, "models": {"3_1": {"name": "DwarfFemale", "race": 3, "sex": 1, "skins": [
+            {"index": 0, "path": "Character\\Dwarf\\Female\\DwarfFemaleSkin00_00.blp", "retail": "dwarffemaleskin00_00_hd.blp"}]}}}""")
+        for ((path, rgb) in mapOf("Dwarf/Female/DwarfFemaleSkin00_00" to listOf(100, 100, 100), "DarkIron/Female/DarkIronFemaleSkin00_00" to listOf(50, 100, 200),
+            "DarkIron/Female/DarkIronFemaleSkin00_01" to listOf(150, 100, 100))) {
+            File(patch, "Character/$path.blp").apply { parentFile!!.mkdirs(); writeBytes(solid(rgb[0], rgb[1], rgb[2])) }
+        }
+        zip(mapOf("Ralia/Character/Dwarf/Female/dwarffemaleskin00_00_hd.blp" to body(200, 150, 120))).inputStream().use { WrathppRalia.importZip(store, it) }
+        assertEquals(3, WrathppRalia.apply(store, client))
+        assertEquals(listOf(107, 150, 231), pixel(File(patch, "Character/DarkIron/Female/DarkIronFemaleSkin00_00.blp"), 300 * 512 + 500))
+        assertEquals(listOf("", ""), rows(client).first { it[0] == 4 }.let { listOf(it[4], it[5]) })           // her underwear goes as the donor's does
+        val offered = WrathppRalia.supplied(store, client)!!
+        assertEquals(listOf("3_1", "17_1"), offered.keys.toList())
+        assertEquals("DarkIronFemale" to listOf(0, 1), offered["17_1"])
+        // taken out: her own skins back
+        WrathppRalia.remove(store)
+        assertEquals(0, WrathppRalia.apply(store, client))
+        assertEquals(listOf(50, 100, 200), pixel(File(patch, "Character/DarkIron/Female/DarkIronFemaleSkin00_00.blp"), 0))
+    }
+
     @Test fun carriedKeepsTheSetsDetailAndTheOthersColourAndPaint() {
         fun image(vararg px: Int) = Blp.Image(2, 1, ByteArray(8) { px[it].toByte() })
         val set = image(200, 100, 50, 255, 40, 40, 40, 128)

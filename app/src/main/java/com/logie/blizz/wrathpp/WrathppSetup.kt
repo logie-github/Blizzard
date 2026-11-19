@@ -137,7 +137,10 @@ object WrathppSetup {
             // (the allied races' race buttons, pictures and texts are for the game's own screen as for the creator's: always)
             val creator0 = creator + ALLIED_FILES.associateWith { name -> context.assets.open("wrathpp/$name").use { it.readBytes() } }
             // (the soft body's level, for the add-on: WrathppSoftBody)
-            val files = creator0 + (WrathppSoftBody.FILE_NAME to WrathppSoftBody.script(WrathppSoftBody.chosen(context.filesDir)))
+            // (the skin colours the creator offers once Ralia's mod is in: WrathppSkins; an empty list when it isn't)
+            val (skins, skinLine) = WrathppSkins.build(WrathppRalia.store(context), layout.wrathppClient)
+            notes.append("skins offered: ${skinLine ?: "all (no Ralia import, or none of its skins named)"}\n")
+            val files = creator0 + (WrathppSoftBody.FILE_NAME to WrathppSoftBody.script(WrathppSoftBody.chosen(context.filesDir))) + (WrathppSkins.FILE_NAME to skins)
             WrathppAddon.writeGluePatch(layout.wrathppClient, files)
             files
         }.onSuccess { files ->

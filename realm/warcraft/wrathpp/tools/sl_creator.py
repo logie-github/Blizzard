@@ -165,6 +165,13 @@ def build_model(tables, categories, race_id, sex, model, key_race=None):
             have = [c for c in choices if c["ID"] in digits]
             have += [c for c in model.get("extra_choices", {}).get(o["Name_lang"], []) if c["ID"] in digits and c["ID"] not in {x["ID"] for x in have}]
             option["choices"] = [entry(tables, c, digits[c["ID"]]) for c in have]
+            if o["Name_lang"] == "Skin Color":
+                # a skin only an unlocked achievement opens (the Blood Elves' Dark Ranger: sl_looks.UNLOCKED_ACHIEVEMENTS) is kept whatever
+                # the Ralia import supplies: the creator offers it (`keep`) beside the skins the app's WrathppSkins.lua lists. A choice's
+                # number v is its skin's place in the looks (= its index in wrathpp-skins.json), which is what that list is of
+                for e, c in zip(option["choices"], have):
+                    if c["ID"] in tables.unlocked or c.get("keep"):
+                        e["keep"] = True
         else:
             option["choices"] = [entry(tables, c, i) for i, c in enumerate(c for c in choices if tables.available(c))]
         # A picture laid over the head (eyebrows, makeup, scars...): its choices name their picture (a path of the game's, for any
@@ -289,14 +296,14 @@ def lua_value(v, indent=0):
     if isinstance(v, str):
         return '"%s"' % v.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
     if isinstance(v, (list, tuple)):
-        if all(not isinstance(x, (dict, list, tuple)) for x in v) or all(isinstance(x, dict) and set(x) <= {"v", "n", "s", "s2", "c"} for x in v):
+        if all(not isinstance(x, (dict, list, tuple)) for x in v) or all(isinstance(x, dict) and set(x) <= {"v", "n", "s", "s2", "c", "keep"} for x in v):
             return "{ " + ", ".join(lua_value(x) for x in v) + (" }" if v else "}")
         return "{\n" + "".join("%s\t%s,\n" % (pad, lua_value(x, indent + 1)) for x in v) + pad + "}"
     if isinstance(v, dict):
         keys = sorted(v, key=lambda k: (k not in ("name", "race", "sex"), str(k)))
         key = lambda k: k if isinstance(k, str) and k.isidentifier() else '["%s"]' % k
-        if set(v) <= {"v", "n", "s", "s2", "c"}:
-            return "{ " + ", ".join("%s = %s" % (k, lua_value(v[k])) for k in ("v", "n", "s", "s2", "c") if k in v) + " }"
+        if set(v) <= {"v", "n", "s", "s2", "c", "keep"}:
+            return "{ " + ", ".join("%s = %s" % (k, lua_value(v[k])) for k in ("v", "n", "s", "s2", "c", "keep") if k in v) + " }"
         return "{\n" + "".join("%s\t%s = %s,\n" % (pad, key(k), lua_value(v[k], indent + 1)) for k in keys) + pad + "}"
     raise TypeError(type(v))
 

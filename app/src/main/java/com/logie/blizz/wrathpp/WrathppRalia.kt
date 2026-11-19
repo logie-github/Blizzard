@@ -122,6 +122,32 @@ object WrathppRalia {
     }
 
     /**
+     * The skins the imported set supplies a texture for itself (its file for the skin, or for its underwear: the ones [apply] puts in
+     * directly, not the ones it only carries over to), by model ("1_0": race and sex) the model's name and the skins' places in the
+     * looks, for [WrathppSkins]. A skin whose file name has "mannequin" in it is matched like any other, by its name. Null when
+     * nothing is imported or the looks have no list of names: nothing is filtered then.
+     */
+    internal fun supplied(store: File, client: File): Map<String, Pair<String, List<Int>>>? {
+        if (!installed(store)) return null
+        val patch = File(client, "Data/${WrathppLooks.PATCH}")
+        fun has(name: String) = File(store, "files/$name").isFile
+        val direct = names(patch).filter { has(it.retail) || has(it.retail.replace("skin00_", "nakedpelvisskin00_")) || has(it.retail.replace("skin00_", "nakedtorsoskin00_")) }
+        if (direct.isEmpty()) return null
+        val called = HashMap<String, String>()
+        File(patch, NAMES).takeIf { it.isFile }?.let { f ->
+            val models = JSONObject(f.readText()).optJSONObject("models")
+            if (models != null) for (k in models.keys()) called[k] = models.getJSONObject(k).optString("name")
+        }
+        val places = HashMap<String, MutableSet<Int>>()
+        for (n in direct) places.getOrPut("${n.race}_${n.sex}") { sortedSetOf() }.add(n.index)
+        // the allied women's skins carried over from their donor race's bodies ([apply], WrathppSkins.DONORS): the set is their base too
+        val rows = File(patch, ROWS).takeIf { it.isFile }?.let { runCatching { JSONObject(it.readText()).optJSONArray("allied") }.getOrNull() }
+        if (rows != null) for (i in 0 until rows.length()) rows.getJSONArray(i).let { r -> places.getOrPut("${r.getInt(0)}_${r.getInt(1)}") { sortedSetOf() }.add(r.getInt(2)) }
+        return places.toSortedMap(compareBy<String>({ it.substringBefore('_').toInt() }, { it.substringAfter('_').toInt() }))
+            .mapValues { (key, set) -> (called[key] ?: WrathppSkins.RACE_NAMES[key.substringBefore('_').toInt()]?.let { it + if (key.endsWith("_1")) "Female" else "Male" } ?: key) to set.toList() }
+    }
+
+    /**
      * The imported set put into Wrath++'s looks in [client], or taken out when nothing is imported. Returns how many
      * skins are the set's now (0: none imported, no looks, or looks without their list of names). [say]: progress.
      */
@@ -133,7 +159,7 @@ object WrathppRalia {
         val rowsFile = File(patch, ROWS)
         val zipSha = if (installed(store)) sha(store) else null
         val looks = File(patch, WrathppLooks.MARKER).takeIf { it.isFile }?.readText()?.trim().orEmpty()
-        val want = "$zipSha $looks"
+        val want = "$zipSha $looks donors1"
         if (zipSha != null && stamp.isFile && stamp.readText().trim() == want) return rowsFile.takeIf { it.isFile }?.let { JSONObject(it.readText()).optInt("skins") } ?: 0
         // what an earlier set put in comes out first: the looks' own skins back, the underwear's textures back
         if (stamp.isFile || rowsFile.isFile) takeOut(patch, table, rowsFile)
@@ -144,6 +170,7 @@ object WrathppRalia {
         fun torso(retail: String) = retail.replace("skin00_", "nakedtorsoskin00_")
         val direct = names(patch).filter { has(it.retail) || has(pelvis(it.retail)) || has(torso(it.retail)) }
         if (direct.isEmpty()) return 0
+        val ownPicture = names(patch).filter { it.retail.isEmpty() }
         val dbc = WrathppUndead.Dbc.read(table.readBytes(), WrathppUndead.KINDS)
         // the looks' own picture of a skin (kept beside it once a set was put over it)
         fun own(path: String): Blp.Image? {
@@ -157,19 +184,33 @@ object WrathppRalia {
         val bodies = HashMap<Named, Blp.Image>()
         for (skin in direct) ralia(skin.retail)?.let { bodies[skin] = it }
         val carriedFrom = ArrayList<Pair<Named, Named>>()
-        for ((key, sources) in bodies.keys.groupBy { it.race to it.sex }) {
-            val known = direct.filter { (it.race to it.sex) == key }.map { it.index }.toSet()
+        val fromDonor = ArrayList<Named>()                      // (the allied women's skins: all of them are offered, WrathppSkins)
+        // a model the set has bodies for takes them for its own other colours; an allied woman takes her donor race's ([WrathppSkins.DONORS]:
+        // the body she is built like), which makes the set her base (the user, 19 November 2026)
+        val byModel = bodies.keys.groupBy { it.race to it.sex }
+        val plan = ArrayList<Pair<Pair<Int, Int>, Pair<Int, Int>>>()
+        for (model in byModel.keys) plan.add(model to model)
+        for ((race, donor) in WrathppSkins.DONORS) {
+            if ((race to WrathppSkins.WOMAN) !in byModel && (donor to WrathppSkins.WOMAN) in byModel) plan.add((race to WrathppSkins.WOMAN) to (donor to WrathppSkins.WOMAN))
+        }
+        val carriedPaths = HashSet<String>()                    // (the High Elf's files are the Void Elf's: carried once)
+        for ((key, from) in plan) {
+            val sources = byModel.getValue(from)
+            // (skins the looks added from a picture of today's game, listed with no file name: their own picture is never replaced or carried over)
+            val known = (direct + ownPicture).filter { (it.race to it.sex) == key }.map { it.index }.toSet()
             val withLooks = sources.mapNotNull { src -> own(src.path)?.let { src to it } }
             if (withLooks.isEmpty()) continue
             val rows = dbc.rows.filter { it[1] == key.first && it[2] == key.second && it[3] == 0 && it[8] == 0 && (it[4] as String).isNotEmpty() &&
                 !(it[4] as String).contains("Undead", ignoreCase = true) && (it[9] as Int) !in known }
             for (row in rows.distinctBy { it[4] as String }) {
                 val path = row[4] as String
+                if (key != from && !carriedPaths.add(path)) continue
                 val target = own(path) ?: continue
                 val (src, srcLooks) = withLooks.minByOrNull { distance(mean(it.second), mean(target)) } ?: continue
                 val named = Named(key.first, key.second, row[9] as Int, path, src.retail)
                 bodies[named] = carried(bodies.getValue(src), srcLooks, target)
                 carriedFrom.add(named to src)
+                if (key != from) fromDonor.add(named)
             }
         }
         val named = direct + carriedFrom.map { it.first }
@@ -210,7 +251,9 @@ object WrathppRalia {
             }
             if (touched) done++
         }
-        rowsFile.writeText(JSONObject().put("skins", done).put("rows", changed).put("added", added).toString())
+        val allied = JSONArray()
+        for (n in fromDonor) allied.put(JSONArray(listOf(n.race, n.sex, n.index)))
+        rowsFile.writeText(JSONObject().put("skins", done).put("rows", changed).put("added", added).put("allied", allied).toString())
         write(table, dbc.write())
         stamp.writeText("$want\n")
         return done

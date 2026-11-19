@@ -148,6 +148,9 @@ return function(opts)
 		end
 	end
 
+	-- Ralia's mod in: the skins the creator offers (WrathppSkins.lua in the app's patch: a table {["1_0"] = {0, 1}}; opts.skins, none by default)
+	WrathppSkins = opts.skins
+
 	-- What a person does ------------------------------------------------------------------------------------------------------
 	function R.open() SetGlueScreen("charcreate"); E.update(0.02, 3) end
 	function R.close() SetGlueScreen("charselect") end
