@@ -48,9 +48,9 @@ INDEX_BUDGET = 65535            # a stock 3.3.5 reads a section's triangle start
 # when the window [start, start + count) lies inside the skin's index array. So a skin may hold more than 65535 indices;
 # what stays 16-bit is each section's own index count, the section's vertex range and the skin's vertices (a skin index
 # names one of them): fewer than 65536 of those. A stock client reads the level as a marker, ignores it and draws the
-# wrong triangles from a section past 65535: set WRATHPP_WIDE_SKINS=0 (or WIDE_SKINS = False) to cut every model to 65535
+# wrong triangles from a section past 65535: WRATHPP_WIDE_SKINS=1 writes them; OFF by default since 19 Nov (the phone drew garbled triangles), every model is cut to 65535
 # again, as before.
-WIDE_SKINS = os.environ.get("WRATHPP_WIDE_SKINS", "1").strip().lower() not in ("0", "", "no", "off", "false")
+WIDE_SKINS = os.environ.get("WRATHPP_WIDE_SKINS", "0").strip().lower() not in ("0", "", "no", "off", "false")
 WIDE_INDEX_BUDGET = 262144      # the most indices a wide skin may hold (the client's instance buffer is 1M): the 65535 skin
                                 # vertices below are the limit in practice, a hard stop with a clear error if it is passed
 SKIN_VERTEX_LIMIT = 65535       # skin vertices (m_vertexStart, m_vertexCount and the skin's vertex lookup are 16-bit)

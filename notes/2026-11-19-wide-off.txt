@@ -1,0 +1,1 @@
+Models are back to full-size triangle lists that the phone draws correctly, undoing the broken-looking characters of the last update.
