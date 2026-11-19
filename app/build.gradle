@@ -121,8 +121,9 @@ android {
 		systemProperty 'robolectric.graphicsMode', 'NATIVE'
 		systemProperty 'robolectric.dependency.repo.url', 'https://maven-central.storage-download.googleapis.com/maven2'
 		maxHeapSize = '3g'
-		// Robolectric's tests are independent: CI runs them in more than one JVM (-PtestForks=N); one by default.
-		maxParallelForks = (project.findProperty('testForks') ?: '1').toInteger()
+		// Robolectric's tests are independent, so they run in several JVMs at once (-PtestForks=N): by default half the cores, at least one
+		// (each JVM may take up to maxHeapSize; the suite passed here with 1, 2, 3 and 4). CI sets its own number.
+		maxParallelForks = (project.findProperty('testForks') ?: Math.max(1, Runtime.runtime.availableProcessors().intdiv(2)).toString()).toInteger()
 		// The X server rig (tools/xrig): Winlator's X server's native half built for this machine, when the rig is asked for.
 		def xrigLib = System.getenv('BLIZZ_XRIG_LIB')
 		if (xrigLib) systemProperty 'java.library.path', xrigLib
