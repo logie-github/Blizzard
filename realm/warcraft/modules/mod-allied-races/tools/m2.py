@@ -65,9 +65,22 @@ def index_budget():
 # Indices a cut model leaves free: Wrath++'s body layer (wrathpp/tools/body_shapes/layer.py: at most 107 triangles on the
 # released looks' women) is added to the looks' own skin on the phone (WrathppBodyLayer), which cuts nothing itself.
 LAYER_RESERVE = 420
-# What gives way when a model has more than the budget (decimate.py), and how far: the gear first, then
-# the features and the hair, the body (the face among it) last.
-TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]
+# What gives way when a model has more than the budget (decimate.py), and how far. Only one hair style, one variant of each
+# gear group is drawn at a time, but the skin holds them all, and the creator offers every hair style, so the budget goes
+# where the player looks (the user, 19 November 2026: the hair was "messed up" at 43% of its triangles): the worn gear's
+# variants (mostly hidden by items, thinned hardest; the bare variant 01 of each group is the "bare" tier, kept whole as
+# its outline), then the features, then the body (never below 70%), then the hair, which stays whole while the others can
+# give. Stages: each lists how far every tier may be taken (a fraction of its source), the next stage opens only when the
+# model is still over the budget after this one; the last takes from everything the same.
+TIER_STAGES = [
+    [("gear", 0.35), ("features", 0.7), ("body", 0.85), ("hair", 1.0)],
+    [("gear", 0.2), ("features", 0.5), ("body", 0.75), ("hair", 0.9)],
+    [("gear", 0.12), ("features", 0.35), ("body", 0.7), ("hair", 0.85)],
+    [("gear", 0.08), ("features", 0.25), ("body", 0.65), ("hair", 0.7)],
+    [("gear", 0.05), ("features", 0.15), ("body", 0.55), ("hair", 0.5)],
+]
+GIVE_WAY = ["gear", "features", "body", "hair", "bare"]    # the order the tiers are cut in
+TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]       # (the passes after the staged plan)
 TIER_FLOORS_MORE = [("gear", 0.3), ("features", 0.4), ("hair", 0.4), ("body", 0.6)]
 GEAR_GROUPS = {4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20}
 HEAD_GROUPS = (32, 33)          # today's head and eyeballs: never cut (below)
@@ -82,6 +95,8 @@ def tier_of(geoset):
         return "hair"
     if geoset // 100 in (1, 2, 3, 16, 17):
         return "features"
+    if geoset // 100 in GEAR_GROUPS and geoset % 100 == 1:
+        return "bare"                   # what is drawn while nothing is worn there (the bare hands, feet, legs...)
     return "gear"
 LAST_ANIMATION = 505                 # 3.3.5's AnimationData ends here
 KEY_BONES = 27                       # 3.3.5 knows key bones 0 to 26
@@ -582,17 +597,32 @@ def uncut(plan, sections):
     return {s for new_id, s, b in plan if sections[s][0] // 100 in HEAD_GROUPS}
 
 
-def shared_positions(positions, sections):
-    """{section: its vertices whose position (to 0.01 mm) a vertex of another section has too}: where sections join."""
+def shared_positions(positions, sections, exclusive=None):
+    """{section: its vertices whose position (to 0.01 mm) a vertex of another section has too}: where sections join.
+    [exclusive]: {section: a class}: sections of one class are never drawn together (the hair styles, the variants of a
+    gear group), so where they share a position they don't join anything (each is cut alone: a variant's own outline
+    stays, its inside is free), and only a section of another class holds a vertex."""
     import numpy as np
+    key = lambda s: ("class", exclusive[s]) if exclusive and exclusive.get(s) is not None else ("section", s)
     where = {}
     for s, tris in sections.items():
         for v in set(int(x) for x in np.asarray(tris).ravel()):
-            where.setdefault(tuple(np.round(positions[v], 5)), set()).add(s)
+            where.setdefault(tuple(np.round(positions[v], 5)), set()).add(key(s))
     out = {}
     for s, tris in sections.items():
         out[s] = {v for v in set(int(x) for x in np.asarray(tris).ravel()) if len(where[tuple(np.round(positions[v], 5))]) > 1}
     return out
+
+
+def exclusive_classes(plan):
+    """{section: class} for [plan]'s (new geoset id, section, batch): the hair styles are one class, the features of a group,
+    the variants of a gear group; the body's sections and any section named under two classes have none."""
+    seen = {}
+    for new_id, s, b in plan:
+        t = tier_of(new_id)
+        k = "hair" if t == "hair" else None if t == "body" else new_id // 100
+        seen.setdefault(s, set()).add(k)
+    return {s: next(iter(ks)) for s, ks in seen.items() if len(ks) == 1 and None not in ks}
 
 
 def outline(tris):
@@ -1272,6 +1302,7 @@ def convert(files, policy, out_dir, log=print):
     # within the first 65535 indices. Today's models have twice that; the gear gives way first,
     # then the features and the hair, the body last (decimate.py).
     positions = np.array([struct.unpack_from("<3f", v) for v in model.vertices])
+    texcoords = np.array([struct.unpack_from("<2f", v, 32) for v in model.vertices])
     source_tris = {}
     for new_id, s, b in plan:
         if s in source_tris:
@@ -1289,12 +1320,12 @@ def convert(files, policy, out_dir, log=print):
     # Where two sections meet (the neck under the head, a wrist under a hand, the body under a geoset's piece) their
     # edges are at the same places: a vertex there stays where it is, or the section cut down alone slides its edge
     # along and the other's doesn't, and the model opens there (the user's "lots of seam gaps", 13 November 2026).
-    joins = shared_positions(positions, source_tris)
+    joins = shared_positions(positions, source_tris, exclusive_classes(plan))
     # The bare body's sections keep their whole outline too: the body, and the variant 01 of a gear group (the bare
     # hands, feet, wrists and legs drawn while nothing is worn there). A foot's top edge tucked inside the leg meets
     # nothing at the same place, and slid along it showed as a sliver at the heel. (Every section's outline kept is
     # more than 3.3.5's 65535 indices allow: the hair, the features and the worn gear still give way along theirs.)
-    bare = {s for new_id, s, b in plan if tier_of(new_id) == "body" or (tier_of(new_id) == "gear" and new_id % 100 == 1)}
+    bare = {s for new_id, s, b in plan if tier_of(new_id) in ("body", "bare")}
     for s in bare:
         joins[s] = joins.get(s, set()) | outline(source_tris[s])
     # A pass takes what the floors allow; a mesh may not give all that was asked of it (its
@@ -1307,7 +1338,12 @@ def convert(files, policy, out_dir, log=print):
     # are never cut: the rest gives way for them.
     whole = uncut(plan, skin.sections)
     kept_whole = sum(len(cut[s]) * 3 * copies[s] for s in whole)
-    for step in range(12):
+    source_now = {}
+    for s, t in tier_of_section.items():
+        if s not in whole:
+            source_now[t] = source_now.get(t, 0) + len(source_tris[s]) * 3 * copies[s]
+    stuck = set()
+    for step in range(40):
         now = {}
         for s, t in tier_of_section.items():
             if s not in whole:
@@ -1321,18 +1357,37 @@ def convert(files, policy, out_dir, log=print):
             limit = min(limit, int(total * (SKIN_VERTEX_LIMIT - VERTEX_RESERVE) / vertices_now) - 3)
         if total <= limit:
             break
-        floors = TIER_FLOORS if step == 0 else TIER_FLOORS_MORE if step == 1 else []
-        keep = decimate.plan(now, limit - 300 - kept_whole, floors)
-        before = total
-        for s, t in tier_of_section.items():
-            if s in whole:
-                continue
-            fraction = keep[t]
-            if fraction < 0.999 and len(cut[s]) > 2:
-                cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))), locked=joins.get(s, ()))
-        total = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section)
-        if total >= before:
+        # the staged plan (fractions of the source's sizes), carried out one tier at a time, the first to give way first, then
+        # planned again from what that really took (outlines and seams stay: a tier whose meshes would not give is left
+        # as it is, and the next tiers give for it), so the hair is cut only by what the gear, features and body could not give
+        keep = decimate.plan_stages(source_now, limit - 300 - kept_whole, TIER_STAGES, current=now, skip=stuck)
+        order = [t for t in GIVE_WAY if t in now and t not in stuck and keep[t] * source_now[t] < now[t] - 3]
+        if not order:
             raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, limit, total))
+        t = order[0]
+        for s in tier_of_section:
+            if s in whole or tier_of_section[s] != t:
+                continue
+            target = int(round(len(source_tris[s]) * keep[t]))
+            if target < len(cut[s]) and len(cut[s]) > 2:
+                cut[s] = decimate.decimate(positions, cut[s], max(1, target), locked=joins.get(s, ()),
+                                           uvs=texcoords, kind=t)
+        got = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section if tier_of_section[s] == t and s not in whole)
+        if got > keep[t] * source_now[t] * 1.04 + 30 or got >= now[t] - 3:
+            stuck.add(t)
+    else:
+        raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, limit, total))
+    # What the plan did, for the log: every geoset kept below 70%, and the gear variants no item asks for (left out).
+    thin = ["%d %d%%" % (n, round(100.0 * len(cut[s]) / max(1, len(source_tris[s])))) for n, s, b in sorted(plan, key=lambda p: (p[0], p[1]))
+            if len(cut[s]) < 0.7 * len(source_tris[s]) and s not in whole]
+    if thin:
+        log("%s: thinned below 70%%: %s" % (name, ", ".join(thin)))
+    kept_old = {int(k) for k in geosets}
+    left = sorted(g for g in set(sec[0] for sec in skin.sections) if g not in kept_old and g // 100 in GEAR_GROUPS and g % 100 > GEAR_MAX_VARIANT)
+    if left:
+        log("%s: left out, no 3.3.5 item asks for them: gear variants %s" % (name, ", ".join(str(g) for g in left)))
+    for n, s, b in sorted(plan, key=lambda p: (p[0], p[1])):
+        log("%s: geoset %d (%s, section %d): %d of %d indices" % (name, n, tier_of(n), s, len(cut[s]) * 3, len(source_tris[s]) * 3))
     for t in sorted(sizes):
         kept = sum(len(cut[s]) * 3 for n, s, b in plan if tier_of(n) == t)
         log("%s: %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
@@ -1343,7 +1398,7 @@ def convert(files, policy, out_dir, log=print):
     normals = np.array([struct.unpack_from("<3f", v, 20) for v in model.vertices])
     lifts, lift_tier = {}, {}
     for s, t in tier_of_section.items():
-        if s in whole or t in ("body", "gear") or cut[s] is source_tris[s]:
+        if s in whole or t in ("body", "gear", "bare") or cut[s] is source_tris[s]:
             continue
         for v, height in decimate.sink_lifts(positions, normals, source_tris[s], cut[s], joins.get(s, ())).items():
             lifts[v] = max(lifts.get(v, 0.0), height)

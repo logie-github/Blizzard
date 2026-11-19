@@ -373,5 +373,47 @@ with tempfile.TemporaryDirectory() as _d:
     check(len(_rs.indices) == 70006 and _rs.sections[1][1] == 1 and _rs.sections[1][4] == 4464, "the renderer reads a wide skin's level and start")
     _starts = [skinwide.wide_index_start(len(_rs.indices), s[1], s[4], s[5]) for s in _rs.sections]
     check(_starts == [0, 70000], "...and the wide start of its second section: %s" % _starts)
+
+# Hair-aware cutting (19 November 2026): texture coordinates are part of the error, a collapse never turns a triangle over
+# in the texture, the open outline of a card stays, and the budget goes to the hair last.
+def _uv_area(uv, t):
+    return (uv[t[1]][0] - uv[t[0]][0]) * (uv[t[2]][1] - uv[t[0]][1]) - (uv[t[2]][0] - uv[t[0]][0]) * (uv[t[1]][1] - uv[t[0]][1])
+cn = 11
+cx, cy = np.meshgrid(np.linspace(0, 0.1, cn), np.linspace(0, 0.4, cn))
+cpos = np.stack([cx.ravel(), cy.ravel(), 0.01 * np.sin(cx.ravel() * 30)], axis=1)            # a hair card: a bent strip
+cuv = np.stack([np.linspace(0, 1, cn)[None, :].repeat(cn, 0).ravel() ** 2, np.linspace(0, 1, cn)[:, None].repeat(cn, 1).ravel()], axis=1)
+ctris = []
+for i in range(cn - 1):
+    for j in range(cn - 1):
+        a_ = i * cn + j
+        ctris += [(a_, a_ + 1, a_ + cn), (a_ + 1, a_ + cn + 1, a_ + cn)]
+ccut = decimate.decimate(cpos, np.array(ctris), 90, uvs=cuv, kind="hair")
+check(len(ccut) <= 110 and len(ccut) < len(ctris), "a card with texture coordinates comes down (%d of %d)" % (len(ccut), len(ctris)))
+check({0, cn - 1, cn * (cn - 1), cn * cn - 1} <= set(ccut.ravel().tolist()), "...its four corners kept")
+check(all(_uv_area(cuv, t) * _uv_area(cuv, ctris[0]) > 0 for t in ccut), "...and no triangle turned over in the texture")
+# A texture that changes fast across one column (the alpha picture's edge) keeps its vertices there longer than a flat one.
+suv = cuv.copy()
+suv[:, 0] = np.where(np.repeat(np.arange(cn)[None, :], cn, 0).ravel() >= 5, suv[:, 0] + 0.5, suv[:, 0])
+scut = decimate.decimate(cpos, np.array(ctris), 60, uvs=suv, kind="hair")
+check(len(scut) <= 80, "a card with a jump in its texture still comes down (%d)" % len(scut))
+check(not len(decimate.decimate(cpos, np.array(ctris), 1, uvs=cuv, kind="hair")) > 2 * len(ctris), "(never more triangles than it had)")
+stage = [[("gear", 0.5), ("hair", 1.0), ("body", 0.9)], [("gear", 0.2), ("hair", 0.8), ("body", 0.8)]]
+k = decimate.plan_stages({"gear": 100, "hair": 100, "body": 100}, 280, stage)
+check(abs(k["gear"] - 0.8) < 1e-9 and k["hair"] == 1.0 and k["body"] == 1.0, "the staged plan takes from the gear first, the hair and body untouched")
+k = decimate.plan_stages({"gear": 100, "hair": 100, "body": 100}, 200, stage)
+check(abs(k["gear"] - 0.2) < 1e-9 and abs(k["body"] - 0.9) < 1e-9 and abs(k["hair"] - 0.9) < 1e-9, "...the hair last: %s" % {t: round(v, 2) for t, v in k.items()})
+k = decimate.plan_stages({"gear": 100, "hair": 100, "body": 100}, 270, stage, current={"gear": 100, "hair": 100, "body": 100}, skip=("gear",))
+check(k["gear"] == 1.0 and abs(k["body"] - 0.9) < 1e-9 and abs(k["hair"] - 0.8) < 1e-9, "a tier that gave all it could is not asked again: the next gives for it")
+k = decimate.plan_stages({"gear": 100, "hair": 100}, 100, [[("gear", 0.5)]])
+check(abs(k["gear"] - 0.5 * 100 / 150 * 1.0) < 1e-9 or k["gear"] < 0.5, "past the last stage everything gives the same share")
+check(m2.tier_of(401) == "bare" and m2.tier_of(402) == "gear" and m2.tier_of(1301) == "bare" and m2.tier_of(1302) == "gear" and m2.tier_of(5) == "hair" and m2.tier_of(301) == "features" and m2.tier_of(0) == "body", "a gear group's variant 01 is the bare tier")
+vtris = {"v2": np.array([(0, 1, 2)]), "v3": np.array([(0, 1, 2)]), "leg": np.array([(0, 3, 4)])}
+vpos = np.array([(0, 0, 0), (1, 0, 0), (0, 1, 0), (2, 2, 0), (3, 2, 0)], dtype=float)
+joined = m2.shared_positions(vpos, vtris, {"v2": 5, "v3": 5, "leg": None})
+check(joined["v2"] == {0} and joined["v3"] == {0} and joined["leg"] == {0}, "variants of one group that share points hold nothing of each other, only what another class shares: %s" % joined)
+joined = m2.shared_positions(vpos, vtris)
+check(joined["v2"] == {0, 1, 2} and joined["v3"] == {0, 1, 2}, "(without classes they pin each other)")
+classes = m2.exclusive_classes([(502, 1, None), (503, 2, None), (1, 3, None), (2, 4, None), (0, 5, None), (0, 6, None), (301, 7, None), (302, 7, None)])
+check(classes == {1: 5, 2: 5, 3: "hair", 4: "hair", 7: 3}, "the classes: gear groups, the hair styles, a features group: %s" % classes)
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)
