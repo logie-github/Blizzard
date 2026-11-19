@@ -110,7 +110,7 @@ object WrathppClient {
                     if (link) linked++ else {
                         f.copyTo(out, overwrite = true)
                         done += f.length()
-                        onProgress("Making Wrath++'s copy of the game (step 4 of 4): ${done shr 20} / ${need shr 20} MB",
+                        onProgress("Making Wrath++'s copy of the game (step 2 of 2): ${done shr 20} / ${need shr 20} MB",
                             if (need > 0) done.toFloat() / need else null)
                     }
                 }

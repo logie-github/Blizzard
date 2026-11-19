@@ -14,7 +14,7 @@ object WrathppSetup {
         val report = Reports(say)
         WrathppServerPackage.ensure(layout, report::say)
         if (!WrathppClient.isMade(layout.wrathppClient)) {
-            report.say("Making Wrath++'s copy of the game (step 4 of 4)", 0f)
+            report.say("Making Wrath++'s copy of the game (step 2 of 2)", 0f)
             WrathppClient.make(layout.client, layout.wrathppClient, report::say)
         }
         // The add-on (WarcraftXL's runtime and the native mod: the creator's numbers): Wrath++ still plays without it.

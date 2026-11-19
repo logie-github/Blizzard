@@ -16,6 +16,11 @@ on:
       - realm/scripts/fetch-wrathpp.sh
       - .github/workflows/build-wrathpp-server.yml
   workflow_dispatch:
+    inputs:
+      repack_only:
+        description: "Only split the already published package into packs (no compile): republishes the manifest and the packs"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -26,6 +31,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !inputs.repack_only }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 340
     defaults:
@@ -40,6 +46,7 @@ jobs:
           warcraft/wrathpp/protocol/tests/run.sh
           warcraft/wrathpp/client-mod/tests/run.sh
           warcraft/wrathpp/tests/test-isolation.sh
+          python3 scripts/test-wrathpp-repack.py
 
       - name: Look for the compile cache
         uses: actions/cache/restore@v4
@@ -69,14 +76,11 @@ jobs:
           mkdir -p build/wrathpp-publish
           cp warcraft/android/server-wrathpp/server.tar.xz build/wrathpp-publish/wrathpp-server.tar.xz
           cd build/wrathpp-publish
-          size=$(stat -c %s wrathpp-server.tar.xz)
-          sha=$(sha256sum wrathpp-server.tar.xz | cut -d' ' -f1)
-          unpacked=$(xz -dc wrathpp-server.tar.xz | wc -c)
           protocol=$(sed -n 's/^WRATHPP_PROTOCOL=//p' ../../warcraft/wrathpp/wrathpp.env)
-          jq -n --argjson size "$size" --arg sha "$sha" --argjson unpacked "$unpacked" --argjson protocol "$protocol" \
-            --arg commit "${{ github.sha }}" \
-            '{size: $size, sha256: $sha, unpacked: $unpacked, format: 1, protocol: $protocol, commit: $commit}' > wrathpp-server.json
-          cat wrathpp-server.json
+          # The whole package stays (apps that know format 1 only download that); beside it the packs and a manifest
+          # with format 1's fields (size, sha256, unpacked: the whole package) and the packs.
+          python3 ../../scripts/wrathpp-repack.py wrathpp-server.tar.xz --out . --commit "${{ github.sha }}" --protocol "$protocol"
+          cat wrathpp-server.json | head -c 600; echo
 
       # Only main publishes: the app downloads whatever is published, so other branches' builds must not replace it.
       - name: Publish (release wrathpp-server)
@@ -92,4 +96,26 @@ jobs:
               --title "Wrath++ realm (server package, experimental)" \
               --notes "Wrath++'s own world server for the phone (AzerothCore + the Wrath++ appearance protocol, arm64). Downloaded by the app's Wrath++ page; not an app release."
           fi
-          gh release upload wrathpp-server wrathpp-server.tar.xz wrathpp-server.json -R "$repo" --clobber
+          gh release upload wrathpp-server wrathpp-server.tar.xz wrathpp-server-*.tar.xz wrathpp-server.json -R "$repo" --clobber
+
+  # Splits the package that is already published (no compile): for a release made before the packs existed.
+  repack:
+    if: ${{ inputs.repack_only && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repack the published package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          repo="${{ github.repository }}"
+          python3 realm/scripts/test-wrathpp-repack.py
+          mkdir -p dl out
+          gh release download wrathpp-server -R "$repo" -D dl -p wrathpp-server.tar.xz -p wrathpp-server.json
+          commit=$(jq -r '.commit // ""' dl/wrathpp-server.json)
+          protocol=$(jq -r '.protocol // 1' dl/wrathpp-server.json)
+          python3 realm/scripts/wrathpp-repack.py dl/wrathpp-server.tar.xz --out out --commit "$commit" --protocol "$protocol"
+          # the whole package's SHA-256 is the installed marker: it must not change
+          test "$(jq -r .sha256 dl/wrathpp-server.json)" = "$(jq -r .sha256 out/wrathpp-server.json)"
+          gh release upload wrathpp-server out/wrathpp-server-*.tar.xz out/wrathpp-server.json -R "$repo" --clobber
