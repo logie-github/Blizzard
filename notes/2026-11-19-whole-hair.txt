@@ -1,0 +1,1 @@
+Wrath++: every hair style is now drawn with all of its triangles (Settings, Wrath++, "Whole hair" turns it off if hair or parts of a character go missing).
