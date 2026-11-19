@@ -433,6 +433,16 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
                 if g // 100 == EARS_GROUP:
                     geoset_policy[g].append(702)
             break
+    # Ears an option that is not a feature slider's and not named Ears shows by default (the Orc and Mag'har men's Earrings:
+    # "None" is ears 702; the Mechagnome's Modification): the lowest geoset of the group (701, a stub) was all they kept, and
+    # their ears were missing (render comparison with the retail model, 19 November 2026).
+    for o in tables.options.values():
+        if o["ChrModelID"] != str(model_id) or o["Name_lang"] in feature_options or o["Name_lang"] in EARS_OPTIONS:
+            continue
+        cs = tables.choices[o["ID"]]
+        for g in (tables.choice_geosets(cs[0]) if cs else []):
+            if g // 100 == EARS_GROUP and g % 100 > 1:
+                geoset_policy[g].append(702)
     glow = glow_geosets.get(eyes[0]["choice"]) if eyes else None
     geoset_policy[glow or GLOW_GROUP * 100 + 1].extend([1702, 1703])
     # The body parts today's models keep in groups 3.3.5 doesn't know (the head and mouth in 32,
