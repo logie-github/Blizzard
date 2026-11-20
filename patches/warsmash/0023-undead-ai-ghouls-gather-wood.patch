@@ -1,0 +1,101 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/ai/AIHarvest.java b/core/src/com/etheller/warsmash/parsers/jass/ai/AIHarvest.java
+index 5a95cb8..cbbb612 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/ai/AIHarvest.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/ai/AIHarvest.java
+@@ -19,6 +19,10 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.harvest.CAbilityHarvest;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.harvest.CAbilityWispHarvest;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorFollow;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorMove;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorStop;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.harvest.CBehaviorHarvest;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.harvest.CBehaviorReturnResources;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CTargetType;
+@@ -116,6 +120,16 @@ final class AIHarvest {
+ 				orderHarvest(ai, worker, job[0], job[1]);
+ 			}
+ 		}
++		// A gatherer that also fights (a ghoul) leaves its trees to answer an attack and stands still after; it is
++		// sent back to its job.
++		for (final Map.Entry<CUnit, int[]> entry : ai.harvestJobs.entrySet()) {
++			final CUnit worker = entry.getKey();
++			if (!isWorkerType(worker) && !worker.isHidden() && isIdle(worker)
++					&& !ai.harvestUnsent.contains(worker)) {
++				ai.harvestUnsent.add(worker);
++				orderHarvest(ai, worker, entry.getValue()[0], entry.getValue()[1]);
++			}
++		}
+ 		if (ai.peonsRepair) {
+ 			assignRepairs(ai, workers);
+ 		}
+@@ -199,6 +213,24 @@ final class AIHarvest {
+ 					}
+ 				}
+ 			}
++			// Units that can gather but stand in the attack group (Undead ghouls between waves) are given to a
++			// request no free worker filled while the group is home, as the game does: the script counts them as
++			// its wood ghouls (undead.ai's WG).
++			if ((resource == WOOD) && !ai.attackCaptain.hasGoal()) {
++				for (final CUnit unit : new ArrayList<>(ai.attackCaptain.getMembers())) {
++					if (countJobs(ai, resource, town) >= request[2]) {
++						break;
++					}
++					if (unit.isDead() || unit.isHidden() || !ai.isOurs(unit) || !canHarvestLumber(unit)
++							|| ai.harvestJobs.containsKey(unit) || !canDo(ai, unit, resource, town)) {
++						continue;
++					}
++					ai.attackCaptain.getMembers().remove(unit);
++					ai.harvestJobs.put(unit, new int[] { resource, town });
++					ai.harvestUnsent.add(unit);
++					orderHarvest(ai, unit, resource, town);
++				}
++			}
+ 		}
+ 	}
+ 
+@@ -206,9 +238,18 @@ final class AIHarvest {
+ 	 * Idle, or a worker busy with something other than gathering, like the walk of a freshly made one.
+ 	 */
+ 	private static boolean isFree(final CUnit worker) {
+-		return isIdle(worker) || (isWorkerType(worker) && (currentResource(worker) == -1) && !isBuilding(worker)
+-				&& !(worker.getCurrentBehavior() instanceof CBehaviorHarvest)
+-				&& !(worker.getCurrentBehavior() instanceof CBehaviorReturnResources));
++		if (isIdle(worker)) {
++			return true;
++		}
++		final CBehavior behavior = worker.getCurrentBehavior();
++		if (isWorkerType(worker)) {
++			return (currentResource(worker) == -1) && !isBuilding(worker) && !(behavior instanceof CBehaviorHarvest)
++					&& !(behavior instanceof CBehaviorReturnResources);
++		}
++		// A unit that gathers besides fighting (a ghoul) out of any attack group: free unless it is fighting or
++		// gathering. New ghouls follow the crypt's rally point and were never given to the wood.
++		return (currentResource(worker) == -1) && ((behavior instanceof CBehaviorFollow)
++				|| (behavior instanceof CBehaviorMove) || (behavior instanceof CBehaviorStop));
+ 	}
+ 
+ 	private static int countJobs(final AIController ai, final int resource, final int town) {
+@@ -285,15 +326,14 @@ final class AIHarvest {
+ 				&& worker.order(ai.simulation, OrderIds.wispharvest, target)) {
+ 			return true;
+ 		}
+-		if (worker.order(ai.simulation, OrderIds.smart, target)) {
+-			return true;
+-		}
++		// A loaded harvester only takes "return resources" (its harvest order is then the return); a right-click on a
++		// tree would have a ghoul hit it with its claws and keep its load.
+ 		final CAbilityHarvest harvest = worker.getFirstAbilityOfType(CAbilityHarvest.class);
+-		if ((harvest == null) || (harvest.getCarriedResourceAmount() <= 0)) {
+-			return false;
++		if ((harvest != null) && (harvest.getCarriedResourceAmount() > 0)) {
++			harvest.setLastHarvestTarget(target);
++			return worker.order(ai.simulation, OrderIds.returnresources, null);
+ 		}
+-		harvest.setLastHarvestTarget(target);
+-		return worker.order(ai.simulation, OrderIds.returnresources, null);
++		return worker.order(ai.simulation, OrderIds.smart, target);
+ 	}
+ 
+ 	private static void entangle(final AIController ai, final AITown town) {

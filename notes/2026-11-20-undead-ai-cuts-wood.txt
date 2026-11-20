@@ -1,0 +1,1 @@
+The Undead computer player's ghouls now cut wood, so it builds up instead of stalling after its opening.
