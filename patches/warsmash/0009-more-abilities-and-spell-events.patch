@@ -1,0 +1,1535 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CHarmfulAreas.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CHarmfulAreas.java
+new file mode 100644
+index 0000000..3ccfd29
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CHarmfulAreas.java
+@@ -0,0 +1,47 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++
++/**
++ * Blizzard launcher: the ground effects that hurt units standing in them (Death and Decay, Starfall), as Warsmash
++ * Reforged registers them. Reforged's computer units step out of them; this engine only records them for now.
++ */
++public class CHarmfulAreas {
++	public static final class Area {
++		private final CUnit source;
++		private final float x;
++		private final float y;
++		private final float radius;
++		private final int endTick;
++
++		private Area(final CUnit source, final float x, final float y, final float radius, final int endTick) {
++			this.source = source;
++			this.x = x;
++			this.y = y;
++			this.radius = radius;
++			this.endTick = endTick;
++		}
++	}
++
++	private final List<Area> areas = new ArrayList<>();
++
++	public Area add(final CSimulation game, final CUnit source, final float x, final float y, final float radius,
++			final float hurtDelay, final float duration) {
++		return add(game, source, x, y, radius, hurtDelay, duration, false);
++	}
++
++	public Area add(final CSimulation game, final CUnit source, final float x, final float y, final float radius,
++			final float hurtDelay, final float duration, final boolean hurtOnly) {
++		final int tick = game.getGameTurnTick();
++		this.areas.removeIf(area -> area.endTick < tick);
++		final Area area = new Area(source, x, y, radius, tick + CTimer.wholeSteps(duration));
++		this.areas.add(area);
++		return area;
++	}
++
++	public void arm(final CSimulation game, final Area area, final float hurtDelay) {
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index a0c369b..9b9a306 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -1273,4 +1273,26 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 	public boolean isScriptTargetOrder() {
+ 		return false;
+ 	}
++
++	private final CHarmfulAreas harmfulAreas = new CHarmfulAreas();
++	private final List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.listeners.CUnitSpellEffectListener> spellEffectListeners = new ArrayList<>();
++
++	public CHarmfulAreas getHarmfulAreas() {
++		return this.harmfulAreas;
++	}
++
++	/** Something told of every spell's effect as it takes place (Warsmash Reforged's Mana Flare). */
++	public void addSpellEffectListener(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.listeners.CUnitSpellEffectListener listener) {
++		this.spellEffectListeners.add(listener);
++	}
++
++	public void removeSpellEffectListener(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.listeners.CUnitSpellEffectListener listener) {
++		this.spellEffectListeners.remove(listener);
++	}
++
++	public void spellEffectEvent(final CUnit caster, final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility ability) {
++		for (int i = this.spellEffectListeners.size() - 1; i >= 0; i--) {
++			this.spellEffectListeners.get(i).onSpellEffect(this, caster, ability);
++		}
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index c103f99..907e4df 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2339,8 +2339,11 @@ public class CUnit extends CWidget {
+ 				for (int i = this.abilities.size() - 1; i >= 0; i--) {
+ 					// okay if it removes self from this during onTick() because of reverse
+ 					// iteration order
+-					if ((this.abilities.get(i) instanceof AbilityGenericSingleIconPassiveAbility)
+-							|| (this.abilities.get(i) instanceof ABTimedTickingPausedBuff)) {
++					if ((i < this.abilities.size())
++							&& ((this.abilities.get(i) instanceof AbilityGenericSingleIconPassiveAbility)
++							|| (this.abilities.get(i) instanceof ABTimedTickingPausedBuff)
++							// Blizzard launcher: Warsmash Reforged's buffs that count on while paused.
++							|| (this.abilities.get(i) instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CPausedTickingBuff))) {
+ 						this.abilities.get(i).onTick(game, this);
+ 					}
+ 				}
+@@ -2385,7 +2388,8 @@ public class CUnit extends CWidget {
+ 					return this.order(game, this.autocastAbility.getBaseOrderId(), null);
+ 				}
+ 			}
+-			else if (this.autocastAbility.getAutocastType() != AutocastType.NONE) {
++			else if ((this.autocastAbility.getAutocastType() != AutocastType.NONE)
++					&& (this.autocastAbility.getAutocastType() != AutocastType.NOAUTOCASTBEHAVIOR)) {
+ 				if (this.collisionRectangle != null) {
+ 					tempRect.set(this.collisionRectangle);
+ 				}
+@@ -5035,6 +5039,10 @@ public class CUnit extends CWidget {
+ 
+ 	public void fireSpellEvents(final CSimulation game, final JassGameEventsWar3 eventId, final CAbility ability,
+ 			final AbilityTarget target) {
++		if (eventId == JassGameEventsWar3.EVENT_UNIT_SPELL_EFFECT) {
++			// Blizzard launcher: what listens to every spell (Mana Flare) hears it as it takes place.
++			game.spellEffectEvent(this, ability);
++		}
+ 		if (target == null) {
+ 			fireSpellEventsNoTarget(game, eventId, ability);
+ 		}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/autocast/AutocastType.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/autocast/AutocastType.java
+index de01f12..b45fc96 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/autocast/AutocastType.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/autocast/AutocastType.java
+@@ -13,7 +13,10 @@ public enum AutocastType implements CHandle {
+ 	NEARESTENEMY,
+ 	NOTARGET,
+ 
+-	ATTACKREPLACEMENT;
++	ATTACKREPLACEMENT,
++
++	// Blizzard launcher: an autocast that acts by itself, not by an order (Warsmash Reforged's Phase Shift).
++	NOAUTOCASTBEHAVIOR;
+ 
+ 	@Override
+ 	public int getHandleId() {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/generic/CPausedTickingBuff.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/generic/CPausedTickingBuff.java
+new file mode 100644
+index 0000000..4956c4d
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/generic/CPausedTickingBuff.java
+@@ -0,0 +1,5 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic;
++
++/** Blizzard launcher (from Warsmash Reforged): a buff that keeps ticking while its unit is paused. */
++public interface CPausedTickingBuff {
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/unit/CAbilityAreaDetection.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/unit/CAbilityAreaDetection.java
+new file mode 100644
+index 0000000..d1ac889
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/unit/CAbilityAreaDetection.java
+@@ -0,0 +1,87 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CTimedCircleFogModifier;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState;
++
++/**
++ * Reveals an area anywhere on the map for the duration and detects the invisible units in it: Flare (Mortar Team,
++ * after its effect delay) and Reveal (Arcane Tower, Crystal Ball).
++ */
++public class CAbilityAreaDetection extends CAbilityPointTargetSpellBase {
++	private final int baseOrderId;
++	private final boolean hasEffectDelay;
++	private float areaOfEffect;
++	private byte detectLevels;
++	private float effectDelay;
++
++	public CAbilityAreaDetection(final int handleId, final War3ID alias, final int baseOrderId,
++			final boolean hasEffectDelay) {
++		super(handleId, alias);
++		this.baseOrderId = baseOrderId;
++		this.hasEffectDelay = hasEffectDelay;
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return this.baseOrderId;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.detectLevels = detectLevels(worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0));
++		this.effectDelay = this.hasEffectDelay
++				? worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0)
++				: 0;
++	}
++
++	public static byte detectLevels(final int detectionType) {
++		switch (detectionType) {
++		case 1:
++			return 1;
++		case 2:
++			return 2;
++		case 3:
++			return 127;
++		default:
++			return 0;
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final float x = target.getX();
++		final float y = target.getY();
++		final int playerIndex = caster.getPlayerIndex();
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		if (this.effectDelay > 0) {
++			final CTimer delay = new CTimer() {
++				@Override
++				public void onFire(final CSimulation game) {
++					reveal(game, playerIndex, x, y);
++				}
++			};
++			delay.setTimeoutTime(this.effectDelay);
++			delay.start(simulation);
++		}
++		else {
++			reveal(simulation, playerIndex, x, y);
++		}
++		return false;
++	}
++
++	private void reveal(final CSimulation simulation, final int playerIndex, final float x, final float y) {
++		simulation.getPlayer(playerIndex).addFogModifer(simulation, new CTimedCircleFogModifier(CFogState.VISIBLE,
++				this.areaOfEffect, x, y, getDuration()), false); // this engine's vision has no detection levels yet
++		simulation.spawnSpellEffectOnPoint(x, y, 0, getAlias(), CEffectType.EFFECT, 0).remove();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/moonpriestess/CAbilityStarfall.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/moonpriestess/CAbilityStarfall.java
+new file mode 100644
+index 0000000..df02908
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/moonpriestess/CAbilityStarfall.java
+@@ -0,0 +1,173 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.moonpriestess;
++
++import java.util.Iterator;
++import java.util.LinkedHashMap;
++import java.util.LinkedHashSet;
++import java.util.Map;
++import java.util.Set;
++
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAreaTargetVisibility;
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffSpellArt;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentModel;
++
++/**
++ * Starfall: while channeled, the stars circle above the caster and every interval a wave of falling stars hits the
++ * enemies around it; buildings take a reduced share. Enemies in the area carry the spell's buff, whose art is the
++ * falling star.
++ */
++public class CAbilityStarfall extends CAbilityNoTargetSpellBase {
++	// The falling star model (StarfallTarget) lands this long after it appears.
++	private static final float STAR_FALL_TIME = 0.767f;
++
++	private float damagePerWave;
++	private float interval;
++	private float buildingFactor;
++	private float areaOfEffect;
++	private War3ID buffId;
++	private War3ID effectId;
++	private int channelEndTick;
++	private int nextWaveTick;
++	private boolean starsFalling;
++	private SimulationRenderComponentModel sky;
++	private final Map<CUnit, CBuffSpellArt> buffed = new LinkedHashMap<>();
++
++	public CAbilityStarfall(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.starfall;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.damagePerWave = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.interval = Math.max(0.1f, worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0));
++		this.buildingFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++		this.effectId = AbstractCAbilityTypeDefinition.getEffectId(worldEditorAbility, level);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		this.channelEndTick = tick + ticks(getDuration());
++		// The first wave falls one interval after the channel starts, as in the original game.
++		this.nextWaveTick = tick + ticks(this.interval);
++		this.starsFalling = false;
++		// Measured: units step out once the second wave hurts them.
++		simulation.getHarmfulAreas().add(simulation, caster, caster.getX(), caster.getY(), this.areaOfEffect,
++				this.interval * 2, getDuration(), true);
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		removeSky();
++		if (isSet(this.effectId)) {
++			this.sky = simulation.spawnSpellEffectOnPoint(caster.getX(), caster.getY(), caster.getFacing(),
++					this.effectId, CEffectType.EFFECT, 0);
++		}
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		final Set<CUnit> inArea = new LinkedHashSet<>();
++		simulation.getWorldCollision().enumUnitsInRange(caster.getX(), caster.getY(), this.areaOfEffect,
++				(enumUnit) -> {
++					if (enumUnit.canBeAreaTargetedBy(simulation, caster, CAreaTargetVisibility.VISIBLE,
++									getTargetsAllowed())) {
++						inArea.add(enumUnit);
++					}
++					return false;
++				});
++		updateBuffs(simulation, inArea);
++		if (!this.starsFalling && (tick >= (this.nextWaveTick - ticks(STAR_FALL_TIME)))) {
++			// Stars start falling early so that they land with the wave's damage.
++			this.starsFalling = true;
++			if (isSet(this.buffId)) {
++				for (final CUnit enumUnit : inArea) {
++					simulation.createTemporarySpellEffectOnUnit(enumUnit, this.buffId, CEffectType.TARGET);
++				}
++			}
++		}
++		if (tick >= this.nextWaveTick) {
++			this.nextWaveTick = tick + ticks(this.interval);
++			this.starsFalling = false;
++			for (final CUnit enumUnit : inArea) {
++				final float damage = enumUnit.isBuilding() ? this.damagePerWave * this.buildingFactor
++						: this.damagePerWave;
++				enumUnit.damage(simulation, caster, DAMAGE_FLAGS, CAttackType.SPELLS, CDamageType.UNIVERSAL,
++						CWeaponSoundTypeJass.WHOKNOWS.name(), damage);
++			}
++		}
++		return tick < this.channelEndTick;
++	}
++
++	private void updateBuffs(final CSimulation simulation, final Set<CUnit> inArea) {
++		if (!isSet(this.buffId)) {
++			return;
++		}
++		for (final Iterator<Map.Entry<CUnit, CBuffSpellArt>> iterator = this.buffed.entrySet().iterator(); iterator
++				.hasNext();) {
++			final Map.Entry<CUnit, CBuffSpellArt> entry = iterator.next();
++			final boolean attached = entry.getKey().getAbilities().contains(entry.getValue());
++			if (!attached || !inArea.contains(entry.getKey())) {
++				if (attached) {
++					entry.getKey().remove(simulation, entry.getValue());
++				}
++				iterator.remove();
++			}
++		}
++		for (final CUnit unit : inArea) {
++			if (!this.buffed.containsKey(unit)) {
++				// The buff's art is one falling star, shown with each wave rather than kept on the unit.
++				final CBuffSpellArt buff = new CBuffSpellArt(simulation.getHandleIdAllocator().createId(),
++						this.buffId, false, false);
++				unit.add(simulation, buff);
++				this.buffed.put(unit, buff);
++			}
++		}
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		for (final Map.Entry<CUnit, CBuffSpellArt> entry : this.buffed.entrySet()) {
++			if (entry.getKey().getAbilities().contains(entry.getValue())) {
++				entry.getKey().remove(game, entry.getValue());
++			}
++		}
++		this.buffed.clear();
++		removeSky();
++	}
++
++	private void removeSky() {
++		if (this.sky != null) {
++			this.sky.remove();
++			this.sky = null;
++		}
++	}
++
++	private static boolean isSet(final War3ID id) {
++		return (id != null) && !War3ID.NONE.equals(id);
++	}
++
++	private static int ticks(final float seconds) {
++		return CTimer.ceilSteps(seconds);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityManaFlare.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityManaFlare.java
+new file mode 100644
+index 0000000..4de96cf
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityManaFlare.java
+@@ -0,0 +1,167 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units;
++
++import java.util.EnumSet;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.AnimationTokens.PrimaryTag;
++import com.etheller.warsmash.viewer5.handlers.w3x.AnimationTokens.SecondaryTag;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.GenericSingleIconActiveAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.listeners.CUnitSpellEffectListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.NonStackingStatBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.NonStackingStatBuffType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++
++/**
++ * Mana Flare: the Faerie Dragon channels in place; while it does, every enemy within the area that casts a spell is
++ * struck for damage based on the mana cost of that spell, and the armor of the dragon is raised.
++ */
++public class CAbilityManaFlare extends CAbilityNoTargetSpellBase implements CUnitSpellEffectListener {
++	private static final float LIGHTNING_DURATION = 0.5f;
++
++	private float unitDamagePerMana;
++	private float heroDamagePerMana;
++	private float unitMaximumDamage;
++	private float heroMaximumDamage;
++	private float armorBonus;
++	private float areaOfEffect;
++	private War3ID casterBuffId;
++	private War3ID targetBuffId;
++
++	private boolean channeling;
++	private int flareStartTick;
++	private int flareEndTick;
++	private CUnit caster;
++	private CBuffManaFlare buff;
++	private NonStackingStatBuff armorBuff;
++
++	public CAbilityManaFlare(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return this.channeling ? OrderIds.manaflareoff : OrderIds.manaflareon;
++	}
++
++	@Override
++	public boolean isToggleOn() {
++		return this.channeling;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.unitDamagePerMana = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.heroDamagePerMana = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.unitMaximumDamage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.heroMaximumDamage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.armorBonus = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.casterBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 0);
++		final War3ID targetBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 1);
++		this.targetBuffId = War3ID.NONE.equals(targetBuffId) ? this.casterBuffId : targetBuffId;
++		setCastingPrimaryTag(PrimaryTag.STAND);
++		setCastingSecondaryTags(EnumSet.of(SecondaryTag.CHANNEL));
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster,
++			final int orderId, final AbilityTarget target) { final int playerIndex = caster.getPlayerIndex(); final boolean autoOrder = false;
++		if (this.channeling && (orderId == OrderIds.manaflareoff)) {
++			caster.order(game, OrderIds.stop, null);
++			return false;
++		}
++		return super.checkBeforeQueue(game, caster, orderId, target);
++	}
++
++	@Override
++	protected void innerCheckCanUse(final CSimulation game, final CUnit unit,
++			final int orderId, final AbilityActivationReceiver receiver) { final int playerIndex = unit.getPlayerIndex();
++		if (this.channeling && (orderId == OrderIds.manaflareoff)) {
++			receiver.useOk();
++			return;
++		}
++		super.innerCheckCanUse(game, unit, orderId, receiver);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		this.channeling = true;
++		this.caster = caster;
++		this.flareStartTick = simulation.getGameTurnTick()
++				+ CTimer.wholeSteps(getCastingTime());
++		this.flareEndTick = this.flareStartTick + CTimer.wholeSteps(getDuration());
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		if ((this.buff == null) && (tick >= this.flareStartTick)) {
++			this.buff = new CBuffManaFlare(simulation.getHandleIdAllocator().createId(), this.casterBuffId,
++					getDuration());
++			caster.add(simulation, this.buff);
++			this.armorBuff = new NonStackingStatBuff(NonStackingStatBuffType.DEF, getAlias().asStringValue(),
++					this.armorBonus);
++			caster.addNonStackingStatBuff(simulation, this.armorBuff);
++			simulation.addSpellEffectListener(this);
++		}
++		return tick < this.flareEndTick;
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		this.channeling = false;
++		if (this.buff != null) {
++			game.removeSpellEffectListener(this);
++			unit.removeNonStackingStatBuff(game, this.armorBuff);
++			unit.remove(game, this.buff);
++			this.buff = null;
++			this.armorBuff = null;
++		}
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit cUnit) {
++		doChannelEnd(game, cUnit, null, true);
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		doChannelEnd(game, unit, null, true);
++	}
++
++	@Override
++	public void onSpellEffect(final CSimulation simulation, final CUnit spellCaster, final CAbility ability) {
++		if ((this.caster == null) || (spellCaster == this.caster) || spellCaster.isDead()
++				|| !(ability instanceof GenericSingleIconActiveAbility)) {
++			return;
++		}
++		final int manaCost = ((GenericSingleIconActiveAbility) ability).getUIManaCost();
++		if ((manaCost <= 0) || !this.caster.canReach(spellCaster, this.areaOfEffect)
++				|| !spellCaster.canBeTargetedBy(simulation, this.caster, getTargetsAllowed())) {
++			return;
++		}
++		final boolean hero = spellCaster.isHero();
++		final float damage = Math.min(manaCost * (hero ? this.heroDamagePerMana : this.unitDamagePerMana),
++				hero ? this.heroMaximumDamage : this.unitMaximumDamage);
++		simulation.createAbilityLightning(this.caster, this.casterBuffId, 0, spellCaster, LIGHTNING_DURATION);
++		simulation.createTemporarySpellEffectOnUnit(spellCaster, this.targetBuffId, CEffectType.SPECIAL);
++		spellCaster.damage(simulation, this.caster, DAMAGE_FLAGS, CAttackType.SPELLS, CDamageType.MAGIC,
++				CWeaponSoundTypeJass.WHOKNOWS.name(), damage);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityPhaseShift.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityPhaseShift.java
+new file mode 100644
+index 0000000..78ff41e
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityPhaseShift.java
+@@ -0,0 +1,149 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.autocast.AutocastType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.autocast.CAutocastAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CDamageFlags;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackDamageTakenListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++
++/**
++ * Phase Shift: while auto-cast is on, the first damage the unit takes shifts it out of existence for a short time,
++ * so that nothing can harm it. It can also be triggered at once by its order.
++ */
++public class CAbilityPhaseShift extends CAbilityNoTargetSpellBase
++		implements CAutocastAbility, CUnitAttackDamageTakenListener {
++	private War3ID buffId;
++	private boolean autoCastOn;
++	private CUnit unit;
++
++	public CAbilityPhaseShift(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.phaseshift;
++	}
++
++	@Override
++	public int getAutoCastOnOrderId() {
++		return OrderIds.phaseshifton;
++	}
++
++	@Override
++	public int getAutoCastOffOrderId() {
++		return OrderIds.phaseshiftoff;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		super.onAdd(game, unit);
++		this.unit = unit;
++		unit.addDamageTakenListener(this);
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		unit.removeDamageTakenListener(this);
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster,
++			final int orderId, final AbilityTarget target) { final int playerIndex = caster.getPlayerIndex(); final boolean autoOrder = false;
++		if ((orderId == OrderIds.phaseshift) || (orderId == OrderIds.phaseshiftinstant)) {
++			tryShift(game, caster);
++			return false;
++		}
++		return super.checkBeforeQueue(game, caster, orderId, target);
++	}
++
++	@Override
++	public void onDamage(final CSimulation simulation, final CUnit attacker, final CUnit target,
++			final boolean isAttack, final boolean isRanged, final CDamageType weaponType, final float damage, final float bonusDamage,
++			final float trueDamage) { final com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CDamageFlags flags = new com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CGenericDamageFlags(isAttack, isRanged);
++		if (this.autoCastOn && (trueDamage > 0) && !target.isDead()) {
++			tryShift(simulation, target);
++		}
++	}
++
++	private void tryShift(final CSimulation game, final CUnit caster) {
++		final int manaCost = getManaCost();
++		if (isDisabled() || (getCooldownRemaining(game, caster) > 0) || (caster.getMana() < manaCost)) {
++			return;
++		}
++		for (final CAbility ability : caster.getAbilities()) {
++			if (ability instanceof CBuffPhaseShift) {
++				return;
++			}
++		}
++		caster.chargeMana(manaCost);
++		caster.beginCooldown(game, getCode(), getCooldown());
++		game.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.SPECIAL);
++		game.unitSoundEffectEvent(caster, getAlias());
++		caster.add(game, new CBuffPhaseShift(game.getHandleIdAllocator().createId(), this.buffId,
++				getDurationForTarget(caster)));
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		tryShift(simulation, caster);
++		return false;
++	}
++
++	@Override
++	public void setAutoCastOn(final CUnit caster, final boolean autoCastOn) {
++		this.autoCastOn = autoCastOn;
++		caster.setAutocastAbility(autoCastOn ? this : null);
++	}
++
++	@Override
++	public void setAutoCastOff() {
++		this.autoCastOn = false;
++	}
++
++	@Override
++	public boolean isAutoCastOn() {
++		return this.autoCastOn;
++	}
++
++	@Override
++	public AutocastType getAutocastType() {
++		return AutocastType.NOAUTOCASTBEHAVIOR;
++	}
++
++	@Override
++	public void checkCanAutoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanAutoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityPointTarget target, final AbilityTargetCheckReceiver<AbilityPointTarget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanAutoTargetNoTarget(final CSimulation game, final CUnit unit,
++			final int orderId, final AbilityTargetCheckReceiver<Void> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/shadowhunter/CAbilityBigBadVoodoo.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/shadowhunter/CAbilityBigBadVoodoo.java
+new file mode 100644
+index 0000000..80f6011
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/shadowhunter/CAbilityBigBadVoodoo.java
+@@ -0,0 +1,109 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.shadowhunter;
++
++import java.util.Iterator;
++import java.util.LinkedHashMap;
++import java.util.LinkedHashSet;
++import java.util.Map;
++import java.util.Set;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++
++/**
++ * Big Bad Voodoo: while channeled, the caster's own non-hero units around it are invulnerable; a unit that leaves
++ * the area, or the end of the channel, ends it after the buff's short linger.
++ */
++public class CAbilityBigBadVoodoo extends CAbilityNoTargetSpellBase {
++	private float areaOfEffect;
++	private War3ID protectedBuffId;
++	private War3ID casterBuffId;
++	private int channelEndTick;
++	private final Map<CUnit, CBuffBigBadVoodoo> protectedUnits = new LinkedHashMap<>();
++	private CBuffBigBadVoodoo casterBuff;
++
++	public CAbilityBigBadVoodoo(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.voodoo;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.protectedBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 0);
++		this.casterBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 1);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		this.channelEndTick = simulation.getGameTurnTick()
++				+ CTimer.ceilSteps(getDuration());
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		if (this.casterBuffId != null) {
++			this.casterBuff = new CBuffBigBadVoodoo(simulation.getHandleIdAllocator().createId(), this.casterBuffId,
++					false);
++			caster.add(simulation, this.casterBuff);
++		}
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final Set<CUnit> inArea = new LinkedHashSet<>();
++		simulation.getWorldCollision().enumUnitsInRange(caster.getX(), caster.getY(), this.areaOfEffect,
++				(enumUnit) -> {
++					if ((enumUnit.getPlayerIndex() == caster.getPlayerIndex()) && (enumUnit.getHeroData() == null)
++							&& enumUnit.canBeTargetedBy(simulation, caster, getTargetsAllowed())) {
++						inArea.add(enumUnit);
++					}
++					return false;
++				});
++		final Iterator<Map.Entry<CUnit, CBuffBigBadVoodoo>> iterator = this.protectedUnits.entrySet().iterator();
++		while (iterator.hasNext()) {
++			final Map.Entry<CUnit, CBuffBigBadVoodoo> entry = iterator.next();
++			if (!entry.getKey().getAbilities().contains(entry.getValue())) {
++				iterator.remove();
++			}
++			else if (inArea.contains(entry.getKey())) {
++				entry.getValue().stopLinger();
++			}
++			else {
++				entry.getValue().startLinger(simulation);
++			}
++		}
++		for (final CUnit unit : inArea) {
++			if (!this.protectedUnits.containsKey(unit)) {
++				final CBuffBigBadVoodoo buff = new CBuffBigBadVoodoo(simulation.getHandleIdAllocator().createId(),
++						this.protectedBuffId, true);
++				unit.add(simulation, buff);
++				this.protectedUnits.put(unit, buff);
++			}
++		}
++		return simulation.getGameTurnTick() < this.channelEndTick;
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		for (final CBuffBigBadVoodoo buff : this.protectedUnits.values()) {
++			buff.startLinger(game);
++		}
++		this.protectedUnits.clear();
++		if (this.casterBuff != null) {
++			unit.remove(game, this.casterBuff);
++			this.casterBuff = null;
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/shadowhunter/CBuffBigBadVoodoo.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/shadowhunter/CBuffBigBadVoodoo.java
+new file mode 100644
+index 0000000..1b2cdbc
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/shadowhunter/CBuffBigBadVoodoo.java
+@@ -0,0 +1,74 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.shadowhunter;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimed;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CPausedTickingBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType;
++
++/**
++ * Big Bad Voodoo's buffs: the protected units' one makes them invulnerable, the caster's one only marks the channel.
++ * Both last until the ability takes them off. Measured on 1.29: a protected unit keeps the buff, and its
++ * invulnerability, for about 0.8 s after it leaves the area or the channel ends, paused or not; the caster's goes
++ * at once.
++ */
++public class CBuffBigBadVoodoo extends CBuffTimed implements CPausedTickingBuff {
++	private static final int LINGER_TICKS = CTimer.wholeSteps(0.8f);
++	private final StateModBuff invulnerableBuff;
++	private int lingerEndTick;
++
++	public CBuffBigBadVoodoo(final int handleId, final War3ID alias, final boolean protecting) {
++		super(handleId, alias, alias, 0);
++		this.invulnerableBuff = protecting ? new StateModBuff(StateModBuffType.INVULNERABLE, 1) : null;
++	}
++
++	@Override
++	protected void onBuffAdd(final CSimulation game, final CUnit unit) {
++		if (this.invulnerableBuff != null) {
++			unit.addStateModBuff(this.invulnerableBuff);
++			unit.computeUnitState(game, StateModBuffType.INVULNERABLE);
++		}
++	}
++
++	@Override
++	protected void onBuffRemove(final CSimulation game, final CUnit unit) {
++		if (this.invulnerableBuff != null) {
++			unit.removeStateModBuff(this.invulnerableBuff);
++			unit.computeUnitState(game, StateModBuffType.INVULNERABLE);
++		}
++	}
++
++	public void startLinger(final CSimulation game) {
++		if (this.lingerEndTick == 0) {
++			this.lingerEndTick = game.getGameTurnTick() + LINGER_TICKS;
++		}
++	}
++
++	public void stopLinger() {
++		this.lingerEndTick = 0;
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if ((this.lingerEndTick != 0) && (game.getGameTurnTick() >= this.lingerEndTick)) {
++			unit.remove(game, this);
++		}
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit cUnit) {
++	}
++
++	@Override
++	public boolean isTimedLifeBar() {
++		return false;
++	}
++
++	@Override
++	public boolean isDispellable() {
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilityDevour.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilityDevour.java
+new file mode 100644
+index 0000000..b3935ab
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilityDevour.java
+@@ -0,0 +1,96 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Devour (also the creep version, which answers its own order): swallows a land unit into the caster's Cargo Hold
++ * (Devour), one at a time.
++ */
++public class CAbilityDevour extends CAbilityTargetSpellBase {
++	private int maximumCreepLevel;
++	private War3ID digestingBuffId;
++	private final int orderId;
++
++	public CAbilityDevour(final int handleId, final War3ID alias) {
++		this(handleId, alias, OrderIds.devour);
++	}
++
++	public CAbilityDevour(final int handleId, final War3ID alias, final int orderId) {
++		super(handleId, alias);
++		this.orderId = orderId;
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return this.orderId;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.maximumCreepLevel = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.digestingBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 0);
++	}
++
++	@Override
++	protected void innerCheckCanUseSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityActivationReceiver receiver) {
++		final CAbilityDevourCargo cargo = unit.getFirstAbilityOfType(CAbilityDevourCargo.class);
++		if ((cargo == null) || !cargo.isEmpty()) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.UNABLE_TO_LOAD_TARGET);
++		}
++		else {
++			receiver.useOk();
++		}
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || targetUnit.isBuilding()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_A_UNIT_WITH_THIS_ACTION);
++		}
++		else if ((this.maximumCreepLevel > 0) && game.isNeutralAggressive(targetUnit.getPlayerIndex())
++				&& (targetUnit.getUnitType().getLevel() > this.maximumCreepLevel)) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.THAT_CREATURE_IS_TOO_POWERFUL);
++		}
++		else {
++			receiver.targetOk(target);
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		final CAbilityDevourCargo cargo = caster.getFirstAbilityOfType(CAbilityDevourCargo.class);
++		if ((targetUnit != null) && !targetUnit.isDead() && (cargo != null) && cargo.isEmpty()) {
++			simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.SPECIAL);
++			cargo.devour(simulation, caster, targetUnit, this.digestingBuffId);
++		}
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public boolean isPhysical() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/lich/CAbilityDeathAndDecay.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/lich/CAbilityDeathAndDecay.java
+new file mode 100644
+index 0000000..7593ffd
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/lich/CAbilityDeathAndDecay.java
+@@ -0,0 +1,107 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.lich;
++
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAreaTargetVisibility;
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.harvest.CAbilityWispHarvest;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentModel;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.BooleanAbilityTargetCheckReceiver;
++
++/**
++ * Death and Decay: while channeled, every second each unit in the area, of any owner, loses a share of its maximum
++ * life (buildings scaled by the building reduction), and the trees in the area are destroyed.
++ */
++public class CAbilityDeathAndDecay extends CAbilityPointTargetSpellBase {
++	private float maxLifeFractionPerSecond;
++	private static final float INTERVAL = 1f;
++	// Measured on 1.29: the first pulse comes this long after the effect, so the last one falls before the end.
++	private static final float FIRST_PULSE_DELAY = 0.3125f;
++
++	private float buildingFactor;
++	private float areaOfEffect;
++	private int channelEndTick;
++	private int nextPulseTick;
++	private SimulationRenderComponentModel areaEffect;
++
++	public CAbilityDeathAndDecay(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.deathanddecay;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.maxLifeFractionPerSecond = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.buildingFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		this.channelEndTick = tick + ticks(getDuration());
++		this.nextPulseTick = tick + ticks(FIRST_PULSE_DELAY);
++		simulation.getHarmfulAreas().add(simulation, caster, target.getX(), target.getY(), this.areaOfEffect,
++				FIRST_PULSE_DELAY, getDuration());
++		this.areaEffect = simulation.spawnSpellEffectOnPoint(target.getX(), target.getY(), 0, getAlias(),
++				CEffectType.EFFECT, 0);
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		if ((tick >= this.nextPulseTick) && (tick < this.channelEndTick)) {
++			this.nextPulseTick = tick + ticks(INTERVAL);
++			simulation.getWorldCollision().enumUnitsInRange(target.getX(), target.getY(), this.areaOfEffect,
++					(enumUnit) -> {
++						if (enumUnit.canBeAreaTargetedBy(simulation, caster, CAreaTargetVisibility.ANY,
++								getTargetsAllowed(),
++								BooleanAbilityTargetCheckReceiver.<CWidget>getInstance().reset())) {
++							enumUnit.damage(simulation, caster, DAMAGE_FLAGS, CAttackType.SPELLS,
++									CDamageType.UNIVERSAL, CWeaponSoundTypeJass.WHOKNOWS.name(),
++									enumUnit.getMaximumLife() * this.maxLifeFractionPerSecond * INTERVAL
++											* (enumUnit.isBuilding() ? this.buildingFactor : 1f));
++						}
++						return false;
++					});
++			simulation.getWorldCollision().enumDestructablesInRange(target.getX(), target.getY(), this.areaOfEffect,
++					(enumDest) -> {
++						if (enumDest.canBeTargetedBy(simulation, caster, CAbilityWispHarvest.TREE_ALIVE_TYPE_ONLY)) {
++							enumDest.setLife(simulation, 0);
++						}
++						return false;
++					});
++		}
++		return tick < this.channelEndTick;
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		if (this.areaEffect != null) {
++			this.areaEffect.remove();
++			this.areaEffect = null;
++		}
++	}
++
++	private static int ticks(final float seconds) {
++		return CTimer.ceilSteps(seconds);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityUnsummon.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityUnsummon.java
+new file mode 100644
+index 0000000..de108f6
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityUnsummon.java
+@@ -0,0 +1,79 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Unsummon Building: the building drains away step by step and its owner gets back the salvage share of what it
++ * cost for each step of life it loses.
++ */
++public class CAbilityUnsummon extends CAbilityTargetSpellBase {
++	private static final War3ID UNSUMMON_BUFF_ID = War3ID.fromString("Buns");
++
++	private float salvageCostRatio;
++	private float lifePerSecond;
++
++	public CAbilityUnsummon(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.unsummon;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.salvageCostRatio = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.lifePerSecond = Math.max(1, worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0));
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || !targetUnit.isBuilding()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_A_BUILDING);
++		}
++		else if (targetUnit.isConstructingOrUpgrading()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.UNABLE_TO_TARGET_THIS_UNIT);
++		}
++		else if (targetUnit.getFirstAbilityOfType(CBuffUnsummoning.class) != null) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.TARGET_IS_BEING_UNSUMMONED);
++		}
++		else {
++			receiver.targetOk(target);
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit != null) && !targetUnit.isDead()
++				&& (targetUnit.getFirstAbilityOfType(CBuffUnsummoning.class) == null)) {
++			targetUnit.add(simulation, new CBuffUnsummoning(simulation.getHandleIdAllocator().createId(),
++					UNSUMMON_BUFF_ID, this.salvageCostRatio, this.lifePerSecond));
++		}
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public boolean isUniversal() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CBuffUnsummoning.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CBuffUnsummoning.java
+new file mode 100644
+index 0000000..82ae12f
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CBuffUnsummoning.java
+@@ -0,0 +1,101 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimed;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CPausedTickingBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.ResourceType;
++
++/**
++ * A building being unsummoned: it cannot act, loses its life a step each second and refunds the matching share of
++ * its cost, then vanishes.
++ */
++public class CBuffUnsummoning extends CBuffTimed implements CPausedTickingBuff {
++	private static final int TICKS_PER_SECOND = CTimer.wholeSteps(1.0f);
++
++	private final float salvageCostRatio;
++	private final float lifePerSecond;
++	private float goldOwed;
++	private float lumberOwed;
++	private int nextStepTick;
++
++	public CBuffUnsummoning(final int handleId, final War3ID alias, final float salvageCostRatio,
++			final float lifePerSecond) {
++		super(handleId, alias, alias, 0);
++		this.salvageCostRatio = salvageCostRatio;
++		this.lifePerSecond = lifePerSecond;
++	}
++
++	@Override
++	protected void onBuffAdd(final CSimulation game, final CUnit unit) {
++		unit.setPaused(true);
++		this.nextStepTick = game.getGameTurnTick() + TICKS_PER_SECOND;
++		game.unitLoopSoundEffectEvent(unit, getAlias());
++	}
++
++	@Override
++	protected void onBuffRemove(final CSimulation game, final CUnit unit) {
++		game.unitStopSoundEffectEvent(unit, getAlias());
++		if (!unit.isDead()) {
++			unit.setPaused(false);
++		}
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (game.getGameTurnTick() < this.nextStepTick) {
++			return;
++		}
++		this.nextStepTick += TICKS_PER_SECOND;
++		final float maximumLife = unit.getMaximumLife();
++		final float drained = Math.min(this.lifePerSecond, unit.getLife());
++		final float share = (maximumLife > 0 ? drained / maximumLife : 1) * this.salvageCostRatio;
++		this.goldOwed += share * unit.getUnitType().getGoldCost();
++		this.lumberOwed += share * unit.getUnitType().getLumberCost();
++		final boolean finished = drained >= unit.getLife();
++		if (finished) {
++			this.goldOwed = Math.round(this.goldOwed);
++			this.lumberOwed = Math.round(this.lumberOwed);
++		}
++		final int gold = (int) this.goldOwed;
++		final int lumber = (int) this.lumberOwed;
++		this.goldOwed -= gold;
++		this.lumberOwed -= lumber;
++		final CPlayer player = game.getPlayer(unit.getPlayerIndex());
++		if ((gold > 0) || (lumber > 0)) {
++			player.refund(gold, lumber);
++			if (gold > 0) {
++				game.unitGainResourceEvent(unit, unit.getPlayerIndex(), ResourceType.GOLD, gold);
++			}
++			if (lumber > 0) {
++				game.unitGainResourceEvent(unit, unit.getPlayerIndex(), ResourceType.LUMBER, lumber);
++			}
++		}
++		if (finished) {
++			unit.remove(game, this);
++			unit.killPathingInstance();
++			game.removeUnit(unit);
++		}
++		else {
++			unit.setLife(game, unit.getLife() - drained);
++		}
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit cUnit) {
++		cUnit.remove(game, this);
++	}
++
++	@Override
++	public boolean isTimedLifeBar() {
++		return false;
++	}
++
++	@Override
++	public boolean isPositive() {
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorNoTargetSpellBase.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorNoTargetSpellBase.java
+index 8f7791a..47943a1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorNoTargetSpellBase.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorNoTargetSpellBase.java
+@@ -14,6 +14,9 @@ public class CBehaviorNoTargetSpellBase implements CBehavior {
+ 	protected final CAbilitySpellBase ability;
+ 	private int castStartTick = 0;
+ 	private boolean doneEffect = false;
++	// Blizzard launcher: the spell events map scripts wait on (Warsmash Reforged's order: channel and cast as the
++	// cast begins, effect as it takes place with the mana not yet paid, finish and end-cast as it ends).
++	private boolean castEventsFired = false;
+ 	private boolean channeling = true;
+ 
+ 	public CBehaviorNoTargetSpellBase(final CUnit unit, final CAbilitySpellBase ability) {
+@@ -24,6 +27,7 @@ public class CBehaviorNoTargetSpellBase implements CBehavior {
+ 	public CBehaviorNoTargetSpellBase reset() {
+ 		this.castStartTick = 0;
+ 		this.doneEffect = false;
++		this.castEventsFired = false;
+ 		this.channeling = true;
+ 		return this;
+ 	}
+@@ -34,6 +38,16 @@ public class CBehaviorNoTargetSpellBase implements CBehavior {
+ 				this.ability.getCastingSecondaryTags(), 1.0f, true);
+ 		if (this.castStartTick == 0) {
+ 			this.castStartTick = simulation.getGameTurnTick();
++			if (!this.castEventsFired) {
++				this.castEventsFired = true;
++				final CBehavior previous = this.unit.getCurrentBehavior();
++				this.unit.fireSpellEvents(simulation, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_CHANNEL, this.ability, null);
++				this.unit.fireSpellEvents(simulation, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_CAST, this.ability, null);
++				if (this.unit.getCurrentBehavior() != previous) {
++					// a script ordered the caster elsewhere
++					return this.unit.getCurrentBehavior();
++				}
++			}
+ 		}
+ 		final int ticksSinceCast = simulation.getGameTurnTick() - this.castStartTick;
+ 		final int castPointTicks = (int) (this.unit.getUnitType().getCastPoint()
+@@ -50,6 +64,7 @@ public class CBehaviorNoTargetSpellBase implements CBehavior {
+ 					return this.unit.pollNextOrderBehavior(simulation);
+ 				}
+ 				this.unit.beginCooldown(simulation, this.ability.getCode(), this.ability.getCooldown());
++				this.unit.fireSpellEvents(simulation, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_EFFECT, this.ability, null);
+ 				this.channeling = this.ability.doEffect(simulation, this.unit, null);
+ 				if (this.channeling) {
+ 					simulation.unitLoopSoundEffectEvent(this.unit, this.ability.getAlias());
+@@ -60,6 +75,7 @@ public class CBehaviorNoTargetSpellBase implements CBehavior {
+ 			this.channeling = this.channeling && this.ability.doChannelTick(simulation, this.unit, null);
+ 			if (wasEffectDone && wasChanneling && !this.channeling) {
+ 				simulation.unitStopSoundEffectEvent(this.unit, this.ability.getAlias());
++				this.ability.doChannelEnd(simulation, this.unit, null, false);
+ 			}
+ 		}
+ 		if ((ticksSinceCast >= backswingTicks) && !this.channeling) {
+@@ -74,6 +90,19 @@ public class CBehaviorNoTargetSpellBase implements CBehavior {
+ 
+ 	@Override
+ 	public void end(final CSimulation game, final boolean interrupted) {
++		if (this.doneEffect && this.channeling) {
++			// Blizzard launcher: a channel cut short ends as the spell's own end (Warsmash Reforged's).
++			this.channeling = false;
++			game.unitStopSoundEffectEvent(this.unit, this.ability.getAlias());
++			this.ability.doChannelEnd(game, this.unit, null, interrupted);
++		}
++		if (this.castEventsFired) {
++			this.castEventsFired = false;
++			if (!interrupted && this.doneEffect) {
++				this.unit.fireSpellEvents(game, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_FINISH, this.ability, null);
++			}
++			this.unit.fireSpellEvents(game, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_ENDCAST, this.ability, null);
++		}
+ 	}
+ 
+ 	@Override
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java
+index dcafa91..ccb8c4d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java
+@@ -17,6 +17,9 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 	private final AbilityTargetStillAliveAndTargetableVisitor stillAliveVisitor;
+ 	private int castStartTick = 0;
+ 	private boolean doneEffect = false;
++	// Blizzard launcher: the spell events map scripts wait on (Warsmash Reforged's order: channel and cast as the
++	// cast begins, effect as it takes place with the mana not yet paid, finish and end-cast as it ends).
++	private boolean castEventsFired = false;
+ 	private boolean channeling = false;
+ 
+ 	public CBehaviorTargetSpellBase(final CUnit unit, final CAbilitySpellBase ability) {
+@@ -28,6 +31,7 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 	public CBehavior reset(CSimulation game, final CWidget target) {
+ 		this.castStartTick = 0;
+ 		this.doneEffect = false;
++		this.castEventsFired = false;
+ 		this.channeling = false;
+ 		return innerReset(game, target, false);
+ 	}
+@@ -35,6 +39,7 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 	public CBehavior reset(CSimulation game, final AbilityPointTarget target) {
+ 		this.castStartTick = 0;
+ 		this.doneEffect = false;
++		this.castEventsFired = false;
+ 		this.channeling = false;
+ 		return innerReset(game, target, false);
+ 	}
+@@ -54,6 +59,16 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 				this.ability.getCastingSecondaryTags(), 1.0f, true);
+ 		if (this.castStartTick == 0) {
+ 			this.castStartTick = simulation.getGameTurnTick();
++			if (!this.castEventsFired) {
++				this.castEventsFired = true;
++				final CBehavior previous = this.unit.getCurrentBehavior();
++				this.unit.fireSpellEvents(simulation, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_CHANNEL, this.ability, this.target);
++				this.unit.fireSpellEvents(simulation, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_CAST, this.ability, this.target);
++				if (this.unit.getCurrentBehavior() != previous) {
++					// a script ordered the caster elsewhere
++					return this.unit.getCurrentBehavior();
++				}
++			}
+ 		}
+ 		final int ticksSinceCast = simulation.getGameTurnTick() - this.castStartTick;
+ 		final int castPointTicks =
+@@ -71,6 +86,7 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 					return this.unit.pollNextOrderBehavior(simulation);
+ 				}
+ 				this.unit.beginCooldown(simulation, this.ability.getCode(), this.ability.getCooldown());
++				this.unit.fireSpellEvents(simulation, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_EFFECT, this.ability, this.target);
+ 				this.channeling = this.ability.doEffect(simulation, this.unit, this.target);
+ 				if (this.channeling) {
+ 					simulation.unitLoopSoundEffectEvent(this.unit, this.ability.getAlias());
+@@ -117,6 +133,17 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 	@Override
+ 	public void end(final CSimulation game, final boolean interrupted) {
+ 		checkEndChannel(game, interrupted);
++		fireEndEvents(game, interrupted);
++	}
++
++	private void fireEndEvents(final CSimulation game, final boolean interrupted) {
++		if (this.castEventsFired) {
++			this.castEventsFired = false;
++			if (!interrupted && this.doneEffect) {
++				this.unit.fireSpellEvents(game, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_FINISH, this.ability, this.target);
++			}
++			this.unit.fireSpellEvents(game, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SPELL_ENDCAST, this.ability, this.target);
++		}
+ 	}
+ 
+ 	@Override
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index ea29ded..c0a2545 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -411,6 +411,30 @@ public class CAbilityData {
+ 				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemBundleOfLumber(handleId, alias)));
+ 
+ 
++		// Blizzard launcher: batch 2 from Warsmash Reforged.
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Afla"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit.CAbilityAreaDetection(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.flare, true)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIta"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit.CAbilityAreaDetection(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemareadetection, false)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AOvd"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.shadowhunter.CAbilityBigBadVoodoo(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Adev"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units.CAbilityDevour(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AEsf"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.moonpriestess.CAbilityStarfall(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Amfl"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units.CAbilityManaFlare(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Apsh"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units.CAbilityPhaseShift(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AUdd"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.lich.CAbilityDeathAndDecay(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Auns"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityUnsummon(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ACdv"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units.CAbilityDevour(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.creepdevour)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIfa"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit.CAbilityAreaDetection(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemflaregun, true)));
++
+ 		System.err.println("========================================================================");
+ 		System.err.println("Starting to load ability builder");
+ 		System.err.println("========================================================================");

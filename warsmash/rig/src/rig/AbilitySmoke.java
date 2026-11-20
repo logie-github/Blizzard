@@ -13,7 +13,7 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAb
 public class AbilitySmoke extends Scenario {
   List<String[]> todo = new ArrayList<>(); int idx = -1, phaseStart; CUnit caster, enemy, ally, flyer, enemy2; CAbility ab;
   float e2Mana0, eLife0, aLife0, fLife0, cMana0, e2Life0; int eBuff0, aBuff0, cBuff0, fBuff0; String kind; boolean accepted; List<String> excs = new ArrayList<>();
-  float bx, by; int gold0, lumber0; String why = ""; int results = 0, effected = 0;
+  float bx, by; int gold0, lumber0; String why = ""; int results = 0, effected = 0; int fx = 0; boolean listening;
   public AbilitySmoke() throws Exception { for (String l : Files.readAllLines(Path.of(System.getenv("ABLIST")))) if (!l.isBlank()) todo.add(l.trim().split("\\s+")); }
   static int buffs(CUnit u) { int n = 0; for (CAbility a : u.getAbilities()) if (a instanceof CBuff) n++; return n; }
   static String buffNames(CUnit u) { StringBuilder b = new StringBuilder(); for (CAbility a : u.getAbilities()) if (a instanceof CBuff) b.append(a.getAlias()).append(','); return b.toString(); }
@@ -29,6 +29,8 @@ public class AbilitySmoke extends Scenario {
     return false;
   }
   void start(CSimulation s) {
+    if (!listening) { listening = true; s.addSpellEffectListener((sim, c, a) -> { if (c == caster) fx++; }); }
+    fx = 0;
     String[] e = todo.get(idx); excs.clear(); kind = null;
     War3ID alias = War3ID.fromString(e[1]);
     CAbilityType<?> type = s.getAbilityData().getAbilityType(alias);
@@ -69,8 +71,8 @@ public class AbilitySmoke extends Scenario {
   void report(CSimulation s) {
     String[] e = todo.get(idx);
     if (kind == null) return;
-    String d = String.format("acc=%s mana=%.0f enemy=%.0f/%+d enemy2=%.0f ally=%.0f/%+d air=%.0f/%+d self=%+d gold=%+d lumber=%+d e2mana=%.0f",
-      accepted, caster.getMana() - cMana0, enemy.getLife() - eLife0, buffs(enemy) - eBuff0, enemy2.getLife() - e2Life0, ally.getLife() - aLife0, buffs(ally) - aBuff0, flyer.getLife() - fLife0, buffs(flyer) - fBuff0, buffs(caster) - cBuff0, s.getPlayer(0).getGold() - gold0, s.getPlayer(0).getLumber() - lumber0, enemy2.getMana() - e2Mana0);
+    String d = String.format("acc=%s mana=%.0f enemy=%.0f/%+d enemy2=%.0f ally=%.0f/%+d air=%.0f/%+d self=%+d gold=%+d lumber=%+d e2mana=%.0f fx=%d",
+      accepted, caster.getMana() - cMana0, enemy.getLife() - eLife0, buffs(enemy) - eBuff0, enemy2.getLife() - e2Life0, ally.getLife() - aLife0, buffs(ally) - aBuff0, flyer.getLife() - fLife0, buffs(flyer) - fBuff0, buffs(caster) - cBuff0, s.getPlayer(0).getGold() - gold0, s.getPlayer(0).getLumber() - lumber0, enemy2.getMana() - e2Mana0, fx);
     boolean eff = caster.getMana() < cMana0 - 0.5f || Math.abs(enemy.getLife() - eLife0) > 0.5f || Math.abs(ally.getLife() - aLife0) > 0.5f || Math.abs(flyer.getLife()-fLife0) > 0.5f || buffs(enemy) != eBuff0 || buffs(ally) != aBuff0 || buffs(caster) != cBuff0 || buffs(flyer) != fBuff0 || enemy.isDead() || "passive".equals(kind) || s.getPlayer(0).getGold() != gold0 || s.getPlayer(0).getLumber() != lumber0;
     results++; if (eff && excs.isEmpty()) effected++;
     System.err.println("RIG: RESULT " + e[0] + " " + e[1] + " " + kind + " " + ab.getClass().getSimpleName() + " " + d + " buffs[e=" + buffNames(enemy) + " a=" + buffNames(ally) + " c=" + buffNames(caster) + " f=" + buffNames(flyer) + "]" + (why.isEmpty() ? "" : " WHY " + why) + (excs.isEmpty() ? "" : " EXC " + excs));

@@ -1,0 +1,1 @@
+Warcraft III: Death and Decay, Starfall, Mana Flare, Phase Shift, Big Bad Voodoo, Unsummon, Devour and Flare work, and map scripts now see when a spell is cast.

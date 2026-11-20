@@ -11,7 +11,7 @@ scripts, and Warcraft III 1.27's own files. Nothing here ships in the app.
 - `src/rig/AbilitySmoke.java`: for each line of `$ABLIST` (`code alias target`, target one of `enemy`, `caster` (an enemy
   with mana), `ally`, `air`, `point`, `none`, `passive`), a Blood Mage beside two enemies, an ally and an enemy flyer
   (attacks off), given that ability and made to cast it; prints what changed (life, mana, buffs, gold, lumber), why a
-  cast was refused (the engine's own error key) and any exception. `abilities-0008.txt` is the list for engine patch 0008.
+  cast was refused (the engine's own error key) and any exception. `abilities-0008.txt` and `abilities-0009.txt` are the lists for engine patches 0008 and 0009 (a fourth column names the caster's unit type when the Blood Mage can't cast it, e.g. a Kodo for Devour); `fx=` counts the spell-effect events the cast fired.
 - `src/rig/Dump.java`: copies files out of the game's MPQs (`Units\AbilityData.slk` and the like).
 
 ## Running
