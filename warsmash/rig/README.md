@@ -23,6 +23,7 @@ scripts, and Warcraft III 1.27's own files. Nothing here ships in the app.
 - `src/rig/TypeScan.java`: every ability alias listed in `$ALIASES` that the engine has no ability type for.
 - `Idle` runs `$FRAMES` frames (300 by default); a failed script thread prints `JASS thread ended on error`.
 - `src/rig/Skirmish.java`: a melee game with computer players (`COMPUTERS=1,2,3`, `FRAMES`): every 300 frames each player's units, workers, buildings, resources, food, blight around the hall and units lost.
+- `src/rig/Reach.java`: flood fill on foot from `$FROM` to `$TO` (x,y) at radius `$R`: whether the pathing grid joins them. `src/rig/ProgressCheck.java` (`RIGMAIN=rig.ProgressCheck`): the campaign openings in order. `Setups` runs only the cases whose name contains `$CASE`.
 - `src/rig/Dump.java`: copies files out of the game's MPQs (`Units\AbilityData.slk` and the like; `EXTRA` adds more MPQs, a map's own `war3map.j` with the map file there; run with `RIGMAIN=rig.Dump`).
 
 ## Running

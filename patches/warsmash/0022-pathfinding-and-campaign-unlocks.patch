@@ -1,0 +1,533 @@
+diff --git a/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java b/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
+index 31037b8..0e2ce50 100644
+--- a/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
++++ b/core/src/com/etheller/warsmash/WarsmashGdxMapScreen.java
+@@ -259,6 +259,8 @@ public class WarsmashGdxMapScreen implements InputProcessor, Screen {
+ 			public void run() {
+ 				WarsmashGdxMapScreen.this.minimapUI.quitGame();
+ 				if ((nextLevel != null) && !nextLevel.isEmpty()) {
++					// Blizzard launcher: a won mission that goes on to the next map opens it in the list.
++					com.etheller.warsmash.util.CampaignProgress.openMissionByFile(nextLevel);
+ 					WarsmashGdxMapScreen.this.menuScreen.startMap(nextLevel);
+ 				}
+ 			}
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index dc46000..b63cac7 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -2101,6 +2101,34 @@ public class Jass2 {
+ 			// Blizzard launcher: computer players' AI scripts (Warsmash Reforged's AI).
+ 			AINatives.register(jassProgramVisitor, dataSource, uiViewport, uiScene, war3MapViewer, meleeUI, originalFiles,
+ 					this.simulation);
++			// Blizzard launcher: what a won mission opens in the campaign lists (CampaignProgress).
++			jassProgramVisitor.getJassNativeManager().createNative("SetMissionAvailable",
++					(arguments, globalScope, triggerScope) -> {
++						final int campaign = arguments.get(0).visit(IntegerJassValueVisitor.getInstance());
++						final int mission = arguments.get(1).visit(IntegerJassValueVisitor.getInstance());
++						if (arguments.get(2).visit(BooleanJassValueVisitor.getInstance())) {
++							com.etheller.warsmash.util.CampaignProgress.openMission(campaign, mission);
++						}
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("SetCampaignAvailable",
++					(arguments, globalScope, triggerScope) -> {
++						final int campaign = arguments.get(0).visit(IntegerJassValueVisitor.getInstance());
++						if (arguments.get(1).visit(BooleanJassValueVisitor.getInstance())) {
++							com.etheller.warsmash.util.CampaignProgress.openCampaign(campaign);
++						}
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("SetEdCinematicAvailable",
++					(arguments, globalScope, triggerScope) -> {
++						final int campaign = arguments.get(0).visit(IntegerJassValueVisitor.getInstance());
++						if (arguments.get(1).visit(BooleanJassValueVisitor.getInstance())) {
++							com.etheller.warsmash.util.CampaignProgress.openEnding(campaign);
++						}
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("SetOpCinematicAvailable",
++					(arguments, globalScope, triggerScope) -> null);
+ 			// Blizzard launcher: natives the campaigns call that this engine had none of.
+ 			jassProgramVisitor.getJassNativeManager().createNative("TriggerRegisterUnitInRange",
+ 					(arguments, globalScope, triggerScope) -> {
+diff --git a/core/src/com/etheller/warsmash/util/CampaignProgress.java b/core/src/com/etheller/warsmash/util/CampaignProgress.java
+new file mode 100644
+index 0000000..1dc471f
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/util/CampaignProgress.java
+@@ -0,0 +1,140 @@
++package com.etheller.warsmash.util;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Locale;
++import java.util.Set;
++
++/**
++ * Blizzard launcher: which campaigns, missions and campaign endings a profile has opened, as the original keeps them.
++ * Missions open the next ones themselves when won (SetMissionAvailable, SetCampaignAvailable, SetEdCinematicAvailable,
++ * through Blizzard.j); a campaign's first mission is open with the campaign, the first campaign is always open, and a
++ * won mission that goes straight on to the next map (ChangeLevel) opens that map's mission too. Kept by the host
++ * (MovieHost's store), per profile; in memory where there is no host.
++ */
++public final class CampaignProgress {
++	private static final Set<String> MEMORY = Collections.synchronizedSet(new HashSet<>());
++	private static volatile String profile = "";
++	/** The mission map files of each campaign, in the order the campaign numbers count them. */
++	private static volatile List<List<String>> campaigns = new ArrayList<>();
++
++	private CampaignProgress() {
++	}
++
++	public static void setProfile(final String profileName) {
++		profile = profileName == null ? "" : profileName;
++	}
++
++	public static void setCampaigns(final List<List<String>> missionFilesByCampaign) {
++		campaigns = missionFilesByCampaign;
++	}
++
++	private static boolean marked(final String key) {
++		final MovieHost.Player p = MovieHost.player;
++		return (p != null) ? p.seen(key) : MEMORY.contains(key);
++	}
++
++	private static void mark(final String key) {
++		final MovieHost.Player p = MovieHost.player;
++		if (p != null) {
++			if (!p.seen(key)) {
++				p.markSeen(key);
++			}
++		}
++		else {
++			MEMORY.add(key);
++		}
++	}
++
++	private static String file(final String mapFile) {
++		return mapFile.replace('/', '\\').toLowerCase(Locale.ROOT);
++	}
++
++	private static String campaignKey(final int campaign) {
++		final List<List<String>> list = campaigns;
++		if ((campaign < 0) || (campaign >= list.size()) || list.get(campaign).isEmpty()) {
++			return null;
++		}
++		return file(list.get(campaign).get(0));
++	}
++
++	public static boolean isCampaignAvailable(final int campaign) {
++		if (campaign == 0) {
++			return true;
++		}
++		final String key = campaignKey(campaign);
++		if (key == null) {
++			return false;
++		}
++		if (marked("campaign-open/" + profile + "/" + key)) {
++			return true;
++		}
++		// The previous campaign's ending opened (its last mission won) opens this one too.
++		final String previous = campaignKey(campaign - 1);
++		if ((previous != null) && marked("campaign-ending/" + profile + "/" + previous)) {
++			return true;
++		}
++		final List<String> missions = campaigns.get(campaign);
++		for (int i = 1; i < missions.size(); i++) {
++			if (marked("campaign-mission/" + profile + "/" + file(missions.get(i)))) {
++				return true;
++			}
++		}
++		return false;
++	}
++
++	public static boolean isMissionAvailable(final int campaign, final int mission) {
++		if (mission == 0) {
++			return isCampaignAvailable(campaign);
++		}
++		final List<List<String>> list = campaigns;
++		if ((campaign < 0) || (campaign >= list.size()) || (mission >= list.get(campaign).size())) {
++			return false;
++		}
++		return marked("campaign-mission/" + profile + "/" + file(list.get(campaign).get(mission)));
++	}
++
++	public static boolean isEndingAvailable(final int campaign) {
++		final String key = campaignKey(campaign);
++		return (key != null) && marked("campaign-ending/" + profile + "/" + key);
++	}
++
++	/** SetMissionAvailable(campaign, mission, true). */
++	public static void openMission(final int campaign, final int mission) {
++		final List<List<String>> list = campaigns;
++		if ((campaign >= 0) && (campaign < list.size()) && (mission >= 0) && (mission < list.get(campaign).size())) {
++			mark("campaign-mission/" + profile + "/" + file(list.get(campaign).get(mission)));
++		}
++	}
++
++	/** SetCampaignAvailable(campaign, true). */
++	public static void openCampaign(final int campaign) {
++		final String key = campaignKey(campaign);
++		if (key != null) {
++			mark("campaign-open/" + profile + "/" + key);
++		}
++	}
++
++	/** SetEdCinematicAvailable(campaign, true): the campaign's ending, shown in its list. */
++	public static void openEnding(final int campaign) {
++		final String key = campaignKey(campaign);
++		if (key != null) {
++			mark("campaign-ending/" + profile + "/" + key);
++		}
++	}
++
++	/** ChangeLevel to a campaign map: that mission is open. */
++	public static void openMissionByFile(final String mapFile) {
++		final String wanted = file(mapFile);
++		for (final List<String> missions : campaigns) {
++			for (final String mission : missions) {
++				if (file(mission).equals(wanted)) {
++					mark("campaign-mission/" + profile + "/" + wanted);
++					return;
++				}
++			}
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+index 89a36cd..1f3491a 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+@@ -159,6 +159,23 @@ public class CPathfindingProcessor {
+ 						ignoreIntersectionsWithThisSecondUnit, movementType);
+ 	}
+ 
++	/**
++	 * Blizzard launcher: a job planned against the map and buildings only (staticOnly) passes other units; they are
++	 * met as the unit walks. Used when the unit starts touching other units (a crowd at a mine, an army), where every
++	 * first step looked blocked, the search flooded the map to its limit and the unit was left standing, and for a
++	 * second try when a search reaches its limit.
++	 */
++	private boolean pathableBetween(final PathfindingJob job, final float startX, final float startY, final float x,
++			final float y) {
++		if (job.staticOnly) {
++			return this.pathingGrid.isPathable(x, y, job.movementType, job.collisionSize)
++					&& this.pathingGrid.isPathable(startX, y, job.movementType, job.collisionSize)
++					&& this.pathingGrid.isPathable(x, startY, job.movementType, job.collisionSize);
++		}
++		return pathableBetween(job.ignoreIntersectionsWithThisUnit, job.ignoreIntersectionsWithThisSecondUnit, startX,
++				startY, job.movementType, job.collisionSize, x, y);
++	}
++
+ 	private boolean isPathableDynamically(final float x, final float y, final CUnit ignoreIntersectionsWithThisUnit,
+ 			final CUnit ignoreIntersectionsWithThisSecondUnit, final PathingGrid.MovementType movementType) {
+ 		return !this.worldCollision.intersectsAnythingOtherThan(tempRect.setCenter(x, y),
+@@ -244,6 +261,13 @@ public class CPathfindingProcessor {
+ 				job.goalX = job.goal.x;
+ 				job.goalY = job.goal.y;
+ 				job.weightForHittingWalls = 1E9f;
++				job.bestNode = null;
++				job.bestDistance = Double.MAX_VALUE;
++				tempRect.set(0, 0, job.collisionSize * 2, job.collisionSize * 2);
++				if (!job.staticOnly && !isPathableDynamically(job.startX, job.startY, job.ignoreIntersectionsWithThisUnit,
++						job.ignoreIntersectionsWithThisSecondUnit, job.movementType)) {
++					job.staticOnly = true;
++				}
+ 				if (!this.pathingGrid.isPathable(job.goalX, job.goalY, job.movementType, job.collisionSize)
+ 						|| !isPathableDynamically(job.goalX, job.goalY, job.ignoreIntersectionsWithThisUnit,
+ 								job.ignoreIntersectionsWithThisSecondUnit, job.movementType)) {
+@@ -278,9 +302,12 @@ public class CPathfindingProcessor {
+ 
+ 				for (int i = goalCellX - 1; i <= (goalCellX + 1); i++) {
+ 					for (int j = goalCellY - 1; j <= (goalCellY + 1); j++) {
+-						final int jMaxLength = job.useCornerNodes ? pathingGrid.getWidth() + 1 : pathingGrid.getWidth();
+-						final int iMaxLength = job.useCornerNodes ? pathingGrid.getHeight() + 1 : pathingGrid.getHeight();
+-						if ((j >= 0) && (j <= jMaxLength)) {
++						// Blizzard launcher: j counts rows (y) and i columns (x); the bounds were the other way round, so on
++						// a map wider than tall a goal far along x had no goal nodes, the search could never end there,
++						// flooded the map to its limit and the unit stood still.
++						final int jMaxLength = job.useCornerNodes ? pathingGrid.getHeight() + 1 : pathingGrid.getHeight();
++						final int iMaxLength = job.useCornerNodes ? pathingGrid.getWidth() + 1 : pathingGrid.getWidth();
++						if ((j >= 0) && (j < jMaxLength)) {
+ 							if ((i >= 0) && (i < iMaxLength)) {
+ 								CNode possibleGoal = findNode(processorIndex,job.useCornerNodes, j,i);
+ 								possibleGoal.touch(this.pathfindJobId);
+@@ -339,9 +366,7 @@ public class CPathfindingProcessor {
+ 							setNode(processorIndex,possibleNode);
+ 							final float x = possibleNode.getPoint().x;
+ 							final float y = possibleNode.getPoint().y;
+-							if (pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-									job.ignoreIntersectionsWithThisSecondUnit, job.startX, job.startY, job.movementType,
+-									job.collisionSize, x, y)) {
++							if (pathableBetween(job, job.startX, job.startY, x, y)) {
+ 
+ 								final double tentativeScore = possibleNode.getPoint().dst(job.startX, job.startY);
+ 								possibleNode.setF(tentativeScore + h(possibleNode));
+@@ -366,6 +391,18 @@ public class CPathfindingProcessor {
+ 				CNode current = job.openSet.poll();
+ 				current.touch(this.pathfindJobId);
+ 				setNode(processorIndex,current);
++				// Blizzard launcher: the explored node nearest the goal, reached without crossing a wall, for a search
++				// that runs out (a partial path, as the original walks toward a goal it can't plan to at once).
++				if (current.getG() < 1E8) {
++					final double distance = h(current);
++					if ((job.bestNode == null) || (distance < job.bestDistance)) {
++						job.bestNode = current;
++						job.bestCorner = current.getFromCornerNodes();
++						job.bestI = current.getPositionI();
++						job.bestJ = current.getPositionJ();
++						job.bestDistance = distance;
++					}
++				}
+ 				if (isGoal(current)) {
+ 					final LinkedList<Vector2>
+ 							totalPath = new LinkedList<>();
+@@ -379,16 +416,9 @@ public class CPathfindingProcessor {
+ 					}
+ 
+ 					if (cameFrom!=null
+-							&& pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-									job.ignoreIntersectionsWithThisSecondUnit, current.getPoint().x, current.getPoint().y,
+-									job.movementType, job.collisionSize, job.goalX, job.goalY)
+-							&& pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-									job.ignoreIntersectionsWithThisSecondUnit, cameFrom.getPoint().x,
+-									cameFrom.getPoint().y, job.movementType, job.collisionSize, current.getPoint().x,
+-									current.getPoint().y)
+-							&& pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-									job.ignoreIntersectionsWithThisSecondUnit, cameFrom.getPoint().x,
+-									cameFrom.getPoint().y, job.movementType, job.collisionSize, job.goalX, job.goalY)
++							&& pathableBetween(job, current.getPoint().x, current.getPoint().y, job.goalX, job.goalY)
++							&& pathableBetween(job, cameFrom.getPoint().x, cameFrom.getPoint().y, current.getPoint().x, current.getPoint().y)
++							&& pathableBetween(job, cameFrom.getPoint().x, cameFrom.getPoint().y, job.goalX, job.goalY)
+ 							&& job.allowSmoothing) {
+ 						// do some basic smoothing to walk straight to the goal if it is not obstructed,
+ 						// skipping the last grid location
+@@ -409,13 +439,7 @@ public class CPathfindingProcessor {
+ 								current.getCameFromI(),current.getCameFromJ());
+ 						if ((lastCameFromDirection == CDirection.UNKNOWN) || (current.getCameFromDirection() != lastCameFromDirection)
+ 								|| (current.getCameFromDirection() == CDirection.UNKNOWN)) {
+-							if (current.getCameFromDirection() != CDirection.UNKNOWN || !pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-                                    job.ignoreIntersectionsWithThisSecondUnit, job.startX, job.startY,
+-                                    job.movementType, job.collisionSize, current.getPoint().x, current.getPoint().y) || !pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-                                    job.ignoreIntersectionsWithThisSecondUnit, current.getPoint().x, current.getPoint().y,
+-                                    job.movementType, job.collisionSize, lastNode.getPoint().x, lastNode.getPoint().y) || !pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-                                    job.ignoreIntersectionsWithThisSecondUnit, job.startX, job.startY,
+-                                    job.movementType, job.collisionSize, lastNode.getPoint().x, lastNode.getPoint().y) || !job.allowSmoothing) {
++							if (current.getCameFromDirection() != CDirection.UNKNOWN || !pathableBetween(job, job.startX, job.startY, current.getPoint().x, current.getPoint().y) || !pathableBetween(job, current.getPoint().x, current.getPoint().y, lastNode.getPoint().x, lastNode.getPoint().y) || !pathableBetween(job, job.startX, job.startY, lastNode.getPoint().x, lastNode.getPoint().y) || !job.allowSmoothing) {
+ 								// Add the point if it's not the first one, or if we can only complete
+ 								// the journey by specifically walking to the first one
+ 								totalPath.addFirst(current.getPoint());
+@@ -458,9 +482,7 @@ public class CPathfindingProcessor {
+ 							turnCost = 0;
+ 						}
+ 						double tentativeScore = current.getG() + ((direction.length + turnCost) * 32);
+-						if (!pathableBetween(job.ignoreIntersectionsWithThisUnit,
+-								job.ignoreIntersectionsWithThisSecondUnit, current.getPoint().x, current.getPoint().y,
+-								job.movementType, job.collisionSize, x, y)) {
++						if (!pathableBetween(job, current.getPoint().x, current.getPoint().y, x, y)) {
+ 							tentativeScore += (direction.length) * job.weightForHittingWalls;
+ 						}
+ 						int tmpY = job.gridMapping.getY(this.pathingGrid, y);
+@@ -487,7 +509,12 @@ public class CPathfindingProcessor {
+ 				}
+ 				workIterations++;
+ 				this.totalIterations++;
+-				if (this.totalIterations > 20000) {
++				if (this.totalIterations > 40000) {
++					if (!job.staticOnly && (job.bestNode == null)) {
++						job.staticOnly = true;
++						job.jobStarted = false;
++						continue JobsLoop;
++					}
+ 					break;
+ 				}
+ 				if (workIterations >= 1500) {
+@@ -495,13 +522,25 @@ public class CPathfindingProcessor {
+ 					break JobsLoop;
+ 				}
+ 			}
+-			job.queueItem.pathFound(Collections.emptyList(), simulation);
++			job.queueItem.pathFound(partialPath(job), simulation);
+ 			this.moveQueue.poll();
+ 			System.out.println("Task " + this.pathfindJobId + " took " + this.totalIterations + " iterations and "
+ 					+ this.totalJobLoops + " job loops!");
+ 		}
+ 	}
+ 
++	/** The path to the best node a search found without reaching the goal; empty if it found none. */
++	private java.util.List<Vector2> partialPath(final PathfindingJob job) {
++		final LinkedList<Vector2> path = new LinkedList<>();
++		CNode node = job.bestNode == null ? null : findNode(processorIndex, job.bestCorner, job.bestI, job.bestJ);
++		int steps = 0;
++		while ((node != null) && node.cameFromExists() && (steps++ < this.pathingGridCellCount)) {
++			path.addFirst(node.getPoint());
++			node = findNode(processorIndex, node.getCameFromCornerNodes(), node.getCameFromI(), node.getCameFromJ());
++		}
++		return path;
++	}
++
+ 	public static final class PathfindingJob {
+ 		private final CUnit ignoreIntersectionsWithThisUnit;
+ 		private final CUnit ignoreIntersectionsWithThisSecondUnit;
+@@ -518,6 +557,12 @@ public class CPathfindingProcessor {
+ 		public float weightForHittingWalls;
+ 		boolean useCornerNodes;
+ 		GridMapping gridMapping;
++		boolean staticOnly;
++		CNode bestNode;
++		boolean bestCorner;
++		int bestI;
++		int bestJ;
++		double bestDistance;
+ 		PriorityQueue<CNode> openSet;
+ 		CNode start;
+ 		int startGridMinX;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
+index 3be1e76..307caa7 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
+@@ -1306,8 +1306,23 @@ public class MenuUI {
+ 
+ 				}
+ 			}
++			// Blizzard launcher: campaigns, missions and endings open one after another, as in the original
++			// (CampaignProgress); the campaign numbers the scripts use count the campaigns listed.
++			final java.util.List<java.util.List<String>> missionFiles = new java.util.ArrayList<>();
+ 			for (final CampaignMenuData campaign : this.campaignDatas) {
+ 				if (campaign != null) {
++					final java.util.List<String> files = new java.util.ArrayList<>();
++					for (final CampaignMission mission : campaign.getMissions()) {
++						files.add(mission.getMapFilename());
++					}
++					missionFiles.add(files);
++				}
++			}
++			com.etheller.warsmash.util.CampaignProgress.setCampaigns(missionFiles);
++			int campaignNumberCounter = 0;
++			for (final CampaignMenuData campaign : this.campaignDatas) {
++				if (campaign != null) {
++					final int campaignNumber = campaignNumberCounter++;
+ 					final CampaignMenuUI missionSelectMenuUI = new CampaignMenuUI(null, this.campaignMenu,
+ 							this.rootFrame, this.uiViewport);
+ 					missionSelectMenuUI.setVisible(false);
+@@ -1321,7 +1336,9 @@ public class MenuUI {
+ 					// Blizzard launcher: the campaign's movies in its list, as the original's (the camera button).
+ 					addCinematicButton(missionSelectMenuUI, campaign.getIntroCinematic());
+ 					addCinematicButton(missionSelectMenuUI, campaign.getOpenCinematic());
++					int missionNumberCounter = 0;
+ 					for (final CampaignMission mission : campaign.getMissions()) {
++						final int missionNumber = missionNumberCounter++;
+ 						missionSelectMenuUI.addButton(mission.getHeader(), mission.getMissionName(), new Runnable() {
+ 							@Override
+ 							public void run() {
+@@ -1356,8 +1373,14 @@ public class MenuUI {
+ 								MenuUI.this.beginGameInformation.localPlayerIndex = localPlayerIndex;
+ 							}
+ 						});
++						missionSelectMenuUI.showWhen(() -> com.etheller.warsmash.util.CampaignProgress
++								.isMissionAvailable(campaignNumber, missionNumber));
++					}
++					if (campaign.getEndCinematic() != null) {
++						addCinematicButton(missionSelectMenuUI, campaign.getEndCinematic());
++						missionSelectMenuUI.showWhen(
++								() -> com.etheller.warsmash.util.CampaignProgress.isEndingAvailable(campaignNumber));
+ 					}
+-					addCinematicButton(missionSelectMenuUI, campaign.getEndCinematic());
+ 
+ 					this.campaignRootMenuUI.addButton(campaign.getHeader(), campaign.getName(), new Runnable() {
+ 						@Override
+@@ -1386,6 +1409,7 @@ public class MenuUI {
+ 								MenuUI.this.campaignSelectFrame.setVisible(false);
+ 								MenuUI.this.campaignRootMenuUI.setVisible(false);
+ 								MenuUI.this.currentMissionSelectMenuUI.setVisible(true);
++								MenuUI.this.currentMissionSelectMenuUI.refresh(MenuUI.this.rootFrame, MenuUI.this.uiViewport);
+ 								MenuUI.this.missionSelectFrame.setVisible(true);
+ 								MenuUI.this.menuState = MenuState.MISSION_SELECT;
+ 							}
+@@ -1393,6 +1417,8 @@ public class MenuUI {
+ 							MenuUI.this.rootFrame.setDecoratedText(missionNameHeader, campaign.getHeader());
+ 						}
+ 					});
++					this.campaignRootMenuUI.showWhen(
++							() -> com.etheller.warsmash.util.CampaignProgress.isCampaignAvailable(campaignNumber));
+ 					if (campaign == MenuUI.this.currentCampaign) {
+ 						MenuUI.this.currentMissionSelectMenuUI = missionSelectMenuUI;
+ 					}
+@@ -2220,6 +2246,8 @@ public class MenuUI {
+ 				this.campaignWarcraftIIILogo.setVisible(true);
+ 				this.campaignSelectFrame.setVisible(true);
+ 				this.campaignRootMenuUI.setVisible(true);
++				com.etheller.warsmash.util.CampaignProgress.setProfile(this.profileManager.getCurrentProfile());
++				this.campaignRootMenuUI.refresh(this.rootFrame, this.uiViewport);
+ 				break;
+ 			case GOING_TO_MISSION_SELECT: {
+ 				final String currentCampaignBackgroundModel = getCurrentBackgroundModel();
+@@ -2243,6 +2271,8 @@ public class MenuUI {
+ 				this.campaignBackButton.setVisible(true);
+ 				this.campaignWarcraftIIILogo.setVisible(true);
+ 				this.currentMissionSelectMenuUI.setVisible(true);
++				com.etheller.warsmash.util.CampaignProgress.setProfile(this.profileManager.getCurrentProfile());
++				this.currentMissionSelectMenuUI.refresh(this.rootFrame, this.uiViewport);
+ 				this.missionSelectFrame.setVisible(true);
+ 				break;
+ 			case GOING_TO_SINGLE_PLAYER_PROFILE:
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java
+index 3d1321e..c711a76 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/menu/CampaignMenuUI.java
+@@ -16,6 +16,8 @@ public class CampaignMenuUI extends SimpleFrame {
+ 	private final GameUI rootFrame;
+ 	private final Viewport uiViewport;
+ 	private final List<CampaignButtonUI> buttonUIs = new ArrayList<>();
++	// Blizzard launcher: when each button shows (a mission not opened yet is hidden, as in the original).
++	private final List<java.util.function.BooleanSupplier> shownWhen = new ArrayList<>();
+ 
+ 	public CampaignMenuUI(final String name, final UIFrame parent, final GameUI rootFrame, final Viewport uiViewport) {
+ 		super(name, parent);
+@@ -56,21 +58,42 @@ public class CampaignMenuUI extends SimpleFrame {
+ 
+ 		add(campaignButtonUI);
+ 		this.buttonUIs.add(campaignButtonUI);
++		this.shownWhen.add(null);
+ 
+ 	}
+ 
++	/** The last button added shows only while {@code shown} says so ({@link #refresh}). */
++	public void showWhen(final java.util.function.BooleanSupplier shown) {
++		this.shownWhen.set(this.shownWhen.size() - 1, shown);
++	}
++
++	/** Shows the buttons whose condition holds, hides the others and lays the shown ones out again. */
++	public void refresh(final GameUI gameUI, final Viewport viewport) {
++		for (int i = 0; i < this.buttonUIs.size(); i++) {
++			final java.util.function.BooleanSupplier shown = this.shownWhen.get(i);
++			this.buttonUIs.get(i).setVisible((shown == null) || shown.getAsBoolean());
++		}
++		positionBounds(gameUI, viewport);
++	}
++
+ 	@Override
+ 	protected void innerPositionBounds(final GameUI gameUI, final Viewport viewport) {
+ 		super.innerPositionBounds(gameUI, viewport);
+ 		final float myHeight = this.renderBounds.height;
+-		final int buttonCount = this.buttonUIs.size();
++		final List<CampaignButtonUI> shownButtons = new ArrayList<>();
++		for (final CampaignButtonUI button : this.buttonUIs) {
++			if (button.isVisible()) {
++				shownButtons.add(button);
++			}
++		}
++		final int buttonCount = Math.max(1, shownButtons.size());
+ 		final float buttonSpacing = Math.min(myHeight / buttonCount, GameUI.convertY(this.uiViewport, 0.056f));
+ 		final float buttonsHeight = buttonSpacing * buttonCount;
+ 		final float expectedHeight = Math.min(buttonsHeight, myHeight);
+ 		final float yOffset = (myHeight - expectedHeight) / 2;
+ 
+ 		UIFrame lastButton = null;
+-		for (final CampaignButtonUI campaignButtonUI : this.buttonUIs) {
++		for (final CampaignButtonUI campaignButtonUI : shownButtons) {
+ 			if (lastButton == null) {
+ 				campaignButtonUI.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this, FramePoint.TOPLEFT, 0, -yOffset));
+ 				campaignButtonUI.addSetPoint(new SetPoint(FramePoint.TOPRIGHT, this, FramePoint.TOPRIGHT, 0, -yOffset));

@@ -29,7 +29,7 @@ public class Setups extends Scenario {
     return best;
   }
 
-  final List<Case> cases = List.of(
+  final List<Case> cases = filter(List.of(
     c("Player 1's own peons ordered to 4128,2720", 900, (s, p) -> {
       java.util.List<CUnit> ps = new java.util.ArrayList<>(); for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 1 && !u.isBuilding() && !u.isDead()) ps.add(u);
       StringBuilder start = new StringBuilder(); for (CUnit u : ps) start.append((int) u.getX()).append(',').append((int) u.getY()).append(' ').append(u.isHidden() ? "hidden " : "");
@@ -47,6 +47,53 @@ public class Setups extends Scenario {
       final float x0 = peon.getX(), y0 = peon.getY();
       boolean ok = peon.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(4128, 2720));
       return () -> "accepted=" + ok + " from " + (int) x0 + "," + (int) y0 + " now at " + (int) peon.getX() + "," + (int) peon.getY() + " pathable there " + s.getPathingGrid().isPathable(4128, 2720, com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FOOT, 16);
+    }),
+    c("Flood fill on foot from player 1's peons to 4128,2720", 30, (s, p) -> {
+      var g = s.getPathingGrid(); CUnit peon = null; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 1 && !u.isBuilding()) { peon = u; break; }
+      final float sx = peon.getX(), sy = peon.getY();
+      java.util.ArrayDeque<int[]> q = new java.util.ArrayDeque<>(); java.util.Set<Long> seenCells = new java.util.HashSet<>();
+      int cx = Math.round(sx / 32), cy = Math.round(sy / 32); q.add(new int[]{cx, cy}); seenCells.add(((long) cx << 32) ^ (cy & 0xffffffffL));
+      boolean reached = false; int n = 0; int tx = Math.round(4128f / 32), ty = Math.round(2720f / 32);
+      while (!q.isEmpty() && n < 400000) { int[] c = q.poll(); n++; if (Math.abs(c[0] - tx) <= 1 && Math.abs(c[1] - ty) <= 1) { reached = true; break; }
+        for (int[] d : new int[][]{{1,0},{-1,0},{0,1},{0,-1}}) { int nx = c[0] + d[0], ny = c[1] + d[1]; long k = ((long) nx << 32) ^ (ny & 0xffffffffL);
+          if (seenCells.contains(k)) continue; seenCells.add(k);
+          if (g.isPathable(nx * 32f, ny * 32f, com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FOOT, Float.parseFloat(System.getenv().getOrDefault("FILLR", "8")))) q.add(new int[]{nx, ny}); } }
+      final boolean r = reached; final int cells = n; final float peon_c = peon.getUnitType().getCollisionSize();
+      return () -> "reachable=" + r + " cells searched " + cells + " from " + (int) sx + "," + (int) sy + " peon collision " + peon_c + " start pathable " + g.isPathable(sx, sy, com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FOOT, peon_c);
+    }),
+    c("Footman ordered behind a U-shaped wall (opening away from it)", 1200, (s, p) -> {
+      for (int i = -4; i <= 4; i++) unit(s, "hhou", 0, p[0] + 300, p[1] + i * 128);
+      for (int i = 1; i <= 3; i++) { unit(s, "hhou", 0, p[0] + 300 - i * 128, p[1] + 4 * 128); unit(s, "hhou", 0, p[0] + 300 - i * 128, p[1] - 4 * 128); }
+      CUnit f = unit(s, "hfoo", 0, p[0], p[1]);
+      final float tx = p[0] + 700, ty = p[1];
+      boolean ok = f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(tx, ty));
+      return () -> "accepted=" + ok + " left to go " + (int) Math.hypot(f.getX() - tx, f.getY() - ty) + " at " + (int) (f.getX() - p[0]) + "," + (int) (f.getY() - p[1]) + " relative";
+    }),
+    c("Footman told to attack a grunt behind a wall of farms", 1200, (s, p) -> {
+      for (int i = -4; i <= 4; i++) unit(s, "hhou", 0, p[0] + 300, p[1] + i * 128);
+      CUnit f = unit(s, "hfoo", 0, p[0], p[1]);
+      CUnit g = unit(s, "ogru", 1, p[0] + 600, p[1]);
+      g.addStateModBuff(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK, 1)); g.computeUnitState(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK);
+      g.addStateModBuff(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_MOVE, 1)); g.computeUnitState(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_MOVE);
+      float l0 = g.getLife();
+      boolean ok = f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.attack, g);
+      return () -> "accepted=" + ok + " grunt lost " + (int) (l0 - g.getLife()) + " footman at " + (int) (f.getX() - p[0]) + "," + (int) (f.getY() - p[1]) + " relative";
+    }),
+    c("Footman ordered behind a wall of farms", 900, (s, p) -> {
+      for (int i = -3; i <= 3; i++) unit(s, "hhou", 0, p[0] + 300, p[1] + i * 128);
+      CUnit f = unit(s, "hfoo", 0, p[0], p[1]);
+      final float tx = p[0] + 600, ty = p[1];
+      boolean ok = f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(tx, ty));
+      return () -> "accepted=" + ok + " left to go " + (int) Math.hypot(f.getX() - tx, f.getY() - ty) + " at " + (int) f.getX() + "," + (int) f.getY() + " (wall at x=" + (int) (p[0] + 300) + ")";
+    }),
+    c("Footman ordered to a point behind trees (the nearest tree's far side)", 900, (s, p) -> {
+      CDestructable t = tree(s, p[0], p[1]);
+      CUnit f = unit(s, "hfoo", 0, p[0], p[1]);
+      double ang = Math.atan2(t.getY() - p[1], t.getX() - p[0]);
+      final float tx = (float) (t.getX() + Math.cos(ang) * 400), ty = (float) (t.getY() + Math.sin(ang) * 400);
+      final boolean pathable = s.getPathingGrid().isPathable(tx, ty, com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FOOT, 16);
+      boolean ok = f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(tx, ty));
+      return () -> "target pathable=" + pathable + " accepted=" + ok + " left to go " + (int) Math.hypot(f.getX() - tx, f.getY() - ty) + " from start " + (int) Math.hypot(p[0] - tx, p[1] - ty);
     }),
     c("Orc peon of player 1 told to build an altar at 4128,2720", 900, (s, p) -> {
       CUnit peon = null; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 1 && u.getTypeId().toString().equals("opeo")) { peon = u; break; }
@@ -212,7 +259,8 @@ public class Setups extends Scenario {
       return () -> { StringBuilder b = new StringBuilder(); for (CAbility x : m.getAbilities()) if (x instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff) b.append(x.getAlias()).append(' ');
         return "accepted=" + ok + " tree dead=" + (t != null && t.isDead()) + " tree at " + (t == null ? -1 : (int) Math.hypot(t.getX() - m.getX(), t.getY() - m.getY())) + " buffs " + b + " behavior " + m.getCurrentBehavior() + " giant at " + (t == null ? -1 : (int) Math.hypot(t.getX() - m.getX(), t.getY() - m.getY())) + " cd " + m.getCooldownRemainingTicks(s, War3ID.fromString("Agra")); };
     })
-  );
+  ));
+  static List<Case> filter(List<Case> all) { String c = System.getenv("CASE"); if (c == null) return all; List<Case> out = new ArrayList<>(); for (Case x : all) if (x.name().contains(c)) out.add(x); return out; }
   int idx = -1, phaseStart; Supplier<String> report; float bx, by; List<String> excs = new ArrayList<>();
   public void exception(Throwable t) { excs.add(t.toString()); }
   static War3MapViewer viewer; static float maxDev; static float[] probe;
