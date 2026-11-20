@@ -1,0 +1,56 @@
+plugins { id 'java'; id 'application'; id 'org.jetbrains.kotlin.jvm' version '2.0.21' }
+configurations { antlrTool }
+def W = file(System.getenv('WSRC') ?: rootProject.file('../../app/warsmash').canonicalPath)
+def NATIVE = file(System.getenv('RIG_NATIVE') ?: 'build/native')
+repositories { mavenCentral(); google() }
+java { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+sourceSets.main.java.srcDirs = [new File(W,'core/src'), new File(W,'shared/src'), new File(W,'jassparser/src'), new File(W,'fdfparser/src'), file('shims'), file('src')]
+sourceSets.main.java.exclude 'jni/**'
+['jassparser/antlr-src/Jass.g4':'com/etheller/interpreter','fdfparser/antlr-src/FDF.g4':'com/etheller/warsmash/fdfparser'].each { g, pkg ->
+  def t = tasks.register('gen'+g.tokenize('/')[0], JavaExec) { classpath = configurations.antlrTool; mainClass = 'org.antlr.v4.Tool'
+    workingDir = new File(W,g).parentFile; args = ['-visitor','-no-listener','-o', file("build/gen/"+pkg).path, new File(W,g).name]
+    inputs.file(new File(W,g)); outputs.dir(file("build/gen/"+pkg)) }
+  compileJava.dependsOn t; tasks.matching { it.name == 'compileKotlin' }.configureEach { dependsOn t } }
+sourceSets.main.java.srcDir layout.buildDirectory.dir('gen')
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.compilerArgs += ['-Xmaxerrs','2000','-nowarn']; options.warnings = false }
+dependencies {
+  antlrTool 'org.antlr:antlr4:4.7'
+  implementation 'org.antlr:antlr4-runtime:4.7'
+  implementation 'com.badlogicgames.gdx:gdx:1.13.0'
+  implementation 'com.badlogicgames.gdx:gdx-backend-headless:1.13.0'
+  implementation 'com.badlogicgames.gdx:gdx-platform:1.13.0:natives-desktop'
+  implementation 'com.badlogicgames.gdx:gdx-box2d:1.13.0'
+  implementation 'com.badlogicgames.gdx:gdx-freetype:1.13.0'
+  implementation 'com.badlogicgames.gdx:gdx-freetype-platform:1.13.0:natives-desktop'
+  implementation 'com.badlogicgames.gdx:gdx-box2d-platform:1.13.0:natives-desktop'
+  implementation 'com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.3'
+  implementation 'org.lwjgl.lwjgl:lwjgl:2.9.3'
+  implementation 'com.google.guava:guava:33.0.0-jre'
+  implementation 'org.apache.commons:commons-compress:1.27.1'
+  implementation 'com.google.code.gson:gson:2.11.0'
+  implementation 'commons-io:commons-io:2.18.0'
+}
+application { mainClass = System.getenv('RIGMAIN') ?: 'rig.Main' }
+sourceSets.main.kotlin.srcDirs = sourceSets.main.java.srcDirs
+kotlin { jvmToolchain(21) }
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 }
+tasks.named('run') { workingDir = file('run'); jvmArgs = ['-Djava.library.path=' + NATIVE.path, '-Xmx6g']
+  environment 'WSRC', W.path
+  doFirst {
+    // The engine's assets, linked into run/ (run/ holds only links, never written through). Its shaders are read as
+    // internal files named with a backslash (gles3.2\\...), so those get links of that very name.
+    def run = file('run')
+    run.mkdirs()
+    run.listFiles().each { f -> if (java.nio.file.Files.isSymbolicLink(f.toPath())) f.delete() }
+    ['resources', 'warsmash.ini'].each { n -> java.nio.file.Files.createSymbolicLink(new File(run, n).toPath(), new File(W, 'assets/' + n).toPath()) }
+    new File(W, 'assets/gles3.2').listFiles().each { f -> java.nio.file.Files.createSymbolicLink(new File(run, 'gles3.2\\' + f.name).toPath(), f.toPath()) }
+  }
+}
+// The engine's pathfinding (CNode, JNI) for this machine: build/native/libCNode.so.
+tasks.register('nativeLib', Exec) {
+  def jh = System.getProperty('java.home')
+  outputs.file(new File(NATIVE, 'libCNode.so'))
+  doFirst { NATIVE.mkdirs(); new File(NATIVE, 'inc/android').mkdirs(); java.nio.file.Files.copy(file('android-log.h').toPath(), new File(NATIVE, 'inc/android/log.h').toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING) }
+  commandLine 'sh', '-c', "g++ -O2 -std=c++20 -shared -fPIC -I${NATIVE}/inc -I${jh}/include -I${jh}/include/linux ${W}/core/src/jni/src/*.cpp -o ${NATIVE}/libCNode.so"
+}
+tasks.named('run') { dependsOn 'nativeLib' }
