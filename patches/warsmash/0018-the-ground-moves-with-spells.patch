@@ -1,0 +1,180 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/w3x/w3e/Corner.java b/core/src/com/etheller/warsmash/parsers/w3x/w3e/Corner.java
+index a8c5ae4..2e2bb86 100644
+--- a/core/src/com/etheller/warsmash/parsers/w3x/w3e/Corner.java
++++ b/core/src/com/etheller/warsmash/parsers/w3x/w3e/Corner.java
+@@ -88,6 +88,11 @@ public class Corner {
+ 		return this.groundHeight;
+ 	}
+ 
++	/** Blizzard launcher: spells that raise or sink the ground (Thunder Clap's ripple, Shockwave, Earthquake). */
++	public void setGroundHeight(final float groundHeight) {
++		this.groundHeight = groundHeight;
++	}
++
+ 	public float getWaterHeight() {
+ 		return this.waterHeight;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+index 22e9d22..0e2840e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+@@ -3440,6 +3440,32 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 								War3MapViewer.this.setBlight(x, y, radius, blighted);
+ 							}
+ 
++							@Override
++							public float getTerrainSpaceX(final float x) {
++								return War3MapViewer.this.terrain.getTerrainSpaceX(x);
++							}
++
++							@Override
++							public float getTerrainSpaceY(final float y) {
++								return War3MapViewer.this.terrain.getTerrainSpaceY(y);
++							}
++
++							@Override
++							public int[] getTerrainModBufferSize(final float x, final float y, final float width,
++									final float height) {
++								return War3MapViewer.this.terrain.getTerrainModBufferSize(x, y, width, height);
++							}
++
++							@Override
++							public void adjustTerrain(final int[] rect, final float[] modBuffer) {
++								War3MapViewer.this.terrain.adjustGround(rect, modBuffer);
++							}
++
++							@Override
++							public void adjustTerrain(final float x, final float y, final float amount) {
++								War3MapViewer.this.terrain.adjustGround(x, y, amount);
++							}
++
+ 							@Override
+ 							public int getTerrainHeight(final float x, final float y) {
+ 								final RenderCorner corner = War3MapViewer.this.terrain.getCorner(x, y);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+index 2a81331..37cd16f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+@@ -1781,4 +1781,49 @@ public class Terrain {
+ 			this.minShallowColorApplied[i] = this.minShallowColor[i] * rgba[i];
+ 		}
+ 	}
++
++	// Blizzard launcher (from Warsmash Reforged): spells that raise or sink the ground change the corners' heights
++	// over a rectangle {x0, y0, x1, y1} of corners by the buffer's world units, and the drawn ground follows.
++	public int[] getTerrainModBufferSize(final float x, final float y, final float width, final float height) {
++		return new int[] { Math.min(this.rows - 1, Math.max(0, get128CellX(x))),
++				Math.min(this.columns - 1, Math.max(0, get128CellY(y))),
++				Math.min(this.rows - 1, Math.max(0, get128CellX(x + width) + 1)),
++				Math.min(this.columns - 1, Math.max(0, get128CellY(y + height) + 1)) };
++	}
++
++	public float getTerrainSpaceX(final float x) {
++		return (x - this.centerOffset[0]) / 128.0f;
++	}
++
++	public float getTerrainSpaceY(final float y) {
++		return (y - this.centerOffset[1]) / 128.0f;
++	}
++
++	public void adjustGround(final int[] rect, final float[] modBuffer) {
++		final int x = rect[0];
++		final int y = rect[1];
++		final int width = (rect[2] - rect[0]) + 1;
++		final int height = (rect[3] - rect[1]) + 1;
++		for (int j = y; j < (y + height); j++) {
++			for (int i = x; i < (x + width); i++) {
++				if ((i < 0) || (j < 0) || (i >= this.columns) || (j >= this.rows)) {
++					continue;
++				}
++				final RenderCorner corner = this.corners[i][j];
++				corner.setGroundHeight(corner.getGroundHeight() + (modBuffer[(i - x) + ((j - y) * width)] / 512));
++			}
++		}
++		updateGroundHeights(new Rectangle(x, y, width, height));
++	}
++
++	public void adjustGround(final float x, final float y, final float amount) {
++		final int column = get128CellX(x);
++		final int row = get128CellY(y);
++		if ((column < 0) || (row < 0) || (column >= this.columns) || (row >= this.rows)) {
++			return;
++		}
++		final RenderCorner corner = this.corners[column][row];
++		corner.setGroundHeight(corner.getGroundHeight() + (amount / 512));
++		updateGroundHeights(new Rectangle(column, row, 1, 1));
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 4723f04..99c3d26 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -1350,28 +1350,32 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 	public void changeUnitScale(final CUnit unit, final Float scale, final boolean multiplier) {
+ 	}
+ 
+-	// Terrain deformation (Thunder Clap's ripple, the Mountain Giant's wave, the Earthquake's bowl): the effects run,
+-	// this engine's ground doesn't move with them yet.
++	// Terrain deformation (Thunder Clap's ripple, the Mountain Giant's wave, the Earthquake's bowl): the drawn ground
++	// moves with them (Blizzard launcher, Reforged's way: the corners' heights change).
+ 	public float getTerrainSpaceX(final float x) {
+-		return x / 128f;
++		return this.simulationRenderController.getTerrainSpaceX(x);
+ 	}
+ 
+ 	public float getTerrainSpaceY(final float y) {
+-		return y / 128f;
++		return this.simulationRenderController.getTerrainSpaceY(y);
+ 	}
+ 
+ 	public int[] getTerrainModBufferSize(final float x, final float y, final float width, final float height) {
+-		return new int[] { 0, 0, 1, 1 };
++		return this.simulationRenderController.getTerrainModBufferSize(x, y, width, height);
+ 	}
+ 
+ 	public int[] getTerrainModBufferSize(final float centerX, final float centerY, final float radius) {
+-		return new int[] { 0, 0, 1, 1 };
++		return getTerrainModBufferSize(centerX - radius, centerY - radius, radius * 2, radius * 2);
+ 	}
+ 
+ 	public void adjustTerrain(final int[] rect, final float[] modBuffer) {
++		this.simulationRenderController.adjustTerrain(rect, modBuffer);
+ 	}
+ 
+ 	public void adjustTerrain(final float x, final float y, final Float amount) {
++		if (amount != null) {
++			this.simulationRenderController.adjustTerrain(x, y, amount.floatValue());
++		}
+ 	}
+ 
+ 	private double timerFiringExactTime = Double.NaN;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/util/SimulationRenderController.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/util/SimulationRenderController.java
+index 8adf550..42f0349 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/util/SimulationRenderController.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/util/SimulationRenderController.java
+@@ -163,6 +163,25 @@ public interface SimulationRenderController {
+ 
+ 	int getTerrainHeight(float x, float y);
+ 
++	// Blizzard launcher: ground raised or sunk by spells; nothing where nothing is drawn.
++	default float getTerrainSpaceX(final float x) {
++		return x / 128f;
++	}
++
++	default float getTerrainSpaceY(final float y) {
++		return y / 128f;
++	}
++
++	default int[] getTerrainModBufferSize(final float x, final float y, final float width, final float height) {
++		return new int[] { 0, 0, 1, 1 };
++	}
++
++	default void adjustTerrain(final int[] rect, final float[] modBuffer) {
++	}
++
++	default void adjustTerrain(final float x, final float y, final float amount) {
++	}
++
+ 	boolean isTerrainRomp(float x, float y);
+ 
+ 	boolean isTerrainWater(float x, float y);

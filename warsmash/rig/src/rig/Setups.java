@@ -30,6 +30,15 @@ public class Setups extends Scenario {
   }
 
   final List<Case> cases = List.of(
+    c("Thunder Clap (AHtc): the ground ripples and settles", 300, (s, p) -> {
+      CUnit m = unit(s, "Hmkg", 0, p[0], p[1]); CAbility a = give(s, m, "AHtc"); m.setMana(500);
+      float[] pr = new float[42]; pr[0] = p[0]; pr[1] = p[1];
+      for (int k = 0; k < 8; k++) { double an = k * Math.PI / 4; for (float r = 64; r <= 320; r += 64) pr[2 + k * 5 + (int) (r / 64) - 1] = viewer.terrain.getGroundHeight((float) (p[0] + Math.cos(an) * r), (float) (p[1] + Math.sin(an) * r)); }
+      maxDev = 0; probe = pr;
+      boolean ok = m.order(s, order(a), null);
+      return () -> { float dev = maxDev; float settled = 0; for (int k = 0; k < 8; k++) { double an = k * Math.PI / 4; for (float r = 64; r <= 320; r += 64) settled = Math.max(settled, Math.abs(viewer.terrain.getGroundHeight((float) (p[0] + Math.cos(an) * r), (float) (p[1] + Math.sin(an) * r)) - pr[2 + k * 5 + (int) (r / 64) - 1])); }
+        probe = null; return "accepted=" + ok + " largest ground change during it " + dev + ", left after it " + settled; };
+    }),
     c("Death and Decay (AUdd) on a computer player's footmen: they walk out", 600, (s, p) -> {
       com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl was = s.getPlayer(1).getController();
       s.getPlayer(1).setController(com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl.COMPUTER);
@@ -179,8 +188,10 @@ public class Setups extends Scenario {
   );
   int idx = -1, phaseStart; Supplier<String> report; float bx, by; List<String> excs = new ArrayList<>();
   public void exception(Throwable t) { excs.add(t.toString()); }
+  static War3MapViewer viewer; static float maxDev; static float[] probe;
   public boolean frame(War3MapViewer v, int n) {
-    CSimulation s = v.simulation;
+    viewer = v; CSimulation s = v.simulation;
+    if (probe != null) { for (int k = 0; k < 8; k++) { double a = k * Math.PI / 4; for (float r = 64; r <= 320; r += 64) { float h = v.terrain.getGroundHeight((float) (probe[0] + Math.cos(a) * r), (float) (probe[1] + Math.sin(a) * r)); maxDev = Math.max(maxDev, Math.abs(h - probe[2 + k * 5 + (int) (r / 64) - 1])); } } }
     if (n < 30) return false;
     if (idx == -1) { for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 0 && u.isBuilding()) { bx = u.getX() + 700; by = u.getY(); break; } idx = 0; begin(s, n); return false; }
     if (n - phaseStart >= cases.get(idx).frames()) {
