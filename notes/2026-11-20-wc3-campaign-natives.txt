@@ -1,0 +1,1 @@
+Warcraft III: campaign triggers that wait for a unit to come near now fire, and scripts read heroes' levels.

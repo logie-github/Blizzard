@@ -1,0 +1,169 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index aa5464d..8828f35 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -2098,6 +2098,54 @@ public class Jass2 {
+ 					(arguments, globalScope, triggerScope) -> {
+ 						throw new UnsupportedOperationException("Not yet implemented: GetWinningPlayer");
+ 					});
++			// Blizzard launcher: natives the campaigns call that this engine had none of.
++			jassProgramVisitor.getJassNativeManager().createNative("TriggerRegisterUnitInRange",
++					(arguments, globalScope, triggerScope) -> {
++						final Trigger trigger = nullable(arguments, 0, ObjectJassValueVisitor.<Trigger>getInstance());
++						final CUnit unit = nullable(arguments, 1, ObjectJassValueVisitor.<CUnit>getInstance());
++						final float range = arguments.get(2).visit(RealJassValueVisitor.getInstance()).floatValue();
++						final TriggerBooleanExpression filter = nullable(arguments, 3,
++								ObjectJassValueVisitor.<TriggerBooleanExpression>getInstance());
++						if ((trigger == null) || (unit == null)) {
++							return new HandleJassValue(eventType, null);
++						}
++						final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitInRangeEvent event = new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitInRangeEvent(
++								globalScope, this.simulation, unit, range, trigger, filter);
++						this.simulation.addUnitInRangeEvent(event);
++						return new HandleJassValue(eventType, event);
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("GetHeroLevel",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++						if ((unit == null) || (unit.getHeroData() == null)) {
++							return IntegerJassValue.of(0);
++						}
++						return IntegerJassValue.of(unit.getHeroData().getHeroLevel());
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("GetLevelingUnit",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = ((CommonTriggerExecutionScope) triggerScope).getLevelingUnit();
++						return new HandleJassValue(unitType, unit);
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("ShowDestructable",
++					(arguments, globalScope, triggerScope) -> {
++						final CDestructable destructable = nullable(arguments, 0,
++								ObjectJassValueVisitor.<CDestructable>getInstance());
++						final boolean show = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++						if (destructable != null) {
++							final com.etheller.warsmash.viewer5.handlers.w3x.rendersim.RenderDestructable peer = war3MapViewer
++									.getRenderPeer(destructable);
++							if ((peer != null) && (peer.instance != null)) {
++								if (show) {
++									peer.instance.show();
++								}
++								else {
++									peer.instance.hide();
++								}
++							}
++						}
++						return null;
++					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("TriggerRegisterEnterRegion",
+ 					(arguments, globalScope, triggerScope) -> {
+ 						final Trigger trigger = arguments.get(0).visit(ObjectJassValueVisitor.<Trigger>getInstance());
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 99c3d26..60bf210 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -520,6 +520,16 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		}
+ 	}
+ 
++	private final List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitInRangeEvent> unitInRangeEvents = new ArrayList<>();
++
++	public void addUnitInRangeEvent(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitInRangeEvent event) {
++		this.unitInRangeEvents.add(event);
++	}
++
++	public void removeUnitInRangeEvent(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitInRangeEvent event) {
++		this.unitInRangeEvents.remove(event);
++	}
++
+ 	public void update() {
+ 		final Iterator<CUnit> unitIterator = this.units.iterator();
+ 		while (unitIterator.hasNext()) {
+@@ -607,6 +617,10 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		this.onTickTriggers.removeAll(this.removedOnTickTriggers);
+ 		this.removedOnTickTriggers.clear();
+ 
++		// Blizzard launcher: units coming within range of a unit a trigger watches (TriggerRegisterUnitInRange).
++		for (int i = this.unitInRangeEvents.size() - 1; i >= 0; i--) {
++			this.unitInRangeEvents.get(i).update(this);
++		}
+ 		this.globalScope.runThreads();
+ 
+ 		this.runningPostUpdateCallbacks.clear();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/unit/CUnitInRangeEvent.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/unit/CUnitInRangeEvent.java
+new file mode 100644
+index 0000000..50d43c9
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/unit/CUnitInRangeEvent.java
+@@ -0,0 +1,72 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit;
++
++import java.util.LinkedHashSet;
++import java.util.Set;
++
++import com.etheller.interpreter.ast.scope.GlobalScope;
++import com.etheller.interpreter.ast.scope.TriggerExecutionScope;
++import com.etheller.interpreter.ast.scope.trigger.RemovableTriggerEvent;
++import com.etheller.interpreter.ast.scope.trigger.Trigger;
++import com.etheller.interpreter.ast.scope.trigger.TriggerBooleanExpression;
++import com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3;
++
++/**
++ * TriggerRegisterUnitInRange (Warsmash Reforged's, measured on 1.29): fires once when a unit comes within range of the
++ * centre unit, and again only after it has left; GetTriggerUnit is the unit that came. Blizzard launcher: the engine
++ * had no such event, so campaign triggers waiting on a unit coming near never ran.
++ */
++public final class CUnitInRangeEvent extends RemovableTriggerEvent {
++	private final GlobalScope globalScope;
++	private final CUnit center;
++	private final float range;
++	private final Trigger trigger;
++	private final TriggerBooleanExpression filter;
++	private Set<CUnit> inRange = new LinkedHashSet<>();
++	private Set<CUnit> swap = new LinkedHashSet<>();
++	private final CSimulation simulation;
++
++	public CUnitInRangeEvent(final GlobalScope globalScope, final CSimulation simulation, final CUnit center,
++			final float range, final Trigger trigger, final TriggerBooleanExpression filter) {
++		super(trigger);
++		this.globalScope = globalScope;
++		this.simulation = simulation;
++		this.center = center;
++		this.range = range;
++		this.trigger = trigger;
++		this.filter = filter;
++	}
++
++	@Override
++	public void remove() {
++		this.simulation.removeUnitInRangeEvent(this);
++	}
++
++	public void update(final CSimulation game) {
++		if (this.center.isDead() || this.center.isRemovedFromGame()) {
++			this.inRange.clear();
++			return;
++		}
++		this.swap.clear();
++		game.getWorldCollision().enumUnitsInRange(this.center.getX(), this.center.getY(), this.range, (unit) -> {
++			if ((unit != this.center) && !unit.isDead() && !unit.isHidden()) {
++				this.swap.add(unit);
++			}
++			return false;
++		});
++		for (final CUnit unit : this.swap) {
++			if (!this.inRange.contains(unit)) {
++				final CommonTriggerExecutionScope filterScope = CommonTriggerExecutionScope
++						.filterScope(TriggerExecutionScope.EMPTY, unit);
++				final CommonTriggerExecutionScope scope = CommonTriggerExecutionScope
++						.unitTriggerScope(JassGameEventsWar3.EVENT_UNIT_TARGET_IN_RANGE, this.trigger, unit);
++				this.globalScope.queueTrigger(this.filter, filterScope, this.trigger, scope, scope);
++			}
++		}
++		final Set<CUnit> previous = this.inRange;
++		this.inRange = this.swap;
++		this.swap = previous;
++	}
++}
