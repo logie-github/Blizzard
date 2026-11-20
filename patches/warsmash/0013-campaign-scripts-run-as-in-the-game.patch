@@ -1,0 +1,144 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index f90f5cd..aa5464d 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -5059,7 +5059,8 @@ public class Jass2 {
+ 						final CPlayer whichPlayer = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
+ 						final List<CPlayerJass> force = arguments.get(1)
+ 								.visit(ObjectJassValueVisitor.<List<CPlayerJass>>getInstance());
+-						return BooleanJassValue.of(force.contains(whichPlayer));
++						// Blizzard launcher: a null force (a global the map never set) holds no player.
++						return BooleanJassValue.of((force != null) && force.contains(whichPlayer));
+ 					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("GetUnitTypeId",
+ 					(arguments, globalScope, triggerScope) -> {
+diff --git a/jassparser/src/com/etheller/interpreter/ast/function/NativeJassFunction.java b/jassparser/src/com/etheller/interpreter/ast/function/NativeJassFunction.java
+index b2e280a..8a40bda 100644
+--- a/jassparser/src/com/etheller/interpreter/ast/function/NativeJassFunction.java
++++ b/jassparser/src/com/etheller/interpreter/ast/function/NativeJassFunction.java
+@@ -66,9 +66,34 @@ public class NativeJassFunction {
+ 		if (!checkNativeExists()) {
+ 			return this.returnType.getNullValue();
+ 		}
+-		return this.implementation.call(arguments, globalScope, triggerScope);
++		try {
++			final JassValue result = this.implementation.call(arguments, globalScope, triggerScope);
++			if ((result == null) && (this.returnType != null) && (this.returnType != com.etheller.interpreter.ast.value.JassType.NOTHING)) {
++				// Blizzard launcher: a native that gives back no value where its type has one hands on its type's
++				// empty value (a null unit, 0), so the next native sees a null handle, not a missing value.
++				final JassValue nullValue = this.returnType.getNullValue();
++				if ((nullValue != null) && NULL_RETURN_REPORTED.add(this.name)) {
++					System.err.println("JASS native " + this.name + " returned no value; its empty value is used");
++				}
++				return nullValue;
++			}
++			return result;
++		}
++		catch (final NullPointerException e) {
++			// Blizzard launcher: the original game's natives do nothing with a null handle (a unit the script never
++			// set, a destroyed group) and return their type's empty value; here the native failed on it.
++			if (NULL_HANDLE_REPORTED.add(this.name)) {
++				System.err.println("JASS native " + this.name + " met a null value, returned its empty value: " + e);
++			}
++			return this.returnType.getNullValue();
++		}
+ 	}
+ 
++	private static final java.util.Set<String> NULL_RETURN_REPORTED = java.util.Collections
++			.synchronizedSet(new java.util.HashSet<>());
++	private static final java.util.Set<String> NULL_HANDLE_REPORTED = java.util.Collections
++			.synchronizedSet(new java.util.HashSet<>());
++
+ 	private boolean checkNativeExists() {
+ 		if (this.implementation == null) {
+ 			System.err.println(
+diff --git a/jassparser/src/com/etheller/interpreter/ast/scope/GlobalScope.java b/jassparser/src/com/etheller/interpreter/ast/scope/GlobalScope.java
+index 93ddb8d..ef8837e 100644
+--- a/jassparser/src/com/etheller/interpreter/ast/scope/GlobalScope.java
++++ b/jassparser/src/com/etheller/interpreter/ast/scope/GlobalScope.java
+@@ -374,6 +374,9 @@ public final class GlobalScope {
+ 
+ 	public void resetGlobalInitialization() {
+ 		this.lastGlobalsBlockEndInstructionPtr = -1;
++		// Blizzard launcher: the globals' initializer has run; forget it, so a later script without a globals block
++		// (a Preloader .pld file) does not run it again and reset every global of the map to its starting value.
++		this.functionNameToInstructionPtr.remove(INIT_GLOBALS_AUTOGEN_FXN_NAME);
+ 	}
+ 
+ 	public void innerBeginDefiningGlobals(final int lineNo, final String sourceFile) {
+@@ -495,6 +498,45 @@ public final class GlobalScope {
+ 		this.newThreads.add(thread);
+ 	}
+ 
++	/**
++	 * Blizzard launcher: runs a trigger's new thread at once, as the original game does (TriggerExecute, an event
++	 * firing), until it ends or waits; one that waits joins the running threads and goes on after its wait. Queued
++	 * instead, a trigger that a script executed ran after the caller's later steps (Orc 02's heroes were set up before
++	 * Cairne was made). A thread that fails ends there.
++	 */
++	public void runThreadNow(final JassThread thread) {
++		final JassThread parentThread = this.currentThread;
++		final boolean parentYielded = this.yieldedCurrentThread;
++		this.currentThread = thread;
++		this.yieldedCurrentThread = false;
++		boolean ended = false;
++		try {
++			while (!thread.isSleeping()) {
++				if (thread.instructionPtr == -1) {
++					ended = true;
++					break;
++				}
++				this.instructions.get(thread.instructionPtr++).run(thread);
++			}
++		}
++		catch (final Exception exc) {
++			final JassException jassException = new JassException(this, "runThreads() encountered exception", exc);
++			JassLog.report(jassException);
++			System.err.println("JASS thread ended on error: " + jassException.getMessage() + " (" + exc + ")");
++			ended = true;
++		}
++		finally {
++			if (this.yieldedCurrentThread) {
++				thread.setSleeping(false);
++			}
++			this.currentThread = parentThread;
++			this.yieldedCurrentThread = parentYielded;
++		}
++		if (!ended) {
++			this.newThreads.add(thread);
++		}
++	}
++
+ 	public JassThread createThread(final CodeJassValue codeValue, final TriggerExecutionScope triggerScope) {
+ 		final JassThread newThread = createThread(codeValue.getUserFunctionInstructionPtr(), triggerScope);
+ 		codeValue.initStack(newThread.stackFrame);
+@@ -650,9 +692,15 @@ public final class GlobalScope {
+ 				}
+ 			}
+ 			catch (final Exception exc) {
++				// Blizzard launcher: as in the original game, a script thread that fails ends there and the others go
++				// on. Left in the list, it ran on from the middle of its failed instruction with a broken stack and
++				// failed again every frame; thrown, it also stopped every other thread for the frame.
+ 				final JassException jassException = new JassException(this, "runThreads() encountered exception", exc);
+ 				JassLog.report(jassException);
+-				throw jassException;
++				System.err.println("JASS thread ended on error: " + jassException.getMessage() + " (" + exc + ")");
++				this.threads.remove(threadIndex);
++				this.yieldedCurrentThread = false;
++				continue;
+ 			}
+ 			if (this.yieldedCurrentThread) {
+ 				this.currentThread.setSleeping(false);
+diff --git a/jassparser/src/com/etheller/interpreter/ast/scope/trigger/Trigger.java b/jassparser/src/com/etheller/interpreter/ast/scope/trigger/Trigger.java
+index 1baa243..8ad3570 100644
+--- a/jassparser/src/com/etheller/interpreter/ast/scope/trigger/Trigger.java
++++ b/jassparser/src/com/etheller/interpreter/ast/scope/trigger/Trigger.java
+@@ -139,7 +139,7 @@ public class Trigger implements CHandle {
+ 		public JassValue call(final List<JassValue> arguments, final GlobalScope globalScope,
+ 				final TriggerExecutionScope triggerScope) {
+ 			final JassThread triggerThread = globalScope.createThread(this.codeJassValue, triggerScope);
+-			globalScope.queueThread(triggerThread);
++			globalScope.runThreadNow(triggerThread);
+ 			return null;
+ 		}
+ 

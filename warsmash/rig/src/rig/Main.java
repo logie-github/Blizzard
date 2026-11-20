@@ -40,7 +40,7 @@ public class Main {
         try {
           frame[0]++;
           if (!started[0] && frame[0] == 5) { started[0] = true; System.err.println("RIG: startMap " + map); menu[0].startMap(map); }
-          try { g.render(); } catch (Throwable t) { if (viewer == null) throw t; System.err.println("RIG: EXC " + t); for (StackTraceElement e : t.getStackTrace()) { if (e.getClassName().contains("etheller")) System.err.println("RIG:   at " + e); } sc.exception(t); }
+          try { g.render(); } catch (Throwable t) { if (viewer == null) throw t; System.err.println("RIG: EXC " + t); for (StackTraceElement e : t.getStackTrace()) { if (e.getClassName().contains("etheller")) System.err.println("RIG:   at " + e); } for (Throwable c = t.getCause(); c != null && c != c.getCause(); c = c.getCause()) { System.err.println("RIG:   cause " + c); for (StackTraceElement e : c.getStackTrace()) { if (e.getClassName().contains("etheller")) { System.err.println("RIG:     at " + e); break; } } } sc.exception(t); }
           Screen s = g.getScreen();
           if (s instanceof WarsmashGdxMapScreen ms) {
             if (viewer == null) { Field f = WarsmashGdxMapScreen.class.getDeclaredField("viewer"); f.setAccessible(true); viewer = (War3MapViewer) f.get(ms); System.err.println("RIG: map screen at frame " + frame[0]); }

@@ -21,7 +21,8 @@ scripts, and Warcraft III 1.27's own files. Nothing here ships in the app.
 - `src/rig/Setups.java`: abilities that need a scene of their own (a tree, a building to hit, peons to call, an
   upgrade, a neutral critter, a walk before a channel): each case builds it, waits and prints what it measured.
 - `src/rig/TypeScan.java`: every ability alias listed in `$ALIASES` that the engine has no ability type for.
-- `src/rig/Dump.java`: copies files out of the game's MPQs (`Units\AbilityData.slk` and the like).
+- `Idle` runs `$FRAMES` frames (300 by default); a failed script thread prints `JASS thread ended on error`.
+- `src/rig/Dump.java`: copies files out of the game's MPQs (`Units\AbilityData.slk` and the like; `EXTRA` adds more MPQs, a map's own `war3map.j` with the map file there; run with `RIGMAIN=rig.Dump`).
 
 ## Running
 

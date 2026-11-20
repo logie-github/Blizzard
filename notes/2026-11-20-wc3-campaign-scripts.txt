@@ -1,0 +1,1 @@
+Warcraft III: campaign missions' scripts run as in the game (Frozen Throne's first Night Elf mission's intro, Cairne in Orc 02), and a script error no longer repeats every frame.
