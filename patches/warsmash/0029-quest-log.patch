@@ -1,0 +1,987 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/fdf/frames/TextAreaFrame.java b/core/src/com/etheller/warsmash/parsers/fdf/frames/TextAreaFrame.java
+index 51023fa..1e0134a 100644
+--- a/core/src/com/etheller/warsmash/parsers/fdf/frames/TextAreaFrame.java
++++ b/core/src/com/etheller/warsmash/parsers/fdf/frames/TextAreaFrame.java
+@@ -108,6 +108,58 @@ public class TextAreaFrame extends ControlFrame implements ScrollBarFrame.Scroll
+ 		updateUI(gameUI, viewport);
+ 	}
+ 
++	// Blizzard launcher: a text wrapped into the area's lines (Warsmash Reforged's), for the Quests dialog.
++	public void setText(final String text, final GameUI gameUI, final Viewport viewport) {
++		final List<String> lines = new ArrayList<>();
++		float width = this.renderBounds.width - (this.inset * 2);
++		if (this.scrollBarFrame != null) {
++			width -= this.scrollBarFrame.getAssignedWidth();
++		}
++		final GlyphLayout glyphLayout = gameUI.getGlyphLayout();
++		String color = "";
++		for (final String paragraph : text.split("\\|[nN]|\n", -1)) {
++			final StringBuilder line = new StringBuilder(color);
++			boolean lineHasWord = false;
++			for (final String word : paragraph.split(" ", -1)) {
++				final String candidate = lineHasWord ? line + " " + word : line + word;
++				glyphLayout.setText(this.frameFont, withoutColorCodes(candidate));
++				if (lineHasWord && (glyphLayout.width > width)) {
++					lines.add(line.toString());
++					line.setLength(0);
++					line.append(color).append(word);
++				}
++				else {
++					line.setLength(0);
++					line.append(candidate);
++				}
++				lineHasWord = true;
++				color = activeColorCode(word, color);
++			}
++			lines.add(line.toString());
++		}
++		setItems(lines, gameUI, viewport);
++	}
++
++	private static String withoutColorCodes(final String text) {
++		return text.replaceAll("\\|[cC][0-9a-fA-F]{8}|\\|[rR]", "");
++	}
++
++	private static String activeColorCode(final String word, final String color) {
++		String active = color;
++		for (int i = 0; (i + 1) < word.length(); i++) {
++			if (word.charAt(i) == '|') {
++				final char code = Character.toLowerCase(word.charAt(i + 1));
++				if ((code == 'c') && ((i + 10) <= word.length())) {
++					active = word.substring(i, i + 10);
++				}
++				else if (code == 'r') {
++					active = "";
++				}
++			}
++		}
++		return active;
++	}
++
+ 	public void removeItem(final String item, final GameUI gameUI, final Viewport viewport) {
+ 		this.listItems.remove(item);
+ 		updateUI(gameUI, viewport);
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index e0c8656..22232b3 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -449,6 +449,123 @@ public final class LauncherNatives {
+ 				.of((filter != null) && filter.isDisplayed()));
+ 	}
+ 
++	/** The quest log (Reforged's): quests, their requirements and the defeat conditions the Quests dialog lists. */
++	private static void registerQuests(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
++			final CSimulation simulation, final War3MapViewer war3MapViewer,
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI,
++			final com.etheller.interpreter.ast.scope.GlobalScope globals) {
++		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
++		final HandleJassType questType = globals.getHandleType("quest");
++		final HandleJassType questitemType = globals.getHandleType("questitem");
++		final HandleJassType defeatconditionType = globals.getHandleType("defeatcondition");
++		final java.util.function.Function<String, String> trigStr = (text) -> (text == null) || (war3MapViewer.getGameUI() == null) ? text
++				: war3MapViewer.getGameUI().getTrigStr(text);
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestLog log = simulation.getQuestLog();
++		natives.createNative("CreateQuest", (arguments, globalScope, triggerScope) -> new HandleJassValue(questType, log.createQuest()));
++		natives.createNative("DestroyQuest", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			if (quest != null) {
++				log.destroyQuest(quest);
++			}
++			return null;
++		});
++		natives.createNative("QuestSetTitle", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			if (quest != null) {
++				quest.setTitle(trigStr.apply(nullable(arguments, 1, StringJassValueVisitor.getInstance())));
++			}
++			return null;
++		});
++		natives.createNative("QuestSetDescription", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			if (quest != null) {
++				quest.setDescription(trigStr.apply(nullable(arguments, 1, StringJassValueVisitor.getInstance())));
++			}
++			return null;
++		});
++		natives.createNative("QuestSetIconPath", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			if (quest != null) {
++				quest.setIconPath(nullable(arguments, 1, StringJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		registerQuestFlag(natives, "Required", com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::setRequired, com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::isRequired);
++		registerQuestFlag(natives, "Completed", com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::setCompleted, com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::isCompleted);
++		registerQuestFlag(natives, "Discovered", com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::setDiscovered, com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::isDiscovered);
++		registerQuestFlag(natives, "Failed", com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::setFailed, com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::isFailed);
++		registerQuestFlag(natives, "Enabled", com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::setEnabled, com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest::isEnabled);
++		natives.createNative("QuestCreateItem", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			if ((quest == null) || quest.isDestroyed()) {
++				return questitemType.getNullValue();
++			}
++			return new HandleJassValue(questitemType, quest.createItem());
++		});
++		natives.createNative("QuestItemSetDescription", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem item = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem>getInstance());
++			if (item != null) {
++				item.setDescription(trigStr.apply(nullable(arguments, 1, StringJassValueVisitor.getInstance())));
++			}
++			return null;
++		});
++		natives.createNative("QuestItemSetCompleted", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem item = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem>getInstance());
++			if (item != null) {
++				item.setCompleted(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("IsQuestItemCompleted", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem item = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem>getInstance());
++			return BooleanJassValue.of((item != null) && item.isCompleted());
++		});
++		natives.createNative("CreateDefeatCondition", (arguments, globalScope, triggerScope) -> new HandleJassValue(defeatconditionType, log.createDefeatCondition()));
++		natives.createNative("DestroyDefeatCondition", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CDefeatCondition condition = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CDefeatCondition>getInstance());
++			if (condition != null) {
++				log.destroyDefeatCondition(condition);
++			}
++			return null;
++		});
++		natives.createNative("DefeatConditionSetDescription", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CDefeatCondition condition = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CDefeatCondition>getInstance());
++			if (condition != null) {
++				condition.setDescription(trigStr.apply(nullable(arguments, 1, StringJassValueVisitor.getInstance())));
++			}
++			return null;
++		});
++		natives.createNative("FlashQuestDialogButton", (arguments, globalScope, triggerScope) -> {
++			if (meleeUI != null) {
++				meleeUI.flashQuestDialogButton();
++			}
++			return null;
++		});
++		natives.createNative("ForceQuestDialogUpdate", (arguments, globalScope, triggerScope) -> {
++			if (meleeUI != null) {
++				meleeUI.forceQuestDialogUpdate();
++			}
++			return null;
++		});
++	}
++
++	private static void registerQuestFlag(final com.etheller.interpreter.ast.function.JassNativeManager natives,
++			final String flag,
++			final java.util.function.BiConsumer<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest, Boolean> setter,
++			final java.util.function.Predicate<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest> getter) {
++		natives.createNative("QuestSet" + flag, (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			if (quest != null) {
++				setter.accept(quest, arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("IsQuest" + flag, (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest quest = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest>getInstance());
++			return BooleanJassValue.of((quest != null) && getter.test(quest));
++		});
++	}
++
+ 	private static JassValue orderOf(final JassValue orderString) {
+ 		final String s = orderString == null ? null : orderString.visit(StringJassValueVisitor.getInstance());
+ 		return IntegerJassValue.of(s == null ? 0 : OrderIdUtils.getOrderId(s));
+@@ -470,6 +587,7 @@ public final class LauncherNatives {
+ 		final HandleJassType destructableType = globals.getHandleType("destructable");
+ 		registerGuardPositions(jassProgramVisitor, simulation);
+ 		registerCineFilter(jassProgramVisitor, meleeUI);
++		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index be225a1..2dd863e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -90,6 +90,12 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 	private final CDestructableData destructableData;
+ 	private final CItemData itemData;
+ 	private final Map<War3ID, List<War3ID>> unitToTechEquivalents = new HashMap<>();
++	// Blizzard launcher: the quests and defeat conditions the map script made (Reforged's).
++	private final com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestLog questLog = new com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestLog();
++
++	public com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestLog getQuestLog() {
++		return this.questLog;
++	}
+ 
+ 	/** Blizzard launcher: the tech equivalents (TALT, TWN1 to TWN3) a unit type counts as. */
+ 	public List<War3ID> getTechEquivalents(final War3ID unitId) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CDefeatCondition.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CDefeatCondition.java
+new file mode 100644
+index 0000000..e508df4
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CDefeatCondition.java
+@@ -0,0 +1,21 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest;
++
++
++
++public class CDefeatCondition extends QuestHandle {
++	private final CQuestLog log;
++	private String description = "";
++
++	CDefeatCondition(final CQuestLog log) {
++		this.log = log;
++	}
++
++	public String getDescription() {
++		return this.description;
++	}
++
++	public void setDescription(final String description) {
++		this.description = description == null ? "" : description;
++		this.log.changed();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuest.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuest.java
+new file mode 100644
+index 0000000..88a9129
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuest.java
+@@ -0,0 +1,122 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++
++
++
++public class CQuest extends QuestHandle {
++	private final CQuestLog log;
++	private final List<CQuestItem> items = new ArrayList<>();
++	private String title = "";
++	private String description = "";
++	private String iconPath = "";
++	private boolean required = true;
++	private boolean completed;
++	private boolean failed;
++	private boolean discovered = true;
++	private boolean enabled = true;
++	private boolean destroyed;
++
++	CQuest(final CQuestLog log) {
++		this.log = log;
++	}
++
++	public CQuestItem createItem() {
++		final CQuestItem item = new CQuestItem(this);
++		this.items.add(item);
++		changed();
++		return item;
++	}
++
++	public List<CQuestItem> getItems() {
++		return Collections.unmodifiableList(this.items);
++	}
++
++	public String getTitle() {
++		return this.title;
++	}
++
++	public void setTitle(final String title) {
++		this.title = title == null ? "" : title;
++		changed();
++	}
++
++	public String getDescription() {
++		return this.description;
++	}
++
++	public void setDescription(final String description) {
++		this.description = description == null ? "" : description;
++		changed();
++	}
++
++	public String getIconPath() {
++		return this.iconPath;
++	}
++
++	public void setIconPath(final String iconPath) {
++		this.iconPath = iconPath == null ? "" : iconPath;
++		changed();
++	}
++
++	public boolean isRequired() {
++		return this.required;
++	}
++
++	public void setRequired(final boolean required) {
++		this.required = required;
++		changed();
++	}
++
++	public boolean isCompleted() {
++		return this.completed;
++	}
++
++	public void setCompleted(final boolean completed) {
++		this.completed = completed;
++		changed();
++	}
++
++	public boolean isFailed() {
++		return this.failed;
++	}
++
++	public void setFailed(final boolean failed) {
++		this.failed = failed;
++		changed();
++	}
++
++	public boolean isDiscovered() {
++		return this.discovered;
++	}
++
++	public void setDiscovered(final boolean discovered) {
++		this.discovered = discovered;
++		changed();
++	}
++
++	public boolean isEnabled() {
++		return this.enabled;
++	}
++
++	public void setEnabled(final boolean enabled) {
++		this.enabled = enabled;
++		changed();
++	}
++
++	public boolean isDestroyed() {
++		return this.destroyed;
++	}
++
++	void destroy() {
++		this.destroyed = true;
++	}
++
++	void changed() {
++		if (!this.destroyed) {
++			this.log.changed();
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuestItem.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuestItem.java
+new file mode 100644
+index 0000000..2d01655
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuestItem.java
+@@ -0,0 +1,31 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest;
++
++
++
++public class CQuestItem extends QuestHandle {
++	private final CQuest quest;
++	private String description = "";
++	private boolean completed;
++
++	CQuestItem(final CQuest quest) {
++		this.quest = quest;
++	}
++
++	public String getDescription() {
++		return this.description;
++	}
++
++	public void setDescription(final String description) {
++		this.description = description == null ? "" : description;
++		this.quest.changed();
++	}
++
++	public boolean isCompleted() {
++		return this.completed;
++	}
++
++	public void setCompleted(final boolean completed) {
++		this.completed = completed;
++		this.quest.changed();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuestLog.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuestLog.java
+new file mode 100644
+index 0000000..3eec179
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/CQuestLog.java
+@@ -0,0 +1,59 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++
++/**
++ * Blizzard launcher: Warsmash Reforged's. The quests and defeat conditions a map script made, in the order it made them, which is the order the Quests dialog
++ * lists them in.
++ */
++public class CQuestLog {
++	private final List<CQuest> quests = new ArrayList<>();
++	private final List<CDefeatCondition> defeatConditions = new ArrayList<>();
++	private Runnable changeListener = () -> {
++	};
++
++	public void setChangeListener(final Runnable changeListener) {
++		this.changeListener = changeListener;
++	}
++
++	public CQuest createQuest() {
++		final CQuest quest = new CQuest(this);
++		this.quests.add(quest);
++		changed();
++		return quest;
++	}
++
++	public void destroyQuest(final CQuest quest) {
++		if (this.quests.remove(quest)) {
++			quest.destroy();
++			changed();
++		}
++	}
++
++	public CDefeatCondition createDefeatCondition() {
++		final CDefeatCondition condition = new CDefeatCondition(this);
++		this.defeatConditions.add(condition);
++		changed();
++		return condition;
++	}
++
++	public void destroyDefeatCondition(final CDefeatCondition condition) {
++		if (this.defeatConditions.remove(condition)) {
++			changed();
++		}
++	}
++
++	public List<CQuest> getQuests() {
++		return Collections.unmodifiableList(this.quests);
++	}
++
++	public List<CDefeatCondition> getDefeatConditions() {
++		return Collections.unmodifiableList(this.defeatConditions);
++	}
++
++	void changed() {
++		this.changeListener.run();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/QuestHandle.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/QuestHandle.java
+new file mode 100644
+index 0000000..d94dffa
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/quest/QuestHandle.java
+@@ -0,0 +1,14 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest;
++
++import com.etheller.interpreter.ast.util.CHandle;
++
++/** Blizzard launcher: a script handle for the quest log's objects (Reforged's are allocated handles). */
++public abstract class QuestHandle implements CHandle {
++	private static int nextHandleId = 0x300000;
++	private final int handleId = nextHandleId++;
++
++	@Override
++	public int getHandleId() {
++		return this.handleId;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java
+new file mode 100644
+index 0000000..8cbb6f9
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java
+@@ -0,0 +1,407 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.ui;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.badlogic.gdx.graphics.Texture;
++import com.badlogic.gdx.utils.viewport.Viewport;
++import com.etheller.warsmash.parsers.fdf.GameUI;
++import com.etheller.warsmash.parsers.fdf.datamodel.AnchorDefinition;
++import com.etheller.warsmash.parsers.fdf.datamodel.FramePoint;
++import com.etheller.warsmash.parsers.fdf.frames.AbstractRenderableFrame;
++import com.etheller.warsmash.parsers.fdf.frames.BackdropFrame;
++import com.etheller.warsmash.parsers.fdf.frames.GlueButtonFrame;
++import com.etheller.warsmash.parsers.fdf.frames.GlueTextButtonFrame;
++import com.etheller.warsmash.parsers.fdf.frames.ScrollBarFrame;
++import com.etheller.warsmash.parsers.fdf.frames.SetPoint;
++import com.etheller.warsmash.parsers.fdf.frames.SimpleFrame;
++import com.etheller.warsmash.parsers.fdf.frames.StringFrame;
++import com.etheller.warsmash.parsers.fdf.frames.TextAreaFrame;
++import com.etheller.warsmash.parsers.fdf.frames.UIFrame;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CDefeatCondition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuest;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestItem;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.quest.CQuestLog;
++
++/**
++ * The Quests dialog (F9) of the original game, built from QuestDialog.fdf: the main and optional quests the map
++ * script made, each a button with its icon, and for the chosen quest its requirements, the map's defeat conditions
++ * and the quest's description. Placement and order as measured in the original game (1.29).
++ */
++public class MeleeQuestDialog {
++	private static final float DIALOG_TOP = -0.03f;
++	private static final int LIST_ROWS = 3;
++	private static final float LIST_ITEM_WIDTH = 0.2f;
++	private static final float LIST_ITEM_HEIGHT = 0.035f;
++	private static final float LIST_ICON_SIZE = 0.035f;
++	private static final float LIST_ITEM_FRAME_HEIGHT = 0.033f;
++	private static final float BUTTON_INSET = 0.003f;
++	// Measured places of the texts; this engine does not apply FDF FontJustificationOffset.
++	private static final float LIST_TITLE_LEFT = 0.007f;
++	private static final float LIST_TITLE_RAISE = 0.002f;
++	private static final float LIST_STATUS_LEFT = 0.008f;
++	private static final float LIST_STATUS_BOTTOM = 0.005f;
++	private static final float REQUIREMENT_LEFT = 0.012f;
++	private static final int REQUIREMENT_ROWS = 4;
++	private static final float REQUIREMENT_LINE_HEIGHT = 0.013f;
++
++	private final GameUI rootFrame;
++	private final Viewport uiViewport;
++	private final CQuestLog questLog;
++	private final SimpleFrame container;
++	private final UIFrame dialog;
++	private final QuestList mainList;
++	private final QuestList optionalList;
++	private final StringFrame detailsTitle;
++	private final UIFrame requirementsContainer;
++	private final ScrollBarFrame requirementsScrollBar;
++	private final List<StringFrame> requirementLines = new ArrayList<>();
++	private final List<Requirement> requirements = new ArrayList<>();
++	private int firstRequirement;
++	private final TextAreaFrame display;
++	private final Texture undiscoveredIcon;
++	private CQuest selected;
++	private boolean changed;
++
++	public MeleeQuestDialog(final GameUI rootFrame, final Viewport uiViewport, final CQuestLog questLog) {
++		this.rootFrame = rootFrame;
++		this.uiViewport = uiViewport;
++		this.questLog = questLog;
++		this.container = (SimpleFrame) rootFrame.createSimpleFrame("SmashQuestDialog", rootFrame, 0);
++		this.container.addAnchor(new AnchorDefinition(FramePoint.TOP, 0, GameUI.convertY(uiViewport, DIALOG_TOP)));
++		this.dialog = rootFrame.createFrame("QuestDialog", this.container, 0, 0);
++		this.dialog.addSetPoint(new SetPoint(FramePoint.CENTER, this.container, FramePoint.CENTER, 0, 0));
++		this.container.add(this.dialog);
++		this.container.setWidth(this.dialog.getAssignedWidth());
++		this.container.setHeight(this.dialog.getAssignedHeight());
++
++		rootFrame.setText((StringFrame) rootFrame.getFrameByName("QuestTitleValue", 0), "");
++		rootFrame.setDecoratedText((StringFrame) rootFrame.getFrameByName("QuestSubtitleValue", 0), "QUESTS");
++		this.mainList = new QuestList(rootFrame.getFrameByName("QuestMainContainer", 0), "QuestMainListScrollBar");
++		this.optionalList = new QuestList(rootFrame.getFrameByName("QuestOptionalContainer", 0),
++				"QuestOptionalListScrollBar");
++		this.detailsTitle = (StringFrame) rootFrame.getFrameByName("QuestDetailsTitle", 0);
++		this.requirementsContainer = rootFrame.getFrameByName("QuestItemListContainer", 0);
++		this.display = (TextAreaFrame) rootFrame.getFrameByName("QuestDisplay", 0);
++		// The FDF pins the text area's lower corner to the backdrop it is inside, which is not named yet while its
++		// children are made.
++		this.display.addSetPoint(new SetPoint(FramePoint.BOTTOMRIGHT,
++				rootFrame.getFrameByName("QuestDisplayBackdrop", 0), FramePoint.BOTTOMRIGHT,
++				GameUI.convertX(uiViewport, -0.01f), GameUI.convertY(uiViewport, 0.02f)));
++		this.requirementsScrollBar = (ScrollBarFrame) rootFrame.createFrame("QuestItemListScrollBar", this.container,
++				0, 0);
++		this.container.add(this.requirementsScrollBar);
++		this.requirementsScrollBar.setChangeListener((gameUI, viewport, newValue) -> {
++			final int hidden = Math.max(0, this.requirements.size() - REQUIREMENT_ROWS);
++			this.firstRequirement = Math.round(((100 - newValue) / 100f) * hidden);
++			showRequirementLines();
++		});
++		for (int i = 0; i < REQUIREMENT_ROWS; i++) {
++			this.requirementLines.add(createRequirementLine(i));
++		}
++		this.undiscoveredIcon = rootFrame.loadTexture(rootFrame.getSkinField("UndiscoveredQuestIcon"));
++		final GlueTextButtonFrame acceptButton = (GlueTextButtonFrame) rootFrame.getFrameByName("QuestAcceptButton",
++				0);
++		acceptButton.setOnClick(() -> setVisible(false));
++		questLog.setChangeListener(() -> this.changed = true);
++		this.container.setVisible(false);
++	}
++
++	private StringFrame createRequirementLine(final int row) {
++		final UIFrame line = this.rootFrame.createFrame("QuestItemListItem", this.container, 0, 0);
++		this.container.add(line);
++		line.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this.requirementsContainer, FramePoint.TOPLEFT, 0,
++				GameUI.convertY(this.uiViewport, -row * REQUIREMENT_LINE_HEIGHT)));
++		line.setWidth(this.requirementsContainer.getAssignedWidth());
++		final StringFrame text = (StringFrame) this.rootFrame.getFrameByName("QuestItemListItemTitle", 0);
++		text.addSetPoint(new SetPoint(FramePoint.LEFT, line, FramePoint.LEFT,
++				GameUI.convertX(this.uiViewport, REQUIREMENT_LEFT), 0));
++		text.addSetPoint(new SetPoint(FramePoint.RIGHT, line, FramePoint.RIGHT,
++				GameUI.convertX(this.uiViewport, -0.002f), 0));
++		return text;
++	}
++
++	public UIFrame getFrame() {
++		return this.container;
++	}
++
++	public boolean isVisible() {
++		return this.container.isVisible();
++	}
++
++	public boolean contains(final float uiX, final float uiY) {
++		return isVisible() && ((AbstractRenderableFrame) this.dialog).getRenderBounds().contains(uiX, uiY);
++	}
++
++	public void setVisible(final boolean visible) {
++		this.container.setVisible(visible);
++		if (visible) {
++			refresh();
++		}
++	}
++
++	/**
++	 * Shows what the script changed while the dialog is open.
++	 */
++	public void update() {
++		if (this.changed && isVisible()) {
++			refresh();
++		}
++	}
++
++	public void forceUpdate() {
++		this.changed = true;
++		update();
++	}
++
++	private void refresh() {
++		this.changed = false;
++		final List<CQuest> main = new ArrayList<>();
++		final List<CQuest> optional = new ArrayList<>();
++		// Measured: open quests first, then failed, then completed, each in the order the script made them.
++		for (int pass = 0; pass < 3; pass++) {
++			for (final CQuest quest : this.questLog.getQuests()) {
++				if (quest.isEnabled() && (listPass(quest) == pass)) {
++					(quest.isRequired() ? main : optional).add(quest);
++				}
++			}
++		}
++		if ((this.selected == null) || !(main.contains(this.selected) || optional.contains(this.selected))) {
++			this.selected = !main.isEmpty() ? main.get(0) : (!optional.isEmpty() ? optional.get(0) : null);
++		}
++		this.mainList.show(main);
++		this.optionalList.show(optional);
++		showDetails();
++		this.container.positionBounds(this.rootFrame, this.uiViewport);
++		this.mainList.positionItems();
++		this.optionalList.positionItems();
++		showRequirementLines();
++		showDescription();
++	}
++
++	private static int listPass(final CQuest quest) {
++		if (quest.isCompleted()) {
++			return 2;
++		}
++		return quest.isFailed() ? 1 : 0;
++	}
++
++	private void showDetails() {
++		final CQuest quest = this.selected;
++		this.requirements.clear();
++		if (quest == null) {
++			this.rootFrame.setText(this.detailsTitle, "");
++		}
++		else if (quest.isDiscovered()) {
++			this.rootFrame.setText(this.detailsTitle, quest.getTitle());
++			final String completed = this.rootFrame.getTemplates().getDecoratedString("QUESTCOMPLETED");
++			for (final CQuestItem item : quest.getItems()) {
++				if (item.isCompleted()) {
++					this.requirements
++							.add(new Requirement("- " + item.getDescription() + " ( " + completed + " )", true));
++				}
++				else {
++					this.requirements.add(new Requirement("- " + item.getDescription(), false));
++				}
++			}
++			for (final CDefeatCondition condition : this.questLog.getDefeatConditions()) {
++				this.requirements.add(new Requirement("- " + condition.getDescription(), false));
++			}
++		}
++		else {
++			this.rootFrame.setDecoratedText(this.detailsTitle, "UNDISCOVERED_QUEST");
++		}
++		this.firstRequirement = 0;
++		final boolean scrolls = this.requirements.size() > REQUIREMENT_ROWS;
++		this.requirementsScrollBar.setVisible(scrolls);
++		if (scrolls) {
++			this.requirementsScrollBar.setValue(this.rootFrame, this.uiViewport, 100);
++		}
++	}
++
++	private void showRequirementLines() {
++		for (int row = 0; row < REQUIREMENT_ROWS; row++) {
++			final StringFrame line = this.requirementLines.get(row);
++			final int index = this.firstRequirement + row;
++			if (index < this.requirements.size()) {
++				final Requirement requirement = this.requirements.get(index);
++				this.rootFrame.setText(line, requirement.text);
++				line.setColor(requirement.completed ? line.getFontDisabledColor() : line.getFontOriginalColor());
++			}
++			else {
++				this.rootFrame.setText(line, "");
++			}
++			line.positionBounds(this.rootFrame, this.uiViewport);
++		}
++	}
++
++	private void showDescription() {
++		final CQuest quest = this.selected;
++		String text = "";
++		if (quest != null) {
++			text = quest.isDiscovered() ? quest.getDescription()
++					: this.rootFrame.getTemplates().getDecoratedString("QUESTNOTDISCOVERED");
++		}
++		final ScrollBarFrame scrollBar = this.display.getScrollBarFrame();
++		if (scrollBar != null) {
++			scrollBar.setValue(this.rootFrame, this.uiViewport, 100);
++		}
++		this.display.setText(text, this.rootFrame, this.uiViewport);
++	}
++
++	private void select(final CQuest quest) {
++		this.selected = quest;
++		refresh();
++	}
++
++	private static final class Requirement {
++		private final String text;
++		private final boolean completed;
++
++		private Requirement(final String text, final boolean completed) {
++			this.text = text;
++			this.completed = completed;
++		}
++	}
++
++	private final class QuestList {
++		private final UIFrame listContainer;
++		private final ScrollBarFrame scrollBar;
++		private final List<ListItem> items = new ArrayList<>();
++		private List<CQuest> quests = new ArrayList<>();
++		private int firstRow;
++
++		private QuestList(final UIFrame listContainer, final String scrollBarName) {
++			this.listContainer = listContainer;
++			this.scrollBar = (ScrollBarFrame) MeleeQuestDialog.this.rootFrame.createFrame(scrollBarName,
++					MeleeQuestDialog.this.container, 0, 0);
++			MeleeQuestDialog.this.container.add(this.scrollBar);
++			this.scrollBar.setChangeListener((gameUI, uiViewport, newValue) -> {
++				final int hiddenRows = Math.max(0, this.quests.size() - LIST_ROWS);
++				final int firstRow = Math.round(((100 - newValue) / 100f) * hiddenRows);
++				if (firstRow != this.firstRow) {
++					this.firstRow = firstRow;
++					positionItems();
++				}
++			});
++		}
++
++		private void show(final List<CQuest> quests) {
++			this.quests = quests;
++			while (this.items.size() < quests.size()) {
++				this.items.add(new ListItem());
++			}
++			for (int i = 0; i < this.items.size(); i++) {
++				this.items.get(i).show(i < quests.size() ? quests.get(i) : null);
++			}
++			this.firstRow = Math.min(this.firstRow, Math.max(0, quests.size() - LIST_ROWS));
++			this.scrollBar.setVisible(quests.size() > LIST_ROWS);
++		}
++
++		private void positionItems() {
++			final GameUI rootFrame = MeleeQuestDialog.this.rootFrame;
++			final Viewport viewport = MeleeQuestDialog.this.uiViewport;
++			this.scrollBar.positionBounds(rootFrame, viewport);
++			for (int i = 0; i < this.quests.size(); i++) {
++				final ListItem item = this.items.get(i);
++				final int row = i - this.firstRow;
++				final boolean onList = (row >= 0) && (row < LIST_ROWS);
++				item.frame.setVisible(onList);
++				item.selectedHighlight.setVisible(onList && (item.quest == MeleeQuestDialog.this.selected));
++				if (onList) {
++					item.frame.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this.listContainer, FramePoint.TOPLEFT, 0,
++							GameUI.convertY(viewport, -row * LIST_ITEM_HEIGHT)));
++					item.frame.positionBounds(rootFrame, viewport);
++					item.selectedHighlight.positionBounds(rootFrame, viewport);
++				}
++			}
++		}
++	}
++
++	private final class ListItem {
++		private final UIFrame frame;
++		private final BackdropFrame icon;
++		private final GlueButtonFrame button;
++		private final UIFrame normalBackdrop;
++		private final UIFrame completedBackdrop;
++		private final UIFrame failedBackdrop;
++		private final UIFrame selectedHighlight;
++		private final StringFrame status;
++		private final StringFrame title;
++		private CQuest quest;
++
++		private ListItem() {
++			final GameUI rootFrame = MeleeQuestDialog.this.rootFrame;
++			final Viewport viewport = MeleeQuestDialog.this.uiViewport;
++			this.frame = rootFrame.createFrame("QuestListItem", MeleeQuestDialog.this.container, 0, 0);
++			this.frame.setWidth(GameUI.convertX(viewport, LIST_ITEM_WIDTH));
++			MeleeQuestDialog.this.container.add(this.frame);
++			this.icon = (BackdropFrame) rootFrame.getFrameByName("QuestListItemIconContainer", 0);
++			this.button = (GlueButtonFrame) rootFrame.getFrameByName("QuestListItemButton", 0);
++			this.status = (StringFrame) rootFrame.getFrameByName("QuestListItemComplete", 0);
++			this.title = (StringFrame) rootFrame.getFrameByName("QuestListItemTitle", 0);
++			// The FDF pins these to the list item itself, which is not named yet while its children are made.
++			this.icon.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this.frame, FramePoint.TOPLEFT, 0, 0));
++			this.button.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this.icon, FramePoint.TOPRIGHT,
++					GameUI.convertX(viewport, -BUTTON_INSET), 0));
++			// Sized here too: an explicit size from the template wins over the second anchor in this engine.
++			this.button.setWidth(GameUI.convertX(viewport, LIST_ITEM_WIDTH - LIST_ICON_SIZE));
++			this.button.setHeight(GameUI.convertY(viewport, LIST_ITEM_FRAME_HEIGHT));
++			this.title.addSetPoint(new SetPoint(FramePoint.LEFT, this.button, FramePoint.LEFT,
++					GameUI.convertX(viewport, LIST_TITLE_LEFT), GameUI.convertY(viewport, LIST_TITLE_RAISE)));
++			// The offsets the FDF gives put the text over the title in this engine; these match a 1.29 picture.
++			this.status.addSetPoint(new SetPoint(FramePoint.BOTTOMLEFT, this.button, FramePoint.BOTTOMLEFT,
++					GameUI.convertX(viewport, LIST_STATUS_LEFT), GameUI.convertY(viewport, LIST_STATUS_BOTTOM)));
++			this.normalBackdrop = backdrop("QuestButtonBackdropTemplate");
++			this.completedBackdrop = backdrop("QuestButtonPushedBackdropTemplate");
++			this.failedBackdrop = backdrop("QuestButtonDisabledPushedBackdropTemplate");
++			this.selectedHighlight = rootFrame.createFrame("QuestButtonMouseOverHighlightTemplate", this.button, 0,
++					0);
++			this.selectedHighlight.setSetAllPoints(true);
++			MeleeQuestDialog.this.container.add(this.selectedHighlight);
++			this.button.setOnClick(() -> {
++				if (this.quest != null) {
++					select(this.quest);
++				}
++			});
++		}
++
++		private UIFrame backdrop(final String template) {
++			final UIFrame backdrop = MeleeQuestDialog.this.rootFrame.createFrame(template, this.button, 0, 0);
++			backdrop.setSetAllPoints(true);
++			return backdrop;
++		}
++
++		private void show(final CQuest quest) {
++			this.quest = quest;
++			if (quest == null) {
++				this.frame.setVisible(false);
++				this.selectedHighlight.setVisible(false);
++				return;
++			}
++			final GameUI rootFrame = MeleeQuestDialog.this.rootFrame;
++			if (quest.isDiscovered()) {
++				rootFrame.setText(this.title, quest.getTitle());
++				this.icon.setBackground(
++						quest.getIconPath().isEmpty() ? null : rootFrame.loadTexture(quest.getIconPath()));
++			}
++			else {
++				rootFrame.setDecoratedText(this.title, "UNDISCOVERED_QUEST");
++				this.icon.setBackground(MeleeQuestDialog.this.undiscoveredIcon);
++			}
++			UIFrame backdrop = this.normalBackdrop;
++			String status = "";
++			if (quest.isCompleted()) {
++				backdrop = this.completedBackdrop;
++				status = "QUESTCOMPLETED";
++			}
++			else if (quest.isFailed()) {
++				backdrop = this.failedBackdrop;
++				status = "QUESTFAILED";
++			}
++			this.button.setControlBackdrop(backdrop);
++			this.button.setControlPushedBackdrop(backdrop);
++			rootFrame.setDecoratedText(this.status, status);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index e16a74d..95cdae1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -389,6 +389,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 	private CItem draggingItem;
+ 	private final ItemCommandCardCommandListener itemCommandCardCommandListener;
+ 	private SimpleButtonFrame questsButton;
++	private MeleeQuestDialog questDialog;
+ 	private SimpleButtonFrame menuButton;
+ 	private SimpleButtonFrame alliesButton;
+ 	private SimpleButtonFrame chatButton;
+@@ -625,7 +626,11 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		this.upperButtonBar.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this.consoleUI, FramePoint.TOPLEFT, 0, 0));
+ 
+ 		this.questsButton = (SimpleButtonFrame) this.rootFrame.getFrameByName("UpperButtonBarQuestsButton", 0);
+-		this.questsButton.setEnabled(false);
++		// Blizzard launcher: the Quests dialog (Warsmash Reforged's) lists the map script's quests.
++		this.questDialog = new MeleeQuestDialog(this.rootFrame, this.uiViewport,
++				this.war3MapViewer.simulation.getQuestLog());
++		this.questsButton.setEnabled(true);
++		this.questsButton.setOnClick(() -> this.questDialog.setVisible(!this.questDialog.isVisible()));
+ 		this.menuButton = (SimpleButtonFrame) this.rootFrame.getFrameByName("UpperButtonBarMenuButton", 0);
+ 		this.alliesButton = (SimpleButtonFrame) this.rootFrame.getFrameByName("UpperButtonBarAlliesButton", 0);
+ 		this.alliesButton.setEnabled(false);
+@@ -1637,9 +1642,23 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		return this.cineFilter;
+ 	}
+ 
++	@Override
++	public void forceQuestDialogUpdate() {
++		if (this.questDialog != null) {
++			this.questDialog.forceUpdate();
++		}
++	}
++
++	public MeleeQuestDialog getQuestDialog() {
++		return this.questDialog;
++	}
++
+ 	@Override
+ 	public void update(final float deltaTime) {
+ 		this.cineFilter.update(deltaTime);
++		if (this.questDialog != null) {
++			this.questDialog.update();
++		}
+ 		this.portrait.update(deltaTime);
+ 		if (this.portrait.isResetNeeded()) {
+ 			this.portrait.resetCinematicSequence();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+index d84c158..913890e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+@@ -69,4 +69,11 @@ public interface WarsmashUI extends CommandErrorListener, WarsmashBaseUI {
+ 	default CineFilter getCineFilter() {
+ 		return null;
+ 	}
++
++	/** Blizzard launcher: FlashQuestDialogButton and ForceQuestDialogUpdate, where the interface has a quest dialog. */
++	default void flashQuestDialogButton() {
++	}
++
++	default void forceQuestDialogUpdate() {
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+index adcb70c..fd6bee9 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+@@ -45,6 +45,11 @@ public class MeleeToggleUI implements WarsmashUI {
+ 		this.currentUI.onShow();
+ 	}
+ 
++	@Override
++	public void forceQuestDialogUpdate() {
++		this.meleeUI.forceQuestDialogUpdate();
++	}
++
+ 	@Override
+ 	public com.etheller.warsmash.viewer5.handlers.w3x.ui.CineFilter getCineFilter() {
+ 		return this.meleeUI.getCineFilter();
