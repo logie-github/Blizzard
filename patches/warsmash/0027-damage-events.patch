@@ -1,0 +1,100 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 5c31f58..6ed4c1d 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -376,6 +376,10 @@ public final class LauncherNatives {
+ 				((CommonTriggerExecutionScope) triggerScope).getSummonedUnit()));
+ 		natives.createNative("GetSummoningUnit", (arguments, globalScope, triggerScope) -> new HandleJassValue(unitType,
+ 				((CommonTriggerExecutionScope) triggerScope).getSummoningUnit()));
++		natives.createNative("GetEventDamage", (arguments, globalScope, triggerScope) -> RealJassValue.of(
++				(triggerScope instanceof CommonTriggerExecutionScope) ? ((CommonTriggerExecutionScope) triggerScope).getDamageTaken() : 0));
++		natives.createNative("GetEventDamageSource", (arguments, globalScope, triggerScope) -> new HandleJassValue(unitType,
++				(triggerScope instanceof CommonTriggerExecutionScope) ? ((CommonTriggerExecutionScope) triggerScope).getDamageSource() : null));
+ 		natives.createNative("GetRevivingUnit", (arguments, globalScope, triggerScope) -> new HandleJassValue(unitType,
+ 				((CommonTriggerExecutionScope) triggerScope).getRevivingUnit()));
+ 	}
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+index cac0248..3deef3c 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+@@ -44,6 +44,9 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 	private CUnit revivableUnit;
+ 	private CUnit revivingUnit;
+ 	private CUnit attacker;
++	// Blizzard launcher: a damage event's amount and source.
++	private float damageTaken;
++	private CUnit damageSource;
+ 	private CUnit rescuer;
+ 	private CUnit dyingUnit;
+ 	private CUnit killingUnit;
+@@ -262,6 +265,28 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 		return this.attacker;
+ 	}
+ 
++	public float getDamageTaken() {
++		return this.damageTaken;
++	}
++
++	public CUnit getDamageSource() {
++		return this.damageSource;
++	}
++
++	/** Blizzard launcher: "a unit is damaged": the damaged unit, the source and the damage it takes. */
++	public static CommonTriggerExecutionScope unitDamagedScope(final JassGameEventsWar3 triggerEventId,
++			final Trigger trigger, final CUnit damagedUnit, final CUnit source, final float damage,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerJass player) {
++		final CommonTriggerExecutionScope scope = new CommonTriggerExecutionScope(trigger, TriggerExecutionScope.EMPTY);
++		scope.triggeringUnit = damagedUnit;
++		scope.triggerWidget = damagedUnit;
++		scope.damageSource = source;
++		scope.damageTaken = damage;
++		scope.triggerEventId = triggerEventId;
++		scope.triggeringPlayer = player;
++		return scope;
++	}
++
+ 	public CUnit getRescuer() {
+ 		return this.rescuer;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index 73d1a31..ad25cc9 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -3109,6 +3109,15 @@ public class CUnit extends CWidget {
+ 					trueDamage);
+ 		}
+ 		simulation.unitDamageEvent(this, weaponSoundType, this.unitType.getArmorType());
++		// Blizzard launcher: "a unit is damaged" triggers, the unit's own and its owner's.
++		final List<CWidgetEvent> damagedEvents = getEventList(JassGameEventsWar3.EVENT_UNIT_DAMAGED);
++		if (damagedEvents != null) {
++			for (final CWidgetEvent event : new ArrayList<>(damagedEvents)) {
++				event.fire(this, CommonTriggerExecutionScope.unitDamagedScope(JassGameEventsWar3.EVENT_UNIT_DAMAGED,
++						event.getTrigger(), this, source, trueDamage, simulation.getPlayer(this.playerIndex)));
++			}
++		}
++		simulation.getPlayer(this.playerIndex).fireUnitDamagedEvents(this, source, trueDamage);
+ 		if (!this.invulnerable && isDead()) {
+ 			if (!wasDead) {
+ 				kill(simulation, source);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index b09c2ae..6ec62c7 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -803,6 +803,17 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	// Blizzard launcher: a unit of this player attacked (EVENT_PLAYER_UNIT_ATTACKED), as Warsmash Reforged fires it.
++	/** Blizzard launcher: "a unit of the player is damaged". */
++	public void fireUnitDamagedEvents(final CUnit damagedUnit, final CUnit source, final float damage) {
++		final List<CPlayerEvent> eventList = getEventList(JassGameEventsWar3.EVENT_PLAYER_UNIT_DAMAGED);
++		if (eventList != null) {
++			for (final CPlayerEvent event : new java.util.ArrayList<>(eventList)) {
++				event.fire(damagedUnit, com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope.unitDamagedScope(
++						JassGameEventsWar3.EVENT_PLAYER_UNIT_DAMAGED, event.getTrigger(), damagedUnit, source, damage, this));
++			}
++		}
++	}
++
+ 	public void fireUnitAttackedEvents(final CUnit attackedUnit, final CUnit attacker) {
+ 		final List<CPlayerEvent> eventList = getEventList(JassGameEventsWar3.EVENT_PLAYER_UNIT_ATTACKED);
+ 		if (eventList != null) {

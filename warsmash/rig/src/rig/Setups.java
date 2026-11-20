@@ -292,6 +292,12 @@ public class Setups extends Scenario {
       b.append(" heroId Hpal=").append(call.apply("IsHeroUnitId", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(War3ID.fromString("Hpal").getValue()))));
       b.append(" level=").append(call.apply("GetUnitLevel", java.util.List.of(fu)));
       b.append(" order=").append(call.apply("IssuePointOrder", java.util.List.of(fu, new com.etheller.interpreter.ast.value.StringJassValue("move"), com.etheller.interpreter.ast.value.RealJassValue.of(p[0] + 400), com.etheller.interpreter.ast.value.RealJassValue.of(p[1]))));
+      var trig = new com.etheller.interpreter.ast.scope.trigger.Trigger(); final String[] dmg = { "never fired" };
+      trig.addAction((args, gs, scope) -> { dmg[0] = "fired: GetEventDamage=" + call2(g, "GetEventDamage", java.util.List.of(), scope) + " source=" + call2(g, "GetEventDamageSource", java.util.List.of(), scope) + " triggering=" + call2(g, "GetTriggerUnit", java.util.List.of(), scope); return null; });
+      f.addEvent(g, trig, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_DAMAGED);
+      CUnit hitter = unit(s, "hfoo", 1, p[0] + 2000, p[1] + 2000);
+      f.damage(s, hitter, false, false, com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType.SPELLS, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType.NORMAL, "WHOKNOWS", 50f);
+      b.append(" damage event ").append(dmg[0]).append(" (footman ").append(f.getHandleId()).append(", hitter ").append(hitter.getHandleId()).append(")");
       final String before = b.toString(); final float x0 = f.getX();
       return () -> before + " footman moved " + (int) (f.getX() - x0);
     }),
@@ -310,6 +316,11 @@ public class Setups extends Scenario {
         return "accepted=" + ok + " tree dead=" + (t != null && t.isDead()) + " tree at " + (t == null ? -1 : (int) Math.hypot(t.getX() - m.getX(), t.getY() - m.getY())) + " buffs " + b + " behavior " + m.getCurrentBehavior() + " giant at " + (t == null ? -1 : (int) Math.hypot(t.getX() - m.getX(), t.getY() - m.getY())) + " cd " + m.getCooldownRemainingTicks(s, War3ID.fromString("Agra")); };
     })
   ));
+  static Object call2(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
+    Integer id = g.getNativeId(name); if (id == null) return "NONE"; var r = g.getNativeById(id).call(args, g, scope);
+    if (r instanceof com.etheller.interpreter.ast.value.HandleJassValue h) { Object o = h.getJavaValue(); return o instanceof CUnit u ? "unit " + u.getHandleId() : String.valueOf(o); }
+    return r == null ? "null" : r.toString();
+  }
   static List<Case> filter(List<Case> all) { String c = System.getenv("CASE"); if (c == null) return all; List<Case> out = new ArrayList<>(); for (Case x : all) if (x.name().contains(c)) out.add(x); return out; }
   int idx = -1, phaseStart; Supplier<String> report; float bx, by; List<String> excs = new ArrayList<>();
   public void exception(Throwable t) { excs.add(t.toString()); }

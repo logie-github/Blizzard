@@ -1,0 +1,1 @@
+Map triggers that react to a unit being damaged now run.
