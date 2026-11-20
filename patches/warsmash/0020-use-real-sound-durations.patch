@@ -1,0 +1,50 @@
+--- a/core/src/com/etheller/warsmash/AudioLoader.kt
++++ b/core/src/com/etheller/warsmash/AudioLoader.kt
+@@ -4,12 +4,13 @@
+ import com.badlogic.gdx.audio.Sound
+ import com.etheller.warsmash.util.DataSourceFileHandle
+ import com.etheller.warsmash.util.WarsmashConstants
++import com.etheller.warsmash.viewer5.gl.Extensions
+ import org.apache.commons.io.IOUtils
+ import java.io.File
+ import java.io.InputStream
+ 
+ fun loadSound(fileHandle: DataSourceFileHandle) =
+-    Gdx.audio.newSound(Gdx.files.absolute(createFileIfNeeded(fileHandle)))
++    loadCachedSound(createFileIfNeeded(fileHandle))
+ 
+ fun loadMusic(fileHandle: DataSourceFileHandle) =
+     Gdx.audio.newMusic(Gdx.files.absolute(createFileIfNeeded(fileHandle)))
+@@ -22,7 +23,12 @@
+         file.parentFile?.mkdirs()
+         file.writeBytes(IOUtils.toByteArray(stream))
+     }
+-    return Gdx.audio.newSound(Gdx.files.absolute(absolutePathToFile))
++    return loadCachedSound(absolutePathToFile)
++}
++
++private fun loadCachedSound(path: String): Sound {
++    val file = Gdx.files.absolute(path)
++    return Extensions.audio?.loadSound(file) ?: Gdx.audio.newSound(file)
+ }
+ 
+ private fun createFileIfNeeded(fileHandle: DataSourceFileHandle): String {
+--- a/core/src/com/etheller/warsmash/viewer5/gl/AudioExtension.java
++++ b/core/src/com/etheller/warsmash/viewer5/gl/AudioExtension.java
+@@ -1,10 +1,16 @@
+ package com.etheller.warsmash.viewer5.gl;
+ 
++import com.badlogic.gdx.Gdx;
+ import com.badlogic.gdx.audio.Sound;
++import com.badlogic.gdx.files.FileHandle;
+ import com.etheller.warsmash.viewer5.AudioContext;
+ 
+ public interface AudioExtension {
+ 	AudioContext createContext(boolean world);
++
++	default Sound loadSound(final FileHandle file) {
++		return Gdx.audio.newSound(file);
++	}
+ 
+ 	float getDuration(Sound sound);
+ 
