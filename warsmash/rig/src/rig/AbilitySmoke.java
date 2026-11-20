@@ -13,8 +13,8 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAb
 public class AbilitySmoke extends Scenario {
   List<String[]> todo = new ArrayList<>(); int idx = -1, phaseStart; CUnit caster, enemy, ally, flyer, enemy2; CAbility ab;
   float e2Mana0, eLife0, aLife0, fLife0, cMana0, e2Life0; int eBuff0, aBuff0, cBuff0, fBuff0; String kind; boolean accepted; List<String> excs = new ArrayList<>();
-  float bx, by; int gold0, lumber0; String why = ""; int results = 0, effected = 0; int fx = 0; boolean listening;
-  public AbilitySmoke() throws Exception { for (String l : Files.readAllLines(Path.of(System.getenv("ABLIST")))) if (!l.isBlank()) todo.add(l.trim().split("\\s+")); }
+  float bx, by; int gold0, lumber0; String why = ""; int results = 0, effected = 0; int fx = 0; boolean listening; int castAt = 6; int p0alive0, ill0, corpses0; float allyX0, allyY0;
+  public AbilitySmoke() throws Exception { Path list = Path.of(System.getenv("ABLIST")); if (!list.isAbsolute()) list = Path.of("..").resolve(list); /* run/ is the working folder */ for (String l : Files.readAllLines(list)) if (!l.isBlank()) todo.add(l.trim().split("\\s+")); }
   static int buffs(CUnit u) { int n = 0; for (CAbility a : u.getAbilities()) if (a instanceof CBuff) n++; return n; }
   static String buffNames(CUnit u) { StringBuilder b = new StringBuilder(); for (CAbility a : u.getAbilities()) if (a instanceof CBuff) b.append(a.getAlias()).append(','); return b.toString(); }
   public void exception(Throwable t) { excs.add(t.toString()); }
@@ -24,7 +24,7 @@ public class AbilitySmoke extends Scenario {
     if (n < 30) return false;
     if (idx == -1) { for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 0 && u.isBuilding()) { bx = u.getX() + 600; by = u.getY(); break; } idx = 0; phaseStart = n; start(s); return false; }
     int t = n - phaseStart;
-    if (t == 6 && kind != null) cast(s);
+    if (t == castAt && kind != null) cast(s);
     if (t >= 260) { report(s); clear(s); idx++; if (idx >= todo.size()) { System.err.println("RIG: SUMMARY " + effected + "/" + results + " showed an effect"); return true; } phaseStart = n; start(s); }
     return false;
   }
@@ -47,10 +47,26 @@ public class AbilitySmoke extends Scenario {
     caster.add(s, ab);
     caster.setMana(caster.getMaximumMana() > 0 ? caster.getMaximumMana() : 0);
     kind = e[2];
+    castAt = 6;
+    if (kind.startsWith("corpse")) {
+      // corpses to work with: the two enemy soldiers die first, the cast waits for their bodies
+      enemy.kill(s); enemy2.kill(s); castAt = 200; kind = kind.substring("corpse".length()); if (kind.isEmpty()) kind = "none";
+    }
+    if (kind.equals("summoned")) { enemy.addClassification(com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification.SUMMONED); kind = "enemy"; }
+    if (kind.equals("hero")) {
+      // a hero with a skill learned (Tome of Retraining): Siphon Mana
+      caster.getHeroData().selectHeroSkill(s, caster, War3ID.fromString("AHdr"));
+      System.err.println("RIG: hero skill points before " + caster.getHeroData().getSkillPoints());
+      kind = "none";
+    }
   }
+  static int alive(CSimulation s, int p) { int n = 0; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == p && !u.isDead() && !u.isHidden()) n++; return n; }
+  static int illusions(CSimulation s) { int n = 0; for (CUnit u : s.getUnits()) if (u.isIllusion() && !u.isDead()) n++; return n; }
+  static int corpses(CSimulation s) { int n = 0; for (CUnit u : s.getUnits()) if (u.isDead() && u.isCorpse() && !u.isHidden()) n++; return n; }
   void cast(CSimulation s) {
     if (caster.getMaximumMana() < 500) { caster.setMaximumMana(1000); }
     caster.setMana(1000);
+    p0alive0 = alive(s, 0); ill0 = illusions(s); corpses0 = corpses(s); allyX0 = ally.getX(); allyY0 = ally.getY();
     eLife0 = enemy.getLife(); aLife0 = ally.getLife(); fLife0 = flyer.getLife(); e2Life0 = enemy2.getLife(); cMana0 = caster.getMana(); e2Mana0 = enemy2.getMana();
     eBuff0 = buffs(enemy); aBuff0 = buffs(ally); cBuff0 = buffs(caster); fBuff0 = buffs(flyer);
     int order = (ab instanceof AbstractGenericSingleIconActiveAbility a) ? a.getBaseOrderId() : 0;
@@ -70,10 +86,11 @@ public class AbilitySmoke extends Scenario {
   CUnit enemyCaster() { return enemy2; }
   void report(CSimulation s) {
     String[] e = todo.get(idx);
+    if (caster != null && caster.getHeroData() != null) System.err.println("RIG: hero skill points after " + caster.getHeroData().getSkillPoints());
     if (kind == null) return;
-    String d = String.format("acc=%s mana=%.0f enemy=%.0f/%+d enemy2=%.0f ally=%.0f/%+d air=%.0f/%+d self=%+d gold=%+d lumber=%+d e2mana=%.0f fx=%d",
-      accepted, caster.getMana() - cMana0, enemy.getLife() - eLife0, buffs(enemy) - eBuff0, enemy2.getLife() - e2Life0, ally.getLife() - aLife0, buffs(ally) - aBuff0, flyer.getLife() - fLife0, buffs(flyer) - fBuff0, buffs(caster) - cBuff0, s.getPlayer(0).getGold() - gold0, s.getPlayer(0).getLumber() - lumber0, enemy2.getMana() - e2Mana0, fx);
-    boolean eff = caster.getMana() < cMana0 - 0.5f || Math.abs(enemy.getLife() - eLife0) > 0.5f || Math.abs(ally.getLife() - aLife0) > 0.5f || Math.abs(flyer.getLife()-fLife0) > 0.5f || buffs(enemy) != eBuff0 || buffs(ally) != aBuff0 || buffs(caster) != cBuff0 || buffs(flyer) != fBuff0 || enemy.isDead() || "passive".equals(kind) || s.getPlayer(0).getGold() != gold0 || s.getPlayer(0).getLumber() != lumber0;
+    String d = String.format("acc=%s mana=%.0f enemy=%.0f/%+d enemy2=%.0f ally=%.0f/%+d air=%.0f/%+d self=%+d gold=%+d lumber=%+d e2mana=%.0f fx=%d p0=%+d ill=%+d corpses=%+d eOwner=%d allyMoved=%.0f",
+      accepted, caster.getMana() - cMana0, enemy.getLife() - eLife0, buffs(enemy) - eBuff0, enemy2.getLife() - e2Life0, ally.getLife() - aLife0, buffs(ally) - aBuff0, flyer.getLife() - fLife0, buffs(flyer) - fBuff0, buffs(caster) - cBuff0, s.getPlayer(0).getGold() - gold0, s.getPlayer(0).getLumber() - lumber0, enemy2.getMana() - e2Mana0, fx, alive(s, 0) - p0alive0, illusions(s) - ill0, corpses(s) - corpses0, enemy.getPlayerIndex(), (float) Math.hypot(ally.getX() - allyX0, ally.getY() - allyY0));
+    boolean eff = caster.getMana() < cMana0 - 0.5f || Math.abs(enemy.getLife() - eLife0) > 0.5f || Math.abs(ally.getLife() - aLife0) > 0.5f || Math.abs(flyer.getLife()-fLife0) > 0.5f || buffs(enemy) != eBuff0 || buffs(ally) != aBuff0 || buffs(caster) != cBuff0 || buffs(flyer) != fBuff0 || enemy.isDead() || "passive".equals(kind) || alive(s, 0) != p0alive0 || illusions(s) != ill0 || corpses(s) != corpses0 || enemy.getPlayerIndex() != 1 || Math.hypot(ally.getX() - allyX0, ally.getY() - allyY0) > 50 || s.getPlayer(0).getGold() != gold0 || s.getPlayer(0).getLumber() != lumber0;
     results++; if (eff && excs.isEmpty()) effected++;
     System.err.println("RIG: RESULT " + e[0] + " " + e[1] + " " + kind + " " + ab.getClass().getSimpleName() + " " + d + " buffs[e=" + buffNames(enemy) + " a=" + buffNames(ally) + " c=" + buffNames(caster) + " f=" + buffNames(flyer) + "]" + (why.isEmpty() ? "" : " WHY " + why) + (excs.isEmpty() ? "" : " EXC " + excs));
   }

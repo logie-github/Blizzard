@@ -1,0 +1,2143 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index 40bd766..53273bc 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -3230,7 +3230,9 @@ public class Jass2 {
+ 						final CPlayer whichPlayer = arguments.get(1).visit(ObjectJassValueVisitor.getInstance());
+ 						final boolean changeColor = arguments.get(2).visit(BooleanJassValueVisitor.getInstance());
+ 
+-						whichUnit.setPlayerIndex(CommonEnvironment.this.simulation, whichPlayer.getId(), changeColor);
++						// Blizzard launcher: the unit's food, hero count, tech tree and upgrades go with it (Warsmash
++						// Reforged's change of owner), not only its owner's number.
++						whichUnit.changeOwner(CommonEnvironment.this.simulation, whichPlayer.getId(), changeColor);
+ 						return null;
+ 					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("SetUnitColor",
+@@ -4201,6 +4203,11 @@ public class Jass2 {
+ 						return new HandleJassValue(eventType,
+ 								whichWidget.addEvent(globalScope, whichTrigger, whichPlayerEvent));
+ 					});
++			jassProgramVisitor.getJassNativeManager().createNative("IsUnitIllusion",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						return BooleanJassValue.of((unit != null) && unit.isIllusion());
++					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("IsUnitHidden",
+ 					(arguments, globalScope, triggerScope) -> {
+ 						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 9b9a306..5272eee 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -1295,4 +1295,10 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 			this.spellEffectListeners.get(i).onSpellEffect(this, caster, ability);
+ 		}
+ 	}
++
++	public List<CUnit> getUnitsIncludingNew() {
++		final List<CUnit> all = new ArrayList<>(this.units);
++		all.addAll(this.newUnits);
++		return all;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index 907e4df..8e479d9 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2963,6 +2963,10 @@ public class CUnit extends CWidget {
+ 						- (float) StrictMath.pow(1f - simulation.getGameplayConstants().getDefenseArmor(), -defense);
+ 			}
+ 			trueDamage = damageRatioFromArmorClass * damageRatioFromDefense * result.computeFinalDamage();
++			if (this.illusion) {
++				// Blizzard launcher: an illusion takes its factor of every hit (Warsmash Reforged's).
++				trueDamage *= this.illusionDamageTakenFactor;
++			}
+ 
+ 			for (final CUnitAttackFinalDamageTakenModificationListener listener : new ArrayList<>(
+ 					this.finalDamageTakenModificationListeners)) {
+@@ -3536,6 +3540,166 @@ public class CUnit extends CWidget {
+ 		return this.removedFromGame;
+ 	}
+ 
++	// ---- Blizzard launcher: corpses, owners and illusions, as Warsmash Reforged handles them (batch 3) ----
++
++	/** A unit made by a script or an ability turned into a corpse to use at once, without a death (Exhume). */
++	public void becomeCorpse(final CSimulation game) {
++		beginBehavior(game, null);
++		this.orderQueue.clear();
++		killPathingInstance();
++		game.getWorldCollision().removeUnit(this);
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer player = game.getPlayer(this.playerIndex);
++		if (this.foodMade != 0) {
++			player.setUnitFoodMade(this, 0);
++		}
++		if (this.foodUsed != 0) {
++			player.setUnitFoodUsed(this, 0);
++		}
++		this.life = 0;
++		this.corpse = true;
++		this.boneCorpse = true;
++		this.deathTurnTick = game.getGameTurnTick();
++		game.getWorldCollision().addUnit(this);
++		this.stateNotifier.lifeChanged();
++	}
++
++	/** A corpse picked up by a Meat Wagon: hidden, out of the world and not decaying while carried. */
++	public void holdCorpse(final CSimulation game) {
++		game.getWorldCollision().removeUnit(this);
++		this.collisionRectangle = null;
++		setHidden(true);
++		resetCorpseDecay(game);
++	}
++
++	public void resetCorpseDecay(final CSimulation game) {
++		this.deathTurnTick = game.getGameTurnTick();
++	}
++
++	/** A carried corpse put back on the ground as a fresh one. */
++	public void releaseCorpse(final CSimulation game, final float x, final float y) {
++		setX(x);
++		setY(y);
++		resetCorpseDecay(game);
++		game.getWorldCollision().addUnit(this);
++		setHidden(false);
++		game.unitRepositioned(this);
++	}
++
++	public static final StateModBuff ANIMATED_INVULNERABLE = new StateModBuff(StateModBuffType.INVULNERABLE, 1);
++
++	/** Animate Dead: back on its feet as the spell's servant; its food and the like stay as they were. */
++	public void resurrectAsAnimatedCorpse(final CSimulation simulation) {
++		resurrect(simulation);
++	}
++
++	/** SetUnitOwner and the spells that take a unit (Possession, Control Magic, Dark Conversion). */
++	public void changeOwner(final CSimulation simulation, final int newPlayerIndex, final boolean changeColor) {
++		final int previousPlayerIndex = this.playerIndex;
++		if (newPlayerIndex == previousPlayerIndex) {
++			if (changeColor) {
++				simulation.changeUnitColor(this, newPlayerIndex);
++			}
++			return;
++		}
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer previousPlayer = simulation.getPlayer(previousPlayerIndex);
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer newPlayer = simulation.getPlayer(newPlayerIndex);
++		final boolean alive = !isDead();
++		simulation.getUnitData().unapplyPlayerUpgradesToUnit(simulation, previousPlayerIndex, this.unitType, this);
++		final int foodUsedNow = this.foodUsed;
++		final int foodMadeNow = this.foodMade;
++		previousPlayer.setUnitFoodUsed(this, 0);
++		previousPlayer.setUnitFoodMade(this, 0);
++		final boolean hero = simulation.getPlayerHeroes(previousPlayerIndex).remove(this);
++		if (alive) {
++			if (this.constructing) {
++				previousPlayer.removeTechtreeInProgress(this.unitType.getTypeId());
++			}
++			else {
++				previousPlayer.removeTechtreeUnlocked(simulation, this.unitType.getTypeId());
++			}
++		}
++		setPlayerIndex(simulation, newPlayerIndex, changeColor);
++		if (alive) {
++			if (this.constructing) {
++				newPlayer.addTechtreeInProgress(this.unitType.getTypeId());
++			}
++			else {
++				newPlayer.addTechtreeUnlocked(simulation, this.unitType.getTypeId());
++			}
++		}
++		newPlayer.setUnitFoodUsed(this, foodUsedNow);
++		newPlayer.setUnitFoodMade(this, foodMadeNow);
++		if (hero) {
++			simulation.getPlayerHeroes(newPlayerIndex).add(this);
++		}
++		simulation.getUnitData().applyPlayerUpgradesToUnit(simulation, newPlayerIndex, this.unitType, this);
++		if (this.attackFogMod.getPlayerIndex() == previousPlayerIndex) {
++			simulation.getPlayer(previousPlayerIndex).removeFogModifer(simulation, this.attackFogMod);
++			this.attackFogMod.setPlayerIndex(newPlayerIndex);
++		}
++	}
++
++	/** A source of invulnerability that comes and goes (Animate Dead's servants). */
++	public void setInvulnerableSource(final CSimulation simulation, final StateModBuff source, final boolean active) {
++		if (active) {
++			addStateModBuff(source);
++		}
++		else {
++			removeStateModBuff(source);
++		}
++		computeUnitState(simulation, StateModBuffType.INVULNERABLE);
++	}
++
++	/** Where this unit would stand if put at the point (here the point itself; it is pushed out of others on arrival). */
++	public float[] findFreePoint(final float x, final float y, final CSimulation game) {
++		return new float[] { x, y };
++	}
++
++	/** A unit brought home (Staff of Sanctuary, Town Portal): put beside the hall and pushed clear of it. */
++	public void placeAroundStructure(final CSimulation simulation, final CUnit structure) {
++		setPointAndCheckUnstuck(structure.getX(), structure.getY(), simulation);
++	}
++
++	private boolean illusion;
++	private float illusionDamageDealtFactor = 1;
++	private float illusionDamageTakenFactor = 1;
++
++	public boolean isIllusion() {
++		return this.illusion;
++	}
++
++	public float getIllusionDamageDealtFactor() {
++		return this.illusionDamageDealtFactor;
++	}
++
++	/**
++	 * Makes this unit an illusion (Mirror Image, Wand of Illusion): its attacks deal and its hits take the factors,
++	 * it eats no food and counts as no hero, keeps its passives and loses its spells, and vanishes in the buff's art
++	 * when it dies.
++	 */
++	public void makeIllusion(final CSimulation simulation, final float damageDealtFactor,
++			final float damageTakenFactor, final War3ID buffId) {
++		this.illusion = true;
++		this.illusionDamageDealtFactor = damageDealtFactor;
++		this.illusionDamageTakenFactor = damageTakenFactor;
++		setExplodesOnDeath(true);
++		setExplodesOnDeathBuffId(buffId);
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer player = simulation.getPlayer(this.playerIndex);
++		player.setUnitFoodUsed(this, 0);
++		player.setUnitFoodMade(this, 0);
++		simulation.getPlayerHeroes(this.playerIndex).remove(this);
++		for (final CAbility ability : new ArrayList<>(getAbilities())) {
++			if (ability instanceof CAbilityHero) {
++				ability.setIconShowing(false);
++			}
++			else if (!(ability instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityMove) && !(ability instanceof CAbilityAttack)
++					&& !(ability instanceof CAbilityInventory) && (ability.getItem() == null)
++					&& !(ability instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.AbilityGenericSingleIconPassiveAbility)) {
++				remove(simulation, ability);
++			}
++		}
++	}
++
+ 	/** Ultravision: the unit sees as far by night as by day. */
+ 	private int ultravision;
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldCorpses.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldCorpses.java
+new file mode 100644
+index 0000000..91b7222
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldCorpses.java
+@@ -0,0 +1,67 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold;
++
++import java.util.EnumSet;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CTargetType;
++
++/**
++ * Meat Wagon cargo hold: carries corpses that do not decay while inside; they come out as fresh corpses beside
++ * the wagon when dropped or when the wagon dies.
++ */
++public class CAbilityCargoHoldCorpses extends CAbilityCargoHold {
++	private static final float DROP_SPREAD = 40f;
++
++	public CAbilityCargoHoldCorpses(final int handleId, final War3ID code, final War3ID alias,
++			final int cargoCapacity, final float duration, final float castRange,
++			final EnumSet<CTargetType> targetsAllowed) {
++		super(handleId, code, alias, cargoCapacity, duration, castRange, targetsAllowed);
++	}
++
++	public boolean isFull() {
++		return getCargoCount() >= getCargoCapacity();
++	}
++
++	public void addCorpse(final CSimulation game, final CUnit holder, final CUnit corpse) {
++		corpse.holdCorpse(game);
++		addUnit(holder, corpse);
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		for (int i = 0; i < getCargoCount(); i++) {
++			getUnit(i).resetCorpseDecay(game);
++		}
++	}
++
++	@Override
++	public void dropUnitByIndex(final CSimulation game, final CUnit caster, final int targetIndex) {
++		game.unitSoundEffectEvent(caster, getAlias());
++		releaseCorpse(game, caster, removeUnitAtIndex(caster, targetIndex), 0, 1);
++	}
++
++	@Override
++	public void unloadAllInstant(final CSimulation game, final CUnit caster) {
++		if (!isEmpty()) {
++			game.unitSoundEffectEvent(caster, getAlias());
++			final int cargoCount = getCargoCount();
++			for (int i = 0; i < cargoCount; i++) {
++				releaseCorpse(game, caster, removeUnitAtIndex(caster, cargoCount - i - 1), i, cargoCount);
++			}
++		}
++	}
++
++	private static void releaseCorpse(final CSimulation game, final CUnit caster, final CUnit corpse,
++			final int index, final int count) {
++		float x = caster.getX();
++		float y = caster.getY();
++		if (count > 1) {
++			final double angle = ((Math.PI * 2) * index) / count;
++			x += (float) (StrictMath.cos(angle) * DROP_SPREAD);
++			y += (float) (StrictMath.sin(angle) * DROP_SPREAD);
++		}
++		corpse.releaseCorpse(game, x, y);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
+index f6c52be..570363a 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
+@@ -102,6 +102,7 @@ public class CAbilityHero extends AbstractCAbility {
+ 		final CAbilityType<?> abilityType = game.getAbilityData().getAbilityType(skillId);
+ 		if (abilityType != null) {
+ 			this.skillPoints--;
++			this.learnedLevels.merge(skillId, 1, Integer::sum);
+ 			final CLevelingAbility existingAbility = caster
+ 					.getAbility(GetAbilityByRawcodeVisitor.getInstance().reset(skillId));
+ 			if (existingAbility == null) {
+@@ -534,4 +535,53 @@ public class CAbilityHero extends AbstractCAbility {
+ 	public CAbilityCategory getAbilityCategory() {
+ 		return CAbilityCategory.CORE;
+ 	}
++
++	// ---- Blizzard launcher: what Warsmash Reforged's Mirror Image, Wand of Illusion and Tome of Retraining ask ----
++	private final java.util.Map<War3ID, Integer> learnedLevels = new java.util.LinkedHashMap<>();
++
++	public void copyProperName(final CAbilityHero source) {
++		this.properName = source.properName;
++	}
++
++	/** Gives an illusion the skills its original learned, at their levels, without spending skill points. */
++	public void copyLearnedSkills(final CSimulation game, final CUnit unit, final CAbilityHero source) {
++		for (final java.util.Map.Entry<War3ID, Integer> learned : source.learnedLevels.entrySet()) {
++			final CAbilityType<?> abilityType = game.getAbilityData().getAbilityType(learned.getKey());
++			if (abilityType == null) {
++				continue;
++			}
++			final CAbility copy = abilityType.createAbility(game.getHandleIdAllocator().createId());
++			unit.add(game, copy);
++			this.learnedLevels.put(learned.getKey(), learned.getValue());
++			if ((learned.getValue() > 1) && (copy instanceof CLevelingAbility)) {
++				abilityType.setLevel(game, unit, (CLevelingAbility) copy, learned.getValue());
++			}
++		}
++	}
++
++	/** Gives an illusion its original's level and experience, without level up events or skill points. */
++	public void copyHeroLevel(final CSimulation game, final CUnit unit, final CAbilityHero source) {
++		this.xp = source.xp;
++		this.heroLevel = source.heroLevel;
++		this.skillPoints = 0;
++		calculateDerivatedFields(game, unit);
++		unit.internalPublishHeroStatsChanged();
++	}
++
++	public boolean isRetrainable(final CSimulation game, final CUnit unit) {
++		return !this.learnedLevels.isEmpty();
++	}
++
++	/** Tome of Retraining: every learned skill forgotten and its skill points given back. */
++	public void retrain(final CSimulation game, final CUnit unit) {
++		for (final java.util.Map.Entry<War3ID, Integer> learned : new java.util.ArrayList<>(this.learnedLevels.entrySet())) {
++			final CLevelingAbility ability = unit.getAbility(GetAbilityByRawcodeVisitor.getInstance().reset(learned.getKey()));
++			if (ability != null) {
++				unit.remove(game, ability);
++			}
++			this.skillPoints += learned.getValue();
++		}
++		this.learnedLevels.clear();
++		unit.internalPublishHeroStatsChanged();
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java
+index 2b47841..143bd55 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java
+@@ -552,4 +552,12 @@ public class CAbilityInventory extends AbstractGenericNoIconAbility {
+ 		}
+ 	}
+ 
++
++	/** Blizzard launcher: an item ability that spends its charge itself (Warsmash Reforged's Town Portal). */
++	public void spendItemCharge(final CSimulation game, final CUnit caster, final CItem item) {
++		final int slot = getSlot(item);
++		if (slot >= 0) {
++			consumePerishableCharge(game, caster, slot, item);
++		}
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemRetrain.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemRetrain.java
+new file mode 100644
+index 0000000..4d38d5e
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemRetrain.java
+@@ -0,0 +1,59 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.hero.CAbilityHero;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Tome of Retraining: the hero forgets every learned skill that is not in cooldown and gets the skill points back.
++ * Only a hero that has learned such a skill can use it.
++ */
++public class CAbilityItemRetrain extends AbstractCAbilityItemInstantUse {
++	public CAbilityItemRetrain(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.itemretrain;
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster,
++			final int orderId, final AbilityTarget target) {
++		if (orderId == getBaseOrderId()) {
++			final CAbilityHero heroData = caster.getHeroData();
++			if (heroData == null) {
++				return false;
++			}
++			game.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++			game.unitSoundEffectEvent(caster, getAlias());
++			heroData.retrain(game, caster);
++			return false;
++		}
++		return true;
++	}
++
++	@Override
++	protected void innerCheckCanUse(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityActivationReceiver receiver) {
++		final CAbilityHero heroData = unit.getHeroData();
++		if ((heroData == null) || !heroData.isRetrainable(game, unit)) {
++			receiver.activationCheckFailed(
++					CommandStringErrorKeys.ONLY_HEROES_THAT_HAVE_LEARNED_SPELLS_NOT_IN_COOLDOWN_CAN_USE_THIS_ITEM);
++			return;
++		}
++		receiver.useOk();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemStaffHome.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemStaffHome.java
+new file mode 100644
+index 0000000..a84c225
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemStaffHome.java
+@@ -0,0 +1,137 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Staff of Preservation and Staff of Sanctuary: the target unit is teleported to the highest level town hall of the
++ * user's player. Sanctuary also stuns it, protects it from magic damage and regenerates its life until it is fully healed.
++ */
++public class CAbilityItemStaffHome extends CAbilityTargetSpellBase {
++	private final boolean sanctuary;
++	private float heroDelay;
++	private float unitDelay;
++	private float lifePerSecond;
++	private float magicDamageReduction;
++	private War3ID buffId;
++
++	public CAbilityItemStaffHome(final int handleId, final War3ID alias, final boolean sanctuary) {
++		super(handleId, alias);
++		this.sanctuary = sanctuary;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		if (this.sanctuary) {
++			this.heroDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++			this.unitDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++			this.magicDamageReduction = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++			this.lifePerSecond = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		}
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 0);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return this.sanctuary ? OrderIds.sanctuary : OrderIds.preservation;
++	}
++
++	/** How many hall upgrades are still available for the type: 0 for the top tier. */
++	private static int upgradesLeft(final CSimulation game, final CUnitType type, final int guard) {
++		int left = 0;
++		if (guard > 0) {
++			for (final War3ID id : type.getUpgradesTo()) {
++				final CUnitType next = game.getUnitData().getUnitType(id);
++				if (next != null) {
++					left = Math.max(left, 1 + upgradesLeft(game, next, guard - 1));
++				}
++			}
++		}
++		return left;
++	}
++
++	/** The highest tier town hall of the player; of several, the one made last (the list is in creation order). */
++	private static CUnit findTownHall(final CSimulation game, final int playerIndex, final float x, final float y) {
++		CUnit best = null;
++		int bestLeft = 0;
++		for (final CUnit unit : game.getUnitsIncludingNew()) {
++			if ((unit.getPlayerIndex() == playerIndex) && !unit.isDead() && !unit.isConstructingOrUpgrading()
++					&& unit.getClassifications().contains(CUnitClassification.TOWNHALL)) {
++				final int left = upgradesLeft(game, unit.getUnitType(), 4);
++				if ((best == null) || (left <= bestLeft)) {
++					best = unit;
++					bestLeft = left;
++				}
++			}
++		}
++		return best;
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget target,
++			final AbilityTargetCheckReceiver<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget> receiver) {
++		if (target == unit) {
++			receiver.orderIdNotAccepted();
++			return;
++		}
++		if (findTownHall(game, unit.getPlayerIndex(), target.getX(), target.getY()) == null) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.THERE_ARE_NO_FRIENDLY_TOWN_HALLS_TO_TOWN_PORTAL_TO);
++			return;
++		}
++		receiver.targetOk(target);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		final CUnit hall = findTownHall(simulation, caster.getPlayerIndex(), target.getX(), target.getY());
++		if ((targetUnit == null) || (hall == null)) {
++			return false;
++		}
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		simulation.spawnSpellEffectOnPoint(targetUnit.getX(), targetUnit.getY(), 0, getAlias(), CEffectType.SPECIAL, 0)
++				.remove();
++		targetUnit.order(simulation, OrderIds.stop, null);
++		targetUnit.placeAroundStructure(simulation, hall);
++		simulation.spawnSpellEffectOnPoint(targetUnit.getX(), targetUnit.getY(), 0, getAlias(), CEffectType.SPECIAL, 0)
++				.remove();
++		if (this.sanctuary) {
++			for (final CAbility ability : targetUnit.getAbilities()) {
++				if ((ability instanceof CBuffSanctuary) && ability.getAlias().equals(this.buffId)) {
++					targetUnit.remove(simulation, (CBuffSanctuary) ability);
++					break;
++				}
++			}
++			targetUnit.add(simulation, new CBuffSanctuary(simulation.getHandleIdAllocator().createId(), this.buffId,
++					this.lifePerSecond, targetUnit.isHero() ? this.heroDelay : this.unitDelay,
++					this.magicDamageReduction));
++		}
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.ITEM;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemTownPortal.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemTownPortal.java
+new file mode 100644
+index 0000000..fd6cc10
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemTownPortal.java
+@@ -0,0 +1,215 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item;
++
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CItem;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.inventory.CAbilityInventory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.inventory.ItemChargeSpentOnEffect;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityUnitOrPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentModel;
++
++/**
++ * Town Portal: the user and up to Data A of its own units within the area go to the targeted own town hall, or to
++ * the target point when an own town hall is within the area of it, once the casting time has passed; with clustering
++ * (Data B) the units land around the user. Measured on 1.29: the casting time counts from the start of the cast, the
++ * scroll is used up only when the teleport happens, a unit target must be a town hall, and a point target is the
++ * landing spot itself.
++ */
++public class CAbilityItemTownPortal extends CAbilityUnitOrPointTargetSpellBase implements ItemChargeSpentOnEffect {
++	private int numberOfUnits;
++	private boolean useClustering;
++	private float areaOfEffect;
++
++	private int teleportTick;
++	private CUnit destination;
++	private float destinationX;
++	private float destinationY;
++	private CItem item;
++	private SimulationRenderComponentModel sourceEffect;
++	private SimulationRenderComponentModel targetEffect;
++
++	public CAbilityItemTownPortal(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void setItemAbility(final CItem item, final int slot) {
++		this.item = item;
++	}
++
++	@Override
++	public CItem getItem() {
++		return this.item;
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.itemtownportal;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.numberOfUnits = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.useClustering = worldEditorAbility.getFieldAsBoolean(AbilityFields.DATA_B + level, 0);
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++	}
++
++	private static boolean isOwnTownHall(final CUnit caster, final CUnit unit) {
++		return (unit.getPlayerIndex() == caster.getPlayerIndex()) && !unit.isDead()
++				&& unit.getClassifications().contains(CUnitClassification.TOWNHALL)
++				&& !unit.isConstructingOrUpgrading();
++	}
++
++	@Override
++	protected void innerCheckCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || !isOwnTownHall(unit, targetUnit)) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_FRIENDLY_TOWN_HALL);
++			return;
++		}
++		super.innerCheckCanTarget(game, unit, orderId, target, receiver);
++	}
++
++	@Override
++	protected void innerCheckCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityPointTarget target, final AbilityTargetCheckReceiver<AbilityPointTarget> receiver) {
++		final CUnit hall = findTownHall(game, unit, target.getX(), target.getY());
++		if ((hall == null) || (hall.distanceSquaredNoCollision(target.getX(), target.getY()) > (this.areaOfEffect * this.areaOfEffect))) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.THERE_ARE_NO_FRIENDLY_TOWN_HALLS_TO_TOWN_PORTAL_TO);
++			return;
++		}
++		super.innerCheckCanTarget(game, unit, orderId, target, receiver);
++	}
++
++	private CUnit findTownHall(final CSimulation simulation, final CUnit caster, final float x, final float y) {
++		CUnit best = null;
++		double bestDistance = Double.MAX_VALUE;
++		for (final CUnit unit : simulation.getUnits()) {
++			if (isOwnTownHall(caster, unit)) {
++				final double distance = unit.distanceSquaredNoCollision(x, y);
++				if (distance < bestDistance) {
++					bestDistance = distance;
++					best = unit;
++				}
++			}
++		}
++		return best;
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		this.destination = targetUnit != null ? targetUnit
++				: findTownHall(simulation, caster, target.getX(), target.getY());
++		if (this.destination == null) {
++			return false;
++		}
++		if (targetUnit != null) {
++			this.destinationX = targetUnit.getX();
++			this.destinationY = targetUnit.getY();
++		}
++		else {
++			this.destinationX = target.getX();
++			this.destinationY = target.getY();
++		}
++		final float delay = Math.max(0, getCastingTime() - caster.getUnitType().getCastPoint());
++		this.teleportTick = simulation.getGameTurnTick()
++				+ CTimer.ceilSteps(delay);
++		this.sourceEffect = simulation.spawnSpellEffectOnPoint(caster.getX(), caster.getY(), 0, getAlias(),
++				CEffectType.CASTER, 0);
++		this.targetEffect = simulation.spawnSpellEffectOnPoint(this.destinationX, this.destinationY, 0,
++				getAlias(), CEffectType.AREA_EFFECT, 0);
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		if (simulation.getGameTurnTick() < this.teleportTick) {
++			return true;
++		}
++		final CUnit hall = this.destination;
++		if ((hall == null) || hall.isDead()) {
++			return false;
++		}
++		final CAbilityInventory inventory = caster.getInventoryData();
++		if ((getItem() != null) && (inventory != null)) {
++			inventory.spendItemCharge(simulation, caster, getItem());
++		}
++		final List<CUnit> units = new ArrayList<>();
++		final float casterX = caster.getX();
++		final float casterY = caster.getY();
++		simulation.getWorldCollision().enumUnitsInRange(casterX, casterY, this.areaOfEffect, (enumUnit) -> {
++			if ((enumUnit != caster) && (enumUnit.getPlayerIndex() == caster.getPlayerIndex())
++					&& !enumUnit.isBuilding() && !enumUnit.isDead() && !enumUnit.isHidden()
++					&& !enumUnit.isMovementDisabled()) {
++				units.add(enumUnit);
++			}
++			return false;
++		});
++		// Measured on 1.29: the units take the free spots around the user in the order they were made.
++		units.sort(Comparator.comparingInt(CUnit::getHandleId));
++		while (units.size() > Math.max(0, this.numberOfUnits - 1)) {
++			units.remove(units.size() - 1);
++		}
++		simulation.spawnSpellEffectOnPoint(casterX, casterY, 0, getAlias(), CEffectType.SPECIAL, 0).remove();
++		final float destX = this.destinationX;
++		final float destY = this.destinationY;
++		caster.setPointAndCheckUnstuck(destX, destY, simulation);
++		for (final CUnit unit : units) {
++			// Measured on 1.29: the units brought along stand where they land instead of going back to what they did.
++			unit.order(simulation, OrderIds.stop, null);
++			if (this.useClustering) {
++				unit.setPointAndCheckUnstuck(caster.getX(), caster.getY(), simulation);
++			}
++			else {
++				unit.setPointAndCheckUnstuck(destX + (unit.getX() - casterX), destY + (unit.getY() - casterY),
++						simulation);
++			}
++		}
++		simulation.spawnSpellEffectOnPoint(caster.getX(), caster.getY(), 0, getAlias(), CEffectType.SPECIAL, 0)
++				.remove();
++		return false;
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		if (this.sourceEffect != null) {
++			this.sourceEffect.remove();
++			this.sourceEffect = null;
++		}
++		if (this.targetEffect != null) {
++			this.targetEffect.remove();
++			this.targetEffect = null;
++		}
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.ITEM;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/unit/CAbilityControlMagic.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/unit/CAbilityControlMagic.java
+new file mode 100644
+index 0000000..3a0dc88
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/unit/CAbilityControlMagic.java
+@@ -0,0 +1,117 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimed;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Control Magic (Spell Breaker): takes an enemy summoned unit for the caster's player. With "Charge for Current
++ * Life" the mana paid is the listed cost plus the given share of the summon's current life.
++ */
++public class CAbilityControlMagic extends CAbilityTargetSpellBase {
++	private float manaPerSummonedHitPoint;
++	private boolean chargeForCurrentLife;
++	private War3ID buffId;
++
++	public CAbilityControlMagic(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.controlmagic;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.manaPerSummonedHitPoint = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.chargeForCurrentLife = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0) != 0;
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	private int controlCost(final CSimulation game, final CUnit caster, final CUnit target) {
++		int cost = getManaCost();
++		if (this.chargeForCurrentLife) {
++			cost += (int) Math.ceil(target.getLife() * this.manaPerSummonedHitPoint);
++		}
++		return cost;
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit targetUnit = target instanceof CUnit ? (CUnit) target : null;
++		if ((targetUnit == null) || !targetUnit.isUnitType(CUnitTypeJass.SUMMONED) || targetUnit.isHero()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_SUMMONED_UNITS);
++		}
++		else if (unit.getMana() < controlCost(game, unit, targetUnit)) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_MANA);
++		}
++		else {
++			receiver.targetOk(target);
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target instanceof CUnit ? (CUnit) target : null;
++		if ((targetUnit == null) || targetUnit.isDead()) {
++			return false;
++		}
++		final int extraCost = controlCost(simulation, caster, targetUnit)
++				- getManaCost();
++		if (extraCost > 0) {
++			if (!caster.chargeMana(extraCost)) {
++				return false;
++			}
++		}
++		else if (extraCost < 0) {
++			caster.setMana(caster.getMana() - extraCost);
++		}
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		simulation.createTemporarySpellEffectOnUnit(targetUnit, getAlias(), CEffectType.TARGET);
++		targetUnit.changeOwner(simulation, caster.getPlayerIndex(), true);
++		targetUnit.performDefaultBehavior(simulation);
++		if (this.buffId != null) {
++			targetUnit.add(simulation, new CBuffControlled(simulation.getHandleIdAllocator().createId(), this.buffId,
++					getDurationForTarget(targetUnit)));
++		}
++		return false;
++	}
++
++	private static final class CBuffControlled extends CBuffTimed {
++		CBuffControlled(final int handleId, final War3ID alias, final float duration) {
++			super(handleId, alias, alias, duration);
++		}
++
++		@Override
++		protected void onBuffAdd(final CSimulation game, final CUnit unit) {
++		}
++
++		@Override
++		protected void onBuffRemove(final CSimulation game, final CUnit unit) {
++		}
++
++		@Override
++		public boolean isTimedLifeBar() {
++			return false;
++		}
++
++		@Override
++		public boolean isPositive() {
++			return false;
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/item/CAbilityWandOfIllusion.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/item/CAbilityWandOfIllusion.java
+new file mode 100644
+index 0000000..32dffb2
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/item/CAbilityWandOfIllusion.java
+@@ -0,0 +1,57 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.item;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CIllusions;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++
++/**
++ * Wand of Illusion: creates one illusion of the target unit for the caster's player beside it.
++ */
++public class CAbilityWandOfIllusion extends CAbilityTargetSpellBase {
++	private static final float OFFSET = 100;
++	private float damageDealtFactor;
++	private float damageTakenFactor;
++	private War3ID buffId;
++
++	public CAbilityWandOfIllusion(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.wandOfIllusion;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.damageDealtFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.damageTakenFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if (targetUnit == null) {
++			return false;
++		}
++		final double angle = simulation.getSeededRandom().nextDouble() * 2 * Math.PI;
++		final CUnit image = CIllusions.create(simulation, targetUnit, caster.getPlayerIndex(),
++				targetUnit.getX() + (float) (StrictMath.cos(angle) * OFFSET),
++				targetUnit.getY() + (float) (StrictMath.sin(angle) * OFFSET), targetUnit.getFacing(),
++				this.damageDealtFactor, this.damageTakenFactor, getDurationForTarget(targetUnit), this.buffId);
++		if (image != null) {
++			simulation.createTemporarySpellEffectOnUnit(image, getAlias(), CEffectType.TARGET);
++		}
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/blademaster/CAbilityMirrorImage.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/blademaster/CAbilityMirrorImage.java
+new file mode 100644
+index 0000000..731e7ba
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/blademaster/CAbilityMirrorImage.java
+@@ -0,0 +1,198 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.blademaster;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CIllusions;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType;
++
++/**
++ * Mirror Image as in the original game: the cast strips the caster's buffs and the caster vanishes; after the
++ * animation delay image missiles fly out to spots around it, and where each lands the caster or an illusion appears,
++ * the caster at a random one so the real one cannot be told apart. Measured on 1.29: the caster stays hidden for the
++ * delay plus its missile's flight (0.5 to 0.7 s); the spots are about 128 from a centre about 80 off in a random
++ * direction.
++ */
++public class CAbilityMirrorImage extends CAbilityNoTargetSpellBase {
++	private static final StateModBuff HIDDEN_INVULNERABLE = new StateModBuff(StateModBuffType.INVULNERABLE, 1);
++	private static final float SPREAD = 128;
++	private static final float CENTRE_OFFSET = 80;
++	private static final float DEFAULT_MISSILE_SPEED = 1000;
++	private int numberOfImages;
++	private float damageDealtFactor;
++	private float damageTakenFactor;
++	private float animationDelay;
++	private War3ID buffId;
++	private float missileSpeed;
++
++	private int appearTick;
++	private final List<AbilityPointTarget> spots = new ArrayList<>();
++	// Tick each spot's missile lands, -1 once its unit appeared; empty until the missiles are launched.
++	private final List<Integer> arrivalTicks = new ArrayList<>();
++	// Images of the last cast; a recast removes the ones still alive (measured on 1.29), so a hero never has more
++	// images than the level makes.
++	private final List<CUnit> images = new ArrayList<>();
++	private boolean casterEventPending;
++	private boolean hiding;
++
++	public CAbilityMirrorImage(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.mirrorimage;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.numberOfImages = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.damageDealtFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.damageTakenFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.animationDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++		this.missileSpeed = worldEditorAbility.getFieldAsFloat(AbilityFields.PROJECTILE_SPEED, 0);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		for (final CAbility ability : new ArrayList<>(caster.getAbilities())) {
++			if (ability.getAbilityCategory() == CAbilityCategory.BUFF) {
++				caster.remove(simulation, ability);
++			}
++		}
++		for (final CUnit oldImage : this.images) {
++			if (!oldImage.isDead()) {
++				oldImage.kill(simulation);
++			}
++		}
++		this.images.clear();
++		this.spots.clear();
++		this.arrivalTicks.clear();
++		this.casterEventPending = false;
++		final int count = this.numberOfImages + 1;
++		final double centreAngle = simulation.getSeededRandom().nextDouble() * 2 * Math.PI;
++		final double centreX = caster.getX() + (StrictMath.cos(centreAngle) * CENTRE_OFFSET);
++		final double centreY = caster.getY() + (StrictMath.sin(centreAngle) * CENTRE_OFFSET);
++		final double startAngle = simulation.getSeededRandom().nextDouble() * 2 * Math.PI;
++		for (int i = 0; i < count; i++) {
++			final double angle = startAngle + ((2 * Math.PI * i) / count);
++			this.spots.add(new AbilityPointTarget((float) (centreX + (StrictMath.cos(angle) * SPREAD)),
++					(float) (centreY + (StrictMath.sin(angle) * SPREAD))));
++		}
++		Collections.shuffle(this.spots, simulation.getSeededRandom());
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.SPECIAL);
++		caster.setHidden(true);
++		this.hiding = true;
++		caster.addStateModBuff(HIDDEN_INVULNERABLE);
++		caster.computeUnitState(simulation, StateModBuffType.INVULNERABLE);
++		this.appearTick = simulation.getGameTurnTick()
++				+ CTimer.ceilSteps(this.animationDelay);
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		if (tick < this.appearTick) {
++			return true;
++		}
++		if (this.arrivalTicks.isEmpty()) {
++			final float speed = this.missileSpeed > 0 ? this.missileSpeed : DEFAULT_MISSILE_SPEED;
++			for (int i = 0; i < this.spots.size(); i++) {
++				// Measured on 1.29: a missile flies to where the unit will stand, not to a blocked spot.
++				final float[] free = caster.findFreePoint(this.spots.get(i).getX(), this.spots.get(i).getY(),
++						simulation);
++				final AbilityPointTarget spot = new AbilityPointTarget(free[0], free[1]);
++				this.spots.set(i, spot);
++				final float distance = (float) StrictMath.hypot(spot.getX() - caster.getX(), spot.getY() - caster.getY());
++				this.arrivalTicks.add(tick
++						+ CTimer.ceilSteps(distance / speed));
++				simulation.createProjectile(caster, getAlias(), caster.getX(), caster.getY(), caster.getFacing(),
++						speed, false, spot, CAbilityProjectileListener.DO_NOTHING);
++			}
++		}
++		boolean pending = false;
++		for (int i = 0; i < this.spots.size(); i++) {
++			final int arrival = this.arrivalTicks.get(i);
++			if (arrival < 0) {
++				continue;
++			}
++			if (tick < arrival) {
++				pending = true;
++				continue;
++			}
++			this.arrivalTicks.set(i, -1);
++			final AbilityPointTarget spot = this.spots.get(i);
++			if (i == 0) {
++				caster.setPointAndCheckUnstuck(spot.getX(), spot.getY(), simulation);
++				reveal(simulation, caster);
++				this.casterEventPending = true;
++			}
++			else {
++				final CUnit image = CIllusions.create(simulation, caster, caster.getPlayerIndex(), spot.getX(),
++						spot.getY(), caster.getFacing(), this.damageDealtFactor, this.damageTakenFactor,
++						getDuration(), this.buffId);
++				if (image != null) {
++					this.images.add(image);
++					simulation.unitSummoned(caster, image);
++				}
++			}
++		}
++		// Measured on 1.29: the caster's own reappearance raises a summon event too, with no summoned unit, after
++		// the images' events.
++		if (this.casterEventPending && !pending) {
++			this.casterEventPending = false;
++			simulation.unitSummoned(caster, null);
++		}
++		return pending;
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		reveal(game, unit);
++	}
++
++	/**
++	 * Measured on 1.29: while Mirror Image hides the caster he takes no order (move, attack and spells are refused,
++	 * stop is accepted but does nothing), and the images still appear.
++	 */
++	public static boolean isHidingCaster(final CUnit unit) {
++		if (!unit.isHidden()) {
++			return false;
++		}
++		for (final CAbility ability : unit.getAbilities()) {
++			if ((ability instanceof CAbilityMirrorImage) && ((CAbilityMirrorImage) ability).hiding) {
++				return true;
++			}
++		}
++		return false;
++	}
++
++	private void reveal(final CSimulation simulation, final CUnit caster) {
++		this.hiding = false;
++		if (caster.isHidden()) {
++			caster.setHidden(false);
++			caster.removeStateModBuff(HIDDEN_INVULNERABLE);
++			caster.computeUnitState(simulation, StateModBuffType.INVULNERABLE);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/deathknight/CAbilityAnimateDead.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/deathknight/CAbilityAnimateDead.java
+new file mode 100644
+index 0000000..e909444
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/deathknight/CAbilityAnimateDead.java
+@@ -0,0 +1,106 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.deathknight;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimedLife;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Animate Dead: raises corpses of any owner around the caster as its own units for the duration, invulnerable when
++ * the spell says so (the creep version's are not).
++ */
++public class CAbilityAnimateDead extends CAbilityNoTargetSpellBase {
++	// Measured on 1.29 (Satyr Hellcaller): a creep raises the dead once there are as many corpses as the spell raises
++	// (5 of 6 do not), or with fewer corpses at 36 % life or less (37 % does not).
++	private static final float CREEP_CAST_LIFE_RATIO = 0.36f;
++
++	private int numberOfCorpsesRaised;
++	private boolean raisedUnitsInvulnerable;
++	private float areaOfEffect;
++	private War3ID buffId;
++	private final int orderId;
++
++	public CAbilityAnimateDead(final int handleId, final War3ID alias) {
++		this(handleId, alias, OrderIds.animatedead);
++	}
++
++	/**
++	 * The creep version answers its own order.
++	 */
++	public CAbilityAnimateDead(final int handleId, final War3ID alias, final int orderId) {
++		super(handleId, alias);
++		this.orderId = orderId;
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return this.orderId;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.numberOfCorpsesRaised = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.raisedUnitsInvulnerable = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_B + level, 0) != 0;
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	private List<CUnit> findCorpses(final CSimulation simulation, final CUnit caster) {
++		final List<CUnit> corpses = new ArrayList<>();
++		simulation.getWorldCollision().enumCorpsesInRange(caster.getX(), caster.getY(), this.areaOfEffect,
++				(enumUnit) -> {
++					if ((corpses.size() < this.numberOfCorpsesRaised) && (enumUnit.getHeroData() == null)
++							&& enumUnit.canBeTargetedBy(simulation, caster, getTargetsAllowed())) {
++						corpses.add(enumUnit);
++					}
++					return corpses.size() >= this.numberOfCorpsesRaised;
++				});
++		return corpses;
++	}
++
++	/**
++	 * Measured (1.29): the scroll of an item is refused while no corpse it could raise is near the user.
++	 */
++	@Override
++	protected void innerCheckCanUseSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityActivationReceiver receiver) {
++		if ((getItem() != null) && findCorpses(game, unit).isEmpty()) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.THERE_ARE_NO_USABLE_CORPSES_NEARBY);
++			return;
++		}
++		super.innerCheckCanUseSpell(game, unit, orderId, receiver);
++	}
++
++
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final List<CUnit> corpses = findCorpses(simulation, caster);
++		for (final CUnit corpse : corpses) {
++			corpse.resurrectAsAnimatedCorpse(simulation);
++			if (corpse.getPlayerIndex() != caster.getPlayerIndex()) {
++				corpse.setPlayerIndex(simulation, caster.getPlayerIndex(), true);
++			}
++			if (this.raisedUnitsInvulnerable) {
++				corpse.setInvulnerableSource(simulation, CUnit.ANIMATED_INVULNERABLE, true);
++			}
++			corpse.add(simulation, new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId,
++					getDuration(), false));
++			simulation.createTemporarySpellEffectOnUnit(corpse, getAlias(), CEffectType.TARGET);
++		}
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityCreateCorpse.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityCreateCorpse.java
+new file mode 100644
+index 0000000..5c15ab5
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityCreateCorpse.java
+@@ -0,0 +1,111 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponent;
++
++/**
++ * Create Corpse (Graveyard): once built, the graveyard raises its gravestones in a ring around itself and lays a
++ * corpse beyond an empty one after every interval, up to one corpse per gravestone.
++ */
++public class CAbilityCreateCorpse extends CAbilityPassiveSpellBase {
++	private int maximumCorpses;
++	private float gravestoneRadius;
++	private float corpseRadius;
++	private float interval;
++	private War3ID corpseUnitType;
++
++	private SimulationRenderComponent[] gravestones;
++	private CUnit[] corpses;
++	private int ticksTowardsCorpse;
++
++	public CAbilityCreateCorpse(final int handleId, final War3ID alias) {
++		super(handleId, alias, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.maximumCorpses = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.gravestoneRadius = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.corpseRadius = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.interval = worldEditorAbility.getFieldAsFloat(AbilityFields.COOLDOWN + level, 0);
++		final String unitType = worldEditorAbility.getFieldAsString(AbilityFields.UNIT_ID + level, 0);
++		this.corpseUnitType = (unitType == null) || (unitType.length() != 4) ? null : War3ID.fromString(unitType);
++	}
++
++	private double slotAngle(final CUnit unit, final int slot) {
++		return StrictMath.toRadians(unit.getFacing()) + (((Math.PI * 2) * slot) / this.maximumCorpses);
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (isDisabled() || unit.isDead() || unit.isConstructing() || (this.corpseUnitType == null)
++				|| (this.maximumCorpses <= 0)) {
++			return;
++		}
++		if (this.gravestones == null) {
++			this.gravestones = new SimulationRenderComponent[this.maximumCorpses];
++			this.corpses = new CUnit[this.maximumCorpses];
++			for (int i = 0; i < this.maximumCorpses; i++) {
++				final double angle = slotAngle(unit, i);
++				this.gravestones[i] = game.spawnSpellEffectOnPoint(
++						unit.getX() + (float) (StrictMath.cos(angle) * this.gravestoneRadius),
++						unit.getY() + (float) (StrictMath.sin(angle) * this.gravestoneRadius),
++						(float) StrictMath.toDegrees(angle), getAlias(), CEffectType.SPECIAL, 0);
++			}
++		}
++		int emptySlot = -1;
++		for (int i = 0; i < this.maximumCorpses; i++) {
++			final CUnit corpse = this.corpses[i];
++			if ((corpse == null) || !corpse.isDead() || corpse.isHidden()) {
++				this.corpses[i] = null;
++				if (emptySlot == -1) {
++					emptySlot = i;
++				}
++			}
++		}
++		if (emptySlot == -1) {
++			this.ticksTowardsCorpse = 0;
++			return;
++		}
++		this.ticksTowardsCorpse++;
++		if ((this.ticksTowardsCorpse * WarsmashConstants.SIMULATION_STEP_TIME) >= this.interval) {
++			this.ticksTowardsCorpse = 0;
++			final double angle = slotAngle(unit, emptySlot);
++			final CUnit corpse = game.createUnit(this.corpseUnitType, unit.getPlayerIndex(),
++					unit.getX() + (float) (StrictMath.cos(angle) * this.corpseRadius),
++					unit.getY() + (float) (StrictMath.sin(angle) * this.corpseRadius), (float) StrictMath.toDegrees(angle));
++			if (corpse != null) {
++				corpse.becomeCorpse(game);
++				this.corpses[emptySlot] = corpse;
++			}
++		}
++	}
++
++	private void removeGravestones() {
++		if (this.gravestones != null) {
++			for (final SimulationRenderComponent gravestone : this.gravestones) {
++				if (gravestone != null) {
++					gravestone.remove();
++				}
++			}
++			this.gravestones = null;
++		}
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		removeGravestones();
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit unit) {
++		removeGravestones();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityDropCorpses.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityDropCorpses.java
+new file mode 100644
+index 0000000..a20b430
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityDropCorpses.java
+@@ -0,0 +1,57 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHoldCorpses;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++
++/**
++ * Drop All Corpses: the Meat Wagon empties its cargo hold on the spot at once.
++ */
++public class CAbilityDropCorpses extends CAbilityNoTargetSpellBase {
++
++	public CAbilityDropCorpses(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.unloadallcorpses;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster,
++			final int orderId, final AbilityTarget target) { final int playerIndex = caster.getPlayerIndex(); final boolean autoOrder = false;
++		if (orderId == getBaseOrderId()) {
++			final CAbilityCargoHoldCorpses hold = caster.getFirstAbilityOfType(CAbilityCargoHoldCorpses.class);
++			if (hold != null) {
++				hold.unloadAllInstant(game, caster);
++			}
++			return false;
++		}
++		return super.checkBeforeQueue(game, caster, orderId, target);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public boolean isUniversal() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityExhumeCorpses.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityExhumeCorpses.java
+new file mode 100644
+index 0000000..7b268e7
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityExhumeCorpses.java
+@@ -0,0 +1,53 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHoldCorpses;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++
++/**
++ * Exhume Corpses: while the cargo hold has fewer corpses than the ability's maximum, a new one appears in it after
++ * every interval.
++ */
++public class CAbilityExhumeCorpses extends CAbilityPassiveSpellBase {
++	private int maximumCorpses;
++	private War3ID corpseUnitType;
++	private int ticksTowardsCorpse;
++
++	public CAbilityExhumeCorpses(final int handleId, final War3ID alias) {
++		super(handleId, alias, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.maximumCorpses = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		final String unitType = worldEditorAbility.getFieldAsString(AbilityFields.UNIT_ID + level, 0);
++		this.corpseUnitType = (unitType == null) || (unitType.length() != 4) ? null : War3ID.fromString(unitType);
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (isDisabled() || unit.isDead() || (this.corpseUnitType == null)) {
++			return;
++		}
++		final CAbilityCargoHoldCorpses hold = unit.getFirstAbilityOfType(CAbilityCargoHoldCorpses.class);
++		if ((hold == null) || hold.isFull() || (hold.getCargoCount() >= this.maximumCorpses)) {
++			this.ticksTowardsCorpse = 0;
++			return;
++		}
++		this.ticksTowardsCorpse++;
++		if ((this.ticksTowardsCorpse * WarsmashConstants.SIMULATION_STEP_TIME) >= getDuration()) {
++			this.ticksTowardsCorpse = 0;
++			final CUnit corpse = game.createUnit(this.corpseUnitType, unit.getPlayerIndex(), unit.getX(),
++					unit.getY(), unit.getFacing());
++			if (corpse != null) {
++				corpse.becomeCorpse(game);
++				hold.addCorpse(game, unit, corpse);
++			}
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityGetCorpse.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityGetCorpse.java
+new file mode 100644
+index 0000000..2eafaf1
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityGetCorpse.java
+@@ -0,0 +1,200 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.autocast.AutocastType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.autocast.CAutocastAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHoldCorpses;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.skills.CBehaviorTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Get Corpse: the Meat Wagon picks up a corpse into its cargo hold. With autocast on it goes for the nearest
++ * corpse within the ability's area whenever it is idle and has room.
++ */
++public class CAbilityGetCorpse extends CAbilityTargetSpellBase implements CAutocastAbility {
++	private float searchArea;
++	private boolean autoCastOn;
++	private CBehaviorTargetSpellBase corpseBehavior;
++
++	public CAbilityGetCorpse(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.loadcorpse;
++	}
++
++	@Override
++	public int getAutoCastOnOrderId() {
++		return OrderIds.loadcorpseon;
++	}
++
++	@Override
++	public int getAutoCastOffOrderId() {
++		return OrderIds.loadcorpseoff;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.searchArea = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		this.corpseBehavior = new CBehaviorTargetSpellBase(unit, this) {
++			@Override
++			protected boolean checkTargetStillValid(final CSimulation simulation) {
++				final CUnit corpse = this.target.visit(AbilityTargetVisitor.UNIT);
++				return (corpse != null) && corpse.isDead() && !corpse.isHidden();
++			}
++		};
++	}
++
++	@Override
++	public CBehavior begin(final CSimulation game, final CUnit caster, final int orderId, final CWidget target) {
++		return this.corpseBehavior.reset(game, target);
++	}
++
++	private static CAbilityCargoHoldCorpses getHold(final CUnit unit) {
++		return unit.getFirstAbilityOfType(CAbilityCargoHoldCorpses.class);
++	}
++
++	@Override
++	protected void innerCheckCanUseSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityActivationReceiver receiver) {
++		final CAbilityCargoHoldCorpses hold = getHold(unit);
++		if ((hold == null) || hold.isFull()) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.CARGO_CAPACITY_UNAVAILABLE);
++		}
++		else {
++			receiver.useOk();
++		}
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CAbilityCargoHoldCorpses hold = getHold(unit);
++		if ((hold == null) || hold.isFull()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.CARGO_CAPACITY_UNAVAILABLE);
++		}
++		else {
++			receiver.targetOk(target);
++		}
++	}
++
++	@Override
++	protected void innerCheckCanTargetNoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityTargetCheckReceiver<Void> receiver) {
++		final CAbilityCargoHoldCorpses hold = getHold(unit);
++		if ((hold == null) || hold.isFull()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.CARGO_CAPACITY_UNAVAILABLE);
++		}
++		else if (findNearestCorpse(game, unit) == null) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.THERE_ARE_NO_USABLE_CORPSES_NEARBY);
++		}
++		else {
++			receiver.targetOk(null);
++		}
++	}
++
++	@Override
++	public CBehavior beginNoTarget(final CSimulation game, final CUnit caster,
++			final int orderId) { final int playerIndex = caster.getPlayerIndex(); final boolean autoOrder = false;
++		final CUnit corpse = findNearestCorpse(game, caster);
++		if (corpse == null) {
++			return caster.pollNextOrderBehavior(game);
++		}
++		return begin(game, caster, orderId, corpse);
++	}
++
++	private CUnit findNearestCorpse(final CSimulation game, final CUnit caster) {
++		final CUnit[] nearest = { null };
++		final double[] nearestDistance = { Double.MAX_VALUE };
++		game.getWorldCollision().enumCorpsesInRange(caster.getX(), caster.getY(), this.searchArea, (corpse) -> {
++			if (corpse.canBeTargetedBy(game, caster, getTargetsAllowed())) {
++				final double distance = caster.distance(corpse);
++				if (distance < nearestDistance[0]) {
++					nearestDistance[0] = distance;
++					nearest[0] = corpse;
++				}
++			}
++			return false;
++		});
++		return nearest[0];
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit corpse = target.visit(AbilityTargetVisitor.UNIT);
++		final CAbilityCargoHoldCorpses hold = getHold(caster);
++		if ((corpse != null) && (hold != null) && !hold.isFull() && corpse.isDead() && !corpse.isHidden()) {
++			simulation.unitSoundEffectEvent(caster, hold.getAlias());
++			hold.addCorpse(simulation, caster, corpse);
++		}
++		return false;
++	}
++
++	@Override
++	public AutocastType getAutocastType() {
++		return AutocastType.NOTARGET;
++	}
++
++	@Override
++	public boolean isAutoCastOn() {
++		return this.autoCastOn;
++	}
++
++	@Override
++	public void setAutoCastOn(final CUnit caster, final boolean autoCastOn) {
++		this.autoCastOn = autoCastOn;
++		caster.setAutocastAbility(autoCastOn ? this : null);
++	}
++
++	@Override
++	public void setAutoCastOff() {
++		this.autoCastOn = false;
++	}
++
++	@Override
++	public void checkCanAutoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanAutoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityPointTarget target, final AbilityTargetCheckReceiver<AbilityPointTarget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanAutoTargetNoTarget(final CSimulation game, final CUnit unit,
++			final int orderId, final AbilityTargetCheckReceiver<Void> receiver) {
++		innerCheckCanTargetNoTarget(game, unit, orderId, receiver);
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public boolean isUniversal() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityPossession.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityPossession.java
+new file mode 100644
+index 0000000..cafee8a
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/units/CAbilityPossession.java
+@@ -0,0 +1,160 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetUnitVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentLightning;
++
++/**
++ * Possession: the Banshee channels on a land unit that cannot act meanwhile, taking extra damage from attacks;
++ * when the channel completes her spirit flies into it, her body is gone and the unit is hers for good.
++ */
++public class CAbilityPossession extends CAbilityTargetSpellBase {
++	private int maximumCreepLevel;
++	private float damageAmplification;
++	private boolean targetInvulnerable;
++	private boolean targetMagicImmune;
++	private War3ID targetBuffId;
++	private War3ID casterBuffId;
++	private War3ID lightningId;
++	private float projectileSpeed;
++	private boolean projectileHomingEnabled;
++
++	private CBuffPossessionTarget targetBuff;
++	private CBuffPossessionCaster casterBuff;
++	private SimulationRenderComponentLightning lightning;
++	private int channelEndTick;
++
++	public CAbilityPossession(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.possession;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.maximumCreepLevel = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.damageAmplification = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.targetInvulnerable = worldEditorAbility.getFieldAsBoolean(AbilityFields.DATA_C + level, 0);
++		this.targetMagicImmune = worldEditorAbility.getFieldAsBoolean(AbilityFields.DATA_D + level, 0);
++		this.targetBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 0);
++		this.casterBuffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level, 1);
++		this.lightningId = AbstractCAbilityTypeDefinition.getLightningId(worldEditorAbility, level);
++		this.projectileSpeed = worldEditorAbility.getFieldAsFloat(AbilityFields.PROJECTILE_SPEED, 0);
++		this.projectileHomingEnabled = worldEditorAbility.getFieldAsBoolean(AbilityFields.PROJECTILE_HOMING_ENABLED,
++				0);
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || targetUnit.isBuilding()) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_A_UNIT_WITH_THIS_ACTION);
++		}
++		else if (game.isNeutralAggressive(targetUnit.getPlayerIndex())
++				&& (targetUnit.getUnitType().getLevel() > this.maximumCreepLevel)) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.THAT_CREATURE_IS_TOO_POWERFUL);
++		}
++		else {
++			receiver.targetOk(target);
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || targetUnit.isDead()) {
++			return false;
++		}
++		final float duration = getDurationForTarget(targetUnit);
++		this.channelEndTick = simulation.getGameTurnTick()
++				+ CTimer.wholeSteps(duration);
++		this.targetBuff = new CBuffPossessionTarget(simulation.getHandleIdAllocator().createId(), this.targetBuffId,
++				this.targetInvulnerable, this.targetMagicImmune);
++		targetUnit.add(simulation, this.targetBuff);
++		if (!War3ID.NONE.equals(this.casterBuffId)) {
++			this.casterBuff = new CBuffPossessionCaster(simulation.getHandleIdAllocator().createId(),
++					this.casterBuffId, this.damageAmplification);
++			caster.add(simulation, this.casterBuff);
++		}
++		if (!War3ID.NONE.equals(this.lightningId)) {
++			this.lightning = simulation.createLightning(caster, this.lightningId, targetUnit);
++		}
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || targetUnit.isDead()) {
++			return false;
++		}
++		return simulation.getGameTurnTick() < this.channelEndTick;
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit caster, final AbilityTarget target,
++			final boolean interrupted) {
++		if (this.lightning != null) {
++			this.lightning.remove();
++			this.lightning = null;
++		}
++		if (this.casterBuff != null) {
++			caster.remove(game, this.casterBuff);
++			this.casterBuff = null;
++		}
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		final CBuffPossessionTarget targetBuff = this.targetBuff;
++		this.targetBuff = null;
++		if ((targetUnit == null) || targetUnit.isDead() || interrupted || caster.isDead()
++				|| (game.getGameTurnTick() < this.channelEndTick)) {
++			if ((targetUnit != null) && (targetBuff != null) && targetUnit.getAbilities().contains(targetBuff)) {
++				targetUnit.remove(game, targetBuff);
++			}
++			return;
++		}
++		final int newOwner = caster.getPlayerIndex();
++		game.createProjectile(caster, getAlias(), caster.getX(), caster.getY(), (float) caster.angleTo(targetUnit),
++				this.projectileSpeed, this.projectileHomingEnabled, targetUnit, new CAbilityProjectileListener() {
++					@Override
++					public void onLaunch(final CSimulation game, final CProjectile projectile,
++							final AbilityTarget target) {
++					}
++
++					@Override
++					public void onHit(final CSimulation game, final CProjectile projectile,
++							final AbilityTarget target) {
++						final CUnit possessed = target.visit(AbilityTargetUnitVisitor.INSTANCE);
++						if (possessed == null) {
++							return;
++						}
++						if ((targetBuff != null) && possessed.getAbilities().contains(targetBuff)) {
++							possessed.remove(game, targetBuff);
++						}
++						if (!possessed.isDead()) {
++							possessed.changeOwner(game, newOwner, true);
++						}
++					}
++				});
++		caster.setHidden(true);
++		game.removeUnit(caster);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/util/CIllusions.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/util/CIllusions.java
+new file mode 100644
+index 0000000..526b458
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/util/CIllusions.java
+@@ -0,0 +1,68 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CItem;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.hero.CAbilityHero;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.inventory.CAbilityInventory;
++
++/**
++ * Creates illusions the way every illusion ability does (Mirror Image, Wand of Illusion and the like): a copy of
++ * the original's type, hero level, attributes and learned skills (only passives stay), carrying copies of its items in the same slots so their stat
++ * bonuses apply, with the same share of life and mana, living for the given duration.
++ */
++public final class CIllusions {
++	private CIllusions() {
++	}
++
++	public static CUnit create(final CSimulation simulation, final CUnit original, final int playerIndex,
++			final float x, final float y, final float facing, final float damageDealtFactor,
++			final float damageTakenFactor, final float duration, final War3ID buffId) {
++		final CUnit image = simulation.createUnit(original.getTypeId(), playerIndex, x, y, facing);
++		if (image == null) {
++			return null;
++		}
++		final CAbilityHero originalHero = original.getHeroData();
++		final CAbilityHero imageHero = image.getHeroData();
++		if ((originalHero != null) && (imageHero != null)) {
++			imageHero.copyHeroLevel(simulation, image, originalHero);
++			imageHero.setStrengthBase(simulation, image, originalHero.getStrength().getBase());
++			imageHero.setAgilityBase(simulation, image, originalHero.getAgility().getBase());
++			imageHero.setIntelligenceBase(simulation, image, originalHero.getIntelligence().getBase());
++			imageHero.copyLearnedSkills(simulation, image, originalHero);
++			imageHero.copyProperName(originalHero);
++		}
++		image.makeIllusion(simulation, damageDealtFactor, damageTakenFactor, buffId);
++		final CAbilityInventory originalInventory = original.getInventoryData();
++		final CAbilityInventory imageInventory = image.getInventoryData();
++		if ((originalInventory != null) && (imageInventory != null)) {
++			for (int slot = 0; slot < originalInventory.getItemCapacity(); slot++) {
++				final CItem item = originalInventory.getItemInSlot(slot);
++				if (item != null) {
++					final CItem copy = simulation.createItem(item.getTypeId(), x, y);
++					if (copy != null) {
++						copy.setCharges(item.getCharges());
++						imageInventory.giveItem(simulation, image, copy, slot, false);
++					}
++				}
++			}
++		}
++		image.setLife(simulation, image.getMaximumLife() * share(original.getLife(), original.getMaximumLife()));
++		if (imageHero != null) {
++			image.setMana(image.getMaximumMana() * share(original.getMana(), original.getMaximumMana()));
++		}
++		else {
++			// Measured on 1.29: only a hero's illusion has mana.
++			image.setMaximumMana(0);
++			image.setMana(0);
++		}
++		image.add(simulation,
++				new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), buffId, duration, false));
++		return image;
++	}
++
++	private static float share(final float value, final float maximum) {
++		return maximum > 0 ? value / maximum : 1;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/definitions/impl/CAbilityTypeDefinitionCargoHoldCorpses.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/definitions/impl/CAbilityTypeDefinitionCargoHoldCorpses.java
+new file mode 100644
+index 0000000..bbb3eb3
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/definitions/impl/CAbilityTypeDefinitionCargoHoldCorpses.java
+@@ -0,0 +1,31 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl;
++
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.CAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.impl.CAbilityTypeCargoHoldCorpses;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.impl.CAbilityTypeCargoHoldLevelData;
++
++public class CAbilityTypeDefinitionCargoHoldCorpses
++		extends AbstractCAbilityTypeDefinition<CAbilityTypeCargoHoldLevelData> implements CAbilityTypeDefinition {
++
++	@Override
++	protected CAbilityTypeCargoHoldLevelData createLevelData(final GameObject abilityEditorData, final int level) {
++		final int cargoCapacity = abilityEditorData.getFieldAsInteger(DATA_A + level, 0);
++		final float castRange = abilityEditorData.getFieldAsFloat(CAST_RANGE + level, 0);
++		final float duration = abilityEditorData.getFieldAsFloat(DURATION + level, 0);
++
++		return new CAbilityTypeCargoHoldLevelData(getTargetsAllowed(abilityEditorData, level), cargoCapacity, duration,
++				castRange);
++	}
++
++	@Override
++	protected CAbilityType<?> innerCreateAbilityType(final War3ID alias, final GameObject abilityEditorData,
++			final List<CAbilityTypeCargoHoldLevelData> levelData) {
++		return new CAbilityTypeCargoHoldCorpses(alias, abilityEditorData.getFieldAsWar3ID(CODE, -1), levelData);
++	}
++
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/impl/CAbilityTypeCargoHoldCorpses.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/impl/CAbilityTypeCargoHoldCorpses.java
+new file mode 100644
+index 0000000..d64086a
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/impl/CAbilityTypeCargoHoldCorpses.java
+@@ -0,0 +1,41 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.impl;
++
++import java.util.List;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHold;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHoldCorpses;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CLevelingAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityType;
++
++public class CAbilityTypeCargoHoldCorpses extends CAbilityType<CAbilityTypeCargoHoldLevelData> {
++
++	public CAbilityTypeCargoHoldCorpses(final War3ID alias, final War3ID code,
++			final List<CAbilityTypeCargoHoldLevelData> levelData) {
++		super(alias, code, levelData);
++	}
++
++	@Override
++	public CAbility createAbility(final int handleId) {
++		final CAbilityTypeCargoHoldLevelData levelData = getLevelData(0);
++		return new CAbilityCargoHoldCorpses(handleId, getCode(), getAlias(), levelData.getCargoCapcity(),
++				levelData.getDuration(), levelData.getCastRange(), levelData.getTargetsAllowed());
++	}
++
++	@Override
++	public void setLevel(final CSimulation game, final CUnit unit, final CLevelingAbility existingAbility,
++			final int level) {
++		final CAbilityTypeCargoHoldLevelData levelData = getLevelData(level - 1);
++		final CAbilityCargoHold heroAbility = ((CAbilityCargoHold) existingAbility);
++
++		heroAbility.setDuration(levelData.getDuration());
++		heroAbility.setCargoCapacity(levelData.getCargoCapcity());
++		heroAbility.setTargetsAllowed(levelData.getTargetsAllowed());
++
++		heroAbility.setLevel(game, unit, level);
++	}
++
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/combat/attacks/CUnitAttack.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/combat/attacks/CUnitAttack.java
+index 4ab9a3e..f0eb852 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/combat/attacks/CUnitAttack.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/combat/attacks/CUnitAttack.java
+@@ -465,6 +465,12 @@ public abstract class CUnitAttack {
+ 			}
+ 		}
+ 
++		// Blizzard launcher: an illusion's attacks deal its factor (Warsmash Reforged's, measured on 1.29).
++		if (attacker.isIllusion()) {
++			result.setDamageMultiplier(result.getDamageMultiplier() * attacker.getIllusionDamageDealtFactor());
++			result.setBonusDamage(result.getBonusDamage() * attacker.getIllusionDamageDealtFactor());
++		}
++
+ 		if (!result.isMiss() && (result.getDamageMultiplier() != 1) && (result.getDamageMultiplier() != 0)) {
+ 			simulation.spawnTextTag(attacker, attacker.getPlayerIndex(), TextTagConfigType.CRITICAL_STRIKE,
+ 					Math.round(result.computeFinalDamage()));
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index c0a2545..88d5d89 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -435,6 +435,41 @@ public class CAbilityData {
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIfa"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
+ 				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit.CAbilityAreaDetection(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemflaregun, true)));
+ 
++		// Blizzard launcher: batch 3 from Warsmash Reforged.
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Acmg"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.human.unit.CAbilityControlMagic(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AOmi"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.blademaster.CAbilityMirrorImage(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AUa2"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.deathknight.CAbilityAnimateDead(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AUan"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.deathknight.CAbilityAnimateDead(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aps2"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityPossession(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Amtc"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionCargoHoldCorpses());
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Amel"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityGetCorpse(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Amed"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityDropCorpses(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aexh"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityExhumeCorpses(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Agyd"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityCreateCorpse(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIil"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.item.CAbilityWandOfIllusion(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AItp"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemTownPortal(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIan"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.deathknight.CAbilityAnimateDead(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemanimatedead)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ACad"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.deathknight.CAbilityAnimateDead(handleId, alias, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.creepanimatedead)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aret"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemRetrain(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANsa"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemStaffHome(handleId, alias, true)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANpr"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
++				(handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemStaffHome(handleId, alias, false)));
++
+ 		System.err.println("========================================================================");
+ 		System.err.println("Starting to load ability builder");
+ 		System.err.println("========================================================================");

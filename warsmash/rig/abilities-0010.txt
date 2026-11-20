@@ -1,0 +1,14 @@
+AOmi AOmi none
+AIil AIil ally
+Acmg Acmg summoned
+Aps2 Aps2 enemy
+AUan AUan corpse
+AIan AIan corpse
+ACad ACad corpse
+Amel Amel corpseenemy umtw
+Aexh Aexh passive umtw
+Agyd Agyd passive
+ANsa ANsa ally
+ANpr ANpr ally
+Aret Aret hero
+AItp AItp point
