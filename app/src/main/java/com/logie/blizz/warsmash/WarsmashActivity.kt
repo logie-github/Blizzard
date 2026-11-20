@@ -3,6 +3,7 @@ package com.logie.blizz.warsmash
 import android.app.ActivityManager
 import android.app.AlertDialog
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.opengl.GLES30
 import android.opengl.GLES32
 import android.os.Bundle
@@ -14,6 +15,7 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.audio.Sound
 import com.badlogic.gdx.backends.android.AndroidApplication
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration
+import com.badlogic.gdx.files.FileHandle
 import com.etheller.warsmash.KeysEmulator
 import com.etheller.warsmash.WarsmashGdxMenuScreen
 import com.etheller.warsmash.WarsmashGdxMultiScreenGame
@@ -29,6 +31,7 @@ import com.etheller.warsmash.viewer5.gl.Extensions
 import com.etheller.warsmash.viewer5.gl.WireframeExtension
 import com.logie.blizz.importer.Warcraft3WarsmashImporter
 import java.io.File
+import java.util.WeakHashMap
 
 /** Embedded engine screen in its own process; no standalone launcher or broad storage permission. */
 class WarsmashActivity : AndroidApplication() {
@@ -184,12 +187,34 @@ class WarsmashActivity : AndroidApplication() {
         }
         Extensions.wireframeExtension = WireframeExtension { _, _ -> }
         Extensions.audio = object : AudioExtension {
-            override fun getDuration(sound: Sound?) = if (sound == null) 1f else 2f
+            private val durations = WeakHashMap<Sound, Lazy<Float>>()
+
+            override fun loadSound(file: FileHandle): Sound = Gdx.audio.newSound(file).also { sound ->
+                val path = file.file().absolutePath
+                durations[sound] = lazy { readSoundDuration(path) }
+            }
+
+            override fun getDuration(sound: Sound?): Float =
+                if (sound == null) 1f else durations[sound]?.value ?: 2f
+
             override fun play(buffer: Sound, volume: Float, pitch: Float, x: Float, y: Float, z: Float, is3dSound: Boolean, maxDistance: Float, refDistance: Float, looping: Boolean): Long =
                 if (looping) buffer.loop(volume, pitch, 0f) else buffer.play(volume, pitch, 0f)
             override fun createContext(world: Boolean) = AudioContext(AudioContext.Listener.DO_NOTHING, object : AudioDestination {})
         }
         Extensions.GL_LINE = 0
         Extensions.GL_FILL = 0
+    }
+
+    private fun readSoundDuration(path: String): Float {
+        val metadata = MediaMetadataRetriever()
+        return try {
+            metadata.setDataSource(path)
+            val milliseconds = metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            if (milliseconds != null && milliseconds > 0) milliseconds / 1000f else 2f
+        } catch (_: RuntimeException) {
+            2f
+        } finally {
+            metadata.release()
+        }
     }
 }
