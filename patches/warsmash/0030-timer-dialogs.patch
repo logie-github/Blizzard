@@ -1,0 +1,163 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 22232b3..6a6f5fe 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -566,6 +566,54 @@ public final class LauncherNatives {
+ 		});
+ 	}
+ 
++	/** The timer dialogs' natives this engine lacked: show, hide, title, colours, destroy. */
++	private static void registerTimerDialogs(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
++			final War3MapViewer war3MapViewer, final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI) {
++		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
++		natives.createNative("TimerDialogDisplay", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog dialog = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog>getInstance());
++			if (dialog != null) {
++				dialog.setVisible(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("IsTimerDialogDisplayed", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog dialog = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog>getInstance());
++			return BooleanJassValue.of((dialog != null) && dialog.isVisible());
++		});
++		natives.createNative("TimerDialogSetTitle", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog dialog = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog>getInstance());
++			final String title = nullable(arguments, 1, StringJassValueVisitor.getInstance());
++			if ((dialog != null) && (war3MapViewer.getGameUI() != null)) {
++				dialog.setTitle(war3MapViewer.getGameUI(), title == null ? "" : war3MapViewer.getGameUI().getTrigStr(title));
++			}
++			return null;
++		});
++		natives.createNative("DestroyTimerDialog", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog dialog = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog>getInstance());
++			if ((dialog != null) && (meleeUI != null)) {
++				meleeUI.destroyTimerDialog(dialog);
++			}
++			return null;
++		});
++		for (final boolean title : new boolean[] { true, false }) {
++			natives.createNative(title ? "TimerDialogSetTitleColor" : "TimerDialogSetTimeColor", (arguments, globalScope, triggerScope) -> {
++				final com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog dialog = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CTimerDialog>getInstance());
++				if (dialog != null) {
++					final com.badlogic.gdx.graphics.Color color = new com.badlogic.gdx.graphics.Color(intArg(arguments, 1) / 255f,
++							intArg(arguments, 2) / 255f, intArg(arguments, 3) / 255f, intArg(arguments, 4) / 255f);
++					if (title) {
++						dialog.setTitleColor(color);
++					}
++					else {
++						dialog.setValueColor(color);
++					}
++				}
++				return null;
++			});
++		}
++	}
++
+ 	private static JassValue orderOf(final JassValue orderString) {
+ 		final String s = orderString == null ? null : orderString.visit(StringJassValueVisitor.getInstance());
+ 		return IntegerJassValue.of(s == null ? 0 : OrderIdUtils.getOrderId(s));
+@@ -588,6 +636,7 @@ public final class LauncherNatives {
+ 		registerGuardPositions(jassProgramVisitor, simulation);
+ 		registerCineFilter(jassProgramVisitor, meleeUI);
+ 		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
++		registerTimerDialogs(jassProgramVisitor, war3MapViewer, meleeUI);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 95cdae1..b3f8e81 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -5372,9 +5372,19 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 	@Override
+ 	public CTimerDialog createTimerDialog(final CTimer timer) {
+ 		final UIFrame timerDialog = this.rootFrame.createFrame("TimerDialog", this.rootFrame, 0, 0);
+-		final StringFrame valueFrame = (StringFrame) this.rootFrame.getFrameByName("TimeDialogValue", 0);
++		final StringFrame valueFrame = (StringFrame) this.rootFrame.getFrameByName("TimerDialogValue", 0);
+ 		final StringFrame titleFrame = (StringFrame) this.rootFrame.getFrameByName("TimerDialogTitle", 0);
+-		return new CTimerDialog(timer, timerDialog, valueFrame, titleFrame);
++		final CTimerDialog dialog = new CTimerDialog(timer, timerDialog, valueFrame, titleFrame);
++		// Blizzard launcher: a timer dialog shows only once TimerDialogDisplay says so, and counts down then.
++		dialog.setVisible(false);
++		this.timerDialogs.add(dialog);
++		return dialog;
++	}
++
++	@Override
++	public void destroyTimerDialog(final CTimerDialog dialog) {
++		dialog.setVisible(false);
++		this.timerDialogs.remove(dialog);
+ 	}
+ 
+ 	@Override
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+index 913890e..2093b51 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+@@ -45,6 +45,11 @@ public interface WarsmashUI extends CommandErrorListener, WarsmashBaseUI {
+ 
+ 	CTimerDialog createTimerDialog(CTimer timer);
+ 
++	/** Blizzard launcher: DestroyTimerDialog. */
++	default void destroyTimerDialog(final CTimerDialog dialog) {
++		dialog.setVisible(false);
++	}
++
+ 	void removedUnit(CUnit whichUnit);
+ 
+ 	void removedItem(CItem whichItem);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CTimerDialog.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CTimerDialog.java
+index 94ae0b6..0525850 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CTimerDialog.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/dialog/CTimerDialog.java
+@@ -32,6 +32,23 @@ public class CTimerDialog {
+ 		this.timerDialogFrame.setVisible(visible);
+ 	}
+ 
++	// Blizzard launcher: what TimerDialogDisplay, IsTimerDialogDisplayed and the colour natives need.
++	public boolean isVisible() {
++		return this.timerDialogFrame.isVisible();
++	}
++
++	public UIFrame getFrame() {
++		return this.timerDialogFrame;
++	}
++
++	public void setTitleColor(final com.badlogic.gdx.graphics.Color color) {
++		this.titleFrame.setColor(color);
++	}
++
++	public void setValueColor(final com.badlogic.gdx.graphics.Color color) {
++		this.valueFrame.setColor(color);
++	}
++
+ 	public void update(final GameUI rootFrame, final CSimulation simulation) {
+ 		if (this.timerDialogFrame.isVisible() && (this.timer != null)) {
+ 			final float remaining = this.timer.getRemaining(simulation);
+@@ -39,7 +56,8 @@ public class CTimerDialog {
+ 			final int minutes = secondsRemaining / 60;
+ 			final int seconds = secondsRemaining % 60;
+ 
+-			rootFrame.setText(this.valueFrame, minutes + ":" + seconds);
++			// Blizzard launcher: seconds in two digits (1:05), as the original shows them.
++			rootFrame.setText(this.valueFrame, minutes + ":" + (seconds < 10 ? "0" : "") + seconds);
+ 		}
+ 	}
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+index fd6bee9..9c9894c 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+@@ -229,6 +229,11 @@ public class MeleeToggleUI implements WarsmashUI {
+ 		return this.meleeUI.createTimerDialog(timer);
+ 	}
+ 
++	@Override
++	public void destroyTimerDialog(final CTimerDialog dialog) {
++		this.meleeUI.destroyTimerDialog(dialog);
++	}
++
+ 	@Override
+ 	public void removedUnit(final CUnit whichUnit) {
+ 		this.meleeUI.removedUnit(whichUnit);

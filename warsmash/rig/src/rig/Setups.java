@@ -303,8 +303,14 @@ public class Setups extends Scenario {
       b.append(" cine filter shown=").append(call.apply("IsCineFilterDisplayed", java.util.List.of()));
       call.apply("DisplayCineFilter", java.util.List.of(com.etheller.interpreter.ast.value.BooleanJassValue.FALSE));
       b.append(" hidden=").append(call.apply("IsCineFilterDisplayed", java.util.List.of()));
+      var timer = call3(g, "CreateTimer", java.util.List.of(), null); call.apply("TimerStart", java.util.Arrays.asList((com.etheller.interpreter.ast.value.JassValue) timer, com.etheller.interpreter.ast.value.RealJassValue.of(90), com.etheller.interpreter.ast.value.BooleanJassValue.FALSE, null));
+      var dlg = call3(g, "CreateTimerDialog", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) timer), null);
+      b.append(" timer dialog shown at creation=").append(call.apply("IsTimerDialogDisplayed", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg)));
+      call.apply("TimerDialogSetTitle", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg, new com.etheller.interpreter.ast.value.StringJassValue("Reinforcements in")));
+      call.apply("TimerDialogDisplay", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE));
+      b.append(" after display=").append(call.apply("IsTimerDialogDisplayed", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg)));
       final String before = b.toString(); final float x0 = f.getX();
-      return () -> before + " footman moved " + (int) (f.getX() - x0);
+      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\""; };
     }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
@@ -329,6 +335,9 @@ public class Setups extends Scenario {
         return "accepted=" + ok + " tree dead=" + (t != null && t.isDead()) + " tree at " + (t == null ? -1 : (int) Math.hypot(t.getX() - m.getX(), t.getY() - m.getY())) + " buffs " + b + " behavior " + m.getCurrentBehavior() + " giant at " + (t == null ? -1 : (int) Math.hypot(t.getX() - m.getX(), t.getY() - m.getY())) + " cd " + m.getCooldownRemainingTicks(s, War3ID.fromString("Agra")); };
     })
   ));
+  static com.etheller.interpreter.ast.value.JassValue call3(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
+    return g.getNativeById(g.getNativeId(name)).call(args, g, scope == null ? new com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope((com.etheller.interpreter.ast.scope.trigger.Trigger) null) : scope);
+  }
   static Object call2(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
     Integer id = g.getNativeId(name); if (id == null) return "NONE"; var r = g.getNativeById(id).call(args, g, scope);
     if (r instanceof com.etheller.interpreter.ast.value.HandleJassValue h) { Object o = h.getJavaValue(); return o instanceof CUnit u ? "unit " + u.getHandleId() : String.valueOf(o); }
