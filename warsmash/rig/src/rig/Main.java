@@ -4,7 +4,7 @@ import com.badlogic.gdx.*; import com.badlogic.gdx.backends.headless.*; import c
 import com.etheller.warsmash.*; import com.etheller.warsmash.units.DataTable; import com.etheller.warsmash.util.StringBundle;
 import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer;
 public class Main {
-  public static War3MapViewer viewer; public static int mapFrames;
+  public static War3MapViewer viewer; public static int mapFrames; public static Object mapScreen;
   public static void main(String[] args) throws Exception {
     String game = System.getenv("GAME");
     String map = args[0]; Scenario sc = (Scenario) Class.forName(args[1]).getDeclaredConstructor().newInstance();
@@ -43,6 +43,7 @@ public class Main {
           try { g.render(); } catch (Throwable t) { if (viewer == null) throw t; System.err.println("RIG: EXC " + t); for (StackTraceElement e : t.getStackTrace()) { if (e.getClassName().contains("etheller")) System.err.println("RIG:   at " + e); } for (Throwable c = t.getCause(); c != null && c != c.getCause(); c = c.getCause()) { System.err.println("RIG:   cause " + c); for (StackTraceElement e : c.getStackTrace()) { if (e.getClassName().contains("etheller")) { System.err.println("RIG:     at " + e); break; } } } sc.exception(t); }
           Screen s = g.getScreen();
           if (s instanceof WarsmashGdxMapScreen ms) {
+            mapScreen = ms;
             if (viewer == null) { Field f = WarsmashGdxMapScreen.class.getDeclaredField("viewer"); f.setAccessible(true); viewer = (War3MapViewer) f.get(ms); System.err.println("RIG: map screen at frame " + frame[0]); }
             mapFrames++;
             if (sc.frame(viewer, mapFrames)) { System.err.println("RIG: scenario done"); System.out.flush(); System.err.flush(); Runtime.getRuntime().halt(sc.failed ? 1 : 0); }

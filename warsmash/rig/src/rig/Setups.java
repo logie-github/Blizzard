@@ -298,8 +298,21 @@ public class Setups extends Scenario {
       CUnit hitter = unit(s, "hfoo", 1, p[0] + 2000, p[1] + 2000);
       f.damage(s, hitter, false, false, com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType.SPELLS, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType.NORMAL, "WHOKNOWS", 50f);
       b.append(" damage event ").append(dmg[0]).append(" (footman ").append(f.getHandleId()).append(", hitter ").append(hitter.getHandleId()).append(")");
+      call.apply("SetCineFilterStartColor", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(0), com.etheller.interpreter.ast.value.IntegerJassValue.of(0), com.etheller.interpreter.ast.value.IntegerJassValue.of(0), com.etheller.interpreter.ast.value.IntegerJassValue.of(255)));
+      call.apply("DisplayCineFilter", java.util.List.of(com.etheller.interpreter.ast.value.BooleanJassValue.TRUE));
+      b.append(" cine filter shown=").append(call.apply("IsCineFilterDisplayed", java.util.List.of()));
+      call.apply("DisplayCineFilter", java.util.List.of(com.etheller.interpreter.ast.value.BooleanJassValue.FALSE));
+      b.append(" hidden=").append(call.apply("IsCineFilterDisplayed", java.util.List.of()));
       final String before = b.toString(); final float x0 = f.getX();
       return () -> before + " footman moved " + (int) (f.getX() - x0);
+    }),
+    c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
+      CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
+      CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);
+      for (CUnit f : new CUnit[]{near, far}) f.addStateModBuff(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK, 1));
+      final float n0 = near.getLife(), f0 = far.getLife(); final float x0 = c1.getX(), y0 = c1.getY(); final boolean[] o = new boolean[2];
+      new Later() { public void onFire(CSimulation sim) { o[0] = c1.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.attack, near); o[1] = c2.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.attack, far); } }.go(s, 1f);
+      return () -> "min range " + c1.getUnitType().getMinimumAttackRange() + "; orders " + o[0] + "," + o[1] + "; near footman lost " + (int) (n0 - near.getLife()) + " (catapult moved " + (int) Math.hypot(c1.getX() - x0, c1.getY() - y0) + ", now " + (int) c1.distance(near) + " away, " + c1.getCurrentBehavior().getClass().getSimpleName() + "), far footman lost " + (int) (f0 - far.getLife());
     }),
     c("War Club (Agra): mountain giant takes a tree", 400, (s, p) -> {
       CUnit m = unit(s, "emtg", 0, p[0], p[1]); CAbility a = null; for (CAbility x : m.getAbilities()) if (x.getAlias().toString().equals("Agra")) a = x; if (a == null) a = give(s, m, "Agra");

@@ -1,0 +1,298 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 6ed4c1d..e0c8656 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -384,6 +384,71 @@ public final class LauncherNatives {
+ 				((CommonTriggerExecutionScope) triggerScope).getRevivingUnit()));
+ 	}
+ 
++	/** The cinematic filter (fades and tints), Reforged's natives, a no-op where the interface has none. */
++	private static void registerCineFilter(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI) {
++		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
++		final com.etheller.warsmash.viewer5.handlers.w3x.ui.CineFilter filter = meleeUI == null ? null : meleeUI.getCineFilter();
++		natives.createNative("SetCineFilterTexture", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setTexture(nullable(arguments, 0, StringJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterBlendMode", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setBlendMode(nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CBlendMode>getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterTexMapFlags", (arguments, globalScope, triggerScope) -> {
++			final Object flags = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++			if (filter != null) {
++				filter.setTexMapFlags(flags instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CTexMapFlags
++						? ((com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CTexMapFlags) flags).ordinal() : 0);
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterStartUV", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setStartUV(realArg(arguments, 0), realArg(arguments, 1), realArg(arguments, 2), realArg(arguments, 3));
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterEndUV", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setEndUV(realArg(arguments, 0), realArg(arguments, 1), realArg(arguments, 2), realArg(arguments, 3));
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterStartColor", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setStartColor(intArg(arguments, 0), intArg(arguments, 1), intArg(arguments, 2), intArg(arguments, 3));
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterEndColor", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setEndColor(intArg(arguments, 0), intArg(arguments, 1), intArg(arguments, 2), intArg(arguments, 3));
++			}
++			return null;
++		});
++		natives.createNative("SetCineFilterDuration", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.setDuration(realArg(arguments, 0));
++			}
++			return null;
++		});
++		natives.createNative("DisplayCineFilter", (arguments, globalScope, triggerScope) -> {
++			if (filter != null) {
++				filter.display(arguments.get(0).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("IsCineFilterDisplayed", (arguments, globalScope, triggerScope) -> BooleanJassValue
++				.of((filter != null) && filter.isDisplayed()));
++	}
++
+ 	private static JassValue orderOf(final JassValue orderString) {
+ 		final String s = orderString == null ? null : orderString.visit(StringJassValueVisitor.getInstance());
+ 		return IntegerJassValue.of(s == null ? 0 : OrderIdUtils.getOrderId(s));
+@@ -404,6 +469,7 @@ public final class LauncherNatives {
+ 		final HandleJassType abilityType = globals.getHandleType("ability");
+ 		final HandleJassType destructableType = globals.getHandleType("destructable");
+ 		registerGuardPositions(jassProgramVisitor, simulation);
++		registerCineFilter(jassProgramVisitor, meleeUI);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/CineFilter.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/CineFilter.java
+new file mode 100644
+index 0000000..6f554d2
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/CineFilter.java
+@@ -0,0 +1,146 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.ui;
++
++import com.badlogic.gdx.graphics.GL20;
++import com.badlogic.gdx.graphics.Texture;
++import com.badlogic.gdx.graphics.Texture.TextureWrap;
++import com.badlogic.gdx.graphics.g2d.SpriteBatch;
++import com.etheller.warsmash.parsers.fdf.GameUI;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CBlendMode;
++
++/**
++ * Blizzard launcher: Warsmash Reforged's. The cinematic filter (SetCineFilter* and DisplayCineFilter): a full screen texture over the world and under the
++ * interface, whose color and texture coordinates go from the start to the end values over the duration.
++ */
++public final class CineFilter {
++	private String texturePath;
++	private Texture texture;
++	private boolean textureLoaded;
++	private CBlendMode blendMode = CBlendMode.BLEND;
++	private int texMapFlags;
++	private final float[] startUV = { 0, 0, 1, 1 };
++	private final float[] endUV = { 0, 0, 1, 1 };
++	private final int[] startColor = { 255, 255, 255, 255 };
++	private final int[] endColor = { 255, 255, 255, 255 };
++	private float duration;
++	private float elapsed;
++	private boolean displayed;
++
++	public void setTexture(final String texturePath) {
++		this.texturePath = texturePath;
++		this.texture = null;
++		this.textureLoaded = false;
++	}
++
++	public void setBlendMode(final CBlendMode blendMode) {
++		this.blendMode = blendMode == null ? CBlendMode.BLEND : blendMode;
++	}
++
++	/** TEXMAP_FLAG_WRAP_U (1) and _WRAP_V (2): the texture repeats past 0..1 in that direction instead of clamping. */
++	public void setTexMapFlags(final int texMapFlags) {
++		this.texMapFlags = texMapFlags;
++	}
++
++	public void setStartUV(final float minU, final float minV, final float maxU, final float maxV) {
++		set(this.startUV, minU, minV, maxU, maxV);
++	}
++
++	public void setEndUV(final float minU, final float minV, final float maxU, final float maxV) {
++		set(this.endUV, minU, minV, maxU, maxV);
++	}
++
++	public void setStartColor(final int red, final int green, final int blue, final int alpha) {
++		set(this.startColor, red, green, blue, alpha);
++	}
++
++	public void setEndColor(final int red, final int green, final int blue, final int alpha) {
++		set(this.endColor, red, green, blue, alpha);
++	}
++
++	public void setDuration(final float duration) {
++		this.duration = duration;
++	}
++
++	public void display(final boolean display) {
++		this.displayed = display;
++		this.elapsed = 0;
++	}
++
++	public boolean isDisplayed() {
++		return this.displayed;
++	}
++
++	public void update(final float deltaTime) {
++		if (this.displayed) {
++			this.elapsed += deltaTime;
++		}
++	}
++
++	public void render(final SpriteBatch batch, final GameUI gameUI, final float x, final float y, final float width,
++			final float height) {
++		if (!this.displayed) {
++			return;
++		}
++		if (!this.textureLoaded) {
++			this.textureLoaded = true;
++			if ((this.texturePath != null) && !this.texturePath.isEmpty()) {
++				this.texture = gameUI.loadTexture(this.texturePath);
++			}
++		}
++		final float t = this.duration > 0 ? Math.min(1, this.elapsed / this.duration) : 1;
++		batch.setColor(lerp(this.startColor[0], this.endColor[0], t) / 255f,
++				lerp(this.startColor[1], this.endColor[1], t) / 255f,
++				lerp(this.startColor[2], this.endColor[2], t) / 255f,
++				lerp(this.startColor[3], this.endColor[3], t) / 255f);
++		switch (this.blendMode) {
++		case NONE:
++			batch.disableBlending();
++			break;
++		case ADDITIVE:
++			batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
++			break;
++		case MODULATE:
++			batch.setBlendFunction(GL20.GL_ZERO, GL20.GL_SRC_COLOR);
++			break;
++		case MODULATE_2X:
++			batch.setBlendFunction(GL20.GL_DST_COLOR, GL20.GL_SRC_COLOR);
++			break;
++		default:
++			break;
++		}
++		final Texture drawn = this.texture != null ? this.texture : gameUI.loadTexture("Textures\\white.blp");
++		if (drawn != null) {
++			// Textures are shared, so the wrap is set for this draw only.
++			final TextureWrap oldU = drawn.getUWrap();
++			final TextureWrap oldV = drawn.getVWrap();
++			batch.flush();
++			drawn.setWrap((this.texMapFlags & 1) != 0 ? TextureWrap.Repeat : TextureWrap.ClampToEdge,
++					(this.texMapFlags & 2) != 0 ? TextureWrap.Repeat : TextureWrap.ClampToEdge);
++			batch.draw(drawn, x, y, width, height, lerp(this.startUV[0], this.endUV[0], t),
++					lerp(this.startUV[3], this.endUV[3], t), lerp(this.startUV[2], this.endUV[2], t),
++					lerp(this.startUV[1], this.endUV[1], t));
++			batch.flush();
++			drawn.setWrap(oldU, oldV);
++		}
++		batch.enableBlending();
++		batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
++		batch.setColor(1, 1, 1, 1);
++	}
++
++	private static float lerp(final float from, final float to, final float t) {
++		return from + ((to - from) * t);
++	}
++
++	private static void set(final float[] values, final float a, final float b, final float c, final float d) {
++		values[0] = a;
++		values[1] = b;
++		values[2] = c;
++		values[3] = d;
++	}
++
++	private static void set(final int[] values, final int a, final int b, final int c, final int d) {
++		values[0] = a;
++		values[1] = b;
++		values[2] = c;
++		values[3] = d;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 83725da..e16a74d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -1629,8 +1629,17 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
++	// Blizzard launcher: the cinematic filter (Reforged's), drawn over the world and under the interface.
++	private final CineFilter cineFilter = new CineFilter();
++
++	@Override
++	public CineFilter getCineFilter() {
++		return this.cineFilter;
++	}
++
+ 	@Override
+ 	public void update(final float deltaTime) {
++		this.cineFilter.update(deltaTime);
+ 		this.portrait.update(deltaTime);
+ 		if (this.portrait.isResetNeeded()) {
+ 			this.portrait.resetCinematicSequence();
+@@ -2125,6 +2134,9 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 			font.draw(batch, fpsString, (this.uiViewport.getMinWorldWidth() - glyphLayout.width) / 2,
+ 					1100 * this.heightRatioCorrection);
+ 		}
++		this.cineFilter.render(batch, this.rootFrame,
++				(this.uiViewport.getMinWorldWidth() - this.uiViewport.getWorldWidth()) / 2, 0,
++				this.uiViewport.getWorldWidth(), this.uiViewport.getWorldHeight());
+ 		this.rootFrame.render(batch, this.rootFrame.getFont20(), glyphLayout);
+ 		if (this.selectedUnit != null) {
+ 			this.rootFrame.getFont20().setColor(Color.WHITE);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+index 2665b49..d84c158 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+@@ -64,4 +64,9 @@ public interface WarsmashUI extends CommandErrorListener, WarsmashBaseUI {
+ 
+ 	void forceCinematicSubtitles(boolean value);
+ 
++
++	/** Blizzard launcher: the cinematic filter (fades), when the interface has one. */
++	default CineFilter getCineFilter() {
++		return null;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+index b5946f2..adcb70c 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+@@ -45,6 +45,11 @@ public class MeleeToggleUI implements WarsmashUI {
+ 		this.currentUI.onShow();
+ 	}
+ 
++	@Override
++	public com.etheller.warsmash.viewer5.handlers.w3x.ui.CineFilter getCineFilter() {
++		return this.meleeUI.getCineFilter();
++	}
++
+ 	@Override
+ 	public void showInterfaceError(final int playerIndex, final String message) {
+ 		this.meleeUI.showInterfaceError(playerIndex, message);

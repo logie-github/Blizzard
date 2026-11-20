@@ -1,0 +1,1 @@
+Campaign missions and their cutscenes now fade in and out as in the original.
