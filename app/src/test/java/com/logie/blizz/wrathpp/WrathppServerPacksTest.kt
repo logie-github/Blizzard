@@ -74,7 +74,8 @@ class WrathppServerPacksTest {
             pack("payload-mod-x", payload, optional = true),
         )
         val manifest = WrathppServerPackage.Manifest(size = 1, sha256 = "feed", unpacked = 0, format = 2, protocol = 1, packs = packs)
-        return Built(manifest, served, mutableListOf())
+        // The packs are opened on parallel threads: a list they can all add to.
+        return Built(manifest, served, java.util.Collections.synchronizedList(mutableListOf()))
     }
 
     private fun source(b: Built) = WrathppServerPackage.Source { name ->
