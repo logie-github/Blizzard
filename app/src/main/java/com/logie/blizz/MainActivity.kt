@@ -20,6 +20,8 @@ class MainActivity : ComponentActivity() {
         // World of Warcraft: Play starts the realm through this.
         com.logie.blizz.game.WowPlay.realm = com.logie.blizz.wow.WowRealmControl
         com.logie.blizz.wow.WowCtl.nativeWrapper = java.io.File(applicationInfo.nativeLibraryDir, "libblizzmaria.so")
+        // Wrath++ made ready in the background (its setup, then its realm) when it was the last game played: Play joins it.
+        runCatching { com.logie.blizz.wrathpp.WrathppPrewarm.start(applicationContext) }
         com.logie.blizz.music.MusicPlayer.load(this)
         setContent { Launcher() }
     }

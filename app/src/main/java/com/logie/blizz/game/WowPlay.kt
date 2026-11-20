@@ -96,7 +96,7 @@ object WowPlay {
                     octo = entry.gameId == OCTO_ID,
                     legion = entry.gameId == LEGION_ID,
                     wrathpp = wrathpp,
-                    setUpWrathpp = { say -> com.logie.blizz.wrathpp.WrathppSetup.run(app, say) },
+                    setUpWrathpp = { say -> com.logie.blizz.wrathpp.WrathppPrewarm.setUp(app, say) },
                     wrathppGraphics = { com.logie.blizz.wrathpp.WrathppGraphics.values(com.logie.blizz.wrathpp.WrathppGraphics.chosen(app.filesDir)) },
                     afterWrathppLaunch = {
                         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

@@ -263,7 +263,7 @@ object WrathppSetup {
             com.logie.blizz.reports.BugReports.submit(context, com.logie.blizz.reports.BugReports.Report(
                 "Wrath++ start: build ${com.logie.blizz.BuildConfig.VERSION_CODE}, add-on ${addon.take(8)}, looks ${looks.take(8)}",
                 com.logie.blizz.reports.BugReports.body("Wrath++ start", "What Wrath++'s game was started with",
-                    listOf("Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
+                    listOf("Play" to WrathppPrewarm.lastPlay(context).replace('\n', ';').replace('|', '/'), "Add-on" to addon, "Looks" to looks, "Creator" to (creator.lastOrNull()?.substringAfter("creator: ") ?: "said nothing (not opened yet, or the native mod without WrathPP_Log)")),
                     // (the body keeps the end of its log, 20,000 characters: the setup's lines last, where they are kept. Until build 407 they
                     // were first, before the world server's 400 load lines and the runtime's 120, and no start report since those were
                     // added said a word of the setup: the looks, the body options, the creator's patch. The long logs are comments now.)

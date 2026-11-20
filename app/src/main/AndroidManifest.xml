@@ -61,6 +61,16 @@
             android:name=".wow.WowRealmService"
             android:exported="false" />
 
+        <!-- After an update (the old build's realm ended with it): Wrath++ made ready again in the background when it was the
+             last game played (WrathppPrewarm). -->
+        <receiver
+            android:name=".wrathpp.WrathppPrewarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Warcraft I and II, native: Stratagus on SDL's screen, in a process of its own that ends
              with the game (the engine keeps its state in the process). -->
         <activity

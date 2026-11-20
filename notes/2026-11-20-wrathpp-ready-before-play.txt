@@ -1,0 +1,1 @@
+Wrath++: gets ready in the background when the app opens or updates, so Play finds it done or under way.
