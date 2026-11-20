@@ -30,6 +30,17 @@ public class Setups extends Scenario {
   }
 
   final List<Case> cases = List.of(
+    c("Death and Decay (AUdd) on a computer player's footmen: they walk out", 600, (s, p) -> {
+      com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl was = s.getPlayer(1).getController();
+      s.getPlayer(1).setController(com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl.COMPUTER);
+      CUnit l = unit(s, "Ulic", 0, p[0], p[1]); CAbility a = give(s, l, "AUdd"); l.setMana(1000);
+      CUnit[] fs = { unit(s, "hfoo", 1, p[0] + 500, p[1]), unit(s, "hfoo", 1, p[0] + 520, p[1] + 60) };
+      for (CUnit f : fs) { f.addStateModBuff(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK, 1)); f.computeUnitState(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK); }
+      final float cx = p[0] + 510, cy = p[1] + 30;
+      boolean ok = l.order(s, order(a), new AbilityPointTarget(cx, cy));
+      return () -> { s.getPlayer(1).setController(was); StringBuilder b = new StringBuilder(); for (CUnit f : fs) b.append((int) Math.hypot(f.getX() - cx, f.getY() - cy)).append(' ');
+        return "accepted=" + ok + " footmen now this far from the centre: " + b + "(the area is 250 wide)"; };
+    }),
     c("Breath of Frost (ACbf): Blue Dragon on three footmen", 300, (s, p) -> {
       CUnit d = unit(s, "nbdo", 0, p[0], p[1]); CAbility a = null; for (CAbility x : d.getAbilities()) if (x.getAlias().toString().equals("ACbf")) a = x; if (a == null) a = give(s, d, "ACbf"); d.setMana(500);
       CUnit[] fs = { unit(s, "hfoo", 1, p[0] + 300, p[1]), unit(s, "hfoo", 1, p[0] + 350, p[1] + 40), unit(s, "hfoo", 1, p[0] + 330, p[1] - 40) };

@@ -1,0 +1,1 @@
+Warcraft III: computer players' units walk out of Death and Decay and Starfall instead of standing in them.
