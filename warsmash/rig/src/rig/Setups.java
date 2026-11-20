@@ -30,6 +30,33 @@ public class Setups extends Scenario {
   }
 
   final List<Case> cases = List.of(
+    c("Player 1's own peons ordered to 4128,2720", 900, (s, p) -> {
+      java.util.List<CUnit> ps = new java.util.ArrayList<>(); for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 1 && !u.isBuilding() && !u.isDead()) ps.add(u);
+      StringBuilder start = new StringBuilder(); for (CUnit u : ps) start.append((int) u.getX()).append(',').append((int) u.getY()).append(' ').append(u.isHidden() ? "hidden " : "");
+      for (CUnit u : ps) u.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(4128, 2720));
+      return () -> { StringBuilder b = new StringBuilder(); for (CUnit u : ps) b.append((int) Math.hypot(u.getX() - 4128, u.getY() - 2720)).append(' '); return "peons " + ps.size() + " started at " + start + "; left to go " + b; };
+    }),
+    c("Footmen ordered 300, 800 and 1500 away", 900, (s, p) -> {
+      CUnit[] fs = { unit(s, "hfoo", 0, p[0], p[1]), unit(s, "hfoo", 0, p[0], p[1] + 100), unit(s, "hfoo", 0, p[0], p[1] + 200) };
+      float[] d = { 300, 800, 1500 };
+      for (int i = 0; i < 3; i++) fs[i].order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(p[0] + d[i], p[1] + i * 100));
+      return () -> { StringBuilder b = new StringBuilder(); for (int i = 0; i < 3; i++) b.append((int) (d[i]) + "->left " + (int) Math.hypot(fs[i].getX() - p[0] - d[i], fs[i].getY() - p[1] - i * 100) + "; "); return b.toString(); };
+    }),
+    c("Orc peon of player 1 told to move to 4128,2720", 900, (s, p) -> {
+      CUnit peon = unit(s, "opeo", 1, 4700, 3100);
+      final float x0 = peon.getX(), y0 = peon.getY();
+      boolean ok = peon.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(4128, 2720));
+      return () -> "accepted=" + ok + " from " + (int) x0 + "," + (int) y0 + " now at " + (int) peon.getX() + "," + (int) peon.getY() + " pathable there " + s.getPathingGrid().isPathable(4128, 2720, com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FOOT, 16);
+    }),
+    c("Orc peon of player 1 told to build an altar at 4128,2720", 900, (s, p) -> {
+      CUnit peon = null; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 1 && u.getTypeId().toString().equals("opeo")) { peon = u; break; }
+      if (peon == null) { peon = unit(s, "opeo", 1, 4400, 2900); }
+      final CUnit pe = peon; s.getPlayer(1).setGold(1000); s.getPlayer(1).setLumber(1000);
+      boolean ok = pe.order(s, War3ID.fromString("oalt").getValue(), new AbilityPointTarget(4128, 2720));
+      final int g0 = s.getPlayer(1).getGold();
+      return () -> { CUnit alt = null; for (CUnit u : s.getUnits()) if (u.getTypeId().toString().equals("oalt")) alt = u;
+        return "accepted=" + ok + " gold " + g0 + "->" + s.getPlayer(1).getGold() + " altar " + (alt == null ? "none" : "at " + (int) alt.getX() + "," + (int) alt.getY()) + " peon at " + (int) pe.getX() + "," + (int) pe.getY() + " " + pe.getCurrentBehavior(); };
+    }),
     c("Thunder Clap (AHtc): the ground ripples and settles", 300, (s, p) -> {
       CUnit m = unit(s, "Hmkg", 0, p[0], p[1]); CAbility a = give(s, m, "AHtc"); m.setMana(500);
       float[] pr = new float[42]; pr[0] = p[0]; pr[1] = p[1];
