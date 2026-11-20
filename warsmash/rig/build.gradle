@@ -42,7 +42,7 @@ tasks.named('run') { workingDir = file('run'); jvmArgs = ['-Djava.library.path='
     def run = file('run')
     run.mkdirs()
     run.listFiles().each { f -> if (java.nio.file.Files.isSymbolicLink(f.toPath())) f.delete() }
-    ['resources', 'warsmash.ini'].each { n -> java.nio.file.Files.createSymbolicLink(new File(run, n).toPath(), new File(W, 'assets/' + n).toPath()) }
+    ['resources', 'warsmash.ini', 'abilityBehaviors'].each { n -> java.nio.file.Files.createSymbolicLink(new File(run, n).toPath(), new File(W, 'assets/' + n).toPath()) }
     new File(W, 'assets/gles3.2').listFiles().each { f -> java.nio.file.Files.createSymbolicLink(new File(run, 'gles3.2\\' + f.name).toPath(), f.toPath()) }
   }
 }

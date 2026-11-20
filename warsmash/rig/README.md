@@ -11,7 +11,13 @@ scripts, and Warcraft III 1.27's own files. Nothing here ships in the app.
 - `src/rig/AbilitySmoke.java`: for each line of `$ABLIST` (`code alias target`, target one of `enemy`, `caster` (an enemy
   with mana), `ally`, `air`, `point`, `none`, `passive`), a Blood Mage beside two enemies, an ally and an enemy flyer
   (attacks off), given that ability and made to cast it; prints what changed (life, mana, buffs, gold, lumber), why a
-  cast was refused (the engine's own error key) and any exception. `abilities-0008.txt`, `abilities-0009.txt` and `abilities-0010.txt` are the lists for engine patches 0008 to 0010 (a fourth column names the caster's unit type when the Blood Mage can't cast it, e.g. a Kodo for Devour); `fx=` counts the spell-effect events the cast fired; `p0`, `ill`, `corpses`, `eOwner` and `allyMoved` count the caster's player's living units, illusions and corpses, name the first enemy's owner and how far the ally moved. A target `corpse` (or `corpseenemy`) kills the two enemy soldiers first and casts on their bodies, `summoned` makes the enemy a summoned unit, `hero` has the hero learn a skill first. A relative `ABLIST` is read from this folder.
+  cast was refused (the engine's own error key) and any exception. `abilities-0008.txt` to `abilities-0011.txt` are the lists for engine patches 0008 to 0011 (0011's: the ability builder's data abilities) (a fourth column names the caster's unit type when the Blood Mage can't cast it, e.g. a Kodo for Devour); `fx=` counts the spell-effect events the cast fired; `p0`, `ill`, `corpses`, `eOwner` and `allyMoved` count the caster's player's living units, illusions and corpses, name the first enemy's owner and how far the ally moved; `type` shows the caster's unit type changing (a form or a morph). A cast whose missing research or upgrade would refuse it has it granted first. A target `corpse` (or `corpseenemy`) kills the two enemy soldiers first and casts on their bodies, `summoned` makes the enemy a summoned unit, `hero` has the hero learn a skill first. A relative `ABLIST` is read from this folder.
+- `src/rig/Combat.java`: plain fights (melee, missile, splash, bounce, line, air, magic, a hero) side by side; prints each
+  pair's life after 900 frames. `src/rig/CombatDebug.java`: one attacker (`ATK`, default a Paladin) against a grunt,
+  frame by frame.
+- `src/rig/CombatAbilities.java`: one fight at a time from `$FIGHTLIST` (`attacker defender ability`, `-` for none),
+  the ability given to the attacker with autocast on; prints both lives, the attacker's mana spent and every buff the
+  defender carried. `fights-0011.txt` is the arrows and orbs, each beside the same attacker without it.
 - `src/rig/Dump.java`: copies files out of the game's MPQs (`Units\AbilityData.slk` and the like).
 
 ## Running

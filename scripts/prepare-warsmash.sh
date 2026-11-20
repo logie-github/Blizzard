@@ -42,5 +42,10 @@ for patch in "$PATCHES"/*.patch; do
     [ -f "$patch" ] || continue
     patch -p1 --forward --batch -d "$OUT" < "$patch"
 done
+# The engine's ability-builder abilities (core/assets/abilityBehaviors, JSON) go with the app's assets: the engine reads
+# them as internal files (patch 0011). Without this they never reached the phone (the engine read a folder beside
+# the process, which Android doesn't have).
+rm -rf "$OUT/assets/abilityBehaviors"
+cp -r "$OUT/core/assets/abilityBehaviors" "$OUT/assets/abilityBehaviors"
 printf '%s\n' "$STAMP" > "$OUT/SOURCE_SHA256"
 echo "Warsmash 1.0.4 prepared in $OUT"

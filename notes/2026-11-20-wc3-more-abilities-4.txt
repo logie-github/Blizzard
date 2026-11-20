@@ -1,0 +1,1 @@
+Warcraft III: about 200 more abilities work (Holy Light, Storm Bolt, Healing Wave, Bloodlust, Polymorph, Burrow and the other forms, the arrows, the item orbs), and orbs and arrows add to attacks.
