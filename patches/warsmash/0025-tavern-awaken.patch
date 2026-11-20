@@ -1,0 +1,401 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
+index 9d2422e..93a9295 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
+@@ -639,6 +639,31 @@ public class CommandCardPopulatingAbilityVisitor implements CAbilityVisitor<Void
+ 		return null;
+ 	}
+ 
++	// Blizzard launcher: the tavern's Awaken: the local player's dead heroes on its top row.
++	@Override
++	public Void accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero ability) {
++		if ((this.menuBaseOrderId == 0) && ability.isIconShowing()) {
++			int heroIndex = 0;
++			for (final CUnit playerHero : this.game.getPlayerHeroes(this.localPlayerIndex)) {
++				if (com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero
++						.isAwakenable(playerHero) && (heroIndex < 4)) {
++					final UnitIconUI unitUI = this.abilityDataUI.getUnitUI(playerHero.getTypeId());
++					if (unitUI != null) {
++						final CAbilityHero heroData = playerHero.getHeroData();
++						addCommandButton(ability, unitUI, unitUI.getAwakenTip() + " - " + heroData.getProperName(),
++								heroIndex++, 0, ability.getHandleId(), playerHero.getHandleId(), 0, false, false,
++								com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero
++										.getGoldCost(this.game, playerHero),
++								com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero
++										.getLumberCost(this.game, playerHero),
++								playerHero.getUnitType().getFoodUsed(), 0, heroData.getHeroLevel());
++					}
++				}
++			}
++		}
++		return null;
++	}
++
+ 	// Blizzard launcher: units a neutral building sells, with their stock as the number on the button.
+ 	@Override
+ 	public Void accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits ability) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CGameplayConstants.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CGameplayConstants.java
+index d8de43b..ceebd9f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CGameplayConstants.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CGameplayConstants.java
+@@ -50,6 +50,7 @@ public class CGameplayConstants {
+ 	private final int heroMaxReviveTime;
+ 
+ 	private final int heroMaxAwakenCostGold;
++
+ 	private final int heroMaxAwakenCostLumber;
+ 
+ 	private final float heroReviveManaStart;
+@@ -565,6 +566,34 @@ public class CGameplayConstants {
+ 		return this.spellCastRangeBuffer;
+ 	}
+ 
++	public int getHeroAwakenGoldCost(final int originalCost, final int level) {
++		final int cost = (int) (originalCost * (this.awakenBaseFactor + (this.awakenLevelFactor * (level - 1))));
++		return cappedAwaken(Math.min(cost, (int) (originalCost * this.awakenMaxFactor)), this.heroMaxAwakenCostGold);
++	}
++
++	public int getHeroAwakenLumberCost(final int originalCost, final int level) {
++		final int cost = (int) (originalCost
++				* (this.awakenBaseLumberFactor + (this.awakenLumberLevelFactor * (level - 1))));
++		return cappedAwaken(Math.min(cost, (int) (originalCost * this.awakenMaxFactor)),
++				this.heroMaxAwakenCostLumber);
++	}
++
++	private static int cappedAwaken(final int value, final int cap) {
++		return cap > 0 ? Math.min(value, cap) : value;
++	}
++
++	public float getHeroAwakenLifeFactor() {
++		return this.heroAwakenLifeFactor;
++	}
++
++	public float getHeroAwakenManaFactor() {
++		return this.heroAwakenManaFactor;
++	}
++
++	public float getHeroAwakenManaStart() {
++		return this.heroAwakenManaStart;
++	}
++
+ 	public int getHeroReviveGoldCost(final int originalCost, final int level) {
+ 		final int goldRevivalCost = (int) (originalCost
+ 				* (this.reviveBaseFactor + (this.reviveLevelFactor * (level - 1))));
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index ad96c85..73d1a31 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -4531,6 +4531,28 @@ public class CUnit extends CWidget {
+ 		return this.powerWorkers;
+ 	}
+ 
++	/**
++	 * Blizzard launcher: a dead hero raised at once beside a structure (the tavern's Awaken), with the given share of
++	 * its life and mana, as the altar's revive does when its time is up.
++	 */
++	public void reviveHeroAt(final CSimulation game, final CUnit structure, final float lifeFactor,
++			final float manaFactor, final float manaStart) {
++		getHeroData().setReviving(false);
++		getHeroData().setAwaitingRevive(false);
++		this.corpse = false;
++		this.boneCorpse = false;
++		this.deathTurnTick = 0;
++		setX(structure.getX());
++		setY(structure.getY());
++		game.getWorldCollision().addUnit(this);
++		setPoint(structure.getX(), structure.getY(), game.getWorldCollision(), game.getRegionManager());
++		setHidden(false);
++		setLife(game, getMaximumLife() * lifeFactor);
++		setMana((getMaximumMana() * manaFactor) + (manaStart * this.unitType.getManaInitial()));
++		nudgeAround(game, structure);
++		game.unitRepositioned(this);
++	}
++
+ 	public void nudgeAround(final CSimulation simulation, final CUnit structure) {
+ 		setPointAndCheckUnstuck(structure.getX(), structure.getY(), simulation);
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java
+index 88ec6c9..654798e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java
+@@ -89,4 +89,9 @@ public interface CAbilityVisitor<T> {
+ 	default T accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits ability) {
+ 		return null;
+ 	}
++
++	// Blizzard launcher: the tavern's Awaken.
++	default T accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero ability) {
++		return null;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilityAwakenHero.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilityAwakenHero.java
+new file mode 100644
+index 0000000..30ae478
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilityAwakenHero.java
+@@ -0,0 +1,221 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CGameplayConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.AbstractGenericAliasedAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.hero.CAbilityHero;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.BooleanAbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Blizzard launcher: Awaken (Aawa, the tavern), after Warsmash Reforged's: a dead hero comes back at once next to the
++ * tavern, for the Awaken costs of miscgame.txt and with the HeroAwaken life and mana, for its owner, who needs a unit
++ * near the tavern. The command card orders it with the hero's handle id as the order id; scripts use the awaken
++ * orders aimed at the hero.
++ */
++public class CAbilityAwakenHero extends AbstractGenericAliasedAbility {
++
++	public CAbilityAwakenHero(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	public static boolean isAwakenOrder(final int orderId) {
++		return (orderId == OrderIds.awaken)
++				|| ((orderId >= OrderIds._awakenunit1tavern) && (orderId <= OrderIds._awakenunit4tavern));
++	}
++
++	public static int getGoldCost(final CSimulation game, final CUnit hero) {
++		return game.getGameplayConstants().getHeroAwakenGoldCost(hero.getUnitType().getGoldCost(),
++				hero.getHeroData().getHeroLevel());
++	}
++
++	public static int getLumberCost(final CSimulation game, final CUnit hero) {
++		return game.getGameplayConstants().getHeroAwakenLumberCost(hero.getUnitType().getLumberCost(),
++				hero.getHeroData().getHeroLevel());
++	}
++
++	public static boolean isAwakenable(final CUnit hero) {
++		if ((hero == null) || !hero.isDead()) {
++			return false;
++		}
++		final CAbilityHero heroData = hero.getHeroData();
++		return (heroData != null) && heroData.isAwaitingRevive() && !heroData.isReviving();
++	}
++
++	private static CUnit heroOf(final CSimulation game, final int orderId) {
++		if (isAwakenOrder(orderId)) {
++			return null;
++		}
++		final CUnit hero = game.getUnit(orderId);
++		return isAwakenable(hero) ? hero : null;
++	}
++
++	private static boolean hasPatron(final CUnit tavern, final int playerIndex) {
++		final CAbilityNeutralBuilding neutralBuildingData = tavern.getNeutralBuildingData();
++		return (neutralBuildingData == null) || (neutralBuildingData.getSelectedPlayerUnit(playerIndex) != null);
++	}
++
++	private void checkCanAwaken(final CSimulation game, final CUnit tavern, final CUnit hero,
++			final AbilityActivationReceiver receiver) {
++		final int playerIndex = hero.getPlayerIndex();
++		final CPlayer player = game.getPlayer(playerIndex);
++		final CUnitType heroType = hero.getUnitType();
++		if (!hasPatron(tavern, playerIndex)) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.A_VALID_PATRON_MUST_BE_NEARBY);
++		}
++		else if (player.getGold() < getGoldCost(game, hero)) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_GOLD);
++		}
++		else if (player.getLumber() < getLumberCost(game, hero)) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_LUMBER);
++		}
++		else if ((heroType.getFoodUsed() != 0)
++				&& ((player.getFoodUsed() + heroType.getFoodUsed()) > player.getFoodCap())) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_FOOD);
++		}
++		else {
++			receiver.useOk();
++		}
++	}
++
++	@Override
++	protected void innerCheckCanUse(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityActivationReceiver receiver) {
++		final CUnit hero = heroOf(game, orderId);
++		if (hero != null) {
++			checkCanAwaken(game, unit, hero, receiver);
++		}
++		else {
++			receiver.useOk();
++		}
++	}
++
++	@Override
++	public void checkCanTarget(final CSimulation game, final CUnit unit, final int orderId, final CWidget target,
++			final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit hero = target.visit(AbilityTargetVisitor.UNIT);
++		if (isAwakenOrder(orderId) && isAwakenable(hero)) {
++			receiver.targetOk(target);
++		}
++		else {
++			receiver.orderIdNotAccepted();
++		}
++	}
++
++	@Override
++	public void checkCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityPointTarget target, final AbilityTargetCheckReceiver<AbilityPointTarget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanTargetNoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityTargetCheckReceiver<Void> receiver) {
++		if (heroOf(game, orderId) != null) {
++			receiver.targetOk(null);
++		}
++		else {
++			receiver.orderIdNotAccepted();
++		}
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster, final int orderId,
++			final AbilityTarget target) {
++		return true;
++	}
++
++	@Override
++	public CBehavior begin(final CSimulation game, final CUnit caster, final int orderId, final CWidget target) {
++		awaken(game, caster, target.visit(AbilityTargetVisitor.UNIT));
++		return caster.pollNextOrderBehavior(game);
++	}
++
++	@Override
++	public CBehavior begin(final CSimulation game, final CUnit caster, final int orderId,
++			final AbilityPointTarget point) {
++		return null;
++	}
++
++	@Override
++	public CBehavior beginNoTarget(final CSimulation game, final CUnit caster, final int orderId) {
++		awaken(game, caster, heroOf(game, orderId));
++		return null;
++	}
++
++	private void awaken(final CSimulation game, final CUnit tavern, final CUnit hero) {
++		if (!isAwakenable(hero)) {
++			return;
++		}
++		final BooleanAbilityActivationReceiver receiver = BooleanAbilityActivationReceiver.INSTANCE;
++		checkCanAwaken(game, tavern, hero, receiver);
++		if (!receiver.isOk()) {
++			return;
++		}
++		final CPlayer player = game.getPlayer(hero.getPlayerIndex());
++		if (!player.charge(getGoldCost(game, hero), getLumberCost(game, hero))) {
++			return;
++		}
++		final CGameplayConstants gameplayConstants = game.getGameplayConstants();
++		final CUnitType heroType = hero.getUnitType();
++		hero.reviveHeroAt(game, tavern, gameplayConstants.getHeroAwakenLifeFactor(),
++				gameplayConstants.getHeroAwakenManaFactor(), gameplayConstants.getHeroAwakenManaStart());
++		player.setUnitFoodUsed(hero, heroType.getFoodUsed());
++		player.setUnitFoodMade(hero, heroType.getFoodMade());
++		game.heroReviveEvent(tavern, hero);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit cUnit) {
++	}
++
++	@Override
++	public void onCancelFromQueue(final CSimulation game, final CUnit unit, final int orderId) {
++	}
++
++	@Override
++	public <T> T visit(final CAbilityVisitor<T> visitor) {
++		return visitor.accept(this);
++	}
++
++	@Override
++	public boolean isPhysical() {
++		return false;
++	}
++
++	@Override
++	public boolean isUniversal() {
++		return false;
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.CORE;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index 0ece4ae..eb57e60 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -403,6 +403,22 @@ public class CAbilityData {
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIsp"),
+ 				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemAreaBuff(handleId, alias,
+ 						com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemspeed, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.NonStackingStatBuffType.MVSPDPCT)));
++		// Blizzard launcher: Awaken (the tavern raises its patron's dead heroes).
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aawa"),
++				(alias, abilityEditorData) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityType<com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityTypeLevelData>(
++						alias, War3ID.fromString("Aawa"), new java.util.ArrayList<>()) {
++					@Override
++					public com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility createAbility(final int handleId) {
++						return new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero(handleId, War3ID.fromString("Aawa"), alias);
++					}
++
++					@Override
++					public void setLevel(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation game,
++							final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit unit,
++							final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CLevelingAbility existingAbility,
++							final int level) {
++					}
++				});
+ 		// Blizzard launcher: Mine (the Goblin Land Mine's trigger).
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Amin"),
+ 				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.creeps.CAbilityLandMine(handleId, alias)));
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index e7ec476..83725da 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -2324,6 +2324,12 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 			return null;
+ 		}
+ 
++		@Override
++		public Void accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilityAwakenHero ability) {
++			handleTargetCursor(ability);
++			return null;
++		}
++
+ 		@Override
+ 		public Void accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits ability) {
+ 			handleTargetCursor(ability);
