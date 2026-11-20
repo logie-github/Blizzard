@@ -21,7 +21,7 @@ DIR` then `W3XP`, the tool built for x86_64 from `tools.env`'s commit with `patc
 
 ```
 scripts/prepare-warsmash.sh
-cd tools/warsmash-rig
+cd warsmash/rig
 GAME=/path/to/game GV=1 gradle run --args='Maps\FrozenThrone\(2)EchoIsles.w3x rig.Idle'
 GAME=/path/to/game GV=1 ABLIST=abilities-0008.txt gradle run --args='Maps\FrozenThrone\(2)EchoIsles.w3x rig.AbilitySmoke'
 ```
