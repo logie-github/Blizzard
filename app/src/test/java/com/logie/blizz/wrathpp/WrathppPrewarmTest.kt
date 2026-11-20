@@ -23,7 +23,13 @@ class WrathppPrewarmTest {
         var starts = 0
         var stops = 0
         var inputs = "a"
+        var outputs = "o1"
         var server = "s1"
+        var stored: String? = null
+        val done = object : WrathppPrewarm.Done {
+            override fun read() = stored
+            override fun write(value: String?) { stored = value }
+        }
         var now = 1_000_000L
         var setupBody: () -> Unit = {}
         val lines = ArrayList<String>()
@@ -34,7 +40,8 @@ class WrathppPrewarmTest {
                 override fun start() { starts++; realm = "wrathpp" }
                 override fun stopAndWait() { stops++; realm = null }
             },
-            inputs = { inputs }, serverFiles = { server }, clock = { now }, log = { synchronized(lines) { lines += it } },
+            inputs = { inputs }, outputs = { outputs }, serverFiles = { server }, done = done, clock = { now },
+            log = { synchronized(lines) { lines += it } },
         )
     }
 
@@ -56,12 +63,34 @@ class WrathppPrewarmTest {
         assertEquals(2, f.setups)
     }
 
-    @Test fun aBackgroundSetupGoesStale() {
+    @Test fun playRunsTheSetupWhenWhatItWroteChanged() {
         val f = Fake(); val c = f.core()
         c.background()
-        f.now += WrathppPrewarm.FRESH_MS + 1
+        f.outputs = "o2"   // a table of the game's copy or the server's touched since
         c.play { _, _ -> }
         assertEquals(2, f.setups)
+    }
+
+    @Test fun whatWasDoneIsKeptAcrossTheAppsRestartsWithNoTimeLimit() {
+        val f = Fake()
+        f.core().play { _, _ -> }
+        assertEquals(1, f.setups)
+        f.now += 7L * 24 * 3600 * 1000
+        f.core().play { _, _ -> }                        // a new process (the app opened again), a week later
+        assertEquals("nothing changed: not run again", 1, f.setups)
+    }
+
+    @Test fun aSetupThatStopsHalfwayIsNeverTakenAsDone() {
+        val f = Fake(); val c = f.core()
+        c.play { _, _ -> }
+        f.inputs = "b"
+        f.setupBody = { throw java.io.IOException("offline") }
+        try { c.play { _, _ -> } } catch (e: java.io.IOException) { }
+        assertEquals(null, f.stored)
+        f.setupBody = {}
+        f.inputs = "a"   // back as it was: still run, since the last run didn't finish
+        c.play { _, _ -> }
+        assertEquals(3, f.setups)
     }
 
     @Test fun theRealmIsStartedAgainWhenItsServerFilesChangedAfterItStarted() {

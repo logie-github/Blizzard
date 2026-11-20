@@ -22,10 +22,11 @@ import java.io.File
 class WowPlayTest {
     @get:Rule val tmp = TemporaryFolder()
 
-    private class Fake(var result: RealmControl.Status) : RealmControl {
+    private class Fake(var result: RealmControl.Status, val login: RealmControl.Status? = null) : RealmControl {
         override val status: StateFlow<RealmControl.Status> = MutableStateFlow(RealmControl.Status(RealmControl.Phase.STARTING, "Loading", 0.5f))
         override fun start(context: Context, realm: String) = Unit
         override suspend fun awaitUp(timeoutMs: Long) = result
+        override suspend fun awaitLoginUp(timeoutMs: Long) = login ?: result
         override fun chosenRealm(context: Context) = "main"
     }
 
@@ -109,5 +110,33 @@ class WowPlayTest {
         val message = WowPlay.prepare(wrathppEnv(root(withClient = false), Fake(RealmControl.Status(RealmControl.Phase.UP)), started, mutableListOf()) { _ -> setUp = true })
         assertTrue(message!!.contains("Import World of Warcraft (Wrath+) first"))
         assertTrue(started.isEmpty()); assertTrue(!setUp)
+    }
+
+    // Wrath++'s game starts while its world server loads (the login gated on the realm being up: WowGestureView, GameLoading).
+
+    @Test fun wrathppStartsTheGameOnceTheWorldIsLoading() = runBlocking {
+        val root = root(); val started = mutableListOf<String>(); val launched = mutableListOf<LibraryEntry>()
+        val loading = RealmControl.Status(RealmControl.Phase.STARTING, "Loading Wrath++", worldLoading = true)
+        val message = WowPlay.prepare(wrathppEnv(root, Fake(RealmControl.Status(RealmControl.Phase.STARTING), login = loading), started, launched) { _ ->
+            com.logie.blizz.wrathpp.WrathppClient.make(File(root, "files/client"), File(root, "files/client-wrathpp"))
+        })
+        assertNull(message)
+        assertEquals(File(root, "files/client-wrathpp").path, launched.single().installPath)
+    }
+
+    @Test fun wrathppStartsNothingWhenTheRealmFailsBeforeItsLoginServerIsUp() = runBlocking {
+        val root = root(); val launched = mutableListOf<LibraryEntry>()
+        val failed = RealmControl.Status(RealmControl.Phase.FAILED, error = "no mysql")
+        val message = WowPlay.prepare(wrathppEnv(root, Fake(failed, login = failed), mutableListOf(), launched) { _ ->
+            com.logie.blizz.wrathpp.WrathppClient.make(File(root, "files/client"), File(root, "files/client-wrathpp"))
+        })
+        assertEquals("no mysql", message); assertTrue(launched.isEmpty())
+    }
+
+    @Test fun wrathPlusStillWaitsForTheRealmToBeUp() = runBlocking {
+        val launched = mutableListOf<LibraryEntry>()
+        val loading = RealmControl.Status(RealmControl.Phase.STARTING, "Loading ChromieCraft", worldLoading = true)
+        val message = WowPlay.prepare(env(root(), Fake(RealmControl.Status(RealmControl.Phase.STARTING), login = loading), mutableListOf(), launched))
+        assertNotNull(message); assertTrue(launched.isEmpty())
     }
 }

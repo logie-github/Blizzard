@@ -16,7 +16,11 @@ import java.io.File
 interface RealmControl {
     enum class Phase { STOPPED, STARTING, UP, FAILED, NO_DATA }
 
-    data class Status(val phase: Phase, val detail: String? = null, val progress: Float? = null, val error: String? = null)
+    /** [worldLoading]: starting, with its login server up and its world server loading (what the game may start on: Wrath++). */
+    data class Status(
+        val phase: Phase, val detail: String? = null, val progress: Float? = null, val error: String? = null,
+        val worldLoading: Boolean = false,
+    )
 
     /** Starts the realm [realm] ("main" ChromieCraft, "remix" Wrath Remix) if it isn't running; returns at once. */
     fun start(context: Context, realm: String)
@@ -25,6 +29,12 @@ interface RealmControl {
 
     /** Waits until the realm is up, has failed or stopped, or [timeoutMs] has passed; the status it ended on. */
     suspend fun awaitUp(timeoutMs: Long): Status
+
+    /**
+     * Waits until the realm's login server is up and its world server loading ([Status.worldLoading]), or the realm is up,
+     * failed or stopped, or [timeoutMs] passed. Without it, as [awaitUp].
+     */
+    suspend fun awaitLoginUp(timeoutMs: Long): Status = awaitUp(timeoutMs)
 
     /** The realm the person chose ("main" or "remix"). */
     fun chosenRealm(context: Context): String
@@ -185,7 +195,7 @@ object WowPlay {
     }
 
     /** Waits for the realm, showing its steps; null when it is up, else what to tell the person. */
-    private suspend fun waitForRealm(env: Environment, name: String): String? {
+    private suspend fun waitForRealm(env: Environment, name: String, loginOnly: Boolean = false): String? {
         val watcher = CoroutineScope(Dispatchers.Unconfined).launch {
             env.realm.status.collect { s ->
                 if (s.phase == RealmControl.Phase.STARTING) {
@@ -194,10 +204,11 @@ object WowPlay {
             }
         }
         val up = try {
-            env.realm.awaitUp(env.timeoutMs)
+            if (loginOnly) env.realm.awaitLoginUp(env.timeoutMs) else env.realm.awaitUp(env.timeoutMs)
         } finally {
             watcher.cancel()
         }
+        if (loginOnly && up.phase == RealmControl.Phase.STARTING && up.worldLoading) return null
         return when (up.phase) {
             RealmControl.Phase.UP -> null
             RealmControl.Phase.FAILED -> up.error ?: "The realm didn't start."
@@ -234,7 +245,10 @@ object WowPlay {
         val mods = runCatching { File(prefs, "mods.json").readText() }.getOrNull()
         // (its realm record in its own folder: Wrath+'s `files/client-realm` stays Wrath+'s)
         withContext(Dispatchers.IO) { WowClientSetup.apply(own, own, env.size.first, env.size.second, "wrathpp", account, env.wrathppGraphics()) }
-        waitForRealm(env, "Wrath++")?.let { return it }
+        // The game starts as soon as the login server is up and the world server loading (its start, 20 to 35 s on the phone,
+        // then runs beside the world's): its loading screen stays and nothing is typed until the realm is up
+        // (GameLoading.close, WowGestureView.whenRealmUp).
+        waitForRealm(env, "Wrath++", loginOnly = true)?.let { return it }
         env.report(State.Preparing("Starting the game"))
         // Its own program when the add-on is in (WarcraftXL's runtime loaded), else the WoW app's patched copy, which loads
         // changed interface files (the creator's column), else the game's.

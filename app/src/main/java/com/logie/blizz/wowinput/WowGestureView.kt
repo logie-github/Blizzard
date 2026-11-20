@@ -258,35 +258,38 @@ class WowGestureView(
             "login: password ${if (activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD) != null) "given" else "not given"}, account " +
                 "${account ?: "none"}, ${if (login != null) "will type it" else "will ask"}, ${if (legion) "late login screen" else "classic"} wait ${wait / 1000} s",
         )
-        if (readyLog != null && !legion) {
-            // Wrath++: when its runtime says the login screen is loaded, however long that takes (with Project Reforged's
-            // archives in it took 15.6 s on the phone, past the classic 15 s after which the password was typed into nothing).
-            // Not ready within [READY_WAIT_MS]: asked, never typed blind.
-            com.logie.blizz.game.GameLog.note("login: waiting for the runtime's \"stage ready\" (${readyLog.path})")
-            whenGameReady(SystemClock.uptimeMillis(), readyLog, timedOut = {
-                com.logie.blizz.game.GameLog.note("login: no \"stage ready\" after ${READY_WAIT_MS / 1000} s; asked")
-                ask(PromptKind.PASSWORD)
-            }) {
-                com.logie.blizz.game.GameLog.note("login: game ready after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
-                if (login != null) {
+        // Wrath++'s game starts while its world server is still loading (WowPlay): nothing is typed or asked until the realm is up.
+        whenRealmUp(SystemClock.uptimeMillis()) {
+            if (readyLog != null && !legion) {
+                // Wrath++: when its runtime says the login screen is loaded, however long that takes (with Project Reforged's
+                // archives in it took 15.6 s on the phone, past the classic 15 s after which the password was typed into nothing).
+                // Not ready within [READY_WAIT_MS]: asked, never typed blind.
+                com.logie.blizz.game.GameLog.note("login: waiting for the runtime's \"stage ready\" (${readyLog.path})")
+                whenGameReady(SystemClock.uptimeMillis(), readyLog, timedOut = {
+                    com.logie.blizz.game.GameLog.note("login: no \"stage ready\" after ${READY_WAIT_MS / 1000} s; asked")
+                    ask(PromptKind.PASSWORD)
+                }) {
+                    com.logie.blizz.game.GameLog.note("login: game ready after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
+                    if (login != null) {
+                        type(login.password, enter = true)
+                        if (newAccount) postDelayed({ ask(PromptKind.NAME) }, NAME_PROMPT_DELAY_MS)
+                    } else ask(PromptKind.PASSWORD)
+                }
+            } else if (login != null) {
+                // (a Legion client not at its login screen when the wait ends: asked, not typed blind
+                // into whatever is up, its loading screen or a dialog)
+                whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait,
+                    timedOut = if (legion) ({ ask(PromptKind.PASSWORD) }) else null) {
+                    com.logie.blizz.game.GameLog.note("login: typed after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
                     type(login.password, enter = true)
                     if (newAccount) postDelayed({ ask(PromptKind.NAME) }, NAME_PROMPT_DELAY_MS)
-                } else ask(PromptKind.PASSWORD)
+                }
+            } else if (legion) {
+                whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
+            } else {
+                // Asked once the login screen is up (its cursor seen), not while the game is still loading: what's typed before then is lost.
+                whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
             }
-        } else if (login != null) {
-            // (a Legion client not at its login screen when the wait ends: asked, not typed blind
-            // into whatever is up, its loading screen or a dialog)
-            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait,
-                timedOut = if (legion) ({ ask(PromptKind.PASSWORD) }) else null) {
-                com.logie.blizz.game.GameLog.note("login: typed after ${(SystemClock.uptimeMillis() - shownAt) / 1000} s")
-                type(login.password, enter = true)
-                if (newAccount) postDelayed({ ask(PromptKind.NAME) }, NAME_PROMPT_DELAY_MS)
-            }
-        } else if (legion) {
-            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
-        } else {
-            // Asked once the login screen is up (its cursor seen), not while the game is still loading: what's typed before then is lost.
-            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
         }
         // The login screen only has the plain arrow: what the cursor looks like when it means a click.
         for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
@@ -640,6 +643,27 @@ class WowGestureView(
      * then, if given): logging in by itself with the saved password (SavedLogin), or asking for it.
      * The account's name is in the box already (Config.wtf).
      */
+    private var realmWaited = false
+
+    /**
+     * Runs [then] once the World of Warcraft realm is no longer starting (at once when it isn't): a game started while its world
+     * server loads (Wrath++, WowPlay) types nothing into a login the realm can't take yet. After a wait, a moment more: the login
+     * server reads the realm's state every 2 s (WowSettings).
+     */
+    private fun whenRealmUp(since: Long, then: () -> Unit) {
+        val s = com.logie.blizz.wow.WowRealm.status.value
+        if (s.phase == com.logie.blizz.wow.WowRealm.Phase.STARTING) {
+            if (!realmWaited) com.logie.blizz.game.GameLog.note("login: waiting for the realm (its world server loading)")
+            realmWaited = true
+            postDelayed({ whenRealmUp(since, then) }, REALM_POLL_MS)
+            return
+        }
+        if (realmWaited) {
+            com.logie.blizz.game.GameLog.note("login: the realm ${s.phase.name.lowercase()} after ${(SystemClock.uptimeMillis() - since) / 1000} s")
+            postDelayed(then, REALM_SETTLE_MS)
+        } else then()
+    }
+
     private fun whenLoginScreen(since: Long, seen: Int, legion: Boolean, baseline: Long?, wait: Long,
                                 timedOut: (() -> Unit)? = null, then: () -> Unit) {
         // Wine gives the X server a program's new cursor only when the pointer moves (read on the X server rig, 13
@@ -789,6 +813,9 @@ class WowGestureView(
         /** Logging in by itself: looking for the login screen's cursor, and how long at most. */
         private const val LOGIN_POLL_MS = 250L
         private const val LOGIN_CURSOR_SEEN = 3
+        /** How often the login looks whether the realm is up, and the moment after (the login server's 2 s realm reads). */
+        private const val REALM_POLL_MS = 500L
+        private const val REALM_SETTLE_MS = 3_000L
         private const val LOGIN_WAIT_MS = 15000L
         /** A Legion client loads its 40 GB of data before its login screen: under Box64, minutes. */
         private const val LEGION_LOGIN_WAIT_MS = 180_000L

@@ -32,6 +32,9 @@ object WowSettings {
             }
             firstTime.writeText("1\n")
         }
+        // The login server reads the realms' states (a world server up or not) every 2 s, not 20: a game started while the world
+        // loads (Wrath++) logs in the moment it is up instead of seeing the realm offline for up to 20 s more. One small query.
+        edit(File(layout.etc, "authserver.conf")) { set("RealmsStateUpdateDelay", "2") }
         val folders = listOf("vmaps", "mmaps").filter { File(layout.data, it).list()?.isNotEmpty() == true }
         for (etc in listOf(layout.etc, layout.etcRemix)) {
             edit(File(etc, "worldserver.conf")) {

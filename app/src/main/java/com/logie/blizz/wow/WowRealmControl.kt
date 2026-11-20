@@ -4,6 +4,7 @@ import android.content.Context
 import com.logie.blizz.game.RealmControl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ object WowRealmControl : RealmControl {
         },
         detail = s.message,
         error = s.error,
+        worldLoading = s.phase == WowRealm.Phase.STARTING && s.step == WowRealm.Step.WORLD,
     )
 
     override val status: StateFlow<RealmControl.Status> =
@@ -37,5 +39,12 @@ object WowRealmControl : RealmControl {
         return map(WowRealm.status.value)
     }
 
-    override fun chosenRealm(context: Context): String = WowRealm.chosenRealm(context).let { if (it == Realm.REMIX) "remix" else "main" }
+    override suspend fun awaitLoginUp(timeoutMs: Long): RealmControl.Status {
+        kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+            status.first { it.phase != RealmControl.Phase.STARTING || it.worldLoading }
+        }
+        return status.value
+    }
+
+        override fun chosenRealm(context: Context): String = WowRealm.chosenRealm(context).let { if (it == Realm.REMIX) "remix" else "main" }
 }

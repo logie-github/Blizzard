@@ -23,16 +23,16 @@ import java.util.concurrent.locks.ReentrantLock
  * and joins them instead of starting from nothing.
  *
  * Nothing is played on stale data:
- *  - Play runs the setup again unless the background run finished for the same inputs ([Core.inputs]: the app's build, the
- *    app's own files and settings, the imports and the files found to import) less than [FRESH_MS] ago;
+ *  - Play runs the setup again unless nothing it is made from ([inputs]: the app's build, the app's own files and settings, the
+ *    imports and the files found to import, the creator's markers) and nothing it wrote ([outputs]) changed since it last ran
+ *    to the end, in the background or at a Play;
  *  - a running Wrath++ realm is stopped (and Play starts it again) when the server files it read when it started ([Core.serverFiles]:
  *    the server package, the tables in its `share/dbc`, the starting areas' package) were changed since, by anything.
  * Another realm running (Wrath+) is never touched, and nothing starts in battery saver.
  */
 object WrathppPrewarm {
-    /** How long a background setup stands for Play's own. */
-    const val FRESH_MS = 10 * 60 * 1000L
     private const val PLAYED = "wrathpp-played"
+    private const val DONE = "wrathpp-setup.done"
 
     /** What the background run and Play need from the realm. */
     interface Realms {
@@ -42,21 +42,27 @@ object WrathppPrewarm {
         fun stopAndWait()
     }
 
+    /** Where the last complete setup's fingerprints are kept (a file in the app's folder; in memory in tests). */
+    interface Done {
+        fun read(): String?
+        fun write(value: String?)
+    }
+
     /**
-     * The rules, apart from Android (unit-tested): [setup] is Wrath++'s setup, [inputs] and [serverFiles] fingerprints, [log]
-     * what Play's start report shows of it.
+     * The rules, apart from Android (unit-tested): [setup] is Wrath++'s setup; [inputs] what it is made from, [outputs] what it
+     * wrote and [serverFiles] what of that the realm reads, as fingerprints; [log] what Play's start report shows of it.
      */
     class Core(
         private val setup: ((String, Float?) -> Unit) -> Unit,
         private val realms: Realms,
         private val inputs: () -> String,
+        private val outputs: () -> String,
         private val serverFiles: () -> String,
+        private val done: Done,
         private val clock: () -> Long = System::currentTimeMillis,
         private val log: (String) -> Unit = {},
     ) {
         private val running = ReentrantLock()
-        @Volatile private var doneFor: String? = null
-        @Volatile private var doneAt = 0L
         /** What the server files were when this core started the realm (or Play let it run). */
         @Volatile private var realmRead: String? = null
         @Volatile var progress: Pair<String, Float?>? = null
@@ -95,9 +101,8 @@ object WrathppPrewarm {
             }
             running.lock()
             try {
-                val now = inputs()
-                if (doneFor == now && clock() - doneAt < FRESH_MS) {
-                    log("play: setup done in the background for the same files: not run again")
+                if (done.read() == "${inputs()}\n${outputs()}") {
+                    log("play: nothing the setup is made from or wrote changed since it last ran: not run again")
                 } else {
                     val t = clock()
                     runSetup(say)
@@ -118,12 +123,12 @@ object WrathppPrewarm {
             }
         }
 
+        /** The setup, then (only when it finished) what it was run for and what it left, for the next Play to compare. */
         private fun runSetup(say: (String, Float?) -> Unit) {
             val now = inputs()
-            doneFor = null
+            done.write(null)
             setup(say)
-            doneFor = now
-            doneAt = clock()
+            done.write("$now\n${outputs()}")
         }
     }
 
@@ -142,7 +147,13 @@ object WrathppPrewarm {
                 override fun stopAndWait() = runBlocking { WowRealm.stopAndWait(app) }
             },
             inputs = { inputs(app) },
+            outputs = { outputs(WowLayout.of(app)) },
             serverFiles = { serverFiles(WowLayout.of(app)) },
+            done = object : Done {
+                private val file = File(app.filesDir, DONE)
+                override fun read() = runCatching { file.readText() }.getOrNull()
+                override fun write(value: String?) { runCatching { if (value == null) file.delete() else file.writeText(value) } }
+            },
             log = { line -> playLog(app, line) },
         ).also { core = it }
     }
@@ -203,6 +214,19 @@ object WrathppPrewarm {
         for (found in listOf(runCatching { ImportFinder.find("ralia.zip") }.getOrNull(), runCatching { ImportFinder.find(*WrathppBody.NAMES) }.getOrNull())) {
             append(found?.let { "${it.path} ${it.length()} ${it.lastModified()}" } ?: "-").append('\n')
         }
+        // (the game's Logs keep the setup's own markers: the creator left out after a crash, the pictures asked for and sent)
+        val logs = File(WowLayout.of(app).wrathppClient, "Logs")
+        logs.listFiles { f -> f.isFile && !f.name.endsWith(".log", ignoreCase = true) && f.length() < 4096 }?.sortedBy { it.name }?.forEach { f ->
+            append(f.name).append('=').append(runCatching { f.readText() }.getOrDefault("?")).append('\n')
+        }
+    })
+
+    /** What Wrath++'s setup wrote: its copy of the game's patches and tables (Data, two folders down) and the server's tables. */
+    internal fun outputs(layout: WowLayout): String = sha(buildString {
+        // (realmlist.wtf is the Play's own, written after the setup at every Play: not the setup's)
+        append(listing(File(layout.wrathppClient, "Data"), 2) { it.name.equals("realmlist.wtf", ignoreCase = true) })
+        append(listing(File(layout.wrathppServer, "share/dbc"), 0))
+        append(listing(layout.wrathppClient, 0) { it.isDirectory })
     })
 
     /** What the realm reads that Wrath++'s setup writes: the server package's marker, the tables in its share/dbc, the starting areas'. */

@@ -1,0 +1,1 @@
+Wrath++: the game starts while the world server loads, and Play skips the setup when nothing changed since it last ran.

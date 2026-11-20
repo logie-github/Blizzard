@@ -140,7 +140,51 @@ class GameLoading(private val activity: Activity) {
 
     @Synchronized
     fun close() {
+        if (holdForRealm()) return
         runCatching { dialog?.dismiss() }
+    }
+
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    @Volatile private var holding = false
+
+    /**
+     * Wrath++'s game starts while its world server is still loading (WowPlay): its first window comes before the realm is up,
+     * so the loading screen stays (saying what the realm is doing) until it is, and the login behind it waits too
+     * (WowGestureView). A realm that fails meanwhile ends the game's screen with its reason. True while holding.
+     */
+    private fun holdForRealm(): Boolean {
+        if (gameId != WowPlay.WRATHPP_ID) return false
+        val s = com.logie.blizz.wow.WowRealm.status.value
+        if (s.phase != com.logie.blizz.wow.WowRealm.Phase.STARTING) return false
+        if (holding) return true
+        holding = true
+        val poll = object : Runnable {
+            override fun run() {
+                // (the game's screen was left meanwhile: nothing more to cover)
+                if (activity.isDestroyed) { holding = false; return }
+                val now = com.logie.blizz.wow.WowRealm.status.value
+                when (now.phase) {
+                    com.logie.blizz.wow.WowRealm.Phase.STARTING -> {
+                        now.message?.takeIf { it.isNotBlank() }?.let { text.value = it }
+                        handler.postDelayed(this, 500)
+                    }
+                    com.logie.blizz.wow.WowRealm.Phase.RUNNING -> {
+                        holding = false
+                        close()
+                    }
+                    else -> {
+                        holding = false
+                        runCatching { dialog?.dismiss() }
+                        val why = now.error ?: "The realm stopped while the game was starting."
+                        GameLog.note("loading: the realm ${now.phase.name.lowercase()}: $why")
+                        runCatching { android.widget.Toast.makeText(activity, why, android.widget.Toast.LENGTH_LONG).show() }
+                        if (!activity.isFinishing) activity.finish()
+                    }
+                }
+            }
+        }
+        handler.post(poll)
+        return true
     }
 
     fun closeOnUiThread() = activity.runOnUiThread { close() }
