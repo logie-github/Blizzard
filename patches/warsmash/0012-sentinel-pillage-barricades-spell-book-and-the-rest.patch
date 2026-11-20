@@ -1,0 +1,1932 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
+index f5f8a07..10dbbf8 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
+@@ -161,7 +161,16 @@ public class RenderUnit implements RenderWidget {
+ 		for (final CAbility ability : this.simulationUnit.getAbilities()) {
+ 			if (!this.simulationUnit.isPaused() || (ability instanceof CBuff)
+ 					|| (ability instanceof AbilityGenericSingleIconPassiveAbility)) {
+-				ability.visit(commandCardPopulatingVisitor);
++				final int containerMenuOrderId = ability.getContainerMenuOrderId();
++				if (containerMenuOrderId == 0) {
++					ability.visit(commandCardPopulatingVisitor);
++				}
++				else if (containerMenuOrderId == subMenuOrderId) {
++					// The spells of a spell book are on its menu; they show there as if on the main card.
++					commandCardPopulatingVisitor.setMenuBaseOrderId(0);
++					ability.visit(commandCardPopulatingVisitor);
++					commandCardPopulatingVisitor.setMenuBaseOrderId(subMenuOrderId);
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
+index 5e115d5..7699b88 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
+@@ -60,6 +60,10 @@ public class CommandCardPopulatingAbilityVisitor implements CAbilityVisitor<Void
+ 	private CommandButtonListener commandButtonListener;
+ 	private AbilityDataUI abilityDataUI;
+ 	private int menuBaseOrderId;
++
++	public void setMenuBaseOrderId(final int menuBaseOrderId) {
++		this.menuBaseOrderId = menuBaseOrderId;
++	}
+ 	private boolean multiSelect;
+ 	private int localPlayerIndex;
+ 	private boolean hasStop;
+@@ -252,6 +256,15 @@ public class CommandCardPopulatingAbilityVisitor implements CAbilityVisitor<Void
+ 
+ 	@Override
+ 	public Void accept(final GenericSingleIconActiveAbility ability) {
++		if (ability instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemSpellBook) {
++			// Blizzard launcher: the book is a menu button; its spells are inside it (RenderUnit).
++			if ((this.menuBaseOrderId == 0) && ability.isIconShowing()) {
++				final AbilityUI ui = this.abilityDataUI.getUI(ability.getAlias());
++				addCommandButton(ability, ui.getOnIconUI(ability.getLevel() - 1), ability.getHandleId(),
++						ability.getBaseOrderId(), 0, false, true);
++			}
++			return null;
++		}
+ 		if ((this.menuBaseOrderId == 0) && ability.isIconShowing()) {
+ 			final AbilityUI ui = this.abilityDataUI.getUI(ability.getAlias());
+ 			final boolean autoCastOn = ability.isAutoCastOn();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index 3112ae6..fada3dc 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2064,7 +2064,8 @@ public class CUnit extends CWidget {
+ 					final int buildTime;
+ 					final boolean upgrading = isUpgrading();
+ 					if (!upgrading) {
+-						buildTime = this.unitType.getBuildTime();
++						buildTime = this.buildTimeOverride > 0 ? Math.max(1, Math.round(this.buildTimeOverride))
++								: this.unitType.getBuildTime();
+ 						if (!this.constructingPaused) {
+ 							final float healthGain = (WarsmashConstants.SIMULATION_STEP_TIME / buildTime)
+ 									* (this.maximumLife * (1.0f - WarsmashConstants.BUILDING_CONSTRUCT_START_LIFE));
+@@ -3640,6 +3641,40 @@ public class CUnit extends CWidget {
+ 	}
+ 
+ 	// Blizzard launcher: what the fork's abilities ask of a unit, on this engine.
++	private float spikedBarricadesDamage;
++	private float buildTimeOverride;
++	private boolean wanderer;
++
++	/** A unit given Wander stays a wanderer, also after the ability is removed (Reforged, measured on 1.29). */
++	public void markWanderer() {
++		this.wanderer = true;
++	}
++
++	public boolean isWanderer() {
++		return this.wanderer;
++	}
++
++
++	/** A structure placed by an item (the tiny buildings) builds in the item's time, not its own. */
++	public void setBuildTimeOverride(final float buildTimeOverride) {
++		this.buildTimeOverride = buildTimeOverride;
++	}
++
++
++	/** Damage returned to melee attackers by Spiked Barricades, set by the rspi upgrade. */
++	public float getSpikedBarricadesDamage() {
++		return this.spikedBarricadesDamage;
++	}
++
++	public void addSpikedBarricadesDamage(final float amount) {
++		this.spikedBarricadesDamage += amount;
++		for (final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility ability : this.abilities) {
++			if (ability instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units.CAbilitySpikedBarricades) {
++				((com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units.CAbilitySpikedBarricades) ability).updateSpikes();
++			}
++		}
++	}
++
+ 	private float healingReceivedFactor = 1f;
+ 	private com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CDamageFlags pendingDamageFlags;
+ 	private boolean removedFromGame;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/AbstractCAbility.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/AbstractCAbility.java
+index 6e53e07..2e990b1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/AbstractCAbility.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/AbstractCAbility.java
+@@ -135,4 +135,16 @@ public abstract class AbstractCAbility extends CExtensibleHandleAbstract impleme
+ 	public void onRemoveDisabled(final CSimulation game, final CUnit unit) {
+ 		// do nothing
+ 	}
++
++	// Blizzard launcher (from Warsmash Reforged): a spell held in a menu (a Spell Book's) shows only inside it.
++	private int containerMenuOrderId;
++
++	@Override
++	public int getContainerMenuOrderId() {
++		return this.containerMenuOrderId;
++	}
++
++	public void setContainerMenuOrderId(final int containerMenuOrderId) {
++		this.containerMenuOrderId = containerMenuOrderId;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbility.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbility.java
+index 696bb72..add2ab7 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbility.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbility.java
+@@ -80,4 +80,9 @@ public interface CAbility extends CAbilityView, CExtensibleHandle {
+ 
+ 	default void setHero(final boolean isHero) {
+ 	}
++
++	/** The order id of the menu this ability's button is in (a Spell Book's), 0 for the command card itself. */
++	default int getContainerMenuOrderId() {
++		return 0;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityBattleStations.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityBattleStations.java
+new file mode 100644
+index 0000000..1d58277
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityBattleStations.java
+@@ -0,0 +1,118 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold;
++
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityMove;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorBoardTransport;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.COrderTargetWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++
++/**
++ * Battle Stations: the nearest workers in the area run into this burrow until it is full.
++ */
++public class CAbilityBattleStations extends CAbilityNoTargetSpellBase {
++	private War3ID allowedUnitType;
++	private float area;
++	private boolean summonBusyUnits;
++
++	public CAbilityBattleStations(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		final String unitId = worldEditorAbility.getFieldAsString(AbilityFields.UNIT_ID + level, 0);
++		this.allowedUnitType = (unitId != null) && (unitId.length() == 4) ? War3ID.fromString(unitId) : null;
++		this.area = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.summonBusyUnits = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_B + level, 0) != 0;
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.battlestations;
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster,
++			final int orderId, final AbilityTarget target) { final int playerIndex = caster.getPlayerIndex(); final boolean autoOrder = false;
++		if (orderId == OrderIds.battlestations) {
++			doEffect(game, caster, null);
++			return false;
++		}
++		return super.checkBeforeQueue(game, caster, orderId, target);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CAbilityCargoHoldBurrow burrow = caster.getFirstAbilityOfType(CAbilityCargoHoldBurrow.class);
++		if ((burrow == null) || caster.isConstructingOrUpgrading()) {
++			return false;
++		}
++		simulation.unitSoundEffectEvent(caster, getAlias());
++		final List<CUnit> candidates = new ArrayList<>();
++		final int[] slots = { burrow.getCargoCapacity() - burrow.getCargoCount() };
++		simulation.getWorldCollision().enumUnitsInRange(caster.getX(), caster.getY(), this.area, (worker) -> {
++			if (isRunningTo(worker, caster)) {
++				slots[0]--;
++			}
++			else if (burrow.canBoard(simulation, caster, worker, true) && !isRunningToAnyBurrow(worker)
++					&& (this.summonBusyUnits || isIdle(worker))) {
++				candidates.add(worker);
++			}
++			return false;
++		});
++		candidates.sort(Comparator.comparingDouble((worker) -> worker.distance(caster)));
++		for (final CUnit worker : candidates) {
++			if (slots[0] <= 0) {
++				break;
++			}
++			final CAbilityMove move = worker.getFirstAbilityOfType(CAbilityMove.class);
++			if (move != null) {
++				worker.order(simulation, new COrderTargetWidget( move.getHandleId(),
++						OrderIds.smart, caster.getHandleId(), false), false);
++				slots[0]--;
++			}
++		}
++		return false;
++	}
++
++	public War3ID getAllowedUnitType() {
++		return this.allowedUnitType;
++	}
++
++	private static boolean isIdle(final CUnit worker) {
++		final CBehavior behavior = worker.getCurrentBehavior();
++		return (behavior == null) || (behavior == worker.getStopBehavior());
++	}
++
++	private static boolean isRunningToAnyBurrow(final CUnit worker) {
++		final CBehaviorBoardTransport board = worker.getBoardTransportBehavior();
++		return (board != null) && (worker.getCurrentBehavior() == board) && (board.getTarget() instanceof CUnit)
++				&& (((CUnit) board.getTarget()).getFirstAbilityOfType(CAbilityCargoHoldBurrow.class) != null);
++	}
++
++	private static boolean isRunningTo(final CUnit worker, final CUnit burrow) {
++		final CBehaviorBoardTransport board = worker.getBoardTransportBehavior();
++		return (board != null) && (worker.getCurrentBehavior() == board) && (board.getTarget() == burrow);
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public boolean isUniversal() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldBurrow.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldBurrow.java
+index 7762341..574f330 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldBurrow.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/cargohold/CAbilityCargoHoldBurrow.java
+@@ -9,7 +9,8 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CTargetType;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
+ 
+-public class CAbilityCargoHoldBurrow extends CAbilityCargoHold {
++public class CAbilityCargoHoldBurrow extends CAbilityCargoHold
++		implements com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityRanged {
+ 	private float[] originalBaseAttackRates;
+ 
+ 	public CAbilityCargoHoldBurrow(final int handleId, final War3ID code, final War3ID alias, final int cargoCapacity,
+@@ -68,4 +69,80 @@ public class CAbilityCargoHoldBurrow extends CAbilityCargoHold {
+ 		}
+ 
+ 	}
++
++	/**
++	 * Blizzard launcher (from Warsmash Reforged): only workers of the burrow's owner (the Battle Stations unit type,
++	 * or any worker) can man a finished burrow that has room.
++	 */
++	public boolean canBoard(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation game,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit burrow,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit worker, final boolean ignoreRange) {
++		if ((worker == burrow) || worker.isDead() || worker.isHidden()
++				|| (worker.getPlayerIndex() != burrow.getPlayerIndex()) || burrow.isConstructingOrUpgrading()
++				|| !hasCapacity(worker.getUnitType().getCargoCapacity())
++				|| !worker.canBeTargetedBy(game, burrow, getTargetsAllowed())) {
++			return false;
++		}
++		final CAbilityBattleStations battleStations = burrow.getFirstAbilityOfType(CAbilityBattleStations.class);
++		if ((battleStations != null) && (battleStations.getAllowedUnitType() != null)) {
++			if (!battleStations.getAllowedUnitType().equals(worker.getTypeId())) {
++				return false;
++			}
++		}
++		else if (!worker.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.PEON)) {
++			return false;
++		}
++		return ignoreRange || burrow.canReach(worker, getCastRange());
++	}
++
++	/** A worker that reached the burrow (its smart order on the worker, from boarding) goes in. */
++	@Override
++	public boolean checkBeforeQueue(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation game,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit caster, final int orderId,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget target) {
++		if (orderId == com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.smart) {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit worker = target == null ? null
++					: target.visit(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor.UNIT);
++			if ((worker != null) && canBoard(game, caster, worker, false)) {
++				game.unitSoundEffectEvent(caster, getAlias());
++				addUnit(caster, worker);
++				worker.setHidden(true);
++				worker.setPaused(true);
++			}
++			return false;
++		}
++		return super.checkBeforeQueue(game, caster, orderId, target);
++	}
++
++	@Override
++	public void checkCanTarget(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation game,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit unit, final int orderId,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget target,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget> receiver) {
++		if (orderId == com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.smart) {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit worker = target
++					.visit(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor.UNIT);
++			if ((worker != null) && canBoard(game, unit, worker, true)) {
++				receiver.targetOk(target);
++			}
++			else {
++				receiver.targetCheckFailed(com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys.UNABLE_TO_LOAD_TARGET);
++			}
++			return;
++		}
++		super.checkCanTarget(game, unit, orderId, target, receiver);
++	}
++
++	/** The burrow of {@code burrow} that {@code worker} may man, or null. */
++	public static CAbilityCargoHoldBurrow getBurrowLoad(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation game,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit worker,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit burrow, final boolean ignoreRange) {
++		for (final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility ability : burrow.getAbilities()) {
++			if ((ability instanceof CAbilityCargoHoldBurrow) && !ability.isDisabled()
++					&& ((CAbilityCargoHoldBurrow) ability).canBoard(game, burrow, worker, ignoreRange)) {
++				return (CAbilityCargoHoldBurrow) ability;
++			}
++		}
++		return null;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemBlightPlacement.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemBlightPlacement.java
+new file mode 100644
+index 0000000..afe7a73
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemBlightPlacement.java
+@@ -0,0 +1,112 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++
++/**
++ * Sacrificial Skull: blight (or, with Data B off, no blight) grows around the target point, by the expansion amount
++ * (Data A) every interval (the ability's duration) up to the area.
++ */
++public class CAbilityItemBlightPlacement extends CAbilityPointTargetSpellBase {
++	private float areaOfEffect;
++	private boolean createsBlight;
++	private float expansionAmount;
++	private float expansionInterval;
++
++	public CAbilityItemBlightPlacement(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.createsBlight = worldEditorAbility.getFieldAsBoolean(AbilityFields.DATA_B + level, 0);
++		this.expansionAmount = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.expansionInterval = worldEditorAbility.getFieldAsFloat(AbilityFields.DURATION + level, 0);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds._allmodblightplacementsacrificialskullpassivesdetectionalsoflyersubmerge;
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		final BlightGrowth growth = new BlightGrowth(target.getX(), target.getY(), this.areaOfEffect,
++				this.expansionAmount, this.createsBlight);
++		growth.grow(simulation);
++		if (!growth.isDone() && (this.expansionInterval > 0)) {
++			growth.setTimeoutTime(this.expansionInterval * 2);
++			growth.setRepeats(true);
++			growth.start(simulation);
++		}
++		else {
++			simulation.setBlight(target.getX(), target.getY(), this.areaOfEffect, this.createsBlight);
++		}
++		return false;
++	}
++
++	private static final class BlightGrowth extends CTimer {
++		private final float x;
++		private final float y;
++		private final float area;
++		private final float amount;
++		private final boolean blighted;
++		private float radius;
++		private int steps;
++
++		private BlightGrowth(final float x, final float y, final float area, final float amount,
++				final boolean blighted) {
++			this.x = x;
++			this.y = y;
++			this.area = area;
++			this.amount = amount;
++			this.blighted = blighted;
++		}
++
++		private boolean isDone() {
++			return (this.radius >= this.area) || (this.amount <= 0);
++		}
++
++		// Measured: the blight starts on the corner nearest to the point, and the interval's expansions are carried
++		// out two at a time, so every second interval it grows by two amounts (192 after the first of them).
++		private void grow(final CSimulation simulation) {
++			if (this.amount <= 0) {
++				this.radius = this.area;
++			}
++			else if (this.steps > 0) {
++				this.radius = Math.min(this.area, ((2 * this.steps) + 1) * this.amount);
++			}
++			this.steps++;
++			simulation.setBlight(this.x, this.y, this.radius, this.blighted);
++		}
++
++		@Override
++		public void onFire(final CSimulation simulation) {
++			grow(simulation);
++			if (isDone()) {
++				kill(simulation);
++			}
++		}
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.ITEM;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemSpellBook.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemSpellBook.java
+new file mode 100644
+index 0000000..f701626
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemSpellBook.java
+@@ -0,0 +1,78 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.AbstractCAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.menu.CAbilityMenu;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++
++/**
++ * Spell Book: while the unit carries it (or has the ability), the spells of the list (Data A) are on a menu button
++ * of the unit's command card. The book holds as many of them as Data C to D say, picked at random when it is
++ * added.
++ */
++public class CAbilityItemSpellBook extends AbstractCAbilityItemInstantUse implements CAbilityMenu {
++	private final List<War3ID> spellList = new ArrayList<>();
++	private int minimumSpells;
++	private int maximumSpells;
++	private final List<CAbility> spells = new ArrayList<>();
++
++	public CAbilityItemSpellBook(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.spellList.clear();
++		for (final String spell : worldEditorAbility.getFieldAsList(AbilityFields.DATA_A + level)) {
++			if (spell.length() == 4) {
++				this.spellList.add(War3ID.fromString(spell));
++			}
++		}
++		this.minimumSpells = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0);
++		this.maximumSpells = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_D + level, 0);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.itemspellbook;
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		final List<War3ID> pool = new ArrayList<>(this.spellList);
++		final int spellCount = Math.min(pool.size(),
++				this.minimumSpells + ((this.maximumSpells > this.minimumSpells)
++						? game.getSeededRandom().nextInt(this.maximumSpells - this.minimumSpells + 1)
++						: 0));
++		while (this.spells.size() < spellCount) {
++			final War3ID spellId = pool.remove(game.getSeededRandom().nextInt(pool.size()));
++			final CAbilityType<?> abilityType = game.getAbilityData().getAbilityType(spellId);
++			if (abilityType == null) {
++				continue;
++			}
++			final CAbility spell = abilityType.createAbility(game.getHandleIdAllocator().createId());
++			if (spell instanceof AbstractCAbility) {
++				((AbstractCAbility) spell).setContainerMenuOrderId(getBaseOrderId());
++			}
++			this.spells.add(spell);
++			unit.add(game, spell);
++		}
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		for (final CAbility spell : this.spells) {
++			unit.remove(game, spell);
++		}
++		this.spells.clear();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemTinyStructure.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemTinyStructure.java
+new file mode 100644
+index 0000000..5ebc930
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemTinyStructure.java
+@@ -0,0 +1,149 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item;
++
++import java.util.List;
++
++import com.badlogic.gdx.math.Vector2;
++import com.etheller.warsmash.units.GameObject;
++import com.badlogic.gdx.graphics.Pixmap;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.build.AbstractCAbilityBuild;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.build.CAbilityBuildInProgress;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.build.AbilityDisableWhileUnderConstructionVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.BuildOnBuildingIntersector;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Tiny structures (Tiny Castle, Tiny Farm and the others): a structure of the user's race (Unit ID list in the
++ * order human, orc, undead, night elf) is started at the target point and finishes after the ability's duration
++ * instead of its own build time.
++ */
++public class CAbilityItemTinyStructure extends CAbilityPointTargetSpellBase {
++	private List<String> structureTypes;
++	private float buildTime;
++
++	public CAbilityItemTinyStructure(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.structureTypes = worldEditorAbility.getFieldAsList(AbilityFields.UNIT_ID + level);
++		this.buildTime = worldEditorAbility.getFieldAsFloat(AbilityFields.DURATION + level, 0);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.itemtinystructures;
++	}
++
++	private War3ID structureTypeFor(final CSimulation game, final CUnit caster) {
++		final int raceIndex = game.getPlayer(caster.getPlayerIndex()).getRace().ordinal();
++		final int index = Math.min(raceIndex, this.structureTypes.size() - 1);
++		if (index < 0) {
++			return null;
++		}
++		return War3ID.fromString(this.structureTypes.get(index));
++	}
++
++	@Override
++	protected void innerCheckCanTargetSpell(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityPointTarget target, final AbilityTargetCheckReceiver<AbilityPointTarget> receiver) {
++		final War3ID typeId = structureTypeFor(game, unit);
++		final CUnitType unitType = typeId == null ? null : game.getUnitData().getUnitType(typeId);
++		if (unitType == null) {
++			receiver.orderIdNotAccepted();
++			return;
++		}
++		final Pixmap pathing = unitType.getBuildingPathingPixelMap();
++		if (AbstractCAbilityBuild.isBuildLocationObstructed(game, unitType, pathing, unitType.isCanBeBuiltOnThem(),
++				target.getX(), target.getY(), unit, BuildOnBuildingIntersector.INSTANCE.reset(target.getX(),
++						target.getY()))) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.UNABLE_TO_BUILD_THERE);
++			return;
++		}
++		receiver.targetOk(target);
++	}
++
++	/** Measured on 1.29: the point is cut toward zero onto the 64 grid, then half a cell away from zero for odd sizes. */
++	private static float gridPoint(final float value, final float offset) {
++		final float point = ((int) (value / 64f)) * 64f;
++		return value < 0 ? point - offset : point + offset;
++	}
++
++	private static Vector2 snappedPlace(final CSimulation simulation, final CUnit caster, final CUnitType unitType,
++			final float x, final float y) {
++		final Pixmap pathing = unitType.getBuildingPathingPixelMap();
++		if (pathing == null) {
++			return new Vector2(x, y);
++		}
++		return new Vector2(gridPoint(x, ((pathing.getWidth() / 2) % 2) == 1 ? 32f : 0f),
++				gridPoint(y, ((pathing.getHeight() / 2) % 2) == 1 ? 32f : 0f));
++	}
++
++	/** Measured on 1.29: the caster walks up to the structure's grid position, not to the point asked for. */
++	@Override
++	public CBehavior begin(final CSimulation game, final CUnit caster, final int orderId, final AbilityPointTarget point) { final int playerIndex = caster.getPlayerIndex(); final boolean autoOrder = false;
++		final War3ID typeId = structureTypeFor(game, caster);
++		final CUnitType unitType = typeId == null ? null : game.getUnitData().getUnitType(typeId);
++		if (unitType == null) {
++			return super.begin(game, caster, orderId, point);
++		}
++		final Vector2 place = snappedPlace(game, caster, unitType, point.getX(), point.getY());
++		return super.begin(game, caster, orderId, new AbilityPointTarget(place.x, place.y));
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final War3ID typeId = structureTypeFor(simulation, caster);
++		if (typeId == null) {
++			return false;
++		}
++		final CUnitType unitType = simulation.getUnitData().getUnitType(typeId);
++		final Vector2 place = snappedPlace(simulation, caster, unitType, target.getX(), target.getY());
++		final CUnit structure = simulation.createUnit(typeId, caster.getPlayerIndex(), place.x, place.y,
++				simulation.getGameplayConstants().getBuildingAngle());
++		if (structure == null) {
++			return false;
++		}
++		structure.setConstructing(true);
++		structure.setBuildTimeOverride(this.buildTime);
++		final CAbilityBuildInProgress buildInProgress = new CAbilityBuildInProgress(
++				simulation.getHandleIdAllocator().createId());
++		structure.setFoodUsed(structure.getUnitType().getFoodUsed());
++		structure.add(simulation, buildInProgress);
++		for (final CAbility ability : structure.getAbilities()) {
++			ability.visit(AbilityDisableWhileUnderConstructionVisitor.INSTANCE);
++		}
++		final CPlayer player = simulation.getPlayer(caster.getPlayerIndex());
++		player.addTechtreeInProgress(typeId);
++		simulation.unitConstructedEvent(caster, structure);
++		structure.setLife(simulation,
++				structure.getMaximumLife() * WarsmashConstants.BUILDING_CONSTRUCT_START_LIFE);
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return false;
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.ITEM;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/neutral/CAbilityWander.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/neutral/CAbilityWander.java
+new file mode 100644
+index 0000000..be89a59
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/neutral/CAbilityWander.java
+@@ -0,0 +1,81 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.neutral;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.AbstractCAbilityPassiveNoOrders;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilitySpell;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorStop;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++
++public class CAbilityWander extends AbstractCAbilityPassiveNoOrders implements CAbilitySpell {
++	private static final War3ID CODE = War3ID.fromString("Awan");
++	/**
++	 * Measured on 1.29 (Sheep): a standing critter waits 5 to 10 s, then walks up to about 350 in a random direction;
++	 * the wait starts over whenever it stands again, after a walk, a run or an order.
++	 */
++	private static final float MIN_WAIT = 5.0f;
++	private static final float MAX_EXTRA_WAIT = 5.0f;
++	private static final float MAX_RANGE = 350;
++	private int standingSinceTick = -1;
++	private int wanderTick = -1;
++
++	public CAbilityWander(final int handleId, final War3ID alias) {
++		super(handleId, CODE, alias);
++	}
++
++	@Override
++	public void populate(final GameObject worldEditorAbility, final int level) {
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		unit.markWanderer();
++		// Measured on 1.29: a critter takes one number from the script's random stream when it is made.
++		game.getSeededRandom().nextFloat();
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (unit.isMovementDisabled()) {
++			return;
++		}
++		if (!(unit.getCurrentBehavior() instanceof CBehaviorStop) && (unit.getCurrentBehavior() != null)) {
++			this.standingSinceTick = -1;
++			this.wanderTick = -1;
++			return;
++		}
++		final int tick = game.getGameTurnTick();
++		if (this.standingSinceTick == -1) {
++			this.standingSinceTick = tick;
++		}
++		// The random part of the wait is drawn only once the fixed part is over: a critter busy again before that
++		// takes nothing from the shared random sequence.
++		if ((this.wanderTick == -1) && ((tick - this.standingSinceTick) >= CTimer.wholeSteps(MIN_WAIT))) {
++			this.wanderTick = tick + CTimer.wholeSteps(game.getSeededRandom().nextFloat() * MAX_EXTRA_WAIT);
++		}
++		if ((this.wanderTick != -1) && (tick >= this.wanderTick)) {
++			this.standingSinceTick = -1;
++			this.wanderTick = -1;
++			final float randomAngle = game.getSeededRandom().nextFloat() * (float) Math.PI * 2.f;
++			final float range = game.getSeededRandom().nextFloat() * MAX_RANGE;
++			unit.order(game, OrderIds.move,
++					new AbilityPointTarget(unit.getX() + (float) (StrictMath.cos(randomAngle) * range),
++							unit.getY() + (float) (StrictMath.sin(randomAngle) * range)));
++		}
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.MOVEMENT;
++	}
++
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilitySentinel.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilitySentinel.java
+new file mode 100644
+index 0000000..197c07a
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilitySentinel.java
+@@ -0,0 +1,111 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CDestructable;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CProjectileVisionFogModifier;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Sentinel: an owl flies to a tree and perches above it, revealing the area around it and the invisible units in it
++ * until its time runs out or the tree falls.
++ */
++public class CAbilitySentinel extends CAbilityTargetSpellBase {
++	private float inFlightSightRadius;
++	private float hoveringSightRadius;
++	private float hoveringHeight;
++	private int numberOfOwls;
++	private float owlDuration;
++	private float projectileSpeed;
++	private War3ID effectId;
++	private final List<CSentinelOwl> owls = new ArrayList<>();
++
++	public CAbilitySentinel(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.sentinel;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.inFlightSightRadius = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.hoveringSightRadius = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.hoveringHeight = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.numberOfOwls = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_D + level, 0);
++		this.owlDuration = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		this.projectileSpeed = worldEditorAbility.getFieldAsFloat(AbilityFields.PROJECTILE_SPEED, 0);
++		this.effectId = AbstractCAbilityTypeDefinition.getEffectId(worldEditorAbility, level);
++	}
++
++	@Override
++	protected void innerCheckCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		if (target.visit(AbilityTargetVisitor.DESTRUCTABLE) == null) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_A_TREE);
++		}
++		else {
++			super.innerCheckCanTarget(game, unit, orderId, target, receiver);
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CDestructable tree = target.visit(AbilityTargetVisitor.DESTRUCTABLE);
++		if (tree == null) {
++			return false;
++		}
++		final CPlayer player = simulation.getPlayer(caster.getPlayerIndex());
++		final CProjectileVisionFogModifier[] flightVision = new CProjectileVisionFogModifier[1];
++		final CProjectile projectile = simulation.createProjectile(caster, getAlias(), caster.getX(), caster.getY(),
++				(float) caster.angleTo(tree), this.projectileSpeed, true, tree, new CAbilityProjectileListener() {
++					@Override
++					public void onLaunch(final CSimulation game, final CProjectile projectile,
++							final AbilityTarget target) {
++					}
++
++					@Override
++					public void onHit(final CSimulation game, final CProjectile projectile,
++							final AbilityTarget target) {
++						if (flightVision[0] != null) {
++							player.removeFogModifer(game, flightVision[0]);
++						}
++						if (!tree.isDead()) {
++							perch(game, caster, player, tree);
++						}
++					}
++				});
++		flightVision[0] = new CProjectileVisionFogModifier(projectile, this.inFlightSightRadius);
++		player.addFogModifer(simulation, flightVision[0], false);
++		return false;
++	}
++
++	private void perch(final CSimulation game, final CUnit caster, final CPlayer player, final CDestructable tree) {
++		this.owls.removeIf(CSentinelOwl::isGone);
++		if ((this.numberOfOwls > 0) && (this.owls.size() >= this.numberOfOwls)) {
++			this.owls.remove(0).leave(game);
++		}
++		final CSentinelOwl owl = new CSentinelOwl(game.getHandleIdAllocator().createId(), getAlias(), tree, player,
++				this.hoveringSightRadius, this.owlDuration);
++		owl.perch(game, this.effectId, (float) StrictMath.toDegrees(caster.angleTo(tree)), this.hoveringHeight);
++		this.owls.add(owl);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityWarClub.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityWarClub.java
+new file mode 100644
+index 0000000..236327b
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CAbilityWarClub.java
+@@ -0,0 +1,105 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CDestructable;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * War Club: the Mountain Giant tears a tree out of the ground and uses it as a club, which swaps its attack for the
++ * club attack for a number of strikes.
++ */
++public class CAbilityWarClub extends CAbilityTargetSpellBase {
++	private float attachDelay;
++	private float removeDelay;
++	private int disabledAttackIndex;
++	private int enabledAttackIndex;
++	private int maximumAttacks;
++	private War3ID buffId;
++
++	private int attachTick;
++	private int endTick;
++	private boolean attached;
++
++	public CAbilityWarClub(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.grabtree;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.attachDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.removeDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.disabledAttackIndex = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0);
++		this.enabledAttackIndex = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_D + level, 0);
++		this.maximumAttacks = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_E + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		final float closeEnoughRange = game.getGameplayConstants().getCloseEnoughRange();
++		if (getCastRange() < closeEnoughRange) {
++			setCastRange(getCastRange() + closeEnoughRange);
++		}
++		super.onAdd(game, unit);
++	}
++
++	@Override
++	protected void innerCheckCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		if (target.visit(AbilityTargetVisitor.DESTRUCTABLE) == null) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.MUST_TARGET_A_TREE);
++		}
++		else {
++			super.innerCheckCanTarget(game, unit, orderId, target, receiver);
++		}
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit unit, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		this.attachTick = tick + CTimer.wholeSteps(this.attachDelay);
++		this.endTick = tick + CTimer.wholeSteps(Math.max(this.attachDelay, this.removeDelay));
++		this.attached = false;
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit unit, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		if (!this.attached && (tick >= this.attachTick)) {
++			this.attached = true;
++			final CDestructable tree = target.visit(AbilityTargetVisitor.DESTRUCTABLE);
++			if ((tree == null) || tree.isDead()) {
++				return false;
++			}
++			tree.setLife(simulation, 0);
++			for (final CAbility ability : unit.getAbilities()) {
++				if (ability instanceof CBuffWarClub) {
++					((CBuffWarClub) ability).resetStrikes(this.maximumAttacks);
++					return tick < this.endTick;
++				}
++			}
++			unit.add(simulation, new CBuffWarClub(simulation.getHandleIdAllocator().createId(), this.buffId,
++					this.disabledAttackIndex, this.enabledAttackIndex, this.maximumAttacks));
++		}
++		return tick < this.endTick;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CBuffWarClub.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CBuffWarClub.java
+new file mode 100644
+index 0000000..1f8824e
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CBuffWarClub.java
+@@ -0,0 +1,95 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.AnimationTokens.SecondaryTag;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimed;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorAttack;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPostDamageListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.replacement.CUnitPriorityLoopData;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType;
++
++/**
++ * The tree the Mountain Giant holds: the club attack replaces the normal one until the strikes run out.
++ */
++public class CBuffWarClub extends CBuffTimed implements CUnitAttackPostDamageListener {
++	private final StateModBuff enableClubAttack;
++	private final StateModBuff disableNormalAttack;
++	private int strikesLeft;
++
++	public CBuffWarClub(final int handleId, final War3ID alias, final int disabledAttackIndex,
++			final int enabledAttackIndex, final int strikes) {
++		super(handleId, alias, alias, 0);
++		this.enableClubAttack = new StateModBuff(StateModBuffType.ENABLE_ATTACK, 1 << enabledAttackIndex);
++		this.disableNormalAttack = new StateModBuff(StateModBuffType.DISABLE_ATTACK_INDEX, 1 << disabledAttackIndex);
++		this.strikesLeft = strikes;
++	}
++
++	public void resetStrikes(final int strikes) {
++		this.strikesLeft = strikes;
++	}
++
++	@Override
++	protected void onBuffAdd(final CSimulation game, final CUnit unit) {
++		unit.addStateModBuff(this.enableClubAttack);
++		unit.addStateModBuff(this.disableNormalAttack);
++		unit.computeUnitState(game, StateModBuffType.ENABLE_ATTACK);
++		unit.addPostDamageListener(this);
++		unit.getUnitAnimationListener().addSecondaryTag(SecondaryTag.UPGRADE);
++	}
++
++	@Override
++	protected void onBuffRemove(final CSimulation game, final CUnit unit) {
++		unit.removeStateModBuff(this.enableClubAttack);
++		unit.removeStateModBuff(this.disableNormalAttack);
++		unit.computeUnitState(game, StateModBuffType.ENABLE_ATTACK);
++		unit.removePostDamageListener(this);
++		unit.getUnitAnimationListener().removeSecondaryTag(SecondaryTag.UPGRADE);
++		final CBehavior behavior = unit.getCurrentBehavior();
++		if (!unit.isDead() && (behavior instanceof CBehaviorAttack)) {
++			// The running attack still holds the club attack; ordering it again picks the normal one.
++			unit.order(game, OrderIds.attack, ((CBehaviorAttack) behavior).getTarget());
++		}
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		// Removed here rather than inside the hit callback, which runs while the attack listeners are iterated.
++		if (this.strikesLeft <= 0) {
++			unit.remove(game, this);
++		}
++	}
++
++	@Override
++	public void onHit(final CSimulation simulation, final CUnit attacker, final AbilityTarget target,
++			final CUnitAttack cUnitAttack, final float damage, final CUnitPriorityLoopData postListenerLoop) {
++		this.strikesLeft--;
++	}
++
++	@Override
++	public int getPriority(final CSimulation simulation, final CUnit attacker, final AbilityTarget target,
++			final CUnitAttack cUnitAttack) {
++		return 0;
++	}
++
++	@Override
++	public float getDurationMax() {
++		return 0;
++	}
++
++	@Override
++	public float getDurationRemaining(final CSimulation game, final CUnit unit) {
++		return 0;
++	}
++
++	@Override
++	public boolean isTimedLifeBar() {
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CSentinelOwl.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CSentinelOwl.java
+new file mode 100644
+index 0000000..a855608
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/units/CSentinelOwl.java
+@@ -0,0 +1,170 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CDestructable;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CDestructableBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CFogModifier;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CPlayerFogOfWar;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentModel;
++
++/**
++ * The Sentinel owl perched above a tree. It sees from above, so terrain does not block its sight, and it detects
++ * invisible units within its sight radius. It is a magic buff on the tree, so Abolish Magic and other dispels drive
++ * it away.
++ */
++public class CSentinelOwl extends CFogModifier implements CDestructableBuff {
++	private static final byte ALL_DETECTION_LEVELS = (byte) ~0;
++
++	private final int handleId;
++	private final War3ID alias;
++	private final CDestructable tree;
++	private final CPlayer player;
++	private final float sightRadius;
++	private final float duration;
++	private int endTick;
++	private SimulationRenderComponentModel model;
++	private boolean gone;
++
++	public CSentinelOwl(final int handleId, final War3ID alias, final CDestructable tree, final CPlayer player,
++			final float sightRadius, final float duration) {
++		this.handleId = handleId;
++		this.alias = alias;
++		this.tree = tree;
++		this.player = player;
++		this.sightRadius = sightRadius;
++		this.duration = duration;
++	}
++
++	public void perch(final CSimulation game, final War3ID effectId, final float facing, final float height) {
++		this.model = game.spawnSpellEffectOnPoint(this.tree.getX(), this.tree.getY(), facing, effectId,
++				CEffectType.TARGET, 0);
++		this.model.setHeight(height);
++		this.player.addFogModifer(game, this, false);
++		this.tree.add(game, this);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CPlayer player) {
++		this.endTick = game.getGameTurnTick() + CTimer.wholeSteps(this.duration);
++	}
++
++	public void leave(final CSimulation game) {
++		if (!this.gone) {
++			this.gone = true;
++			this.model.remove();
++			this.player.removeFogModifer(game, this);
++			if ((this.tree.getBuffs() != null) && this.tree.getBuffs().contains(this)) {
++				this.tree.remove(game, this);
++			}
++		}
++	}
++
++	public boolean isGone() {
++		return this.gone;
++	}
++
++	@Override
++	public void update(final CSimulation game, final CPlayer player, final PathingGrid pathingGrid,
++			final CPlayerFogOfWar fogOfWar) {
++		if (this.gone) {
++			return;
++		}
++		if (((this.duration > 0) && (game.getGameTurnTick() >= this.endTick)) || this.tree.isDead()) {
++			leave(game);
++			return;
++		}
++		final float x = this.tree.getX();
++		final float y = this.tree.getY();
++		final int centerX = pathingGrid.getFogOfWarIndexX(x);
++		final int centerY = pathingGrid.getFogOfWarIndexY(y);
++		final int cells = (int) (this.sightRadius / CPlayerFogOfWar.GRID_STEP);
++		final float radiusSquared = (this.sightRadius * this.sightRadius)
++				/ (CPlayerFogOfWar.GRID_STEP * CPlayerFogOfWar.GRID_STEP);
++		for (int dy = -cells; dy <= cells; dy++) {
++			for (int dx = -cells; dx <= cells; dx++) {
++				if (((dx * dx) + (dy * dy)) <= radiusSquared) {
++					final int indexX = centerX + dx;
++					final int indexY = centerY + dy;
++					if ((indexX >= 0) && (indexY >= 0) && (indexX < fogOfWar.getWidth())
++							&& (indexY < fogOfWar.getHeight())) {
++						fogOfWar.setDetecting(indexX, indexY, CFogState.VISIBLE, ALL_DETECTION_LEVELS);
++					}
++				}
++			}
++		}
++	}
++
++	@Override
++	public int getHandleId() {
++		return this.handleId;
++	}
++
++	@Override
++	public War3ID getAlias() {
++		return this.alias;
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CDestructable dest) {
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CDestructable dest) {
++		leave(game);
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CDestructable dest) {
++		leave(game);
++	}
++
++	@Override
++	public int getLevel() {
++		return 1;
++	}
++
++	@Override
++	public void setLevel(final int level) {
++	}
++
++	@Override
++	public boolean isDispellable() {
++		return true;
++	}
++
++	@Override
++	public boolean isTimedLife() {
++		return this.duration > 0;
++	}
++
++	@Override
++	public boolean isPositive() {
++		return true;
++	}
++
++	@Override
++	public boolean isHero() {
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return true;
++	}
++
++	@Override
++	public boolean isPhysical() {
++		return false;
++	}
++
++	@Override
++	public boolean isAura() {
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilityPillage.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilityPillage.java
+new file mode 100644
+index 0000000..36bb388
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilityPillage.java
+@@ -0,0 +1,88 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPostDamageListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.replacement.CUnitPriorityLoopData;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.ResourceType;
++
++/**
++ * Pillage: attacks that damage an enemy building pay out the damaged share of the building cost times the salvage
++ * cost ratio, in whole accumulation steps.
++ */
++public class CAbilityPillage extends CAbilityPassiveSpellBase implements CUnitAttackPostDamageListener {
++	private float salvageCostRatio;
++	private float accumulationStep;
++	private float goldAccumulated;
++	private float lumberAccumulated;
++
++	public CAbilityPillage(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.salvageCostRatio = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.accumulationStep = Math.max(1, worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0));
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		unit.addPostDamageListener(this);
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		unit.removePostDamageListener(this);
++	}
++
++	@Override
++	public void onHit(final CSimulation simulation, final CUnit attacker, final AbilityTarget target,
++			final CUnitAttack cUnitAttack, final float damage, final CUnitPriorityLoopData postListenerLoop) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || !targetUnit.isBuilding() || (damage <= 0) || (targetUnit.getMaximumLife() <= 0)
++				|| !targetUnit.canBeTargetedBy(simulation, attacker, getTargetsAllowed())) {
++			return;
++		}
++		final float share = Math.min(damage, targetUnit.getMaximumLife()) / targetUnit.getMaximumLife()
++				* this.salvageCostRatio;
++		this.goldAccumulated += share * targetUnit.getUnitType().getGoldCost();
++		this.lumberAccumulated += share * targetUnit.getUnitType().getLumberCost();
++		final CPlayer player = simulation.getPlayer(attacker.getPlayerIndex());
++		final int gold = (int) (Math.floor(this.goldAccumulated / this.accumulationStep) * this.accumulationStep);
++		if (gold > 0) {
++			this.goldAccumulated -= gold;
++			player.addGold(gold);
++			simulation.unitGainResourceEvent(attacker, attacker.getPlayerIndex(), ResourceType.GOLD, gold);
++		}
++		final int lumber = (int) (Math.floor(this.lumberAccumulated / this.accumulationStep)
++				* this.accumulationStep);
++		if (lumber > 0) {
++			this.lumberAccumulated -= lumber;
++			player.addLumber(lumber);
++			simulation.unitGainResourceEvent(attacker, attacker.getPlayerIndex(), ResourceType.LUMBER, lumber);
++		}
++	}
++
++	@Override
++	public int getPriority(final CSimulation simulation, final CUnit attacker, final AbilityTarget target,
++			final CUnitAttack cUnitAttack) {
++		return 0;
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit cUnit) {
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilitySpikedBarricades.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilitySpikedBarricades.java
+new file mode 100644
+index 0000000..c853641
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/units/CAbilitySpikedBarricades.java
+@@ -0,0 +1,89 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.AbstractCAbilityPassiveNoOrders;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CDamageFlags;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CSpellDamageFlags;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackDamageTakenListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentModel;
++
++/**
++ * Spiked Barricades: returns damage to enemy melee attackers. The ability has no data of its own; the amount comes
++ * from the rspi upgrades applied to the unit, and the spikes model shows while that amount is above zero.
++ */
++public class CAbilitySpikedBarricades extends AbstractCAbilityPassiveNoOrders implements CUnitAttackDamageTakenListener {
++	private static final CDamageFlags DAMAGE_FLAGS = new CSpellDamageFlags();
++
++	private CSimulation game;
++	private CUnit unit;
++	private SimulationRenderComponentModel spikesFx;
++
++	public CAbilitySpikedBarricades(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	public static float getDamage(final CUnit unit) {
++		return unit.getSpikedBarricadesDamage();
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		this.game = game;
++		this.unit = unit;
++		unit.addDamageTakenListener(this);
++		updateSpikes();
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		unit.removeDamageTakenListener(this);
++		if (this.spikesFx != null) {
++			this.spikesFx.remove();
++			this.spikesFx = null;
++		}
++		this.unit = null;
++	}
++
++	public void updateSpikes() {
++		if (this.unit == null) {
++			return;
++		}
++		final boolean spiked = getDamage(this.unit) > 0;
++		if (spiked && (this.spikesFx == null)) {
++			this.spikesFx = this.game.createPersistentSpellEffectOnUnit(this.unit, getAlias(), CEffectType.TARGET);
++		}
++		else if (!spiked && (this.spikesFx != null)) {
++			this.spikesFx.remove();
++			this.spikesFx = null;
++		}
++	}
++
++	@Override
++	public void onDamage(final CSimulation simulation, final CUnit attacker, final CUnit target,
++			final CDamageFlags flags, final CDamageType damageType, final float damage, final float bonusDamage,
++			final float trueDamage) {
++		if ((damageType != CDamageType.NORMAL) || flags.isRanged()
++				|| !target.canBeTargetedBy(simulation, attacker, ENEMY_TARGET)
++				|| (simulation.getGameplayConstants().isMagicImmuneResistsThorns()
++						&& attacker.isUnitType(CUnitTypeJass.MAGIC_IMMUNE))) {
++			return;
++		}
++		final float returned = getDamage(target);
++		if (returned > 0) {
++			attacker.damage(simulation, target, DAMAGE_FLAGS, CAttackType.SPELLS, CDamageType.DEFENSIVE,
++					CWeaponSoundTypeJass.WHOKNOWS.name(), returned);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/cryptlord/CAbilityLocustSwarm.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/cryptlord/CAbilityLocustSwarm.java
+new file mode 100644
+index 0000000..dca4a5e
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/undead/cryptlord/CAbilityLocustSwarm.java
+@@ -0,0 +1,268 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.cryptlord;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.Iterator;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Random;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPostDamageListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.replacement.CUnitPriorityLoopData;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponent;
++
++/**
++ * Locust Swarm: while channeled, releases a locust every interval up to the swarm size. A locust swarms around the
++ * caster, flies to an enemy within the area (at most a set number on one target), bites it once and swarms off again.
++ * Once it carries enough damage it flies back to the caster and heals it for the return factor of what it carried.
++ */
++public class CAbilityLocustSwarm extends CAbilityNoTargetSpellBase {
++	private static final float ARRIVAL_RANGE = 48f;
++	private static final float RETURN_RANGE = 128f;
++	private static final float REORDER_INTERVAL = 6f;
++	/*
++	 * Measured with one locust: it does not fly back at the bite that reaches the return threshold but bites on, mostly
++	 * twice more (thresholds 10, 20 and 40 on Knights, Footmen and Gryphon Riders: 1 to 3 more bites, 2 in four of six).
++	 */
++	private static final int BITES_AFTER_THRESHOLD = 2;
++
++	private int swarmSize;
++	private float releaseInterval;
++	private int maxPerTarget;
++	private float returnFactor;
++	private float returnThreshold;
++	private War3ID locustType;
++	private float areaOfEffect;
++	private int channelEndTick;
++	private SimulationRenderComponent loopSound;
++	private int nextReleaseTick;
++	private final Map<CUnit, Locust> locusts = new LinkedHashMap<>();
++
++	public CAbilityLocustSwarm(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.locustswarm;
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.swarmSize = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0);
++		this.releaseInterval = Math.max(0.05f, worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0));
++		this.maxPerTarget = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0);
++		this.returnFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.returnThreshold = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		this.locustType = War3ID.fromString(worldEditorAbility.getFieldAsString(AbilityFields.UNIT_ID + level, 0));
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		this.channelEndTick = tick + ticks(getDuration());
++		this.nextReleaseTick = tick;
++		this.locusts.clear();
++		simulation.createTemporarySpellEffectOnUnit(caster, getAlias(), CEffectType.CASTER);
++		stopLoopSound();
++		this.loopSound = simulation.unitLoopSoundEffectEvent(caster, getAlias());
++		return true;
++	}
++
++	@Override
++	public boolean doChannelTick(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final int tick = simulation.getGameTurnTick();
++		if ((tick >= this.nextReleaseTick) && (this.locusts.size() < this.swarmSize)) {
++			this.nextReleaseTick = tick + ticks(this.releaseInterval);
++			final CUnit locustUnit = simulation.createUnit(this.locustType, caster.getPlayerIndex(), caster.getX(),
++					caster.getY(), caster.getFacing());
++			if (locustUnit != null) {
++				final Locust locust = new Locust(locustUnit);
++				locustUnit.addPostDamageListener(locust);
++				this.locusts.put(locustUnit, locust);
++				wander(simulation, caster, locust);
++			}
++		}
++		updateLocusts(simulation, caster);
++		return tick < this.channelEndTick;
++	}
++
++	private void updateLocusts(final CSimulation simulation, final CUnit caster) {
++		final int tick = simulation.getGameTurnTick();
++		final Map<CUnit, Integer> attackersPerTarget = new HashMap<>();
++		for (final Iterator<Locust> iterator = this.locusts.values().iterator(); iterator.hasNext();) {
++			final Locust locust = iterator.next();
++			if (locust.unit.isDead()) {
++				iterator.remove();
++				continue;
++			}
++			if ((locust.state == LocustState.ATTACK) && !isValidTarget(simulation, caster, locust.target)) {
++				locust.target = null;
++				wander(simulation, caster, locust);
++			}
++			if (locust.state == LocustState.ATTACK) {
++				attackersPerTarget.merge(locust.target, 1, Integer::sum);
++			}
++		}
++		for (final Locust locust : this.locusts.values()) {
++			switch (locust.state) {
++			case WANDER:
++				if ((locust.unit.distance(locust.wanderX, locust.wanderY) <= ARRIVAL_RANGE)
++						|| (tick >= locust.reorderTick)) {
++					final CUnit target = pickTarget(simulation, caster, attackersPerTarget);
++					if (target != null) {
++						attackersPerTarget.merge(target, 1, Integer::sum);
++						locust.state = LocustState.ATTACK;
++						locust.target = target;
++						locust.reorderTick = tick + ticks(REORDER_INTERVAL);
++						locust.unit.order(simulation, OrderIds.attack, target);
++					}
++					else {
++						wander(simulation, caster, locust);
++					}
++				}
++				break;
++			case ATTACK:
++				if (locust.bitten) {
++					locust.bitten = false;
++					locust.target = null;
++					if (locust.carried >= this.returnThreshold) {
++						locust.bitesAfterThreshold++;
++					}
++					if (locust.bitesAfterThreshold > BITES_AFTER_THRESHOLD) {
++						locust.state = LocustState.RETURN;
++						locust.reorderTick = tick + ticks(REORDER_INTERVAL);
++						locust.unit.order(simulation, OrderIds.move, new AbilityPointTarget(caster.getX(), caster.getY()));
++					}
++					else {
++						wander(simulation, caster, locust);
++					}
++				}
++				else if (tick >= locust.reorderTick) {
++					locust.reorderTick = tick + ticks(REORDER_INTERVAL);
++					locust.unit.order(simulation, OrderIds.attack, locust.target);
++				}
++				break;
++			case RETURN:
++				if (locust.unit.distance(caster) <= RETURN_RANGE) {
++					caster.heal(simulation, locust.carried * this.returnFactor);
++					locust.carried = 0;
++					locust.bitesAfterThreshold = 0;
++					wander(simulation, caster, locust);
++				}
++				else if (tick >= locust.reorderTick) {
++					locust.reorderTick = tick + ticks(REORDER_INTERVAL);
++					locust.unit.order(simulation, OrderIds.move, new AbilityPointTarget(caster.getX(), caster.getY()));
++				}
++				break;
++			}
++		}
++	}
++
++	/**
++	 * Measured: between bites a locust flies out to anywhere in the area around the caster before it turns to a
++	 * target, so each one bites every two to four seconds rather than at its attack rate.
++	 */
++	private void wander(final CSimulation simulation, final CUnit caster, final Locust locust) {
++		final Random random = simulation.getSeededRandom();
++		final double angle = random.nextDouble() * StrictMath.PI * 2;
++		final double distance = random.nextDouble() * this.areaOfEffect;
++		locust.state = LocustState.WANDER;
++		locust.wanderX = caster.getX() + (float) (StrictMath.cos(angle) * distance);
++		locust.wanderY = caster.getY() + (float) (StrictMath.sin(angle) * distance);
++		locust.reorderTick = simulation.getGameTurnTick() + ticks(REORDER_INTERVAL);
++		locust.unit.order(simulation, OrderIds.move, new AbilityPointTarget(locust.wanderX, locust.wanderY));
++	}
++
++	private boolean isValidTarget(final CSimulation simulation, final CUnit caster, final CUnit target) {
++		return (target != null) && !target.isDead() && (target.distance(caster) <= this.areaOfEffect)
++				&& target.canBeTargetedBy(simulation, caster, getTargetsAllowed());
++	}
++
++	private CUnit pickTarget(final CSimulation simulation, final CUnit caster,
++			final Map<CUnit, Integer> attackersPerTarget) {
++		final List<CUnit> candidates = new ArrayList<>();
++		simulation.getWorldCollision().enumUnitsInRange(caster.getX(), caster.getY(), this.areaOfEffect,
++				(enumUnit) -> {
++					if (enumUnit.canBeTargetedBy(simulation, caster, getTargetsAllowed())
++							&& (attackersPerTarget.getOrDefault(enumUnit, 0) < this.maxPerTarget)) {
++						candidates.add(enumUnit);
++					}
++					return false;
++				});
++		if (candidates.isEmpty()) {
++			return null;
++		}
++		return candidates.get(simulation.getSeededRandom().nextInt(candidates.size()));
++	}
++
++	@Override
++	public void doChannelEnd(final CSimulation game, final CUnit unit, final AbilityTarget target,
++			final boolean interrupted) {
++		for (final CUnit locust : this.locusts.keySet()) {
++			if (!locust.isDead()) {
++				locust.kill(game);
++			}
++		}
++		this.locusts.clear();
++		stopLoopSound();
++	}
++
++	private void stopLoopSound() {
++		if (this.loopSound != null) {
++			this.loopSound.remove();
++			this.loopSound = null;
++		}
++	}
++
++	private static int ticks(final float seconds) {
++		return CTimer.ceilSteps(seconds);
++	}
++
++	private enum LocustState {
++		WANDER, ATTACK, RETURN;
++	}
++
++	private static final class Locust implements CUnitAttackPostDamageListener {
++		private final CUnit unit;
++		private LocustState state = LocustState.WANDER;
++		private CUnit target;
++		private float carried;
++		private int bitesAfterThreshold;
++		private boolean bitten;
++		private float wanderX;
++		private float wanderY;
++		private int reorderTick;
++
++		private Locust(final CUnit unit) {
++			this.unit = unit;
++		}
++
++		@Override
++		public void onHit(final CSimulation simulation, final CUnit attacker, final AbilityTarget hitTarget,
++				final CUnitAttack cUnitAttack, final float damage, final CUnitPriorityLoopData postListenerLoop) {
++			this.carried += damage;
++			this.bitten = true;
++		}
++
++		@Override
++		public int getPriority(final CSimulation simulation, final CUnit attacker, final AbilityTarget hitTarget,
++				final CUnitAttack cUnitAttack) {
++			return 0;
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/definitions/impl/CAbilityTypeDefinitionSpikedBarricades.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/definitions/impl/CAbilityTypeDefinitionSpikedBarricades.java
+new file mode 100644
+index 0000000..d7a1944
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/types/definitions/impl/CAbilityTypeDefinitionSpikedBarricades.java
+@@ -0,0 +1,42 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl;
++
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CLevelingAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units.CAbilitySpikedBarricades;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityTypeLevelData;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.CAbilityTypeDefinition;
++
++public class CAbilityTypeDefinitionSpikedBarricades extends AbstractCAbilityTypeDefinition<CAbilityTypeLevelData>
++		implements CAbilityTypeDefinition {
++
++	@Override
++	protected CAbilityTypeLevelData createLevelData(final GameObject abilityEditorData, final int level) {
++		return new CAbilityTypeLevelData(getTargetsAllowed(abilityEditorData, level));
++	}
++
++	@Override
++	protected CAbilityType<?> innerCreateAbilityType(final War3ID alias, final GameObject abilityEditorData,
++			final List<CAbilityTypeLevelData> levelData) {
++		return new CAbilityType<CAbilityTypeLevelData>(alias, abilityEditorData.getFieldAsWar3ID(CODE, -1),
++				levelData) {
++			@Override
++			public CAbility createAbility(final int handleId) {
++				return new CAbilitySpikedBarricades(handleId, getCode(), getAlias());
++			}
++
++			@Override
++			public void setLevel(final CSimulation game, final CUnit unit, final CLevelingAbility existingAbility,
++					final int level) {
++				existingAbility.setLevel(game, unit, level);
++			}
++		};
++	}
++
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorBoardTransport.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorBoardTransport.java
+index f60587f..90e2463 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorBoardTransport.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorBoardTransport.java
+@@ -24,6 +24,11 @@ public class CBehaviorBoardTransport extends CBehaviorMoveIntoRangeFor implement
+ 		final CAbilityLoad transportLoad = CAbilityLoad.getTransportLoad(game, caster, transport, ignoreRange,
+ 				ignoreDisabled);
+ 		if (transportLoad == null) {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHoldBurrow burrow = com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityCargoHoldBurrow
++					.getBurrowLoad(game, caster, transport, ignoreRange);
++			if (burrow != null) {
++				return burrow;
++			}
+ 			return CAbilityWayGate.getWayGateAbility(game, caster, transport,
+ 					ignoreRange, ignoreDisabled);
+ 		}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java
+index ccb8c4d..413c059 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/skills/CBehaviorTargetSpellBase.java
+@@ -148,7 +148,11 @@ public class CBehaviorTargetSpellBase extends CAbstractRangedBehavior {
+ 
+ 	@Override
+ 	public void endMove(final CSimulation game, final boolean interrupted) {
+-		checkEndChannel(game, interrupted);
++		// Blizzard launcher: the move ends uninterrupted when it hands over to this spell, often in the very tick the
++		// channel began; only a move that was cut off ends a channel (a walk-then-channel spell stopped at once).
++		if (interrupted) {
++			checkEndChannel(game, interrupted);
++		}
+ 	}
+ 
+ 	private void checkEndChannel(final CSimulation game, final boolean interrupted) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index 2225090..7672bd6 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -484,6 +484,23 @@ public class CAbilityData {
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Ashm"),
+ 				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units.CAbilityShadowmeld(handleId, alias)));
+ 
++		// Blizzard launcher (0012): the rest of Warsmash Reforged's Java abilities.
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Apos"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.units.CAbilityPossession(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Adec"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units.CAbilityDecouple(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AUls"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.cryptlord.CAbilityLocustSwarm(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Abtl"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.cargohold.CAbilityBattleStations(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Agra"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units.CAbilityWarClub(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Asal"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.orc.units.CAbilityPillage(handleId, alias, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aesn"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.nightelf.units.CAbilitySentinel(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Awan"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.neutral.CAbilityWander(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIbl"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemTinyStructure(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Ablp"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemBlightPlacement(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aspb"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemSpellBook(handleId, alias)));
++		for (final String flagCode : new String[] { "AIfe", "AIfm", "AIfn", "AIfo" }) {
++			this.codeToAbilityTypeDefinition.put(War3ID.fromString(flagCode), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemFlag(handleId, alias)));
++		}
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aspi"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpikedBarricades());
++
+ 		System.err.println("========================================================================");
+ 		System.err.println("Starting to load ability builder");
+ 		System.err.println("========================================================================");
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUpgradeData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUpgradeData.java
+index bbd8dc6..5aa82f6 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUpgradeData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUpgradeData.java
+@@ -123,6 +123,10 @@ public class CUpgradeData {
+ 								new CUpgradeEffectMovementSpeed(upgradeType.getFieldAsInteger(effectBaseMetaKey, 0),
+ 										upgradeType.getFieldAsInteger(effectModMetaKey, 0)));
+ 						break;
++					case "rspi":
++						upgradeEffects.add(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.upgrade.CUpgradeEffectSpikedBarricades(
++								upgradeType.getFieldAsFloat(effectBaseMetaKey, 0), upgradeType.getFieldAsFloat(effectModMetaKey, 0)));
++						break;
+ 					case "rmnr":
+ 						upgradeEffects
+ 								.add(new CUpgradeEffectManaRegen(upgradeType.getFieldAsFloat(effectBaseMetaKey, 0),
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/upgrade/CUpgradeEffectSpikedBarricades.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/upgrade/CUpgradeEffectSpikedBarricades.java
+new file mode 100644
+index 0000000..2fe0941
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/upgrade/CUpgradeEffectSpikedBarricades.java
+@@ -0,0 +1,28 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.upgrade;
++
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++
++/**
++ * Damage returned to melee attackers (rspi). The upgrade only sets the amount on the unit: the damage is dealt by the
++ * unit's Spiked Barricades ability, so a unit without that ability returns nothing.
++ */
++public class CUpgradeEffectSpikedBarricades implements CUpgradeEffect {
++	private final float base;
++	private final float mod;
++
++	public CUpgradeEffectSpikedBarricades(final float base, final float mod) {
++		this.base = base;
++		this.mod = mod;
++	}
++
++	@Override
++	public void apply(final CSimulation simulation, final CUnit unit, final int level) {
++		unit.addSpikedBarricadesDamage(Util.levelValue(this.base, this.mod, level - 1));
++	}
++
++	@Override
++	public void unapply(final CSimulation simulation, final CUnit unit, final int level) {
++		unit.addSpikedBarricadesDamage(-Util.levelValue(this.base, this.mod, level - 1));
++	}
++}

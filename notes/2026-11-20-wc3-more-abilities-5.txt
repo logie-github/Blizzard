@@ -1,0 +1,1 @@
+Warcraft III: Locust Swarm, Pillage, Spiked Barricades, Battle Stations, Sentinel, War Club, the Spell Book and the tiny buildings work, and spells channelled after a walk no longer stop at once.
