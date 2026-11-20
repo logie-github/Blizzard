@@ -1,0 +1,6 @@
+ANhs ANhs point Nalc
+ANab ANab enemy Nalc
+ANtm ANtm enemy Nalc
+ANlm ANlm none Nfir
+ANeg ANeg passive Ntin
+ANde ANde passive Ntin

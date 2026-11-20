@@ -1,0 +1,796 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityAcidBomb.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityAcidBomb.java
+new file mode 100644
+index 0000000..4a3e1f8
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityAcidBomb.java
+@@ -0,0 +1,109 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++
++/**
++ * Acid Bomb (Alchemist, ANab): a bottle thrown at a unit; every enemy in the area where it breaks loses Data C armor
++ * and the target takes Data D damage a second, the others Data E, every Data F seconds, for the spell's duration.
++ * Blizzard launcher, written for this engine.
++ */
++public class CAbilityAcidBomb extends CAbilityTargetSpellBase {
++	private float areaOfEffect;
++	private float armorPenalty;
++	private float primaryDamage;
++	private float secondaryDamage;
++	private float damageInterval;
++	private float projectileSpeed;
++	private boolean projectileHoming;
++	private War3ID buffId;
++
++	public CAbilityAcidBomb(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.armorPenalty = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.primaryDamage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.secondaryDamage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		this.damageInterval = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_F + level, 0);
++		this.projectileSpeed = worldEditorAbility.getFieldAsFloat(AbilityFields.PROJECTILE_SPEED, 0);
++		this.projectileHoming = worldEditorAbility.getFieldAsBoolean(AbilityFields.PROJECTILE_HOMING_ENABLED, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.acidbomb;
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if (targetUnit == null) {
++			return false;
++		}
++		final float speed = this.projectileSpeed > 0 ? this.projectileSpeed : 900;
++		simulation.createProjectile(caster, getAlias(), caster.getX(), caster.getY(),
++				(float) caster.angleTo(targetUnit), speed, this.projectileHoming || (this.projectileSpeed <= 0),
++				targetUnit, new CAbilityProjectileListener() {
++					@Override
++					public void onLaunch(final CSimulation game, final CProjectile projectile,
++							final AbilityTarget target) {
++					}
++
++					@Override
++					public void onHit(final CSimulation game, final CProjectile projectile,
++							final AbilityTarget target) {
++						final List<CUnit> hit = new ArrayList<>();
++						game.getWorldCollision().enumUnitsInRange(targetUnit.getX(), targetUnit.getY(),
++								CAbilityAcidBomb.this.areaOfEffect, (unit) -> {
++									if (!unit.isDead() && unit.canBeTargetedBy(game, caster, getTargetsAllowed())) {
++										hit.add(unit);
++									}
++									return false;
++								});
++						if (!hit.contains(targetUnit) && !targetUnit.isDead()) {
++							hit.add(targetUnit);
++						}
++						for (final CUnit unit : hit) {
++							for (final CAbility ability : new ArrayList<>(unit.getAbilities())) {
++								if ((ability instanceof CBuffAcidBomb) && ability.getAlias().equals(CAbilityAcidBomb.this.buffId)) {
++									unit.remove(game, ability);
++								}
++							}
++							unit.add(game, new CBuffAcidBomb(game.getHandleIdAllocator().createId(),
++									CAbilityAcidBomb.this.buffId, getDurationForTarget(unit), caster,
++									CAbilityAcidBomb.this.armorPenalty,
++									unit == targetUnit ? CAbilityAcidBomb.this.primaryDamage
++											: CAbilityAcidBomb.this.secondaryDamage,
++									CAbilityAcidBomb.this.damageInterval));
++						}
++					}
++				});
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityHealingSpray.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityHealingSpray.java
+new file mode 100644
+index 0000000..cf5c1f3
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityHealingSpray.java
+@@ -0,0 +1,136 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPointTargetSpellBase;
++
++/**
++ * Healing Spray (Alchemist, ANhs): waves of mist over the area, each healing every unit there the spell may target
++ * by Data A, at most Data D in all per wave, Data F waves Data B seconds apart; buildings take Data E of it. Each
++ * wave is shown by Data C missiles landing in the area. Blizzard launcher, written for this engine (neither Warsmash
++ * nor Reforged had it).
++ */
++public class CAbilityHealingSpray extends CAbilityPointTargetSpellBase {
++	private float areaOfEffect;
++	private static final float MISSILE_ARRIVAL_DELAY = 1.0f;
++	private float healAmount;
++	private float waveInterval;
++	private int missilesPerWave;
++	private float maximumHealPerWave;
++	private float buildingFactor;
++	private int waveCount;
++
++	public CAbilityHealingSpray(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		this.healAmount = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.waveInterval = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.missilesPerWave = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0);
++		this.maximumHealPerWave = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.buildingFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		this.waveCount = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_F + level, 0);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.healingspray;
++	}
++
++	@Override
++	public float getUIAreaOfEffect() {
++		return this.areaOfEffect;
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final float x = target.getX();
++		final float y = target.getY();
++		final float area = this.areaOfEffect;
++		final int waves = Math.max(1, this.waveCount);
++		final float interval = Math.max(WarsmashConstants.SIMULATION_STEP_TIME, this.waveInterval);
++		final float heal = this.healAmount;
++		final float maximum = this.maximumHealPerWave;
++		final float buildings = this.buildingFactor;
++		final int missiles = this.missilesPerWave;
++		final int[] wavesDone = { 0 };
++		launchMissiles(simulation, caster, x, y, area, missiles);
++		final CTimer waveTimer = new CTimer() {
++			@Override
++			public void onFire(final CSimulation game) {
++				final List<CUnit> healed = new ArrayList<>();
++				game.getWorldCollision().enumUnitsInRange(x, y, area, (unit) -> {
++					if (!unit.isDead() && unit.canBeTargetedBy(game, caster, getTargetsAllowed())) {
++						healed.add(unit);
++					}
++					return false;
++				});
++				float each = heal;
++				if ((maximum > 0) && ((each * healed.size()) > maximum)) {
++					each = maximum / healed.size();
++				}
++				for (final CUnit unit : healed) {
++					unit.heal(game, unit.isBuilding() ? each * buildings : each);
++				}
++				wavesDone[0]++;
++				if (wavesDone[0] >= waves) {
++					pause(game);
++				}
++				else {
++					launchMissiles(game, caster, x, y, area, missiles);
++				}
++			}
++		};
++		waveTimer.setRepeats(true);
++		waveTimer.setTimeoutTime(interval);
++		final CTimer firstWave = new CTimer() {
++			@Override
++			public void onFire(final CSimulation game) {
++				waveTimer.onFire(game);
++				if (wavesDone[0] < waves) {
++					waveTimer.start(game);
++				}
++			}
++		};
++		firstWave.setRepeats(false);
++		firstWave.setTimeoutTime(MISSILE_ARRIVAL_DELAY);
++		firstWave.start(simulation);
++		return false;
++	}
++
++	private void launchMissiles(final CSimulation simulation, final CUnit caster, final float x, final float y,
++			final float area, final int missiles) {
++		for (int i = 0; i < missiles; i++) {
++			final double angle = simulation.getSeededRandom().nextDouble() * StrictMath.PI * 2;
++			final double distance = simulation.getSeededRandom().nextDouble() * area;
++			final AbilityPointTarget land = new AbilityPointTarget((float) (x + (StrictMath.cos(angle) * distance)),
++					(float) (y + (StrictMath.sin(angle) * distance)));
++			float speed = (float) (caster.distance(land) / MISSILE_ARRIVAL_DELAY);
++			speed = Math.max(speed, simulation.getGameplayConstants().getMinUnitSpeed());
++			simulation.createProjectile(caster, getAlias(), caster.getX(), caster.getY(),
++					(float) caster.angleTo(land), speed, false, land, CAbilityProjectileListener.DO_NOTHING);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityTransmute.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityTransmute.java
+new file mode 100644
+index 0000000..77b42e5
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CAbilityTransmute.java
+@@ -0,0 +1,80 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Transmute (Alchemist, ANtm): kills the target unit at once and gives its gold cost times Data A (and lumber cost
++ * times Data B) to the caster's player; a creep above level Data C can't be transmuted. Blizzard launcher, written
++ * for this engine (the bounty, Data D, is not given).
++ */
++public class CAbilityTransmute extends CAbilityTargetSpellBase {
++	private float goldFactor;
++	private float lumberFactor;
++	private int maximumCreepLevel;
++
++	public CAbilityTransmute(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.goldFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.lumberFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.maximumCreepLevel = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.transmute;
++	}
++
++	@Override
++	protected void innerCheckCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final CWidget target, final AbilityTargetCheckReceiver<CWidget> receiver) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit != null) && (this.maximumCreepLevel > 0) && game.isNeutralAggressive(targetUnit.getPlayerIndex())
++				&& (targetUnit.getUnitType().getLevel() > this.maximumCreepLevel)) {
++			receiver.targetCheckFailed(CommandStringErrorKeys.THAT_CREATURE_IS_TOO_POWERFUL);
++			return;
++		}
++		super.innerCheckCanTarget(game, unit, orderId, target, receiver);
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if ((targetUnit == null) || targetUnit.isDead()) {
++			return false;
++		}
++		final int gold = StrictMath.round(targetUnit.getUnitType().getGoldCost() * this.goldFactor);
++		final int lumber = StrictMath.round(targetUnit.getUnitType().getLumberCost() * this.lumberFactor);
++		simulation.createTemporarySpellEffectOnUnit(targetUnit, getAlias(), CEffectType.TARGET);
++		targetUnit.kill(simulation);
++		simulation.getPlayer(caster.getPlayerIndex()).addGold(gold);
++		if (lumber > 0) {
++			simulation.getPlayer(caster.getPlayerIndex()).addLumber(lumber);
++		}
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CBuffAcidBomb.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CBuffAcidBomb.java
+new file mode 100644
+index 0000000..11643e7
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/alchemist/CBuffAcidBomb.java
+@@ -0,0 +1,81 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimed;
++
++/** Acid Bomb's corrosion: armor lowered and damage every interval while it lasts. */
++public class CBuffAcidBomb extends CBuffTimed {
++	private final CUnit caster;
++	private final float armorPenalty;
++	private final float damagePerSecond;
++	private final float interval;
++	private int nextDamageTick;
++
++	public CBuffAcidBomb(final int handleId, final War3ID alias, final float duration, final CUnit caster,
++			final float armorPenalty, final float damagePerSecond, final float interval) {
++		super(handleId, alias, alias, duration);
++		this.caster = caster;
++		this.armorPenalty = armorPenalty;
++		this.damagePerSecond = damagePerSecond;
++		this.interval = Math.max(WarsmashConstants.SIMULATION_STEP_TIME, interval);
++	}
++
++	@Override
++	protected void onBuffAdd(final CSimulation game, final CUnit unit) {
++		unit.setTemporaryDefenseBonus(unit.getTemporaryDefenseBonus() - this.armorPenalty);
++		this.nextDamageTick = game.getGameTurnTick() + ticks(this.interval);
++	}
++
++	@Override
++	protected void onBuffRemove(final CSimulation game, final CUnit unit) {
++		unit.setTemporaryDefenseBonus(unit.getTemporaryDefenseBonus() + this.armorPenalty);
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (game.getGameTurnTick() >= this.nextDamageTick) {
++			this.nextDamageTick = game.getGameTurnTick() + ticks(this.interval);
++			if (this.damagePerSecond > 0) {
++				unit.damage(game, this.caster, false, true, CAttackType.SPELLS, CDamageType.ACID,
++						CWeaponSoundTypeJass.WHOKNOWS.name(), this.damagePerSecond * this.interval);
++			}
++		}
++		super.onTick(game, unit);
++	}
++
++	private static int ticks(final float seconds) {
++		return Math.max(1, (int) (seconds / WarsmashConstants.SIMULATION_STEP_TIME));
++	}
++
++	@Override
++	public boolean isTimedLifeBar() {
++		return false;
++	}
++
++	@Override
++	public boolean isMagic() {
++		return true;
++	}
++
++	@Override
++	public boolean isDispellable() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/firelord/CAbilityLavaSpawn.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/firelord/CAbilityLavaSpawn.java
+new file mode 100644
+index 0000000..2100c40
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/firelord/CAbilityLavaSpawn.java
+@@ -0,0 +1,131 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.firelord;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityNoTargetSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimedLife;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPostDamageListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.replacement.CUnitPriorityLoopData;
++
++/**
++ * Summon Lava Spawn (Firelord, ANlm): Data A Lava Spawns of the level's unit in front of the Firelord for the spell's
++ * duration. A spawn that has attacked Data C times, and lived at least Data B seconds since it was made or last split,
++ * splits: a new spawn beside it (Data D of its maximum life) with the parent's time left plus Data E seconds, up to
++ * Data F generations. Blizzard launcher, written for this engine.
++ */
++public class CAbilityLavaSpawn extends CAbilityNoTargetSpellBase {
++	private float areaOfEffect;
++	private War3ID summonUnitId;
++	private int summonCount;
++	private float splitDelay;
++	private int splitAttackCount;
++	private float splitLifeFactor;
++	private float splitDurationBonus;
++	private int generations;
++	private War3ID buffId;
++
++	public CAbilityLavaSpawn(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.areaOfEffect = worldEditorAbility.getFieldAsFloat(AbilityFields.AREA_OF_EFFECT + level, 0);
++		final String unitId = worldEditorAbility.getFieldAsString(AbilityFields.UNIT_ID + level, 0);
++		this.summonUnitId = unitId.length() == 4 ? War3ID.fromString(unitId) : War3ID.NONE;
++		this.summonCount = Math.max(1, worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_A + level, 0));
++		this.splitDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.splitAttackCount = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_C + level, 0);
++		this.splitLifeFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.splitDurationBonus = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++		this.generations = worldEditorAbility.getFieldAsInteger(AbilityFields.DATA_F + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.lavamonster;
++	}
++
++	@Override
++	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
++		final float facingRad = (float) StrictMath.toRadians(caster.getFacing());
++		final float distance = this.areaOfEffect > 0 ? this.areaOfEffect : 150;
++		final float x = caster.getX() + ((float) StrictMath.cos(facingRad) * distance);
++		final float y = caster.getY() + ((float) StrictMath.sin(facingRad) * distance);
++		for (int i = 0; i < this.summonCount; i++) {
++			spawn(simulation, caster.getPlayerIndex(), x, y, caster.getFacing(), getDuration(), 1, 1f);
++		}
++		return false;
++	}
++
++	private void spawn(final CSimulation simulation, final int playerIndex, final float x, final float y,
++			final float facing, final float duration, final int generation, final float lifeFactor) {
++		final CUnit spawn = simulation.createUnitSimple(this.summonUnitId, playerIndex, x, y, facing);
++		if (spawn == null) {
++			return;
++		}
++		spawn.addClassification(CUnitClassification.SUMMONED);
++		final CBuffTimedLife life = new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId,
++				duration, true);
++		spawn.add(simulation, life);
++		if (lifeFactor < 1f) {
++			spawn.setLife(simulation, Math.max(1, spawn.getMaximumLife() * lifeFactor));
++		}
++		simulation.createTemporarySpellEffectOnUnit(spawn, getAlias(), CEffectType.SPECIAL);
++		if ((this.generations > 0) && (generation >= this.generations)) {
++			return;
++		}
++		final int endTick = simulation.getGameTurnTick() + (int) (duration / WarsmashConstants.SIMULATION_STEP_TIME);
++		spawn.addPostDamageListener(new CUnitAttackPostDamageListener() {
++			private int attacks;
++			private int lastSplitTick = simulation.getGameTurnTick();
++			private boolean split;
++
++			@Override
++			public void onHit(final CSimulation game, final CUnit attacker, final AbilityTarget hitTarget,
++					final CUnitAttack attack, final float damage, final CUnitPriorityLoopData loop) {
++				if (this.split || attacker.isDead()) {
++					return;
++				}
++				this.attacks++;
++				final float alive = (game.getGameTurnTick() - this.lastSplitTick) * WarsmashConstants.SIMULATION_STEP_TIME;
++				if ((this.attacks >= Math.max(1, CAbilityLavaSpawn.this.splitAttackCount))
++						&& (alive >= CAbilityLavaSpawn.this.splitDelay)) {
++					this.split = true;
++					final float left = Math.max(0, (endTick - game.getGameTurnTick()) * WarsmashConstants.SIMULATION_STEP_TIME);
++					spawn(game, attacker.getPlayerIndex(), attacker.getX(), attacker.getY(), attacker.getFacing(),
++							left + CAbilityLavaSpawn.this.splitDurationBonus, generation + 1,
++							CAbilityLavaSpawn.this.splitLifeFactor > 0 ? CAbilityLavaSpawn.this.splitLifeFactor : 1f);
++				}
++			}
++
++			@Override
++			public int getPriority(final CSimulation game, final CUnit attacker, final AbilityTarget hitTarget,
++					final CUnitAttack attack) {
++				return 0;
++			}
++		});
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityDemolish.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityDemolish.java
+new file mode 100644
+index 0000000..d94fe9a
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityDemolish.java
+@@ -0,0 +1,75 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.tinker;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackEffectListenerStacking;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPreDamageListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPreDamageListenerDamageModResult;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.listeners.CUnitAttackPreDamageListenerPriority;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.replacement.CUnitAttackSettings;
++
++/**
++ * Demolish (the Robo-Goblin's, ANde): attacks multiply their damage by Data B on buildings, Data C on units and Data D
++ * on heroes (0 leaves it), with a Data A percent chance. Blizzard launcher, written for this engine.
++ */
++public class CAbilityDemolish extends CAbilityPassiveSpellBase implements CUnitAttackPreDamageListener {
++	private float chance;
++	private float buildingFactor;
++	private float unitFactor;
++	private float heroFactor;
++
++	public CAbilityDemolish(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.chance = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.buildingFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.unitFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.heroFactor = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		unit.addPreDamageListener(CUnitAttackPreDamageListenerPriority.CRITBASH, this);
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		unit.removePreDamageListener(CUnitAttackPreDamageListenerPriority.CRITBASH, this);
++	}
++
++	@Override
++	public CUnitAttackEffectListenerStacking onAttack(final CSimulation simulation, final CUnit attacker,
++			final AbilityTarget target, final AbilityPointTarget attackImpactLocation, final CUnitAttack attack,
++			final CUnitAttackSettings settings, final CUnitAttackPreDamageListenerDamageModResult damageResult) {
++		final CUnit targetUnit = target.visit(AbilityTargetVisitor.UNIT);
++		if (targetUnit != null) {
++			final float factor = targetUnit.isBuilding() ? this.buildingFactor
++					: targetUnit.isHero() ? this.heroFactor : this.unitFactor;
++			if ((factor > 0) && ((this.chance >= 100) || ((simulation.getSeededRandom().nextFloat() * 100) < this.chance))) {
++				damageResult.setDamageMultiplier(damageResult.getDamageMultiplier() * factor);
++			}
++		}
++		return new CUnitAttackEffectListenerStacking();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityEngineeringUpgrade.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityEngineeringUpgrade.java
+new file mode 100644
+index 0000000..eaacd7d
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityEngineeringUpgrade.java
+@@ -0,0 +1,123 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.tinker;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTargetVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CAbilityProjectileListener;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.projectile.CProjectile;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CLevelingAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.CAbilityType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
++
++/**
++ * Engineering Upgrade (Tinker, ANeg): Data A more movement speed (a fraction of the unit type's), Data B more attack
++ * damage, and the Tinker's other abilities swapped for their upgraded versions: each of Data C to F is a pair "old,new"
++ * of ability ids for the level (Pocket Factory, Cluster Rockets, Robo-Goblin, Demolish), the new one taking the old
++ * one's level. Blizzard launcher, written for this engine.
++ */
++public class CAbilityEngineeringUpgrade extends CAbilityPassiveSpellBase {
++	private float speedBonus;
++	private float damageBonus;
++	private final List<String[]> swaps = new ArrayList<>();
++	private CSimulation game;
++	private CUnit unit;
++	private int appliedSpeed;
++	private float appliedDamage;
++
++	public CAbilityEngineeringUpgrade(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.speedBonus = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.damageBonus = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.swaps.clear();
++		for (final String field : new String[] { AbilityFields.DATA_C, AbilityFields.DATA_D, AbilityFields.DATA_E,
++				AbilityFields.DATA_F }) {
++			final List<String> pair = worldEditorAbility.getFieldAsList(field + level);
++			if ((pair != null) && (pair.size() == 2) && (pair.get(0).length() == 4) && (pair.get(1).length() == 4)) {
++				this.swaps.add(new String[] { pair.get(0), pair.get(1) });
++			}
++		}
++		if (this.unit != null) {
++			unapply();
++			apply();
++		}
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		this.game = game;
++		this.unit = unit;
++		apply();
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		unapply();
++		this.unit = null;
++	}
++
++	private void apply() {
++		this.appliedSpeed = StrictMath.round(this.unit.getUnitType().getSpeed() * this.speedBonus);
++		this.unit.setSpeed(this.unit.getSpeed() + this.appliedSpeed);
++		this.appliedDamage = this.damageBonus;
++		for (final CUnitAttack attack : this.unit.getUnitSpecificAttacks()) {
++			attack.setDamageBase(attack.getDamageBase() + (int) this.appliedDamage);
++		}
++		this.unit.notifyAttacksChanged();
++		for (final String[] swap : this.swaps) {
++			swapAbility(War3ID.fromString(swap[0]), War3ID.fromString(swap[1]));
++		}
++	}
++
++	private void unapply() {
++		this.unit.setSpeed(this.unit.getSpeed() - this.appliedSpeed);
++		for (final CUnitAttack attack : this.unit.getUnitSpecificAttacks()) {
++			attack.setDamageBase(attack.getDamageBase() - (int) this.appliedDamage);
++		}
++		this.unit.notifyAttacksChanged();
++		this.appliedSpeed = 0;
++		this.appliedDamage = 0;
++	}
++
++	private void swapAbility(final War3ID oldId, final War3ID newId) {
++		CAbility old = null;
++		for (final CAbility ability : this.unit.getAbilities()) {
++			if (ability.getAlias().equals(oldId)) {
++				old = ability;
++				break;
++			}
++		}
++		final CAbilityType<?> newType = this.game.getAbilityData().getAbilityType(newId);
++		if ((old == null) || (newType == null)) {
++			return;
++		}
++		final int level = old instanceof CLevelingAbility ? ((CLevelingAbility) old).getLevel() : 1;
++		this.unit.remove(this.game, old);
++		final CAbility upgraded = newType.createAbility(this.game.getHandleIdAllocator().createId());
++		this.unit.add(this.game, upgraded);
++		if ((upgraded instanceof CLevelingAbility) && (level > 1)) {
++			newType.setLevel(this.game, this.unit, (CLevelingAbility) upgraded, level);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index 7672bd6..6228845 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -501,6 +501,14 @@ public class CAbilityData {
+ 		}
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Aspi"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpikedBarricades());
+ 
++		// Blizzard launcher (0014): the tavern heroes' spells neither Warsmash nor Reforged had.
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANhs"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist.CAbilityHealingSpray(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANab"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist.CAbilityAcidBomb(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANtm"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.alchemist.CAbilityTransmute(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANlm"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.firelord.CAbilityLavaSpawn(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANeg"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.tinker.CAbilityEngineeringUpgrade(handleId, alias, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANde"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.tinker.CAbilityDemolish(handleId, alias, alias)));
++
+ 		System.err.println("========================================================================");
+ 		System.err.println("Starting to load ability builder");
+ 		System.err.println("========================================================================");

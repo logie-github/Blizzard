@@ -30,6 +30,31 @@ public class Setups extends Scenario {
   }
 
   final List<Case> cases = List.of(
+    c("Healing Spray (ANhs) on three wounded footmen", 400, (s, p) -> {
+      CUnit h = unit(s, "Nalc", 0, p[0], p[1]); CAbility a = give(s, h, "ANhs"); h.setMana(500);
+      CUnit[] fs = { unit(s, "hfoo", 0, p[0] + 400, p[1]), unit(s, "hfoo", 0, p[0] + 430, p[1] + 50), unit(s, "hfoo", 0, p[0] + 380, p[1] - 50) };
+      float l0 = 0; for (CUnit f : fs) { f.setLife(s, 100); l0 += 100; } final float life0 = l0;
+      boolean ok = h.order(s, order(a), new AbilityPointTarget(p[0] + 400, p[1]));
+      return () -> { float l = 0; for (CUnit f : fs) l += f.getLife(); return "accepted=" + ok + " footmen healed " + (int) (l - life0) + " (3 waves of 40, at most 280 a wave)"; };
+    }),
+    c("Lava Spawn (ANlm) splits after its attacks", 1500, (s, p) -> {
+      CUnit h = unit(s, "Nfir", 0, p[0], p[1]); CAbility a = give(s, h, "ANlm"); h.setMana(500);
+      CUnit g = unit(s, "hgtw", 1, p[0] + 350, p[1]); g.setMaximumLife(20000); g.setLife(s, 20000);
+      boolean ok = h.order(s, order(a), null);
+      return () -> { int n = 0; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 0 && !u.isDead() && u.getTypeId().toString().startsWith("nlv")) n++; return "accepted=" + ok + " lava spawns alive " + n + " tower life " + (int) g.getLife(); };
+    }),
+    c("Engineering Upgrade (ANeg) on a Tinker with Pocket Factory", 30, (s, p) -> {
+      CUnit t = unit(s, "Ntin", 0, p[0], p[1]); give(s, t, "ANsy"); int sp0 = t.getSpeed(); int d0 = t.getUnitSpecificAttacks().get(0).getDamageBase();
+      give(s, t, "ANeg");
+      return () -> { StringBuilder b = new StringBuilder(); for (CAbility x : t.getAbilities()) if (x.getAlias().toString().startsWith("ANs")) b.append(x.getAlias()).append(' ');
+        return "speed " + sp0 + "->" + t.getSpeed() + " damage " + d0 + "->" + t.getUnitSpecificAttacks().get(0).getDamageBase() + " factory ability " + b; };
+    }),
+    c("Demolish (ANde): footman with it hits a farm, beside one without", 600, (s, p) -> {
+      CUnit a1 = unit(s, "hfoo", 0, p[0], p[1]); give(s, a1, "ANde"); CUnit f1 = unit(s, "hhou", 1, p[0] + 200, p[1]);
+      CUnit a2 = unit(s, "hfoo", 0, p[0], p[1] - 450); CUnit f2 = unit(s, "hhou", 1, p[0] + 200, p[1] - 450);
+      float l1 = f1.getLife(), l2 = f2.getLife(); a1.order(s, OrderIds.attack, f1); a2.order(s, OrderIds.attack, f2);
+      return () -> "farm hit with Demolish lost " + (int) (l1 - f1.getLife()) + ", without " + (int) (l2 - f2.getLife());
+    }),
     c("Tiny Farm (AIbf) on open ground", 900, (s, p) -> {
       CUnit h = unit(s, "Hblm", 0, p[0], p[1]); CAbility a = give(s, h, "AIbf"); int n0 = count(s, 0);
       boolean ok = h.order(s, order(a), new AbilityPointTarget(p[0] + 300, p[1] + 300));
