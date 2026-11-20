@@ -1,0 +1,241 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 6c3cdc9..4156ca8 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -630,6 +630,97 @@ public final class LauncherNatives {
+ 		}
+ 	}
+ 
++	/** Buffs, cooldowns, selection and sounds: natives the campaign scripts reach through Blizzard.j. */
++	private static void registerUnitsAndSounds(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
++			final CSimulation simulation, final War3MapViewer war3MapViewer,
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI) {
++		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
++		natives.createNative("UnitResetCooldown", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			if (unit != null) {
++				unit.resetCooldowns();
++			}
++			return null;
++		});
++		// UnitRemoveBuffs(unit, removePositive, removeNegative); UnitRemoveBuffsEx(unit, positive, negative, magic,
++		// physical, timedLife, aura, autoDispel): this engine knows a buff's side and whether it is a timed life.
++		natives.createNative("UnitRemoveBuffs", (arguments, globalScope, triggerScope) -> {
++			removeBuffs(simulation, nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance()),
++					arguments.get(1).visit(BooleanJassValueVisitor.getInstance()),
++					arguments.get(2).visit(BooleanJassValueVisitor.getInstance()), false);
++			return null;
++		});
++		natives.createNative("UnitRemoveBuffsEx", (arguments, globalScope, triggerScope) -> {
++			removeBuffs(simulation, nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance()),
++					arguments.get(1).visit(BooleanJassValueVisitor.getInstance()),
++					arguments.get(2).visit(BooleanJassValueVisitor.getInstance()),
++					arguments.get(5).visit(BooleanJassValueVisitor.getInstance()));
++			return null;
++		});
++		natives.createNative("GroupEnumUnitsSelected", (arguments, globalScope, triggerScope) -> {
++			final List<CUnit> group = nullable(arguments, 0, ObjectJassValueVisitor.<List<CUnit>>getInstance());
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			final TriggerBooleanExpression filter = nullable(arguments, 2, ObjectJassValueVisitor.<TriggerBooleanExpression>getInstance());
++			if ((group != null) && (player != null) && (meleeUI != null)
++					&& (player.getId() == war3MapViewer.getLocalPlayerIndex())) {
++				for (final CUnit unit : meleeUI.getSelectedSimulationUnits()) {
++					if ((filter == null) || filter.evaluate(globalScope, CommonTriggerExecutionScope.filterScope(triggerScope, unit))) {
++						group.add(unit);
++					}
++				}
++			}
++			return null;
++		});
++		natives.createNative("IsUnitSelected", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			return BooleanJassValue.of((unit != null) && (player != null) && (meleeUI != null)
++					&& (player.getId() == war3MapViewer.getLocalPlayerIndex())
++					&& meleeUI.getSelectedSimulationUnits().contains(unit));
++		});
++		natives.createNative("StopSound", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.sound.CSound sound = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.sound.CSound>getInstance());
++			if (sound != null) {
++				sound.stop();
++			}
++			return null;
++		});
++		natives.createNative("SetSoundPosition", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.sound.CSound sound = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.sound.CSound>getInstance());
++			if (sound != null) {
++				sound.setPosition(realArg(arguments, 1), realArg(arguments, 2), realArg(arguments, 3));
++			}
++			return null;
++		});
++		natives.createNative("AttachSoundToUnit", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.sound.CSound sound = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.sound.CSound>getInstance());
++			final CUnit unit = nullable(arguments, 1, ObjectJassValueVisitor.<CUnit>getInstance());
++			if ((sound != null) && (unit != null)) {
++				sound.setPosition(unit.getX(), unit.getY(), 0);
++			}
++			return null;
++		});
++	}
++
++	private static void removeBuffs(final CSimulation simulation, final CUnit unit, final boolean positive,
++			final boolean negative, final boolean timedLife) {
++		if (unit == null) {
++			return;
++		}
++		for (final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility ability : new java.util.ArrayList<>(unit.getAbilities())) {
++			if (!(ability instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff)) {
++				continue;
++			}
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff buff = (com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff) ability;
++			if ((buff instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimedLife) && !timedLife) {
++				continue;
++			}
++			if (buff.isPositive() ? positive : negative) {
++				unit.remove(simulation, buff);
++			}
++		}
++	}
++
+ 	private static JassValue orderOf(final JassValue orderString) {
+ 		final String s = orderString == null ? null : orderString.visit(StringJassValueVisitor.getInstance());
+ 		return IntegerJassValue.of(s == null ? 0 : OrderIdUtils.getOrderId(s));
+@@ -653,6 +744,7 @@ public final class LauncherNatives {
+ 		registerCineFilter(jassProgramVisitor, meleeUI);
+ 		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerTimerDialogs(jassProgramVisitor, war3MapViewer, meleeUI);
++		registerUnitsAndSounds(jassProgramVisitor, simulation, war3MapViewer, meleeUI);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType, globals);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+diff --git a/core/src/com/etheller/warsmash/units/custom/War3ObjectDataChangeset.java b/core/src/com/etheller/warsmash/units/custom/War3ObjectDataChangeset.java
+index ebc737c..704dd67 100644
+--- a/core/src/com/etheller/warsmash/units/custom/War3ObjectDataChangeset.java
++++ b/core/src/com/etheller/warsmash/units/custom/War3ObjectDataChangeset.java
+@@ -238,6 +238,10 @@ public final class War3ObjectDataChangeset {
+ 		case 'b':
+ 		case 't':
+ 			return false;
++		case 'd':
++			// Blizzard launcher (Warsmash Reforged's): version 1 doodad files (the Frozen Throne campaign maps) have
++			// no variation and data pointer.
++			return this.version >= 2;
+ 		}
+ 		return true;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index ad25cc9..d6a1ab1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -6122,6 +6122,13 @@ public class CUnit extends CWidget {
+ 		fireCooldownsChangedEvent();
+ 	}
+ 
++	/** Blizzard launcher: UnitResetCooldown: every ability of the unit is ready again. */
++	public void resetCooldowns() {
++		this.rawcodeToCooldownExpireTime.clear();
++		this.rawcodeToCooldownStartTime.clear();
++		fireCooldownsChangedEvent();
++	}
++
+ 	public int getCooldownRemainingTicks(final CSimulation game, final War3ID abilityId) {
+ 		final int expireTime = this.rawcodeToCooldownExpireTime.get(abilityId.getValue(), -1);
+ 		final int gameTurnTick = game.getGameTurnTick();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSound.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSound.java
+index b2b287e..3437f77 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSound.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSound.java
+@@ -6,4 +6,12 @@ public interface CSound {
+ 	float getPredictedDuration();
+ 
+ 	float getRemainingTimeToPlayOnTheDesyncLocalComputer();
++
++	/** Blizzard launcher: StopSound; sounds that can't stop just play out. */
++	default void stop() {
++	}
++
++	/** Blizzard launcher: SetSoundPosition, AttachSoundToUnit. */
++	default void setPosition(final float x, final float y, final float z) {
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSoundFilename.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSoundFilename.java
+index 84d79f8..a2fc60c 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSoundFilename.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/sound/CSoundFilename.java
+@@ -42,6 +42,17 @@ public class CSoundFilename implements CSound {
+ 
+ 	}
+ 
++	// Blizzard launcher: the playing instance, so StopSound can end it.
++	private long playingId = -1;
++
++	@Override
++	public void stop() {
++		if ((this.playingId != -1) && (this.sound != null)) {
++			this.sound.stop(this.playingId);
++		}
++		this.playingId = -1;
++	}
++
+ 	@Override
+ 	public void start() {
+ 		if (this.audioContext == null) {
+@@ -60,7 +71,7 @@ public class CSoundFilename implements CSound {
+ 		source.connect(panner);
+ 
+ 		// Make a sound.
+-		source.start(0, this.volume, this.pitch, this.looping);
++		this.playingId = source.start(0, this.volume, this.pitch, this.looping);
+ 
+ 		this.lastStartTimestamp = TimeUtils.millis();
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index b3f8e81..b357442 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -1649,6 +1649,15 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
++	@Override
++	public List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit> getSelectedSimulationUnits() {
++		final List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit> units = new ArrayList<>();
++		for (final RenderUnit unit : this.selectedUnits) {
++			units.add(unit.getSimulationUnit());
++		}
++		return units;
++	}
++
+ 	public MeleeQuestDialog getQuestDialog() {
+ 		return this.questDialog;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+index 2093b51..cae37aa 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+@@ -81,4 +81,9 @@ public interface WarsmashUI extends CommandErrorListener, WarsmashBaseUI {
+ 
+ 	default void forceQuestDialogUpdate() {
+ 	}
++
++	/** Blizzard launcher: the local player's selected units (GroupEnumUnitsSelected, IsUnitSelected). */
++	default java.util.List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit> getSelectedSimulationUnits() {
++		return java.util.Collections.emptyList();
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+index 9c9894c..2fa9550 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+@@ -45,6 +45,11 @@ public class MeleeToggleUI implements WarsmashUI {
+ 		this.currentUI.onShow();
+ 	}
+ 
++	@Override
++	public java.util.List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit> getSelectedSimulationUnits() {
++		return this.meleeUI.getSelectedSimulationUnits();
++	}
++
+ 	@Override
+ 	public void forceQuestDialogUpdate() {
+ 		this.meleeUI.forceQuestDialogUpdate();

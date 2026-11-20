@@ -309,6 +309,19 @@ public class Setups extends Scenario {
       call.apply("TimerDialogSetTitle", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg, new com.etheller.interpreter.ast.value.StringJassValue("Reinforcements in")));
       call.apply("TimerDialogDisplay", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE));
       b.append(" after display=").append(call.apply("IsTimerDialogDisplayed", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) dlg)));
+      CUnit cd = unit(s, "hfoo", 0, p[0] - 300, p[1]); var fcd = new com.etheller.interpreter.ast.value.HandleJassValue(ut, cd);
+      cd.beginCooldown(s, War3ID.fromString("AHtb"), 10f);
+      b.append(" cooldown before reset=").append(cd.getCooldownRemainingTicks(s, War3ID.fromString("AHtb")));
+      call.apply("UnitResetCooldown", java.util.List.of(fcd));
+      b.append(" after=").append(cd.getCooldownRemainingTicks(s, War3ID.fromString("AHtb")));
+      cd.add(s, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimedLife(s.getHandleIdAllocator().createId(), War3ID.fromString("BTLF"), 60f, false));
+      java.util.function.Supplier<Integer> nb = () -> { int k = 0; for (var a : cd.getAbilities()) if (a instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff) k++; return k; };
+      b.append(" buffs with timed life=").append(nb.get());
+      call.apply("UnitRemoveBuffs", java.util.List.of(fcd, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE));
+      b.append(" after UnitRemoveBuffs=").append(nb.get());
+      var T = com.etheller.interpreter.ast.value.BooleanJassValue.TRUE;
+      call.apply("UnitRemoveBuffsEx", java.util.List.of(fcd, T, T, T, T, T, T, T));
+      b.append(" after UnitRemoveBuffsEx(timed life too)=").append(nb.get());
       final String before = b.toString(); final float x0 = f.getX();
       return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\""; };
     }),
