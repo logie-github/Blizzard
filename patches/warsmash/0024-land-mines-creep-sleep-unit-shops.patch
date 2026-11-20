@@ -1,0 +1,1021 @@
+diff --git a/core/assets/abilityBehaviors/undeadUnitActives.json b/core/assets/abilityBehaviors/undeadUnitActives.json
+index 44d950e..d21211e 100644
+--- a/core/assets/abilityBehaviors/undeadUnitActives.json
++++ b/core/assets/abilityBehaviors/undeadUnitActives.json
+@@ -562,6 +562,50 @@
+ 				}
+ 			}
+ 		}
++	},{
++		"ids": [{"id":"Arpb", "castId": "replenish", "autoCastOnId": "replenishon", "autoCastOffId": "replenishoff", "autoCastType": "NOTARGET"}],
++		"type": "INHERIT",
++		"parentId": "Arpl",
++		"reuseActions": {
++			"effect": [{
++				"type": "heal",
++				"target": {
++					"type": "getEnumUnit"
++				},
++				"amount": {
++					"type": "getAbilityDataAsFloat",
++					"dataField": "A"
++				}
++			},{
++				"type": "addMp",
++				"target": {
++					"type": "getEnumUnit"
++				},
++				"amount": {
++					"type": "getAbilityDataAsFloat",
++					"dataField": "B"
++				}
++			}]
++		},
++		"reuseCallbacks": {
++			"checkValidTarget": {
++				"type": "not",
++				"condition": {
++					"type": "and",
++					"conditions": [{
++						"type": "isUnitMaxHp",
++						"unit": {
++							"type": "getMatchingUnit"
++						}
++					},{
++						"type": "isUnitMaxMp",
++						"unit": {
++							"type": "getMatchingUnit"
++						}
++					}]
++				}
++			}
++		}
+ 	},{
+ 		"ids": [{"id":"Acrs", "castId": "curse", "autoCastOnId": "curseon", "autoCastOffId": "curseoff", "autoCastType": "ATTACKINGALLY"}],
+ 		"type": "NORMAL_UNITTARGET",
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index b63cac7..face420 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -4282,6 +4282,54 @@ public class Jass2 {
+ 						return new HandleJassValue(eventType,
+ 								whichWidget.addEvent(globalScope, whichTrigger, whichPlayerEvent));
+ 					});
++			// Blizzard launcher: creeps' night sleep.
++			jassProgramVisitor.getJassNativeManager().createNative("UnitAddSleep",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						final boolean add = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++						if (unit != null) {
++							unit.setCanSleep(add);
++							if (!add) {
++								unit.wakeFromNaturalSleep(CommonEnvironment.this.simulation);
++							}
++						}
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("UnitCanSleep",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						return BooleanJassValue.of((unit != null) && unit.canSleep());
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("UnitAddSleepPerm",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						final boolean add = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++						if (unit != null) {
++							unit.setCanSleepPerm(add);
++							if (!add) {
++								unit.wakeFromNaturalSleep(CommonEnvironment.this.simulation);
++							}
++						}
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("UnitCanSleepPerm",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						return BooleanJassValue.of((unit != null) && unit.canSleepPerm());
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("UnitWakeUp",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						if (unit != null) {
++							unit.wakeUp(CommonEnvironment.this.simulation);
++						}
++						return null;
++					});
++			jassProgramVisitor.getJassNativeManager().createNative("UnitIsSleeping",
++					(arguments, globalScope, triggerScope) -> {
++						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
++						return BooleanJassValue.of((unit != null) && unit.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING));
++					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("IsUnitIllusion",
+ 					(arguments, globalScope, triggerScope) -> {
+ 						final CUnit unit = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
+index 7699b88..9d2422e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/commandbuttons/CommandCardPopulatingAbilityVisitor.java
+@@ -639,6 +639,33 @@ public class CommandCardPopulatingAbilityVisitor implements CAbilityVisitor<Void
+ 		return null;
+ 	}
+ 
++	// Blizzard launcher: units a neutral building sells, with their stock as the number on the button.
++	@Override
++	public Void accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits ability) {
++		if ((this.menuBaseOrderId == 0) && ability.isIconShowing()) {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer buyer = this.game
++					.getPlayer(this.localPlayerIndex);
++			int unitIndex = 0;
++			for (final War3ID unitType : ability.getUnitsSold()) {
++				final IconUI unitUI = this.abilityDataUI.getUnitUI(unitType);
++				final CUnitType simulationUnitType = this.game.getUnitData().getUnitType(unitType);
++				if ((unitUI != null) && (simulationUnitType != null)) {
++					addCommandButton(ability, unitUI, ability.getHandleId(),
++							com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits
++									.orderId(this.localPlayerIndex, unitIndex),
++							0, false, false,
++							com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits
++									.getGoldCost(buyer, simulationUnitType),
++							com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits
++									.getLumberCost(buyer, simulationUnitType),
++							simulationUnitType.getFoodUsed(), 0, ability.getStock(unitType));
++				}
++				unitIndex++;
++			}
++		}
++		return null;
++	}
++
+ 	@Override
+ 	public Void accept(final CAbilityUpgrade ability) {
+ 		if ((this.menuBaseOrderId == 0) && ability.isIconShowing()) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 754d394..be225a1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -89,6 +89,13 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 	private final CUnitData unitData;
+ 	private final CDestructableData destructableData;
+ 	private final CItemData itemData;
++	private final Map<War3ID, List<War3ID>> unitToTechEquivalents = new HashMap<>();
++
++	/** Blizzard launcher: the tech equivalents (TALT, TWN1 to TWN3) a unit type counts as. */
++	public List<War3ID> getTechEquivalents(final War3ID unitId) {
++		final List<War3ID> list = this.unitToTechEquivalents.get(unitId);
++		return list == null ? java.util.Collections.emptyList() : list;
++	}
+ 	private final CUpgradeData upgradeData;
+ 	private final List<CUnit> units;
+ 	private final List<CUnit> newUnits;
+@@ -153,6 +160,12 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 				this.simulationRenderController);
+ 		this.destructableData = new CDestructableData(parsedDestructableData, simulationRenderController);
+ 		this.itemData = new CItemData(parsedItemData);
++		// Blizzard launcher: a unit unlocks the tech equivalents that name it (an altar counts as TALT).
++		for (final Map.Entry<War3ID, List<War3ID>> entry : this.itemData.getTechEquivalents().entrySet()) {
++			for (final War3ID unitId : entry.getValue()) {
++				this.unitToTechEquivalents.computeIfAbsent(unitId, k -> new ArrayList<>()).add(entry.getKey());
++			}
++		}
+ 		this.units = new ArrayList<>();
+ 		this.newUnits = new ArrayList<>();
+ 		this.removedUnits = new ArrayList<>();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index e235a14..ad96c85 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -1985,6 +1985,7 @@ public class CUnit extends CWidget {
+ 	 * this unit from the game.
+ 	 */
+ 	public boolean update(final CSimulation game) {
++		updateNightSleep(game);
+ 		// Blizzard launcher: a computer player's unit walks out of a harmful area it stands in (Reforged's, 1.29's).
+ 		if (!isDead() && !isBuilding() && !game.isNeutralAggressive(this.playerIndex)
+ 				&& (game.getPlayer(this.playerIndex).getController() == com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl.COMPUTER)) {
+@@ -3657,6 +3658,112 @@ public class CUnit extends CWidget {
+ 	private int lastHurtTick = -1;
+ 	private boolean guardPositionRemoved;
+ 
++	// Blizzard launcher: creeps' night sleep (Warsmash Reforged's, measured on 1.29).
++	private static final War3ID CREEP_SLEEP = War3ID.fromString("Asla");
++	private static final float SLEEP_AFTER_WAKE_SECONDS = 2f;
++	private static final float CALL_FOR_HELP_RANGE = 600f;
++	private Boolean canSleepOverride;
++	private Boolean sleepAlwaysOverride;
++	private StateModBuff naturalSleep;
++	private com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentModel naturalSleepEffect;
++	private int lastWakeTick = Integer.MIN_VALUE / 2;
++
++	/** Whether the unit may fall asleep at night: its type's setting until a trigger sets it (UnitAddSleep). */
++	public boolean canSleep() {
++		return this.canSleepOverride == null ? this.unitType.isCanSleep() : this.canSleepOverride;
++	}
++
++	public void setCanSleep(final boolean canSleep) {
++		this.canSleepOverride = canSleep;
++	}
++
++	/** UnitAddSleepPerm: asleep by day too (Sleep Always). */
++	public boolean canSleepPerm() {
++		return (this.sleepAlwaysOverride != null) && this.sleepAlwaysOverride;
++	}
++
++	public void setCanSleepPerm(final boolean always) {
++		this.sleepAlwaysOverride = always;
++	}
++
++	public boolean isNaturallyAsleep() {
++		return this.naturalSleep != null;
++	}
++
++	/** Called for help or UnitWakeUp: wakes the creep and keeps it awake for a while even if it already was. */
++	public void wakeUp(final CSimulation game) {
++		this.lastWakeTick = game.getGameTurnTick();
++		wakeFromNaturalSleep(game);
++	}
++
++	public void wakeFromNaturalSleep(final CSimulation game) {
++		if (this.naturalSleep != null) {
++			removeStateModBuff(this.naturalSleep);
++			computeUnitState(game, StateModBuffType.SLEEPING);
++			this.naturalSleep = null;
++		}
++		if (this.naturalSleepEffect != null) {
++			this.naturalSleepEffect.remove();
++			this.naturalSleepEffect = null;
++		}
++	}
++
++	/**
++	 * A neutral hostile creep that can sleep is asleep once it stands idle at night, snoring under the creep sleep
++	 * effect. It wakes at daybreak, when hit (the sleep listener takes the state off), or when a creep of its own
++	 * near it is hurt (their call for help); then it stays awake at least 2 s. The no-creep-sleep player state keeps
++	 * them awake.
++	 */
++	private void updateNightSleep(final CSimulation game) {
++		if (isDead() || isBuilding() || !game.isNeutralAggressive(this.playerIndex)) {
++			return;
++		}
++		final boolean always = canSleepPerm();
++		if ((!canSleep() && !always) || ((this.naturalSleep == null) && (game.getPlayer(this.playerIndex)
++				.getPlayerState(game, com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState.NO_CREEP_SLEEP) != 0))) {
++			wakeFromNaturalSleep(game);
++			return;
++		}
++		final int tick = game.getGameTurnTick();
++		if (this.naturalSleep != null) {
++			if ((game.isDay() && !always) || !this.stateModBuffs.contains(this.naturalSleep)) {
++				this.lastWakeTick = tick;
++				wakeFromNaturalSleep(game);
++			}
++			else if (((tick % 5) == 0) && campCallsForHelp(game, tick)) {
++				wakeUp(game);
++			}
++			return;
++		}
++		final CBehavior behavior = this.currentBehavior;
++		final boolean idle = (behavior == null) || (behavior == this.stopBehavior)
++				|| (behavior instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorHoldPosition);
++		if ((game.isNight() || always) && idle
++				&& ((tick - this.lastWakeTick) >= com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer.wholeSteps(SLEEP_AFTER_WAKE_SECONDS))
++				&& ((tick - this.lastHurtTick) >= com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer.wholeSteps(SLEEP_AFTER_WAKE_SECONDS))
++				&& !campCallsForHelp(game, tick)) {
++			this.naturalSleep = new StateModBuff(StateModBuffType.SLEEPING, 1);
++			addStateModBuff(this.naturalSleep);
++			computeUnitState(game, StateModBuffType.SLEEPING);
++			this.naturalSleepEffect = game.createPersistentSpellEffectOnUnit(this, CREEP_SLEEP,
++					com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType.CASTER);
++		}
++	}
++
++	private boolean campCallsForHelp(final CSimulation game, final int tick) {
++		final int recent = com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer.wholeSteps(1f);
++		final boolean[] called = { false };
++		game.getWorldCollision().enumUnitsInRange(getX(), getY(), CALL_FOR_HELP_RANGE, (other) -> {
++			if ((other.getPlayerIndex() == this.playerIndex) && !other.isDead() && (other.lastHurtTick >= 0)
++					&& ((tick - other.lastHurtTick) < recent)) {
++				called[0] = true;
++				return true;
++			}
++			return false;
++		});
++		return called[0];
++	}
++
+ 	/** RemoveGuardPosition: the unit is no longer the computer player's to send back to its post. */
+ 	public boolean isGuardPositionRemoved() {
+ 		return this.guardPositionRemoved;
+@@ -4424,7 +4531,7 @@ public class CUnit extends CWidget {
+ 		return this.powerWorkers;
+ 	}
+ 
+-	private void nudgeAround(final CSimulation simulation, final CUnit structure) {
++	public void nudgeAround(final CSimulation simulation, final CUnit structure) {
+ 		setPointAndCheckUnstuck(structure.getX(), structure.getY(), simulation);
+ 	}
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnitType.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnitType.java
+index 7f225de..435c3af 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnitType.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnitType.java
+@@ -577,6 +577,52 @@ public class CUnitType {
+ 	private String tilesets = "*";
+ 	private boolean special;
+ 
++	private boolean canSleep;
++	private List<War3ID> unitsSold = java.util.Collections.emptyList();
++	private int stockMax;
++	private float stockReplenishInterval;
++	private float stockStartDelay;
++	private int stockInitial;
++
++	/** Blizzard launcher: units a neutral building sells (Sellunits) and a sold type's stock (stockMax and the rest). */
++	public List<War3ID> getUnitsSold() {
++		return this.unitsSold;
++	}
++
++	public void setUnitsSoldAndStock(final List<War3ID> unitsSold, final int stockMax,
++			final float stockReplenishInterval, final float stockStartDelay, final int stockInitial) {
++		this.unitsSold = unitsSold;
++		this.stockMax = stockMax;
++		this.stockReplenishInterval = stockReplenishInterval;
++		this.stockStartDelay = stockStartDelay;
++		this.stockInitial = stockInitial;
++	}
++
++	public int getStockMax() {
++		return this.stockMax;
++	}
++
++	public float getStockReplenishInterval() {
++		return this.stockReplenishInterval;
++	}
++
++	public float getStockStartDelay() {
++		return this.stockStartDelay;
++	}
++
++	public int getStockInitial() {
++		return this.stockInitial;
++	}
++
++	/** Blizzard launcher: whether a creep of this type falls asleep at night (UnitData's canSleep). */
++	public boolean isCanSleep() {
++		return this.canSleep;
++	}
++
++	public void setCanSleep(final boolean canSleep) {
++		this.canSleep = canSleep;
++	}
++
+ 	public void setTilesetsAndSpecial(final String tilesets, final boolean special) {
+ 		this.tilesets = (tilesets == null) ? "*" : tilesets;
+ 		this.special = special;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java
+index 531fdef..88ec6c9 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/CAbilityVisitor.java
+@@ -84,4 +84,9 @@ public interface CAbilityVisitor<T> {
+ 	T accept(CAbilityNeutralBuilding ability);
+ 
+ 	T accept(AbilityBuilderActiveAbility ability);
++
++	// Blizzard launcher: units sold by neutral buildings.
++	default T accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits ability) {
++		return null;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
+index 30edd5d..4fd9244 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
+@@ -82,7 +82,10 @@ public final class CAbilitySellItems extends AbstractCAbility {
+ 			final AbilityTargetCheckReceiver<Void> receiver) {
+ 		final int playerIndex = orderId & 0xFF; // TODO this is stupid, and should be passed as some "acting player" arg
+ 		final int itemIndex = ((orderId & 0xFF00) >> 8) - 1;
+-		if ((itemIndex >= 0) && (itemIndex < this.itemsSold.size())) {
++		if ((orderId & ~0xFFFF) != 0) {
++			receiver.orderIdNotAccepted(); // a unit purchase (CAbilitySellUnits)
++		}
++		else if ((itemIndex >= 0) && (itemIndex < this.itemsSold.size())) {
+ 			receiver.targetOk(null);
+ 		}
+ 		else {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
+new file mode 100644
+index 0000000..682b652
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
+@@ -0,0 +1,269 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop;
++
++import java.util.ArrayList;
++import java.util.LinkedHashMap;
++import java.util.List;
++import java.util.Map;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitTypeRequirement;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.AbstractCAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityCategory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbilityVisitor;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CommandStringErrorKeys;
++
++/**
++ * Blizzard launcher: units sold by a neutral building (Sellunits), after Warsmash Reforged's: tavern heroes,
++ * mercenaries, goblin units, dragons. The stock is shared by all players and refills over time; the unit is made at
++ * once beside the shop for a buyer who has a unit near it (the shop's patron). As this engine's shops do, the order id
++ * carries the buyer: {@link #orderId}.
++ */
++public final class CAbilitySellUnits extends AbstractCAbility {
++	/** Marks a unit purchase, so the shop's item sale (the same low bits) does not take it. */
++	public static final int ORDER_MARKER = 0x10000;
++
++	private final List<War3ID> unitsSold;
++	private final Map<War3ID, SellStockState> unitToSellState = new LinkedHashMap<>();
++
++	public CAbilitySellUnits(final int handleId, final List<War3ID> unitsSold) {
++		super(handleId, War3ID.fromString("Asud"));
++		this.unitsSold = new ArrayList<>(unitsSold);
++	}
++
++	public static int orderId(final int playerIndex, final int unitIndex) {
++		return ORDER_MARKER | ((unitIndex + 1) << 8) | (playerIndex & 0xFF);
++	}
++
++	public List<War3ID> getUnitsSold() {
++		return this.unitsSold;
++	}
++
++	public SellStockState getStockState(final War3ID unitTypeId) {
++		return this.unitToSellState.get(unitTypeId);
++	}
++
++	public int getStock(final War3ID unitTypeId) {
++		final SellStockState state = this.unitToSellState.get(unitTypeId);
++		return state == null ? 0 : state.getStock();
++	}
++
++	public static int getGoldCost(final CPlayer buyer, final CUnitType unitType) {
++		return (unitType.isHero() && (buyer.getHeroTokens() > 0)) ? 0 : unitType.getGoldCost();
++	}
++
++	public static int getLumberCost(final CPlayer buyer, final CUnitType unitType) {
++		return (unitType.isHero() && (buyer.getHeroTokens() > 0)) ? 0 : unitType.getLumberCost();
++	}
++
++	private War3ID unitTypeOf(final int orderId) {
++		if ((orderId & ORDER_MARKER) == 0) {
++			return null;
++		}
++		final int index = ((orderId & 0xFF00) >> 8) - 1;
++		return ((index >= 0) && (index < this.unitsSold.size())) ? this.unitsSold.get(index) : null;
++	}
++
++	@Override
++	protected void innerCheckCanUse(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityActivationReceiver receiver) {
++		final War3ID unitTypeId = unitTypeOf(orderId);
++		final int playerIndex = orderId & 0xFF;
++		final SellStockState sellState = unitTypeId == null ? null : this.unitToSellState.get(unitTypeId);
++		final CUnitType unitType = unitTypeId == null ? null : game.getUnitData().getUnitType(unitTypeId);
++		if ((sellState == null) || (unitType == null)) {
++			receiver.useOk();
++			return;
++		}
++		final CPlayer buyer = game.getPlayer(playerIndex);
++		if (!buyer.isTechtreeAllowedByMax(unitTypeId) || (unitType.isHero() && !buyer.isHeroCountAllowedByMax(game))) {
++			receiver.techtreeMaximumReached();
++			return;
++		}
++		boolean requirementsMet = true;
++		for (final CUnitTypeRequirement requirement : unitType.getRequirements()) {
++			if (buyer.getTechtreeUnlocked(requirement.getRequirement()) < requirement.getRequiredLevel()) {
++				requirementsMet = false;
++				receiver.missingRequirement(requirement.getRequirement(), requirement.getRequiredLevel());
++			}
++		}
++		if (unitType.isHero()) {
++			for (final CUnitTypeRequirement requirement : unitType
++					.getRequirementsTier(buyer.getHeroCount(game, true))) {
++				if (buyer.getTechtreeUnlocked(requirement.getRequirement()) < requirement.getRequiredLevel()) {
++					requirementsMet = false;
++					receiver.missingRequirement(requirement.getRequirement(), requirement.getRequiredLevel());
++				}
++			}
++		}
++		if (!requirementsMet) {
++			return;
++		}
++		if (!hasPatron(unit, playerIndex)) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.A_VALID_PATRON_MUST_BE_NEARBY);
++		}
++		else if (sellState.getStock() <= 0) {
++			receiver.cooldownNotYetReady(sellState.getCooldownRemaining(game.getGameTurnTick()),
++					sellState.getCooldownMax());
++		}
++		else if (buyer.getGold() < getGoldCost(buyer, unitType)) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_GOLD);
++		}
++		else if (buyer.getLumber() < getLumberCost(buyer, unitType)) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_LUMBER);
++		}
++		else if ((unitType.getFoodUsed() != 0)
++				&& ((buyer.getFoodUsed() + unitType.getFoodUsed()) > buyer.getFoodCap())) {
++			receiver.activationCheckFailed(CommandStringErrorKeys.NOT_ENOUGH_FOOD);
++		}
++		else {
++			receiver.useOk();
++		}
++	}
++
++	private static boolean hasPatron(final CUnit shop, final int playerIndex) {
++		final CAbilityNeutralBuilding neutralBuildingData = shop.getNeutralBuildingData();
++		return (neutralBuildingData == null) || (neutralBuildingData.getSelectedPlayerUnit(playerIndex) != null);
++	}
++
++	@Override
++	public void checkCanTarget(final CSimulation game, final CUnit unit, final int orderId, final CWidget target,
++			final AbilityTargetCheckReceiver<CWidget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityPointTarget target, final AbilityTargetCheckReceiver<AbilityPointTarget> receiver) {
++		receiver.orderIdNotAccepted();
++	}
++
++	@Override
++	public void checkCanTargetNoTarget(final CSimulation game, final CUnit unit, final int orderId,
++			final AbilityTargetCheckReceiver<Void> receiver) {
++		if (unitTypeOf(orderId) != null) {
++			receiver.targetOk(null);
++		}
++		else {
++			receiver.orderIdNotAccepted();
++		}
++	}
++
++	@Override
++	public boolean checkBeforeQueue(final CSimulation game, final CUnit caster, final int orderId,
++			final AbilityTarget target) {
++		return true;
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		for (final War3ID unitTypeId : this.unitsSold) {
++			final CUnitType unitType = game.getUnitData().getUnitType(unitTypeId);
++			if (unitType != null) {
++				this.unitToSellState.put(unitTypeId,
++						SellStockState.fromData(game.getGameTurnTick(), unitType.getStockMax(),
++								unitType.getStockReplenishInterval(), unitType.getStockStartDelay(),
++								unitType.getStockInitial()));
++			}
++		}
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		this.unitToSellState.clear();
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (!isDisabled()) {
++			final int gameTurnTick = game.getGameTurnTick();
++			for (final SellStockState sellState : this.unitToSellState.values()) {
++				sellState.update(gameTurnTick);
++			}
++		}
++	}
++
++	@Override
++	public CBehavior begin(final CSimulation game, final CUnit caster, final int orderId, final CWidget target) {
++		return null;
++	}
++
++	@Override
++	public CBehavior begin(final CSimulation game, final CUnit caster, final int orderId,
++			final AbilityPointTarget point) {
++		return null;
++	}
++
++	@Override
++	public CBehavior beginNoTarget(final CSimulation game, final CUnit caster, final int orderId) {
++		final War3ID unitTypeId = unitTypeOf(orderId);
++		final int playerIndex = orderId & 0xFF;
++		final SellStockState sellState = unitTypeId == null ? null : this.unitToSellState.get(unitTypeId);
++		final CUnitType unitType = unitTypeId == null ? null : game.getUnitData().getUnitType(unitTypeId);
++		if ((sellState == null) || (unitType == null) || (sellState.getStock() <= 0)
++				|| !hasPatron(caster, playerIndex)) {
++			return null;
++		}
++		final CPlayer buyer = game.getPlayer(playerIndex);
++		if (!buyer.isTechtreeAllowedByMax(unitTypeId) || (unitType.isHero() && !buyer.isHeroCountAllowedByMax(game))
++				|| ((unitType.getFoodUsed() != 0)
++						&& ((buyer.getFoodUsed() + unitType.getFoodUsed()) > buyer.getFoodCap()))) {
++			return null;
++		}
++		if (unitType.isHero() && (buyer.getHeroTokens() > 0)) {
++			buyer.setHeroTokens(buyer.getHeroTokens() - 1);
++		}
++		else if (!buyer.charge(unitType.getGoldCost(), unitType.getLumberCost())) {
++			return null;
++		}
++		sellState.chargeStock(1);
++		final CUnit soldUnit = game.createUnit(unitTypeId, playerIndex, caster.getX(), caster.getY(),
++				game.getGameplayConstants().getBuildingAngle());
++		if (soldUnit == null) {
++			return null;
++		}
++		buyer.setUnitFoodUsed(soldUnit, unitType.getFoodUsed());
++		buyer.setUnitFoodMade(soldUnit, unitType.getFoodMade());
++		buyer.addTechtreeUnlocked(game, unitTypeId);
++		soldUnit.nudgeAround(game, caster);
++		game.unitTrainedEvent(caster, soldUnit);
++		return null;
++	}
++
++	@Override
++	public <T> T visit(final CAbilityVisitor<T> visitor) {
++		return visitor.accept(this);
++	}
++
++	@Override
++	public void onCancelFromQueue(final CSimulation game, final CUnit unit, final int orderId) {
++	}
++
++	@Override
++	public void onDeath(final CSimulation game, final CUnit cUnit) {
++	}
++
++	@Override
++	public boolean isPhysical() {
++		return false;
++	}
++
++	@Override
++	public boolean isUniversal() {
++		return false;
++	}
++
++	@Override
++	public CAbilityCategory getAbilityCategory() {
++		return CAbilityCategory.CORE;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/SellStockState.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/SellStockState.java
+new file mode 100644
+index 0000000..545fd3c
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/SellStockState.java
+@@ -0,0 +1,110 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop;
++
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++
++/**
++ * Blizzard launcher: Warsmash Reforged's. Stock of one item or unit type in a shop: nothing until the start delay (game time) passes, then the initial
++ * stock, then one more each replenish interval up to the maximum.
++ */
++public class SellStockState {
++	private int stock;
++	private int maxStock;
++	private final int replenishIntervalTicks;
++	private final int initialStock;
++	private boolean started;
++	private int nextStockReplenishGameTurnTick = -1;
++	private int currentIntervalTicks;
++
++	public SellStockState(final int maxStock, final int stockReplenishIntervalTicks, final int initialStock) {
++		this.maxStock = maxStock;
++		this.replenishIntervalTicks = stockReplenishIntervalTicks;
++		this.initialStock = Math.max(1, initialStock);
++	}
++
++	public static SellStockState fromData(final int gameTurnTick, final int maxStock,
++			final float replenishIntervalSeconds, final float startDelaySeconds, final int initialStock) {
++		final SellStockState state = new SellStockState(maxStock,
++				CTimer.wholeSteps(replenishIntervalSeconds), initialStock);
++		state.init(gameTurnTick, CTimer.wholeSteps(startDelaySeconds));
++		return state;
++	}
++
++	public void init(final int gameTurnTick, final int stockStartGameTurnTick) {
++		this.nextStockReplenishGameTurnTick = stockStartGameTurnTick;
++		this.currentIntervalTicks = stockStartGameTurnTick;
++		update(gameTurnTick);
++	}
++
++	public void update(final int gameTurnTick) {
++		if (!this.started) {
++			if (gameTurnTick < this.nextStockReplenishGameTurnTick) {
++				return;
++			}
++			this.started = true;
++			this.stock = Math.max(this.stock, Math.min(this.initialStock, this.maxStock));
++			this.nextStockReplenishGameTurnTick = -1;
++		}
++		if (this.stock < this.maxStock) {
++			if (this.nextStockReplenishGameTurnTick == -1) {
++				this.nextStockReplenishGameTurnTick = gameTurnTick + this.replenishIntervalTicks;
++				this.currentIntervalTicks = this.replenishIntervalTicks;
++			}
++			if (gameTurnTick >= this.nextStockReplenishGameTurnTick) {
++				this.stock++;
++				if (this.stock < this.maxStock) {
++					this.nextStockReplenishGameTurnTick = gameTurnTick + this.replenishIntervalTicks;
++					this.currentIntervalTicks = this.replenishIntervalTicks;
++				}
++				else {
++					this.nextStockReplenishGameTurnTick = -1;
++				}
++			}
++		}
++	}
++
++	/**
++	 * Stock set by a script (AddItemToStock, AddUnitToStock) is available at once.
++	 */
++	public void setStock(final int stock, final int maxStock) {
++		this.started = true;
++		this.maxStock = maxStock;
++		this.stock = Math.min(stock, maxStock);
++		this.nextStockReplenishGameTurnTick = -1;
++	}
++
++	public int getStock() {
++		return this.stock;
++	}
++
++	public int getMaxStock() {
++		return this.maxStock;
++	}
++
++	public int getNextStockReplenishGameTurnTick() {
++		return this.nextStockReplenishGameTurnTick;
++	}
++
++	public int getCurrentIntervalTicks() {
++		return this.currentIntervalTicks;
++	}
++
++	public float getCooldownRemaining(final int gameTurnTick) {
++		if (this.nextStockReplenishGameTurnTick == -1) {
++			return 0;
++		}
++		return Math.max(0, this.nextStockReplenishGameTurnTick - gameTurnTick) * WarsmashConstants.SIMULATION_STEP_TIME;
++	}
++
++	public float getCooldownMax() {
++		return this.currentIntervalTicks * WarsmashConstants.SIMULATION_STEP_TIME;
++	}
++
++	public boolean chargeStock(final int count) {
++		if (this.stock >= count) {
++			this.stock -= count;
++			return true;
++		}
++		return false;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/creeps/CAbilityLandMine.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/creeps/CAbilityLandMine.java
+new file mode 100644
+index 0000000..68c3274
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/creeps/CAbilityLandMine.java
+@@ -0,0 +1,89 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.creeps;
++
++import java.util.EnumSet;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CWidget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CTargetType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.BooleanAbilityTargetCheckReceiver;
++
++/**
++ * Blizzard launcher: Mine (Amin, the Goblin Land Mine). The mine fades out of sight after the invisibility transition
++ * time (Data B) and, once armed after the activation delay (Data A), blows itself up when an enemy ground unit comes
++ * within its cast range; the unit's Death Damage (Amnx) does the harm.
++ */
++public class CAbilityLandMine extends CAbilityPassiveSpellBase {
++	private static final EnumSet<CTargetType> TRIGGERED_BY = EnumSet.of(CTargetType.GROUND, CTargetType.ENEMIES);
++
++	private float activationDelay;
++	private float invisibilityTime;
++	private final StateModBuff invisibility = new StateModBuff(StateModBuffType.INVISIBLE, 1);
++	private int startTick = -1;
++	private boolean hidden;
++	private boolean done;
++
++	public CAbilityLandMine(final int handleId, final War3ID alias) {
++		super(handleId, alias, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.activationDelay = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.invisibilityTime = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++	}
++
++	@Override
++	public void onAdd(final CSimulation game, final CUnit unit) {
++		this.startTick = game.getGameTurnTick();
++	}
++
++	@Override
++	public void onRemove(final CSimulation game, final CUnit unit) {
++		if (this.hidden) {
++			this.hidden = false;
++			unit.removeStateModBuff(this.invisibility);
++			unit.computeUnitState(game, StateModBuffType.INVISIBLE);
++		}
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit unit) {
++		if (this.done || unit.isDead() || isDisabled()) {
++			return;
++		}
++		final int tick = game.getGameTurnTick();
++		if (this.startTick < 0) {
++			this.startTick = tick;
++		}
++		if (!this.hidden && (tick >= (this.startTick + CTimer.wholeSteps(this.invisibilityTime)))) {
++			this.hidden = true;
++			unit.addStateModBuff(this.invisibility);
++			unit.computeUnitState(game, StateModBuffType.INVISIBLE);
++		}
++		if (tick < (this.startTick + CTimer.wholeSteps(this.activationDelay))) {
++			return;
++		}
++		final boolean[] found = { false };
++		game.getWorldCollision().enumUnitsInRange(unit.getX(), unit.getY(), getCastRange(), (enumUnit) -> {
++			if ((enumUnit != unit) && !enumUnit.isDead() && !enumUnit.isHidden()
++					&& enumUnit.canBeTargetedBy(game, unit, false, TRIGGERED_BY,
++							BooleanAbilityTargetCheckReceiver.<CWidget>getInstance().reset())) {
++				found[0] = true;
++				return true;
++			}
++			return false;
++		});
++		if (found[0]) {
++			this.done = true;
++			unit.kill(game);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index 493c95d..0ece4ae 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -403,6 +403,9 @@ public class CAbilityData {
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIsp"),
+ 				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.CAbilityItemAreaBuff(handleId, alias,
+ 						com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemspeed, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.NonStackingStatBuffType.MVSPDPCT)));
++		// Blizzard launcher: Mine (the Goblin Land Mine's trigger).
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Amin"),
++				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.creeps.CAbilityLandMine(handleId, alias)));
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Adda"),
+ 				new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.creeps.CAbilityDeathDamage(handleId, alias)));
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("AIgo"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase(
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CItemData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CItemData.java
+index 07f8eda..c604d1f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CItemData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CItemData.java
+@@ -198,4 +198,34 @@ public class CItemData {
+ 		}
+ 		return this.itemIdToItemType.values();
+ 	}
++
++	/**
++	 * Blizzard launcher (Warsmash Reforged's): the item profile also holds the tech equivalents (TWN1, TWN2, TWN3,
++	 * TALT) that neutral heroes require: each lists, in DependencyOr, the units that count as it.
++	 */
++	public Map<War3ID, List<War3ID>> getTechEquivalents() {
++		final Map<War3ID, List<War3ID>> techEquivalents = new HashMap<>();
++		if (this.itemData instanceof com.etheller.warsmash.units.StandardObjectData.WarcraftData) {
++			final com.etheller.warsmash.units.DataTable profile = ((com.etheller.warsmash.units.StandardObjectData.WarcraftData) this.itemData)
++					.getTable("Profile");
++			if (profile != null) {
++				for (final String key : profile.keySet()) {
++					final com.etheller.warsmash.units.Element element = profile.get(key);
++					if ((key.length() == 4) && (this.itemData.get(key) == null) && (element != null)
++							&& element.hasField("DependencyOr")) {
++						final List<War3ID> unitIds = new ArrayList<>();
++						for (final String id : element.getFieldAsList("DependencyOr")) {
++							if (id.trim().length() == 4) {
++								unitIds.add(War3ID.fromString(id.trim()));
++							}
++						}
++						if (!unitIds.isEmpty()) {
++							techEquivalents.put(War3ID.fromString(key), unitIds);
++						}
++					}
++				}
++			}
++		}
++		return techEquivalents;
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUnitData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUnitData.java
+index 6b06066..9a8bc7f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUnitData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CUnitData.java
+@@ -347,6 +347,10 @@ public class CUnitData {
+ 		if (!itemsMade.isEmpty()) {
+ 			unit.add(simulation, new CAbilitySellItems(handleIdAllocator.createId(), itemsMade));
+ 		}
++		if (!unitTypeInstance.getUnitsSold().isEmpty()) {
++			unit.add(simulation, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits(
++					handleIdAllocator.createId(), unitTypeInstance.getUnitsSold()));
++		}
+ 		if (unitTypeInstance.isRevivesHeroes()) {
+ 			unit.add(simulation, new CAbilityReviveHero(handleIdAllocator.createId()));
+ 		}
+@@ -451,6 +455,10 @@ public class CUnitData {
+ 		if (!itemsMade.isEmpty()) {
+ 			unit.add(simulation, new CAbilitySellItems(handleIdAllocator.createId(), itemsMade));
+ 		}
++		if (!unitTypeInstance.getUnitsSold().isEmpty()) {
++			unit.add(simulation, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits(
++					handleIdAllocator.createId(), unitTypeInstance.getUnitsSold()));
++		}
+ 		if (unitTypeInstance.isRevivesHeroes()) {
+ 			unit.add(simulation, new CAbilityReviveHero(handleIdAllocator.createId()));
+ 		}
+@@ -796,6 +804,10 @@ public class CUnitData {
+ 			// Blizzard launcher: where the type is found and whether it is a special (Warsmash Reforged's random critter).
+ 			unitTypeInstance.setTilesetsAndSpecial(unitType.getFieldAsString("tilesets", 0),
+ 					unitType.getFieldAsBoolean("special", 0));
++			unitTypeInstance.setCanSleep(unitType.getFieldAsBoolean("canSleep", 0));
++			unitTypeInstance.setUnitsSoldAndStock(parseIDList(unitType.getFieldAsList("Sellunits")),
++					unitType.getFieldAsInteger("stockMax", 0), unitType.getFieldAsFloat("stockRegen", 0),
++					unitType.getFieldAsFloat("stockStart", 0), unitType.getFieldAsInteger("stockInitial", 0));
+ 			this.unitIdToUnitType.put(typeId, unitTypeInstance);
+ 			this.jassLegacyNameToUnitId.put(legacyName, typeId);
+ 		}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index e9fbd08..b09c2ae 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -184,6 +184,9 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	public void addTechtreeUnlocked(CSimulation simulation, final War3ID rawcode) {
++		for (final War3ID equivalent : simulation.getTechEquivalents(rawcode)) {
++			this.rawcodeToTechtreeUnlocked.merge(equivalent, 1, Integer::sum);
++		}
+ 		final Integer techtreeUnlocked = this.rawcodeToTechtreeUnlocked.get(rawcode);
+ 		if (techtreeUnlocked == null) {
+ 			this.rawcodeToTechtreeUnlocked.put(rawcode, 1);
+@@ -201,6 +204,9 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	public void removeTechtreeUnlocked(CSimulation simulation, final War3ID rawcode) {
++		for (final War3ID equivalent : simulation.getTechEquivalents(rawcode)) {
++			this.rawcodeToTechtreeUnlocked.merge(equivalent, -1, Integer::sum);
++		}
+ 		final Integer techtreeUnlocked = this.rawcodeToTechtreeUnlocked.get(rawcode);
+ 		if (techtreeUnlocked == null) {
+ 			this.rawcodeToTechtreeUnlocked.put(rawcode, -1);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index fb70976..e7ec476 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -2324,6 +2324,12 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 			return null;
+ 		}
+ 
++		@Override
++		public Void accept(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits ability) {
++			handleTargetCursor(ability);
++			return null;
++		}
++
+ 		@Override
+ 		public Void accept(final CAbilityUpgrade ability) {
+ 			handleTargetCursor(ability);

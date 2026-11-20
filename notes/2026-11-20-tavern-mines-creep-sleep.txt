@@ -1,0 +1,1 @@
+Taverns, mercenary camps and goblin labs now sell their units, goblin land mines explode, creeps sleep at night, and Replenish works.

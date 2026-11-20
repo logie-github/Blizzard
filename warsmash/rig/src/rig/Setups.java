@@ -14,6 +14,7 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
  * neutral unit to wander. Each case sets its scene up, waits its frames, and prints what it measured.
  */
 public class Setups extends Scenario {
+  abstract static class Later extends com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer { void go(CSimulation s, float t) { setTimeoutTime(t); start(s); } }
   interface Case { String name(); int frames(); Supplier<String> start(CSimulation s, float x, float y); }
   static Case c(String name, int frames, BiFunction<CSimulation, float[], Supplier<String>> f) {
     return new Case() { public String name() { return name; } public int frames() { return frames; } public Supplier<String> start(CSimulation s, float x, float y) { return f.apply(s, new float[]{x, y}); } };
@@ -244,6 +245,38 @@ public class Setups extends Scenario {
       float l0 = 0; for (CUnit f : fs) l0 += f.getLife(); final float life0 = l0;
       boolean ok = h.order(s, order(a), new AbilityPointTarget(p[0] + 500, p[1]));
       return () -> { float l = 0; for (CUnit f : fs) l += Math.max(0, f.getLife()); return "accepted=" + ok + " footmen lost " + (int) (life0 - l) + " archmage walked " + (int) (h.getX() - (p[0] - 600)); };
+    }),
+    c("Goblin Land Mine (Amin): a footman walks over it at once, another after it arms", 900, (s, p) -> {
+      CUnit mine = unit(s, "nglm", 0, p[0], p[1]);
+      CUnit early = unit(s, "hfoo", 1, p[0] - 500, p[1] + 200), late = unit(s, "hfoo", 1, p[0] - 500, p[1] - 200);
+      early.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(p[0] + 500, p[1]));
+      final float[] seen = { 0, -1 };
+      new Later() { public void onFire(CSimulation sim) { seen[0] = mine.getInvisLevels() != 0 ? 1 : 0; seen[1] = mine.isDead() ? 1 : 0; late.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new AbilityPointTarget(p[0] + 500, p[1])); } }.go(s, 12f);
+      return () -> "after 12 s: mine invisible=" + (seen[0] == 1) + " dead=" + (seen[1] == 1) + "; end: mine dead=" + mine.isDead() + " early footman life " + (int) early.getLife() + " late footman life " + (int) late.getLife() + " of " + (int) late.getMaxLife();
+    }),
+    c("Creep sleep: two trolls at night, one hit", 600, (s, p) -> {
+      int na = s.getPlayers().size() - 4; s.setGameTimeOfDay(0f);
+      CUnit a = unit(s, "nftr", na, p[0], p[1] - 1500), b = unit(s, "nftr", na, p[0] + 100, p[1] - 1500), hitter = unit(s, "hfoo", 0, p[0] - 2500, p[1]);
+      final String[] mid = { "" };
+      new Later() { public void onFire(CSimulation sim) { mid[0] = "night=" + sim.isNight() + " asleep " + a.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING) + "," + b.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING);
+        a.damage(sim, hitter, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CSpellDamageFlags(), com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType.SPELLS, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType.NORMAL, "WHOKNOWS", 10f); } }.go(s, 8f);
+      final String[] after = { "" };
+      new Later() { public void onFire(CSimulation sim) { after[0] = "asleep " + a.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING) + "," + b.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING); } }.go(s, 9f);
+      return () -> "after 8 s: " + mid[0] + "; 1 s after the hit: " + after[0] + "; at the end: asleep " + a.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING) + "," + b.isUnitType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass.SLEEPING);
+    }),
+    c("Tavern (Sellunits): a peasant beside it buys a Brewmaster before and after its stock starts", 6000, (s, p) -> {
+      int np = s.getPlayers().size() - 1;
+      CUnit tav = unit(s, "ntav", np, p[0], p[1] + 300); CUnit peasant = unit(s, "hpea", 0, p[0], p[1]); final String preAltar = "TALT before altar " + s.getPlayer(0).getTechtreeUnlocked(War3ID.fromString("TALT")); CUnit altar = unit(s, "halt", 0, p[0] - 600, p[1] - 400); s.getPlayer(0).addTechtreeUnlocked(s, War3ID.fromString("halt"));
+      var sell = tav.getFirstAbilityOfType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits.class);
+      final String[] early = { "" };
+      final int idx = sell == null ? -1 : sell.getUnitsSold().indexOf(War3ID.fromString("Npbm"));
+      final int[] heroes = { 0, 0 }; final int[] gold = { 0, 0 };
+      s.getPlayer(0).setGold(2000); s.getPlayer(0).setLumber(2000);
+      new Later() { public void onFire(CSimulation sim) { int g = sim.getPlayer(0).getGold(); boolean ok = tav.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits.orderId(0, idx), null); var st = sell.getStockState(War3ID.fromString("Npbm")); var ty = sim.getUnitData().getUnitType(War3ID.fromString("Npbm")); early[0] = "type stock " + ty.getStockMax() + "/" + ty.getStockStartDelay() + "/" + ty.getStockReplenishInterval() + " state " + (st == null ? "-" : st.getMaxStock() + " next " + st.getNextStockReplenishGameTurnTick()) + " tick " + sim.getGameTurnTick() + " disabled " + sell.isDisabled() + " constructing " + tav.isConstructing() + " paused " + tav.isPaused() + " beh " + tav.getCurrentBehavior() + " at 10 s: stock " + sell.getStock(War3ID.fromString("Npbm")) + " order " + ok + " gold spent " + (g - sim.getPlayer(0).getGold()); } }.go(s, 10f);
+      new Later() { public void onFire(CSimulation sim) { StringBuilder why = new StringBuilder(); Object rec = java.lang.reflect.Proxy.newProxyInstance(Setups.class.getClassLoader(), new Class<?>[]{com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver.class}, (pr, mm, aa) -> { why.append(mm.getName()).append(java.util.Arrays.toString(aa)); return null; }); sell.checkCanUse(sim, tav, com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits.orderId(0, idx), (com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.AbilityActivationReceiver) rec); System.err.println("RIG: tavern check " + why + " patron " + (tav.getNeutralBuildingData() == null ? "no data" : tav.getNeutralBuildingData().getSelectedPlayerUnit(0)));
+        gold[0] = sim.getPlayer(0).getGold(); heroes[0] = sim.getPlayer(0).getHeroCount(sim, false); tav.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits.orderId(0, idx), null); heroes[1] = sim.getPlayer(0).getHeroCount(sim, false); gold[1] = sim.getPlayer(0).getGold(); } }.go(s, 150f);
+      return () -> { int bm = 0; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 0 && u.getTypeId().toString().equals("Npbm") && !u.isDead()) { bm++; made.add(u); }
+        return preAltar + ", after " + s.getPlayer(0).getTechtreeUnlocked(War3ID.fromString("TALT")) + "; end tick " + s.getGameTurnTick() + " sells " + (sell == null ? "nothing" : sell.getUnitsSold()) + "; " + early[0] + "; at 150 s: heroes " + heroes[0] + "->" + heroes[1] + " gold spent " + (gold[0] - gold[1]) + " stock now " + (sell == null ? -1 : sell.getStock(War3ID.fromString("Npbm"))) + " brewmasters " + bm; };
     }),
     c("War Club (Agra): mountain giant takes a tree", 400, (s, p) -> {
       CUnit m = unit(s, "emtg", 0, p[0], p[1]); CAbility a = null; for (CAbility x : m.getAbilities()) if (x.getAlias().toString().equals("Agra")) a = x; if (a == null) a = give(s, m, "Agra");
