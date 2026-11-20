@@ -281,6 +281,20 @@ public class Setups extends Scenario {
       return () -> { int bm = 0; for (CUnit u : s.getUnits()) if (u.getPlayerIndex() == 0 && u.getTypeId().toString().equals("Npbm") && !u.isDead()) { bm++; made.add(u); }
         return preAltar + ", after " + s.getPlayer(0).getTechtreeUnlocked(War3ID.fromString("TALT")) + "; end tick " + s.getGameTurnTick() + " sells " + (sell == null ? "nothing" : sell.getUnitsSold()) + "; " + early[0] + "; at 150 s: heroes " + heroes[0] + "->" + heroes[1] + " gold spent " + (gold[0] - gold[1]) + " stock now " + (sell == null ? -1 : sell.getStock(War3ID.fromString("Npbm"))) + " brewmasters " + bm + "; " + awake[0]; };
     }),
+    c("Natives (0026): alliances, orders, visibility called through the map's script", 400, (s, p) -> {
+      var g = s.getGlobalScope(); var pt = g.getHandleType("player"); var ut = g.getHandleType("unit");
+      java.util.function.BiFunction<String, java.util.List<com.etheller.interpreter.ast.value.JassValue>, Object> call = (name, args) -> { Integer id = g.getNativeId(name); if (id == null) return "NONE"; var r = g.getNativeById(id).call(args, g, new com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope((com.etheller.interpreter.ast.scope.trigger.Trigger) null)); return r == null ? "null" : r.toString(); };
+      var p0 = new com.etheller.interpreter.ast.value.HandleJassValue(pt, s.getPlayer(0)); var p1 = new com.etheller.interpreter.ast.value.HandleJassValue(pt, s.getPlayer(1));
+      CUnit f = unit(s, "hfoo", 0, p[0], p[1]); var fu = new com.etheller.interpreter.ast.value.HandleJassValue(ut, f);
+      StringBuilder b = new StringBuilder();
+      b.append("ally(0,0)=").append(call.apply("IsPlayerAlly", java.util.List.of(p0, p0))).append(" enemy(0,1)=").append(call.apply("IsPlayerEnemy", java.util.List.of(p0, p1)));
+      b.append(" owned=").append(call.apply("IsUnitOwnedByPlayer", java.util.List.of(fu, p0))).append(" visible to 0=").append(call.apply("IsUnitVisible", java.util.List.of(fu, p0)));
+      b.append(" heroId Hpal=").append(call.apply("IsHeroUnitId", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(War3ID.fromString("Hpal").getValue()))));
+      b.append(" level=").append(call.apply("GetUnitLevel", java.util.List.of(fu)));
+      b.append(" order=").append(call.apply("IssuePointOrder", java.util.List.of(fu, new com.etheller.interpreter.ast.value.StringJassValue("move"), com.etheller.interpreter.ast.value.RealJassValue.of(p[0] + 400), com.etheller.interpreter.ast.value.RealJassValue.of(p[1]))));
+      final String before = b.toString(); final float x0 = f.getX();
+      return () -> before + " footman moved " + (int) (f.getX() - x0);
+    }),
     c("War Club (Agra): mountain giant takes a tree", 400, (s, p) -> {
       CUnit m = unit(s, "emtg", 0, p[0], p[1]); CAbility a = null; for (CAbility x : m.getAbilities()) if (x.getAlias().toString().equals("Agra")) a = x; if (a == null) a = give(s, m, "Agra");
       CDestructable t = tree(s, p[0], p[1]);

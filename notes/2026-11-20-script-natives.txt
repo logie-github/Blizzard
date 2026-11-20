@@ -1,0 +1,1 @@
+Map scripts now get answers they never got before: who is an ally, orders given by name, what a player can see, and about 60 more.
