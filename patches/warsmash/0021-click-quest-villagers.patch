@@ -1,0 +1,155 @@
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+@@ -204,6 +204,7 @@
+ 	public List<RenderWidget> widgets = new ArrayList<>();
+ 	public List<RenderUnit> units = new ArrayList<>();
+ 	public List<RenderEffect> projectiles = new ArrayList<>();
++	private final Map<RenderSpellEffect, CUnit> questDialogueMarkers = new HashMap<>();
+ 	public boolean unitsReady;
+ 	public War3Map mapMpq;
+ 
+@@ -1170,6 +1171,7 @@
+ 				final RenderEffect projectile = projectileIterator.next();
+ 				if (projectile.updateAnimations(this, Gdx.graphics.getDeltaTime())) {
+ 					projectileIterator.remove();
++					this.questDialogueMarkers.remove(projectile);
+ 				}
+ 			}
+ 			for (final RenderDoodad item : this.doodads) {
+@@ -2107,6 +2109,26 @@
+ 	public List<War3ID> getLightningEffectList(final War3ID alias) {
+ 		final AbilityUI abilityUI = War3MapViewer.this.abilityDataUI.getUI(alias);
+ 		return abilityUI.getLightningEffects();
++	}
++
++	public void trackQuestDialogueMarker(final String modelName, final CWidget target, final RenderSpellEffect effect) {
++		if (!(target instanceof CUnit) || (effect == null)) {
++			return;
++		}
++		final String path = modelName.replace('\\', '/');
++		final String fileName = path.substring(path.lastIndexOf('/') + 1);
++		if ("TalkToMe.mdl".equalsIgnoreCase(fileName) || "TalkToMe.mdx".equalsIgnoreCase(fileName)) {
++			effect.setKillWhenDone(false);
++			this.questDialogueMarkers.put(effect, (CUnit) target);
++		}
++	}
++
++	public boolean hasQuestDialogueMarker(final CUnit unit) {
++		return this.questDialogueMarkers.containsValue(unit);
++	}
++
++	public void removeQuestDialogueMarker(final RenderSpellEffect effect) {
++		this.questDialogueMarkers.remove(effect);
+ 	}
+ 
+ 	public RenderSpellEffect addSpecialEffectTarget(final String modelName, final CWidget targetWidget,
+@@ -2880,6 +2902,13 @@
+ 
+ 							@Override
+ 							public void removeUnit(final CUnit unit) {
++								War3MapViewer.this.questDialogueMarkers.entrySet().removeIf(entry -> {
++									if (entry.getValue() != unit) {
++										return false;
++									}
++									entry.getKey().setKillWhenDone(true);
++									return true;
++								});
+ 								final RenderUnit renderUnit = War3MapViewer.this.unitToRenderPeer.remove(unit);
+ 								if (renderUnit == null) {
+ 									System.err.println("Attempted to remove a null unit!");
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -4473,8 +4473,10 @@
+ 						final String modelName = arguments.get(0).visit(StringJassValueVisitor.getInstance());
+ 						final CWidget targetWidget = arguments.get(1).visit(ObjectJassValueVisitor.getInstance());
+ 						final String attachPointName = arguments.get(2).visit(StringJassValueVisitor.getInstance());
+-						return new HandleJassValue(effectType,
+-								war3MapViewer.addSpecialEffectTarget(modelName, targetWidget, attachPointName));
++						final RenderSpellEffect effect = war3MapViewer.addSpecialEffectTarget(modelName, targetWidget,
++								attachPointName);
++						war3MapViewer.trackQuestDialogueMarker(modelName, targetWidget, effect);
++						return new HandleJassValue(effectType, effect);
+ 					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("AddSpecialEffectLoc",
+ 					(arguments, globalScope, triggerScope) -> {
+@@ -4630,6 +4632,7 @@
+ 					(arguments, globalScope, triggerScope) -> {
+ 						final RenderSpellEffect fx = arguments.get(0).visit(ObjectJassValueVisitor.getInstance());
+ 						if (fx != null) {
++							war3MapViewer.removeQuestDialogueMarker(fx);
+ 							fx.setKillWhenDone(true);
+ 						}
+ 						return null;
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -4787,6 +4787,13 @@
+ 					if (this.allowDrag) {
+ 						if (button == Input.Buttons.LEFT) {
+ 							updateMouseOverUnit(screenX, worldScreenY);
++							if ((this.activeCommand == null) && !isShiftDown() && !isControlDown()
++									&& (this.mouseOverUnit instanceof RenderUnit)
++									&& approachQuestVillager(((RenderUnit) this.mouseOverUnit).getSimulationUnit())) {
++								this.draggingMouseButton = -1;
++								this.allowDrag = false;
++								return true;
++							}
+ 							if ((this.mouseOverUnit != null) && isUnitSelectable(this.mouseOverUnit)) {
+ 								final long currentMillis = TimeUtils.millis();
+ 								final List<RenderWidget> unitList = new ArrayList<>();
+@@ -4819,6 +4826,56 @@
+ 		return false;
+ 	}
+ 
++	private boolean approachQuestVillager(final CUnit villager) {
++		if (villager.isDead() || villager.isHidden() || !this.war3MapViewer.hasQuestDialogueMarker(villager)) {
++			return false;
++		}
++
++		final CSimulation game = this.war3MapViewer.simulation;
++		CUnit hero = (this.selectedUnit == null) ? null : this.selectedUnit.getSimulationUnit();
++		CAbilityMove move = getQuestApproachAbility(game, hero, villager);
++		if (move == null) {
++			double nearestDistance = Double.POSITIVE_INFINITY;
++			for (final CUnit candidate : game.getUnits()) {
++				final CAbilityMove candidateMove = getQuestApproachAbility(game, candidate, villager);
++				if (candidateMove != null) {
++					final double distance = candidate.distance(villager.getX(), villager.getY());
++					if (distance < nearestDistance) {
++						nearestDistance = distance;
++						hero = candidate;
++						move = candidateMove;
++					}
++				}
++			}
++		}
++		if (move == null) {
++			return false;
++		}
++
++		// The map's normal proximity trigger starts the conversation and advances its quest.
++		this.unitOrderListener.issuePointOrder(hero.getHandleId(), move.getHandleId(), OrderIds.move,
++				villager.getX(), villager.getY(), false);
++		return true;
++	}
++
++	private CAbilityMove getQuestApproachAbility(final CSimulation game, final CUnit unit, final CUnit villager) {
++		if ((unit == null) || (unit == villager) || !unit.isHero()
++				|| (unit.getPlayerIndex() != this.war3MapViewer.getLocalPlayerIndex())
++				|| unit.isDead() || unit.isHidden() || unit.isPaused() || unit.isMovementDisabled()) {
++			return null;
++		}
++		for (final CAbility ability : unit.getAbilities()) {
++			if (ability instanceof CAbilityMove) {
++				final BooleanAbilityActivationReceiver receiver = BooleanAbilityActivationReceiver.INSTANCE;
++				ability.checkCanUse(game, unit, OrderIds.move, receiver);
++				if (receiver.isOk()) {
++					return (CAbilityMove) ability;
++				}
++			}
++		}
++		return null;
++	}
++
+ 	private void processSelectNearbyUnits(final List<RenderWidget> unitList, final boolean shiftDown,
+ 			final RenderUnit mouseOverUnit) {
+ 		this.war3MapViewer.simulation.getWorldCollision().enumUnitsInRect(
