@@ -1,0 +1,32 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilityBlizzard.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilityBlizzard.java
+index 18e24b6..601e1a1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilityBlizzard.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilityBlizzard.java
+@@ -36,6 +36,8 @@ public class CAbilityBlizzard extends CAbilityPointTargetSpellBase {
+ 	private int currentWave;
+ 	private int nextWaveTick;
+ 	private boolean waveForDamage = false;
++	// Blizzard launcher: computer units step out once the second wave hurts them (Reforged's, measured on 1.29).
++	private com.etheller.warsmash.viewer5.handlers.w3x.simulation.CHarmfulAreas.Area harmfulArea;
+ 	private final Rectangle recycleRect = new Rectangle();
+ 
+ 	public CAbilityBlizzard(final int handleId, final War3ID alias) {
+@@ -76,6 +78,8 @@ public class CAbilityBlizzard extends CAbilityPointTargetSpellBase {
+ 	public boolean doEffect(final CSimulation simulation, final CUnit caster, final AbilityTarget target) {
+ 		this.currentWave = 0;
+ 		this.waveForDamage = false;
++		this.harmfulArea = simulation.getHarmfulAreas().addUnarmed(simulation, caster, target.getX(), target.getY(),
++				this.areaOfEffect, (this.waveDelay * this.waveCount) + 0.9f);
+ 		this.nextWaveTick = simulation.getGameTurnTick()
+ 				+ (int) StrictMath.ceil(this.waveDelay / WarsmashConstants.SIMULATION_STEP_TIME);
+ 		return true;
+@@ -87,6 +91,9 @@ public class CAbilityBlizzard extends CAbilityPointTargetSpellBase {
+ 			final float waveDelay;
+ 			if (this.waveForDamage) {
+ 				this.currentWave++;
++				if ((this.currentWave == 2) && (this.harmfulArea != null)) {
++					simulation.getHarmfulAreas().arm(simulation, this.harmfulArea, 0);
++				}
+ 				waveDelay = this.waveDelay;
+ 				this.waveForDamage = false;
+ 				final List<CUnit> damageTargets = new ArrayList<>();
