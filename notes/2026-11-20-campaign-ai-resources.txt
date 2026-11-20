@@ -1,0 +1,1 @@
+Computer opponents in the campaigns now get the gold and lumber the missions give them, so they keep building and attacking.

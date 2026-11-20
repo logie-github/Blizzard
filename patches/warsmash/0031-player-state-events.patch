@@ -1,0 +1,209 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 6a6f5fe..6c3cdc9 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -291,7 +291,8 @@ public final class LauncherNatives {
+ 
+ 	/** Visibility, fog and the small unit checks scripts ask (written for this engine). */
+ 	private static void registerVisibilityAndChecks(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
+-			final CSimulation simulation, final HandleJassType unitType) {
++			final CSimulation simulation, final HandleJassType unitType,
++			final com.etheller.interpreter.ast.scope.GlobalScope globals) {
+ 		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
+ 		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState visible = com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState.VISIBLE;
+ 		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState fogged = com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState.FOGGED;
+@@ -380,6 +381,21 @@ public final class LauncherNatives {
+ 				(triggerScope instanceof CommonTriggerExecutionScope) ? ((CommonTriggerExecutionScope) triggerScope).getDamageTaken() : 0));
+ 		natives.createNative("GetEventDamageSource", (arguments, globalScope, triggerScope) -> new HandleJassValue(unitType,
+ 				(triggerScope instanceof CommonTriggerExecutionScope) ? ((CommonTriggerExecutionScope) triggerScope).getDamageSource() : null));
++		natives.createNative("TriggerRegisterPlayerStateEvent", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.interpreter.ast.scope.trigger.Trigger trigger = nullable(arguments, 0, ObjectJassValueVisitor.<com.etheller.interpreter.ast.scope.trigger.Trigger>getInstance());
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState state = nullable(arguments, 2, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState>getInstance());
++			final com.etheller.interpreter.ast.scope.variableevent.CLimitOp op = nullable(arguments, 3, ObjectJassValueVisitor.<com.etheller.interpreter.ast.scope.variableevent.CLimitOp>getInstance());
++			final HandleJassType eventType = globals.getHandleType("event");
++			if ((trigger == null) || (player == null) || (state == null) || (op == null)) {
++				return eventType.getNullValue();
++			}
++			return new HandleJassValue(eventType, simulation.getPlayer(player.getId()).addPlayerStateEvent(globalScope,
++					trigger, state, op, arguments.get(4).visit(RealJassValueVisitor.getInstance())));
++		});
++		natives.createNative("GetEventPlayerState", (arguments, globalScope, triggerScope) -> new HandleJassValue(
++				globals.getHandleType("playerstate"), (triggerScope instanceof CommonTriggerExecutionScope)
++						? ((CommonTriggerExecutionScope) triggerScope).getEventPlayerState() : null));
+ 		natives.createNative("GetRevivingUnit", (arguments, globalScope, triggerScope) -> new HandleJassValue(unitType,
+ 				((CommonTriggerExecutionScope) triggerScope).getRevivingUnit()));
+ 	}
+@@ -637,7 +653,7 @@ public final class LauncherNatives {
+ 		registerCineFilter(jassProgramVisitor, meleeUI);
+ 		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerTimerDialogs(jassProgramVisitor, war3MapViewer, meleeUI);
+-		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType);
++		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType, globals);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+ 				(arguments, globalScope, triggerScope) -> {
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+index 3deef3c..9d02b3e 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+@@ -46,6 +46,7 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 	private CUnit attacker;
+ 	// Blizzard launcher: a damage event's amount and source.
+ 	private float damageTaken;
++	private com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState eventPlayerState;
+ 	private CUnit damageSource;
+ 	private CUnit rescuer;
+ 	private CUnit dyingUnit;
+@@ -265,6 +266,21 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 		return this.attacker;
+ 	}
+ 
++	public com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState getEventPlayerState() {
++		return this.eventPlayerState;
++	}
++
++	/** Blizzard launcher: a player's state came to meet a limit. */
++	public static CommonTriggerExecutionScope playerStateScope(final JassGameEventsWar3 triggerEventId,
++			final Trigger trigger, final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerJass player,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState state) {
++		final CommonTriggerExecutionScope scope = new CommonTriggerExecutionScope(trigger, TriggerExecutionScope.EMPTY);
++		scope.triggerEventId = triggerEventId;
++		scope.triggeringPlayer = player;
++		scope.eventPlayerState = state;
++		return scope;
++	}
++
+ 	public float getDamageTaken() {
+ 		return this.damageTaken;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 2dd863e..cd0afc9 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -640,6 +640,10 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		for (int i = this.unitInRangeEvents.size() - 1; i >= 0; i--) {
+ 			this.unitInRangeEvents.get(i).update(this);
+ 		}
++		// Blizzard launcher: players' state limits (TriggerRegisterPlayerStateEvent).
++		for (final CPlayer player : this.players) {
++			player.updatePlayerStateEvents(this);
++		}
+ 		this.globalScope.runThreads();
+ 		// Blizzard launcher: computer players' AI scripts run their own threads and think (Reforged's AI).
+ 		for (final CPlayer player : this.players) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index 6ec62c7..a4f41ff 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -803,6 +803,29 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	// Blizzard launcher: a unit of this player attacked (EVENT_PLAYER_UNIT_ATTACKED), as Warsmash Reforged fires it.
++	// Blizzard launcher: TriggerRegisterPlayerStateEvent's events, checked each step by the simulation.
++	private final List<CPlayerStateEvent> playerStateEvents = new java.util.ArrayList<>();
++
++	public CPlayerStateEvent addPlayerStateEvent(final com.etheller.interpreter.ast.scope.GlobalScope globalScope,
++			final com.etheller.interpreter.ast.scope.trigger.Trigger trigger, final CPlayerState state,
++			final com.etheller.interpreter.ast.scope.variableevent.CLimitOp op, final double limit) {
++		final CPlayerStateEvent event = new CPlayerStateEvent(globalScope, this, trigger, state, op, limit);
++		this.playerStateEvents.add(event);
++		return event;
++	}
++
++	public void removePlayerStateEvent(final CPlayerStateEvent event) {
++		this.playerStateEvents.remove(event);
++	}
++
++	public void updatePlayerStateEvents(final CSimulation simulation) {
++		for (int i = this.playerStateEvents.size() - 1; i >= 0; i--) {
++			if (i < this.playerStateEvents.size()) {
++				this.playerStateEvents.get(i).update(simulation);
++			}
++		}
++	}
++
+ 	/** Blizzard launcher: "a unit of the player is damaged". */
+ 	public void fireUnitDamagedEvents(final CUnit damagedUnit, final CUnit source, final float damage) {
+ 		final List<CPlayerEvent> eventList = getEventList(JassGameEventsWar3.EVENT_PLAYER_UNIT_DAMAGED);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayerStateEvent.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayerStateEvent.java
+new file mode 100644
+index 0000000..b0b1314
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayerStateEvent.java
+@@ -0,0 +1,75 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.players;
++
++import com.etheller.interpreter.ast.scope.GlobalScope;
++import com.etheller.interpreter.ast.scope.trigger.RemovableTriggerEvent;
++import com.etheller.interpreter.ast.scope.trigger.Trigger;
++import com.etheller.interpreter.ast.scope.variableevent.CLimitOp;
++import com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3;
++
++/**
++ * Blizzard launcher: TriggerRegisterPlayerStateEvent: the trigger runs each time the player's state (gold, lumber,
++ * food and the rest) comes to meet the limit, checked every step. The campaigns use it to keep their computer players'
++ * gold and lumber topped up ("less than 1000").
++ */
++public class CPlayerStateEvent extends RemovableTriggerEvent {
++	private final GlobalScope globalScope;
++	private final CPlayer player;
++	private final Trigger trigger;
++	private final CPlayerState state;
++	private final CLimitOp op;
++	private final double limit;
++	private boolean met;
++
++	public CPlayerStateEvent(final GlobalScope globalScope, final CPlayer player, final Trigger trigger,
++			final CPlayerState state, final CLimitOp op, final double limit) {
++		super(trigger);
++		this.globalScope = globalScope;
++		this.player = player;
++		this.trigger = trigger;
++		this.state = state;
++		this.op = op;
++		this.limit = limit;
++	}
++
++	public CPlayer getPlayer() {
++		return this.player;
++	}
++
++	@Override
++	public void remove() {
++		this.player.removePlayerStateEvent(this);
++	}
++
++	public void update(final CSimulation simulation) {
++		final double value = this.player.getPlayerState(simulation, this.state);
++		final boolean nowMet;
++		switch (this.op) {
++		case LESS_THAN:
++			nowMet = value < this.limit;
++			break;
++		case LESS_THAN_OR_EQUAL:
++			nowMet = value <= this.limit;
++			break;
++		case EQUAL:
++			nowMet = value == this.limit;
++			break;
++		case GREATER_THAN_OR_EQUAL:
++			nowMet = value >= this.limit;
++			break;
++		case GREATER_THAN:
++			nowMet = value > this.limit;
++			break;
++		default:
++			nowMet = value != this.limit;
++			break;
++		}
++		if (nowMet && !this.met) {
++			final CommonTriggerExecutionScope scope = CommonTriggerExecutionScope.playerStateScope(
++					JassGameEventsWar3.EVENT_PLAYER_STATE_LIMIT, this.trigger, this.player, this.state);
++			this.globalScope.queueTrigger(null, null, this.trigger, scope, scope);
++		}
++		this.met = nowMet;
++	}
++}
