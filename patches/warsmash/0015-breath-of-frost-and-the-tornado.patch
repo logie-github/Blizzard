@@ -1,0 +1,263 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFire.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFire.java
+index 0e11a5e..7220c62 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFire.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFire.java
+@@ -108,7 +108,7 @@ public class CAbilityBreathOfFire extends CAbilityPointTargetSpellBase {
+ 									CWeaponSoundTypeJass.WHOKNOWS.name(), this.damagePerTarget);
+ 							this.remainingDamage -= this.damagePerTarget;
+ 						}
+-						if (hazed && !unit.isDead()) {
++						if ((hazed || burnsEveryone()) && !unit.isDead()) {
+ 							ignite(game, caster, unit);
+ 						}
+ 					}
+@@ -129,6 +129,14 @@ public class CAbilityBreathOfFire extends CAbilityPointTargetSpellBase {
+ 		return false;
+ 	}
+ 
++	/**
++	 * Blizzard launcher: Breath of Frost (the creeps' ACbf, the same fields) leaves its damage over time on every unit
++	 * it hits; Breath of Fire only on a unit in Drunken Haze.
++	 */
++	protected boolean burnsEveryone() {
++		return false;
++	}
++
+ 	private void ignite(final CSimulation game, final CUnit caster, final CUnit unit) {
+ 		for (final CAbility ability : unit.getAbilities()) {
+ 			if (ability instanceof CBuffBreathOfFire) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFrost.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFrost.java
+new file mode 100644
+index 0000000..6f828d3
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/brewmaster/CAbilityBreathOfFrost.java
+@@ -0,0 +1,25 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.brewmaster;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++
++/**
++ * Breath of Frost (the Blue Dragon's, ACbf): Breath of Fire's cone with its fields (Data A damage, B maximum, C
++ * distance, D final area, E damage a second for the duration), the damage over time on every unit hit. Blizzard
++ * launcher, written for this engine.
++ */
++public class CAbilityBreathOfFrost extends CAbilityBreathOfFire {
++	public CAbilityBreathOfFrost(final int handleId, final War3ID alias) {
++		super(handleId, alias);
++	}
++
++	@Override
++	public int getBaseOrderId() {
++		return OrderIds.breathoffrost;
++	}
++
++	@Override
++	protected boolean burnsEveryone() {
++		return true;
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoDamage.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoDamage.java
+new file mode 100644
+index 0000000..ec073e5
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoDamage.java
+@@ -0,0 +1,65 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.seawitch;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++
++/**
++ * The Tornado's damage (Atdg): every second, what it may target within its area takes Data A, within Data B Data C,
++ * within Data D Data E (the nearest band counts). Blizzard launcher, written for this engine.
++ */
++public class CAbilityTornadoDamage extends CAbilityPassiveSpellBase {
++	private float damage;
++	private float mediumRadius;
++	private float mediumDamage;
++	private float smallRadius;
++	private float smallDamage;
++	private int nextTick;
++
++	public CAbilityTornadoDamage(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.damage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_A + level, 0);
++		this.mediumRadius = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.mediumDamage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_C + level, 0);
++		this.smallRadius = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_D + level, 0);
++		this.smallDamage = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_E + level, 0);
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit tornado) {
++		super.onTick(game, tornado);
++		if (game.getGameTurnTick() < this.nextTick) {
++			return;
++		}
++		this.nextTick = game.getGameTurnTick() + (int) (1.0f / WarsmashConstants.SIMULATION_STEP_TIME);
++		game.getWorldCollision().enumUnitsInRange(tornado.getX(), tornado.getY(), getAreaOfEffect(), (unit) -> {
++			if ((unit != tornado) && !unit.isDead() && unit.canBeTargetedBy(game, tornado, getTargetsAllowed())) {
++				final double distance = tornado.distance(unit);
++				float amount = this.damage;
++				if ((this.smallRadius > 0) && (distance <= this.smallRadius)) {
++					amount = this.smallDamage;
++				}
++				else if ((this.mediumRadius > 0) && (distance <= this.mediumRadius)) {
++					amount = this.mediumDamage;
++				}
++				if (amount > 0) {
++					unit.damage(game, tornado, false, true, CAttackType.SPELLS, CDamageType.UNIVERSAL,
++							CWeaponSoundTypeJass.WHOKNOWS.name(), amount);
++				}
++			}
++			return false;
++		});
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoSpin.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoSpin.java
+new file mode 100644
+index 0000000..da20bbd
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoSpin.java
+@@ -0,0 +1,54 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.seawitch;
++
++import java.util.HashMap;
++import java.util.Map;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffStun;
++
++/**
++ * The Tornado's spin (Atsp): ground units it may target within its area are caught up and can't act for the spell's
++ * duration (heroes for the hero duration), each at most once every Data B seconds. Drawn as a stun; the lift into
++ * the air is not. Blizzard launcher, written for this engine.
++ */
++public class CAbilityTornadoSpin extends CAbilityPassiveSpellBase {
++	private float minimumHitInterval;
++	private War3ID buffId;
++	private final Map<CUnit, Integer> nextHit = new HashMap<>();
++
++	public CAbilityTornadoSpin(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++		this.minimumHitInterval = worldEditorAbility.getFieldAsFloat(AbilityFields.DATA_B + level, 0);
++		this.buffId = AbstractCAbilityTypeDefinition.getBuffId(worldEditorAbility, level);
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit tornado) {
++		super.onTick(game, tornado);
++		final int tick = game.getGameTurnTick();
++		if ((tick % 5) != 0) {
++			return;
++		}
++		this.nextHit.values().removeIf((t) -> t < tick);
++		game.getWorldCollision().enumUnitsInRange(tornado.getX(), tornado.getY(), getAreaOfEffect(), (unit) -> {
++			if ((unit != tornado) && !unit.isDead() && !unit.isBuilding() && !this.nextHit.containsKey(unit)
++					&& unit.canBeTargetedBy(game, tornado, getTargetsAllowed())) {
++				final float duration = getDurationForTarget(unit);
++				unit.add(game, new CBuffStun(game.getHandleIdAllocator().createId(), this.buffId, duration));
++				this.nextHit.put(unit, tick + (int) ((duration + this.minimumHitInterval) / WarsmashConstants.SIMULATION_STEP_TIME));
++			}
++			return false;
++		});
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoWander.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoWander.java
+new file mode 100644
+index 0000000..b166e25
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/seawitch/CAbilityTornadoWander.java
+@@ -0,0 +1,50 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.seawitch;
++
++import com.etheller.warsmash.units.GameObject;
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.util.WarsmashConstants;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.CAbilityPassiveSpellBase;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbilityFields;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.AbstractCAbilityTypeDefinition;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
++
++/**
++ * The Tornado's wandering (Atwa): every duration (2 seconds) it moves to a random point within its cast range of where
++ * it was made. Blizzard launcher, written for this engine.
++ */
++public class CAbilityTornadoWander extends CAbilityPassiveSpellBase {
++	private float homeX = Float.NaN;
++	private float homeY;
++	private int nextTick;
++
++	public CAbilityTornadoWander(final int handleId, final War3ID code, final War3ID alias) {
++		super(handleId, code, alias);
++	}
++
++	@Override
++	public void populateData(final GameObject worldEditorAbility, final int level) {
++	}
++
++	@Override
++	public void onTick(final CSimulation game, final CUnit tornado) {
++		super.onTick(game, tornado);
++		if (Float.isNaN(this.homeX)) {
++			this.homeX = tornado.getX();
++			this.homeY = tornado.getY();
++		}
++		final int tick = game.getGameTurnTick();
++		if (tick < this.nextTick) {
++			return;
++		}
++		final float every = getDuration() > 0 ? getDuration() : 2;
++		this.nextTick = tick + (int) (every / WarsmashConstants.SIMULATION_STEP_TIME);
++		final float range = getCastRange() > 0 ? getCastRange() : 600;
++		final double angle = game.getSeededRandom().nextDouble() * StrictMath.PI * 2;
++		final double distance = game.getSeededRandom().nextDouble() * range;
++		tornado.order(game, OrderIds.move, new AbilityPointTarget((float) (this.homeX + (StrictMath.cos(angle) * distance)),
++				(float) (this.homeY + (StrictMath.sin(angle) * distance))));
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+index 6228845..493c95d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CAbilityData.java
+@@ -509,6 +509,12 @@ public class CAbilityData {
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANeg"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.tinker.CAbilityEngineeringUpgrade(handleId, alias, alias)));
+ 		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ANde"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.tinker.CAbilityDemolish(handleId, alias, alias)));
+ 
++		// Blizzard launcher (0015): the Blue Dragon's Breath of Frost and the Tornado's own abilities.
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("ACbf"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.brewmaster.CAbilityBreathOfFrost(handleId, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Atdg"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.seawitch.CAbilityTornadoDamage(handleId, alias, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Atsp"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.seawitch.CAbilityTornadoSpin(handleId, alias, alias)));
++		this.codeToAbilityTypeDefinition.put(War3ID.fromString("Atwa"), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.types.definitions.impl.CAbilityTypeDefinitionSpellBase((handleId, alias) -> new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.neutral.seawitch.CAbilityTornadoWander(handleId, alias, alias)));
++
+ 		System.err.println("========================================================================");
+ 		System.err.println("Starting to load ability builder");
+ 		System.err.println("========================================================================");

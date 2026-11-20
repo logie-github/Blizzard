@@ -30,6 +30,26 @@ public class Setups extends Scenario {
   }
 
   final List<Case> cases = List.of(
+    c("Breath of Frost (ACbf): Blue Dragon on three footmen", 300, (s, p) -> {
+      CUnit d = unit(s, "nbdo", 0, p[0], p[1]); CAbility a = null; for (CAbility x : d.getAbilities()) if (x.getAlias().toString().equals("ACbf")) a = x; if (a == null) a = give(s, d, "ACbf"); d.setMana(500);
+      CUnit[] fs = { unit(s, "hfoo", 1, p[0] + 300, p[1]), unit(s, "hfoo", 1, p[0] + 350, p[1] + 40), unit(s, "hfoo", 1, p[0] + 330, p[1] - 40) };
+      for (CUnit f : fs) { f.addStateModBuff(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK, 1)); f.computeUnitState(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK); }
+      d.addStateModBuff(new com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuff(com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK, 1)); d.computeUnitState(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.StateModBuffType.DISABLE_ATTACK);
+      float l0 = 0; for (CUnit f : fs) l0 += f.getLife(); final float life0 = l0; final java.util.Set<String> seen = new java.util.TreeSet<>();
+      boolean ok = d.order(s, order(a), new AbilityPointTarget(p[0] + 320, p[1]));
+      return () -> { float l = 0; for (CUnit f : fs) { l += Math.max(0, f.getLife()); seen.add(AbilitySmoke.buffNames(f)); } return "accepted=" + ok + " footmen lost " + (int) (life0 - l) + " (50 each, then 7 a second for 5 s) buffs " + seen; };
+    }),
+    c("Tornado (ANto): Sea Witch's tornado among five footmen", 150, (s, p) -> {
+      CUnit w = unit(s, "Nngs", 0, p[0], p[1]); CAbility a = give(s, w, "ANto"); w.setMana(1000);
+      CUnit[] fs = new CUnit[5]; for (int i = 0; i < 5; i++) fs[i] = unit(s, "hfoo", 1, p[0] + 300 + i * 30, p[1] + (i - 2) * 40);
+      CUnit farm = unit(s, "hhou", 1, p[0] + 450, p[1] + 200); final float farm0 = farm.getLife(); final int[] caught = {0};
+      s.getPlayer(0); final java.util.Set<CUnit> spun = new java.util.HashSet<>();
+      float l0 = 0; for (CUnit f : fs) l0 += f.getLife(); final float life0 = l0;
+      boolean ok = w.order(s, order(a), new AbilityPointTarget(p[0] + 350, p[1]));
+      final int[] stunned = {0};
+      return () -> { float l = 0; CUnit t = null; for (CUnit u : s.getUnits()) if (u.getTypeId().toString().equals("ntor") && !u.isDead()) t = u; for (CUnit f : fs) l += Math.max(0, f.getLife());
+        return "accepted=" + ok + " tornado " + (t == null ? "none" : "at " + (int) Math.hypot(t.getX() - p[0] - 350, t.getY() - p[1]) + " from its point") + " footmen lost " + (int) (life0 - l) + " footmen spun now " + java.util.Arrays.stream(fs).filter(f -> AbilitySmoke.buffNames(f).contains("Btsp")).count() + " farm lost " + (int) (farm0 - farm.getLife()); };
+    }),
     c("Healing Spray (ANhs) on three wounded footmen", 400, (s, p) -> {
       CUnit h = unit(s, "Nalc", 0, p[0], p[1]); CAbility a = give(s, h, "ANhs"); h.setMana(500);
       CUnit[] fs = { unit(s, "hfoo", 0, p[0] + 400, p[1]), unit(s, "hfoo", 0, p[0] + 430, p[1] + 50), unit(s, "hfoo", 0, p[0] + 380, p[1] - 50) };
