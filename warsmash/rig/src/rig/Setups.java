@@ -514,6 +514,23 @@ public class Setups extends Scenario {
       for (int k = 1; k <= 40; k++) new Later() { public void onFire(CSimulation sim) { for (int i = 0; i < N0; i++) if (first[i] < 0 && Math.hypot(fs[i].getX() - start[i][0], fs[i].getY() - start[i][1]) > 3) first[i] = sim.getGameTurnTick() - t0; } }.go(s, k * 0.05f);
       return () -> { StringBuilder b = new StringBuilder("searches run " + com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor.jobsFinished + "; ticks until each first moved (sorted):"); int[] sorted = first.clone(); java.util.Arrays.sort(sorted); for (int i = 0; i < N0; i++) b.append(' ').append(sorted[i]); return b.toString(); };
     }),
+    c("Wall (0055): units ordered across a wall of buildings must go round it", 1200, (s, p) -> {
+      final int len = Integer.parseInt(System.getenv().getOrDefault("WALL", "14")); final String bt = System.getenv().getOrDefault("WALLTYPE", "hhou");
+      for (int i = 0; i < len; i++) unit(s, bt, 0, p[0] - (len * 48) + i * 96, p[1] + 150);
+      final int N = Integer.parseInt(System.getenv().getOrDefault("N", "3"));
+      CUnit[] fs = new CUnit[N]; for (int i = 0; i < N; i++) fs[i] = unit(s, "hfoo", 0, p[0] - 40 + i * 40, p[1] - 150);
+      final float gx = p[0], gy = p[1] + 450; final double[] best = new double[N]; java.util.Arrays.fill(best, 1e9);
+      for (CUnit f : fs) f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget(gx, gy));
+      final StringBuilder log = new StringBuilder();
+      for (int k = 1; k <= 12; k++) { final int kk = k; new Later() { public void onFire(CSimulation sim) { double sum = 0; int arrived = 0; for (int i = 0; i < N; i++) { double d = Math.hypot(fs[i].getX() - gx, fs[i].getY() - gy); best[i] = Math.min(best[i], d); sum += d; if (d < 120) arrived++; } log.append(" t=").append(kk * 3).append("s: arrived ").append(arrived).append("/").append(N).append(" mean dist ").append((int) (sum / N)).append(";"); } }.go(s, k * 3f); }
+      var grid = s.getPathingGrid(); final StringBuilder probe = new StringBuilder(" map x " + (int) grid.getWorldX(0) + ".." + (int) grid.getWorldX(grid.getWidth() - 1) + " y " + (int) grid.getWorldY(0) + ".." + (int) grid.getWorldY(grid.getHeight() - 1) + "; start " + (int) p[0] + "," + (int) (p[1] - 150) + "; wall x " + (int) (p[0] - len * 48) + ".." + (int) (p[0] + len * 48) + ";");
+      final java.util.List<com.badlogic.gdx.math.Vector2>[] got = new java.util.List[1];
+      var probeMove = new com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorMove(fs[0]) { @Override public void pathFound(java.util.List<com.badlogic.gdx.math.Vector2> w, CSimulation sim) { got[0] = w; } };
+      s.findNaiveSlowPath(fs[0], null, p[0], p[1] - 150, new com.badlogic.gdx.math.Vector2(gx, gy), com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FOOT, 16f, true, probeMove);
+      for (int g = 0; g < 400 && got[0] == null; g++) s.updatePathfinding(50_000_000L);
+      probe.append(" iterations " + com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor.lastJobIterations + ";").append(got[0] == null ? " probe: no answer" : " probe route " + got[0].size() + " points, last " + (got[0].isEmpty() ? "-" : (int) got[0].get(got[0].size() - 1).x + "," + (int) got[0].get(got[0].size() - 1).y) + ";");
+      return () -> probe + " wall of " + len + " " + bt + " 150 north of the units, goal 450 north of the centre;" + log;
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);

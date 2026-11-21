@@ -1,0 +1,39 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+index 7509eff..e1a4143 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+@@ -357,8 +357,17 @@ public class CPathfindingProcessor {
+ 		update(simulation, Long.MAX_VALUE);
+ 	}
+ 
++	/**
++	 * Blizzard launcher: how many nodes a search may look at before it gives up and walks the unit to the point
++	 * nearest the goal. It was 40,000, which a wall of about 40 houses used up (the search floods the ground in front
++	 * of a wall before it finds the way round), leaving units standing at its face; this is above what the biggest
++	 * map's whole ground holds, and a search this long goes on across frames on its own worker.
++	 */
++	private static final int MAX_SEARCH_ITERATIONS = 600000;
++
+ 	public static long pathFoundWorst = 0;
+ 	public static int jobsFinished = 0;
++	public static volatile int lastJobIterations = 0;
+ 
+ 	public static final java.util.concurrent.atomic.AtomicLong JOB_SEQUENCE = new java.util.concurrent.atomic.AtomicLong();
+ 
+@@ -381,6 +390,7 @@ public class CPathfindingProcessor {
+ 	private void timedPathFound(final PathfindingJob job, final java.util.List<Vector2> path,
+ 			final CSimulation simulation) {
+ 		jobsFinished++;
++		lastJobIterations = this.totalIterations;
+ 		if (this.deferred != null) {
+ 			this.deferred.add(new Object[] { job, path });
+ 			return;
+@@ -673,7 +683,7 @@ public class CPathfindingProcessor {
+ 				}
+ 				workIterations++;
+ 				this.totalIterations++;
+-				if (this.totalIterations > 40000) {
++				if (this.totalIterations > MAX_SEARCH_ITERATIONS) {
+ 					if (!job.staticOnly && (job.bestNode == null)) {
+ 						job.staticOnly = true;
+ 						job.jobStarted = false;
