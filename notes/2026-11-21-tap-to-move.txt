@@ -1,0 +1,1 @@
+Tap empty ground with units selected and they all walk there, no Move button needed.

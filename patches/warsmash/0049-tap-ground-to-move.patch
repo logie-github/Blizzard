@@ -1,0 +1,67 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index b6523cb..b5656af 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -4477,6 +4477,8 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 							true);
+ 					this.lastMouseDragStart.set(this.lastMouseClickLocation);
+ 					this.lastMouseDragCameraTargetStart.set(this.cameraManager.target);
++					this.tapStartX = screenX;
++					this.tapStartY = screenY;
+ 					this.allowDrag = true;
+ 					this.draggingMouseButton = button;
+ 				}
+@@ -4625,6 +4627,41 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
++	private int tapStartX;
++	private int tapStartY;
++
++	/**
++	 * Whether a finger lifted at the point is a tap on empty ground with the local player's units selected: it did not
++	 * go far from where it came down (that was a drag), no command is waiting for a target, no key is held, and no
++	 * unit, item or tree is under it (those are selected, as before).
++	 */
++	private boolean isTapOnEmptyGround(final int screenX, final int screenY, final float worldScreenY) {
++		if ((this.activeCommand != null) || (this.draggingItem != null) || isShiftDown() || isControlDown()) {
++			return false;
++		}
++		final RenderUnit selected = getSelectedUnit();
++		if ((selected == null) || (selected.getSimulationUnit().getPlayerIndex() != this.war3MapViewer
++				.getLocalPlayerIndex()) || selected.getSimulationUnit().isDead()) {
++			return false;
++		}
++		boolean mobile = false;
++		for (final RenderUnit unit : this.selectedUnits) {
++			if ((unit.getSimulationUnit().getPlayerIndex() == this.war3MapViewer.getLocalPlayerIndex())
++					&& !unit.getSimulationUnit().isBuilding()) {
++				mobile = true;
++			}
++		}
++		if (!mobile) {
++			return false;
++		}
++		final float slop = Gdx.graphics.getHeight() * 0.025f;
++		if ((Math.abs(screenX - this.tapStartX) > slop) || (Math.abs(screenY - this.tapStartY) > slop)) {
++			return false;
++		}
++		return (this.war3MapViewer.rayPickUnit(screenX, worldScreenY, this.anyClickableUnitFilter) == null)
++				&& (this.war3MapViewer.rayPickUnit(screenX, worldScreenY, this.anyTargetableUnitFilter) == null);
++	}
++
+ 	private void rightClickMove(final int screenX, final float worldScreenY) {
+ 		this.war3MapViewer.getClickLocation(clickLocationTemp, screenX, (int) worldScreenY,
+ 				(getSelectedUnit() != null) && getSelectedUnit().getSimulationUnit().isMovementOnWaterAllowed(), true);
+@@ -4913,6 +4950,11 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 								this.lastUnitClickTime = currentMillis;
+ 								this.lastClickUnit = this.mouseOverUnit;
+ 							}
++							else if ((this.mouseOverUnit == null) && isTapOnEmptyGround(screenX, screenY, worldScreenY)) {
++								// Blizzard launcher: with units selected, a tap on empty ground sends them there (a move
++								// that goes on: the next tap moves them again), without the Move button first.
++								rightClickMove(screenX, worldScreenY);
++							}
+ 						}
+ 					}
+ 				}

@@ -478,6 +478,26 @@ public class Setups extends Scenario {
         final String r = b.toString(); return () -> r;
       } catch (Exception e) { return () -> "failed " + e + " " + e.getCause(); }
     }),
+    c("Tap to move (0049): units selected, a tap on empty ground sends all of them", 900, (s, p) -> {
+      try {
+        var fld = com.etheller.warsmash.WarsmashGdxMapScreen.class.getDeclaredField("minimapUI"); fld.setAccessible(true); var ui = (com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI) fld.get(Main.mapScreen);
+        var cmf = com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI.class.getDeclaredField("cameraManager"); cmf.setAccessible(true); var cam = cmf.get(ui); var tf = cam.getClass().getField("target"); var tv = (com.badlogic.gdx.math.Vector3) tf.get(cam); tv.x = p[0] + 300; tv.y = p[1]; float cx = tv.x, cy = tv.y;
+        CUnit[] fs = new CUnit[3]; for (int i = 0; i < 3; i++) fs[i] = unit(s, "hfoo", 0, p[0] + i * 60, p[1] - 100);
+        ui.scriptClearSelection(); for (CUnit f : fs) ui.scriptSelectUnit(f, true);
+        int w = com.badlogic.gdx.Gdx.graphics.getWidth(), h = com.badlogic.gdx.Gdx.graphics.getHeight();
+        float[] before = new float[3]; for (int i = 0; i < 3; i++) before[i] = fs[i].getY();
+        var uc = com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI.class.getDeclaredField("userControlEnabled"); uc.setAccessible(true);
+        var ad = com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI.class.getDeclaredField("allowDrag"); ad.setAccessible(true);
+        var tg = com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI.class.getDeclaredMethod("isTapOnEmptyGround", int.class, int.class, float.class); tg.setAccessible(true);
+        int tx = w / 2, ty = h / 3; int okPoints = 0; for (int gx = 100; gx < w - 100; gx += 80) for (int gy = 60; gy < h - 200; gy += 60) { ui.touchDown(gx, gy, gy, com.badlogic.gdx.Input.Buttons.LEFT); boolean t = (Boolean) tg.invoke(ui, gx, gy, (float) gy); ui.touchUp(gx, gy, gy, com.badlogic.gdx.Input.Buttons.LEFT); if (t) { okPoints++; tx = gx; ty = gy; } ui.scriptClearSelection(); for (CUnit f : fs) ui.scriptSelectUnit(f, true); }
+        boolean down = ui.touchDown(tx, ty, ty, com.badlogic.gdx.Input.Buttons.LEFT);
+        String dbg = "selectedUnit " + ui.getClass().getMethod("getSelectedUnit").invoke(ui) + " activeCommand " + fieldOf(ui, "activeCommand") + " dragging " + fieldOf(ui, "draggingItem") + " selectedUnits " + ((java.util.List<?>) fieldOf(ui, "selectedUnits")).size() + " local " + viewer.getLocalPlayerIndex() + " userControl " + uc.get(ui) + " allowDrag after down " + ad.get(ui) + " isTap " + tg.invoke(ui, tx, ty, (float) ty) + " (" + okPoints + " grid points are empty ground)";
+        ui.touchUp(tx, ty, ty, com.badlogic.gdx.Input.Buttons.LEFT);
+        final String[] seen = { "" };
+        new Later() { public void onFire(CSimulation sim) { StringBuilder b = new StringBuilder(); for (int i = 0; i < 3; i++) b.append(fs[i].getCurrentBehavior().getClass().getSimpleName()).append(" moved ").append((int) Math.hypot(fs[i].getX() - (p[0] + i * 60), fs[i].getY() - (p[1] - 100))).append("; "); seen[0] += "t=" + sim.getGameTurnTick() + ": " + b; } }.go(s, 3f); new Later() { public void onFire(CSimulation sim) { StringBuilder b = new StringBuilder(); for (int i = 0; i < 3; i++) b.append(fs[i].getCurrentBehavior().getClass().getSimpleName()).append(" moved ").append((int) Math.hypot(fs[i].getX() - (p[0] + i * 60), fs[i].getY() - (p[1] - 100))).append("; "); try { var pf = CSimulation.class.getDeclaredField("pathfindingProcessors"); pf.setAccessible(true); var pr = ((com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor[]) pf.get(sim))[0]; var q = pr.getClass().getDeclaredField("moveQueue"); q.setAccessible(true); b.append(" queue ").append(((java.util.List<?>) q.get(pr)).size()); } catch (Exception e) { b.append(e); } b.append(" target ").append(com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation.class.getSimpleName()); seen[0] += " | t=" + sim.getGameTurnTick() + ": " + b; } }.go(s, 12f);
+        return () -> dbg + "; screen " + w + "x" + h + " camera target " + (int) cx + "," + (int) cy + "; after tap: " + seen[0];
+      } catch (Exception e) { return () -> "failed " + e; }
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);
@@ -504,6 +524,7 @@ public class Setups extends Scenario {
   static com.etheller.interpreter.ast.value.JassValue call3(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
     return g.getNativeById(g.getNativeId(name)).call(args, g, scope == null ? new com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope((com.etheller.interpreter.ast.scope.trigger.Trigger) null) : scope);
   }
+  static Object fieldOf(Object o, String name) throws Exception { var f = o.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(o); }
   static String difficultyMenu() {
     try {
       var f = com.etheller.warsmash.WarsmashGdxMenuScreen.class.getDeclaredField("menuUI"); f.setAccessible(true); var ui = f.get(Main.menuScreen);
