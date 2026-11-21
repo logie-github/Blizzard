@@ -1,0 +1,342 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index 53d00e6..aa4989c 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -4364,14 +4364,17 @@ public class Jass2 {
+ 						// TODO this is supposed to have some magic nonsense going on where apparently
+ 						// EVENT_WIDGET_DEATH
+ 						// assigns to the return value of this and fires itself upon changing owner!!??
+-						return unitType.getNullValue();
++						// Blizzard launcher: the unit of a "changes owner" event.
++						return new HandleJassValue(unitType,
++								((CommonTriggerExecutionScope) triggerScope).getChangingUnit());
+ 					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("GetChangingUnitPrevOwner",
+ 					(arguments, globalScope, triggerScope) -> {
+ 						// TODO this is supposed to have some magic nonsense going on where apparently
+ 						// EVENT_WIDGET_DEATH
+ 						// assigns to the return value of this and fires itself upon changing owner!!??
+-						return playerType.getNullValue();
++						return new HandleJassValue(playerType,
++								((CommonTriggerExecutionScope) triggerScope).getChangingUnitPrevOwner());
+ 					});
+ 			jassProgramVisitor.getJassNativeManager().createNative("GetWidgetX",
+ 					(arguments, globalScope, triggerScope) -> {
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+index 8c13327..ea8b9f4 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+@@ -67,7 +67,7 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 	private CUnit sellingUnit;
+ 	private CUnit soldUnit;
+ 	private CUnit buyingUnit;
+-	private CUnit soldItem;
++	private CItem soldItem;
+ 	private CUnit changingUnit;
+ 	private CPlayerJass changingUnitPrevOwner;
+ 	private CUnit manipulatingUnit;
+@@ -290,6 +290,75 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 	}
+ 
+ 	/** Blizzard launcher: "a unit is damaged": the damaged unit, the source and the damage it takes. */
++	/**
++	 * Blizzard launcher: a unit or player-unit event whose particulars the caller fills in (owner change, construction
++	 * start and cancel, training and research start, hero skill and revive, items, sales).
++	 */
++	public static CommonTriggerExecutionScope unitEventScope(final JassGameEventsWar3 triggerEventId,
++			final Trigger trigger, final CUnit triggeringUnit, final CPlayerJass player) {
++		final CommonTriggerExecutionScope scope = new CommonTriggerExecutionScope(trigger, TriggerExecutionScope.EMPTY);
++		scope.triggeringUnit = triggeringUnit;
++		scope.triggerWidget = triggeringUnit;
++		scope.triggeringPlayer = player;
++		scope.triggerEventId = triggerEventId;
++		return scope;
++	}
++
++	public CommonTriggerExecutionScope changing(final CUnit unit, final CPlayerJass previousOwner) {
++		this.changingUnit = unit;
++		this.changingUnitPrevOwner = previousOwner;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope construction(final CUnit constructing, final CUnit cancelled) {
++		this.constructingStructure = constructing;
++		this.cancelledStructure = cancelled;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope training(final int trainedUnitType) {
++		this.trainedUnitType = trainedUnitType;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope research(final CUnit researchingUnit, final int researched) {
++		this.researchingUnit = researchingUnit;
++		this.researched = researched;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope learning(final CUnit learningUnit, final int skill, final int level) {
++		this.learningUnit = learningUnit;
++		this.learnedSkill = skill;
++		this.learnedSkillLevel = level;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope reviving(final CUnit revivingUnit) {
++		this.revivingUnit = revivingUnit;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope leveling(final CUnit levelingUnit) {
++		this.levelingUnit = levelingUnit;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope manipulating(final CUnit unit, final CItem item) {
++		this.manipulatingUnit = unit;
++		this.manipulatedItem = item;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope sale(final CUnit seller, final CUnit buyer, final CUnit soldUnit,
++			final CItem soldItem) {
++		this.sellingUnit = seller;
++		this.buyingUnit = buyer;
++		this.soldUnit = soldUnit;
++		this.soldItem = soldItem;
++		return this;
++	}
++
+ 	/** Blizzard launcher: "a unit summons" (the fork's); the triggering unit is the one given. */
+ 	public static CommonTriggerExecutionScope unitSummonScope(final JassGameEventsWar3 triggerEventId,
+ 			final Trigger trigger, final CUnit triggeringUnit, final CUnit summoner, final CUnit summoned,
+@@ -393,7 +462,7 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 		return this.buyingUnit;
+ 	}
+ 
+-	public CUnit getSoldItem() {
++	public CItem getSoldItem() {
+ 		return this.soldItem;
+ 	}
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index a524404..9c6d376 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -760,6 +760,9 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 
+ 	public void unitConstructedEvent(final CUnit constructingUnit, final CUnit constructedStructure) {
+ 		this.simulationRenderController.spawnUnitConstructionSound(constructingUnit, constructedStructure);
++		// Blizzard launcher: "a unit begins construction" (14 campaign maps).
++		fireUnitEvents(constructedStructure, null, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_CONSTRUCT_START,
++				(scope) -> scope.construction(constructedStructure, null));
+ 	}
+ 
+ 	public void unitUpgradingEvent(final CUnit cUnit, final War3ID upgradeIdType) {
+@@ -850,6 +853,7 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 
+ 	public void unitGainLevelEvent(final CUnit unit, boolean showEffect) {
+ 		this.players.get(unit.getPlayerIndex()).fireHeroLevelEvents(unit);
++		fireUnitEvents(unit, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_HERO_LEVEL, null, (scope) -> scope.leveling(unit));
+ 		if (showEffect) {
+ 			this.simulationRenderController.spawnGainLevelEffect(unit);
+ 		}
+@@ -1352,6 +1356,36 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		getPlayer(summoner.getPlayerIndex()).fireUnitSummonEvents(summoner, summoned);
+ 	}
+ 
++	/**
++	 * Blizzard launcher: a unit event and its owner's player event (either may be null), each trigger's scope filled
++	 * by the caller.
++	 */
++	public void fireUnitEvents(final CUnit unit, final com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3 unitEvent,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3 playerEvent,
++			final java.util.function.Consumer<com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope> fill) {
++		if (unit == null) {
++			return;
++		}
++		if (unitEvent != null) {
++			final List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CWidgetEvent> unitEvents = unit
++					.getEventList(unitEvent);
++			if (unitEvents != null) {
++				for (final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CWidgetEvent event : new ArrayList<>(
++						unitEvents)) {
++					final com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope scope = com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope
++							.unitEventScope(unitEvent, event.getTrigger(), unit, getPlayer(unit.getPlayerIndex()));
++					if (fill != null) {
++						fill.accept(scope);
++					}
++					event.fire(unit, scope);
++				}
++			}
++		}
++		if (playerEvent != null) {
++			getPlayer(unit.getPlayerIndex()).fireUnitEvents(playerEvent, unit, fill);
++		}
++	}
++
+ 	/** Whether the order being issued came from a map script (the fork's); orders here aren't told apart. */
+ 	public boolean isScriptTargetOrder() {
+ 		return false;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index aeb8887..fb8f72f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2267,6 +2267,10 @@ public class CUnit extends CWidget {
+ 								revivingHero.nudgeAround(game, this);
+ 								game.unitRepositioned(revivingHero); // dont blend animation
+ 								game.heroReviveEvent(this, revivingHero);
++								// Blizzard launcher: "a hero finishes reviving" (the altar's).
++								game.fireUnitEvents(revivingHero, JassGameEventsWar3.EVENT_UNIT_HERO_REVIVE_FINISH,
++										JassGameEventsWar3.EVENT_PLAYER_HERO_REVIVE_FINISH,
++										(scope) -> scope.reviving(revivingHero));
+ 								if (this.rallyPoint != null) {
+ 									final int rallyOrderId = OrderIds.smart;
+ 									this.rallyPoint.visit(UseAbilityOnTargetByIdVisitor.INSTANCE.reset(game,
+@@ -3939,6 +3943,9 @@ public class CUnit extends CWidget {
+ 			simulation.getPlayer(previousPlayerIndex).removeFogModifer(simulation, this.attackFogMod);
+ 			this.attackFogMod.setPlayerIndex(newPlayerIndex);
+ 		}
++		// Blizzard launcher: "a unit changes owner", the unit's own triggers and its new owner's.
++		simulation.fireUnitEvents(this, JassGameEventsWar3.EVENT_UNIT_CHANGE_OWNER,
++				JassGameEventsWar3.EVENT_PLAYER_UNIT_CHANGE_OWNER, (scope) -> scope.changing(this, previousPlayer));
+ 	}
+ 
+ 	/** A source of invulnerability that comes and goes (Animate Dead's servants). */
+@@ -4765,6 +4772,16 @@ public class CUnit extends CWidget {
+ 		if (index == 0) {
+ 			this.queuedUnitFoodPaid = true;
+ 			if (rawcode != null) {
++				// Blizzard launcher: "a unit begins training / research" when the item reaches the front.
++				if (queueItemType == QueueItemType.UNIT) {
++					game.fireUnitEvents(this, JassGameEventsWar3.EVENT_UNIT_TRAIN_START,
++							JassGameEventsWar3.EVENT_PLAYER_UNIT_TRAIN_START, (scope) -> scope.training(rawcode.getValue()));
++				}
++				else if (queueItemType == QueueItemType.RESEARCH) {
++					game.fireUnitEvents(this, JassGameEventsWar3.EVENT_UNIT_RESEARCH_START,
++							JassGameEventsWar3.EVENT_PLAYER_UNIT_RESEARCH_START,
++							(scope) -> scope.research(this, rawcode.getValue()));
++				}
+ 				if (queueItemType == QueueItemType.UNIT) {
+ 					final CUnitType unitType = game.getUnitData().getUnitType(this.buildQueue[index]);
+ 					if (unitType.getFoodUsed() != 0) {
+@@ -5116,6 +5133,9 @@ public class CUnit extends CWidget {
+ 
+ 	public void onDropItem(final CSimulation game, final CItem droppedItem, final boolean playUserUISounds) {
+ 		this.stateNotifier.inventoryChanged();
++		// Blizzard launcher: "a unit loses an item" (a used-up scroll too).
++		game.fireUnitEvents(this, JassGameEventsWar3.EVENT_UNIT_DROP_ITEM, JassGameEventsWar3.EVENT_PLAYER_UNIT_DROP_ITEM,
++				(scope) -> scope.manipulating(this, droppedItem));
+ 		if (playUserUISounds) {
+ 			game.unitDropItemEvent(this, droppedItem);
+ 		}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/build/CAbilityBuildInProgress.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/build/CAbilityBuildInProgress.java
+index 2c3a113..a1e5a4c 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/build/CAbilityBuildInProgress.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/build/CAbilityBuildInProgress.java
+@@ -45,6 +45,10 @@ public class CAbilityBuildInProgress extends AbstractCAbility {
+ 			caster.cancelUpgrade(game);
+ 		}
+ 		else {
++			// Blizzard launcher: "a unit cancels construction".
++			game.fireUnitEvents(caster, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_CONSTRUCT_CANCEL,
++					com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_CONSTRUCT_CANCEL,
++					(scope) -> scope.construction(null, caster));
+ 			caster.setLife(game, 0);
+ 		}
+ 		return false;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
+index ac2acbe..4f4aa4a 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
+@@ -112,6 +112,11 @@ public class CAbilityHero extends AbstractCAbility {
+ 			else {
+ 				abilityType.setLevel(game, caster, existingAbility, existingAbility.getLevel() + 1);
+ 			}
++			// Blizzard launcher: "a hero learns a skill".
++			final int learnedLevel = this.learnedLevels.get(skillId);
++			game.fireUnitEvents(caster, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_HERO_SKILL,
++					com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_HERO_SKILL,
++					(scope) -> scope.learning(caster, skillId.getValue(), learnedLevel));
+ 		}
+ 		else {
+ 			game.getCommandErrorListener().showInterfaceError(caster.getPlayerIndex(),
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java
+index f3c9700..aeea9a4 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/inventory/CAbilityInventory.java
+@@ -124,6 +124,9 @@ public class CAbilityInventory extends AbstractGenericNoIconAbility {
+ 
+ 	private void consumePerishableCharge(final CSimulation game, final CUnit caster, final int slot,
+ 			final CItem cItem) {
++		// Blizzard launcher: "a unit uses an item" (every use comes here, charged or not).
++		game.fireUnitEvents(caster, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_USE_ITEM, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_USE_ITEM,
++				(scope) -> scope.manipulating(caster, cItem));
+ 		final int updatedCharges = cItem.getCharges() - 1;
+ 		if (updatedCharges >= 0) {
+ 			cItem.setCharges(updatedCharges);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
+index 36cb8d6..26e24a1 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
+@@ -139,12 +139,17 @@ public final class CAbilitySellItems extends AbstractCAbility {
+ 					if (game.getPlayer(playerIndex).charge(itemType.getGoldCost(), itemType.getLumberCost())) {
+ 						final CItem newItem = game.createItem(itemTypeId, caster.getX(), caster.getY());
+ 						purchasingInventoryData.giveItem(game, purchasingHero, newItem, false);
++						// Blizzard launcher: "a unit sells an item", the shop's triggers and its owner's.
++						game.fireUnitEvents(caster, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SELL_ITEM, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_SELL_ITEM,
++								(scope) -> scope.sale(caster, purchasingHero, null, newItem));
+ 					}
+ 				}
+ 			}
+ 			else {
+ 				if (game.getPlayer(playerIndex).charge(itemType.getGoldCost(), itemType.getLumberCost())) {
+-					game.createItem(itemTypeId, caster.getX(), caster.getY());
++					final CItem newItem = game.createItem(itemTypeId, caster.getX(), caster.getY());
++					game.fireUnitEvents(caster, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SELL_ITEM, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_SELL_ITEM,
++							(scope) -> scope.sale(caster, null, null, newItem));
+ 				}
+ 			}
+ 		}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
+index 79e394a..6ea03ad 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
+@@ -236,6 +236,9 @@ public final class CAbilitySellUnits extends AbstractCAbility {
+ 		buyer.addTechtreeUnlocked(game, unitTypeId);
+ 		soldUnit.nudgeAround(game, caster);
+ 		game.unitTrainedEvent(caster, soldUnit);
++		// Blizzard launcher: "a unit sells a unit", the shop's own triggers and its owner's (Neutral Passive).
++		game.fireUnitEvents(caster, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SELL, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_SELL,
++				(scope) -> scope.sale(caster, null, soldUnit, null));
+ 		return null;
+ 	}
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index ff6f63d..fd41f78 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -827,6 +827,22 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	/** Blizzard launcher: "a unit of the player is damaged". */
++	/** Blizzard launcher: the player's triggers for a unit event, each scope filled by the caller. */
++	public void fireUnitEvents(final JassGameEventsWar3 eventType, final CUnit unit,
++			final java.util.function.Consumer<com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope> fill) {
++		final List<CPlayerEvent> eventList = getEventList(eventType);
++		if (eventList != null) {
++			for (final CPlayerEvent event : new java.util.ArrayList<>(eventList)) {
++				final com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope scope = com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope
++						.unitEventScope(eventType, event.getTrigger(), unit, this);
++				if (fill != null) {
++					fill.accept(scope);
++				}
++				event.fire(unit, scope);
++			}
++		}
++	}
++
+ 	/** Blizzard launcher: "a unit owned by the player summons" (the fork's); the triggering unit is the summoned. */
+ 	public void fireUnitSummonEvents(final CUnit summoner, final CUnit summoned) {
+ 		final List<CPlayerEvent> eventList = getEventList(JassGameEventsWar3.EVENT_PLAYER_UNIT_SUMMON);

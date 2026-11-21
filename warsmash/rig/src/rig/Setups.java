@@ -416,6 +416,33 @@ public class Setups extends Scenario {
       for (float t : new float[]{0.5f, 1f, 2f, 4f, 8f, 12f}) new Later() { public void onFire(CSimulation sim) { StringBuilder b = new StringBuilder(); for (var a : vil.getAbilities()) if (a instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff) b.append(a.getAlias()).append(' '); log.add(t + "s: villager " + vil.getTypeId() + " life " + (int) vil.getLife() + " buffs " + b + " caster " + (caster.getCurrentBehavior() == null ? null : caster.getCurrentBehavior().getClass().getSimpleName()) + " mana " + (int) caster.getMana()); } }.go(s, t);
       return () -> "hidden " + hide + " order " + ok + " (caster " + caster.getHandleId() + ", villager " + vil.getHandleId() + "); " + String.join("; ", log) + "; " + sum[0];
     }),
+    c("Unit events (0043): owner change, hero skill and level, training, construction, item use and drop", 900, (s, p) -> {
+      var g = s.getGlobalScope(); final java.util.Map<String, String> seen = new java.util.TreeMap<>();
+      java.util.function.BiConsumer<String, String[]> watch = (ev, getters) -> {
+        var trig = new com.etheller.interpreter.ast.scope.trigger.Trigger();
+        trig.addAction((args, gs, scope) -> { StringBuilder b = new StringBuilder(); for (String gt : getters) b.append(gt).append('=').append(call2(g, gt, java.util.List.of(), scope)).append(' '); seen.merge(ev, b.toString().trim(), (a, c) -> a + " | " + c); return null; });
+        s.getPlayer(0).addEvent(g, trig, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.valueOf(ev));
+      };
+      watch.accept("EVENT_PLAYER_UNIT_CHANGE_OWNER", new String[]{"GetChangingUnit", "GetChangingUnitPrevOwner"});
+      watch.accept("EVENT_PLAYER_HERO_SKILL", new String[]{"GetLearningUnit", "GetLearnedSkill", "GetLearnedSkillLevel"});
+      watch.accept("EVENT_PLAYER_UNIT_TRAIN_START", new String[]{"GetTriggerUnit", "GetTrainedUnitType"});
+      watch.accept("EVENT_PLAYER_UNIT_CONSTRUCT_START", new String[]{"GetConstructingStructure"});
+      watch.accept("EVENT_PLAYER_UNIT_USE_ITEM", new String[]{"GetManipulatingUnit", "GetManipulatedItem"});
+      watch.accept("EVENT_PLAYER_UNIT_DROP_ITEM", new String[]{"GetManipulatingUnit", "GetManipulatedItem"});
+      CUnit hero = unit(s, "Hpal", 0, p[0], p[1]);
+      hero.getHeroData().selectHeroSkill(s, hero, War3ID.fromString("AHhb"));
+      CUnit turn = unit(s, "hfoo", 1, p[0] + 300, p[1]); turn.changeOwner(s, 0, true);
+      CUnit rax = unit(s, "hbar", 0, p[0] - 700, p[1] - 700); s.getPlayer(0).setGold(5000); s.getPlayer(0).setLumber(5000);
+      rax.queueTrainingUnit(s, War3ID.fromString("hfoo")); boolean trainOk = rax.getBuildQueue()[0] != null;
+      CUnit peasant = unit(s, "hpea", 0, p[0] + 500, p[1] - 500); s.getPlayer(0).addTechtreeUnlocked(s, War3ID.fromString("htow"));
+      boolean buildOk = peasant.order(s, War3ID.fromString("hhou").getValue(), new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget(p[0] + 700, p[1] - 700));
+      var potion = s.createItem(War3ID.fromString("phea"), hero.getX(), hero.getY()); hero.getInventoryData().giveItem(s, hero, potion, false);
+      var tome = s.createItem(War3ID.fromString("rat6"), hero.getX(), hero.getY()); hero.getInventoryData().giveItem(s, hero, tome, false);
+      hero.setLife(s, 100);
+      final boolean[] used = new boolean[1];
+      new Later() { public void onFire(CSimulation sim) { int slot = hero.getInventoryData().getSlot(potion); used[0] = hero.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemuse00 + slot, null); hero.getInventoryData().dropItem(sim, hero, tome, hero.getX() + 100, hero.getY(), false); } }.go(s, 1f);
+      return () -> "orders train " + trainOk + " build " + buildOk + " potion use " + used[0] + "; events: " + seen;
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);

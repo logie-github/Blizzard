@@ -1,0 +1,1 @@
+Mission triggers for buildings started, units changing sides, heroes learning skills, items used or dropped, and shop purchases now go off.
