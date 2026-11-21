@@ -1,0 +1,1 @@
+Groups of your units now walk through each other instead of getting stuck, and spread out where they stop.

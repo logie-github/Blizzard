@@ -1,0 +1,197 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index c62f60b..21e4322 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -193,6 +193,7 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		this.newProjectiles = new ArrayList<>();
+ 		this.handleIdAllocator = new HandleIdAllocator();
+ 		this.worldCollision = new CWorldCollision(entireMapBounds, this.gameplayConstants.getMaxCollisionRadius());
++		this.worldCollision.setSimulation(this);
+ 		this.regionManager = new CRegionManager(entireMapBounds, pathingGrid);
+ 
+ 		CPathfindingProcessor.clearNodes();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index 7a5de2a..7c4a2fd 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2821,6 +2821,44 @@ public class CUnit extends CWidget {
+ 	}
+ 
+ 	public void setPointAndCheckUnstuck(final float newX, final float newY, final CSimulation game) {
++		setPointAndCheckUnstuck(newX, newY, game, false);
++	}
++
++	/**
++	 * Blizzard launcher: where a unit has stopped on top of units (the others of its group, which it passed through
++	 * on the way), it steps clear to the nearest free spot, in rings round where it is, so a group arrives spread
++	 * around its target.
++	 */
++	public void spreadFromOverlaps(final CSimulation game) {
++		final CWorldCollision collision = game.getWorldCollision();
++		final PathingGrid pathingGrid = game.getPathingGrid();
++		if (this.collisionRectangle == null) {
++			return;
++		}
++		final float collisionSize = this.unitType.getCollisionSize();
++		final Rectangle rect = new Rectangle(this.collisionRectangle);
++		if (!collision.intersectsAnythingOtherThan(rect, this, getMovementType(), false)) {
++			return;
++		}
++		final float step = Math.max(16f, collisionSize * 1.5f);
++		for (int ring = 1; ring <= 8; ring++) {
++			for (int k = 0; k < 12; k++) {
++				final double angle = ((Math.PI * 2) * k) / 12 + (ring * 0.5);
++				final float cx = getX() + (float) (Math.cos(angle) * step * ring);
++				final float cy = getY() + (float) (Math.sin(angle) * step * ring);
++				rect.setCenter(cx, cy);
++				if (!collision.intersectsAnythingOtherThan(rect, this, getMovementType(), false)
++						&& pathingGrid.isPathable(cx, cy, getMovementType(), collisionSize)) {
++					setPoint(cx, cy, collision, game.getRegionManager());
++					game.unitRepositioned(this);
++					return;
++				}
++			}
++		}
++	}
++
++	public void setPointAndCheckUnstuck(final float newX, final float newY, final CSimulation game,
++			final boolean passFriends) {
+ 		final CWorldCollision collision = game.getWorldCollision();
+ 		final PathingGrid pathingGrid = game.getPathingGrid();
+ 		;
+@@ -2845,7 +2883,10 @@ public class CUnit extends CWidget {
+ 			final float centerX = newX + (checkX * 64);
+ 			final float centerY = newY + (checkY * 64);
+ 			tempRect.setCenter(centerX, centerY);
+-			if (!collision.intersectsAnythingOtherThan(tempRect, this, getMovementType(), false)
++			if (!(passFriends
++					? collision.intersectsAnythingOtherThanFriends(tempRect, this, null, getMovementType(), false,
++							this.playerIndex)
++					: collision.intersectsAnythingOtherThan(tempRect, this, getMovementType(), false))
+ 					&& pathingGrid.isPathable(centerX, centerY, getMovementType(), collisionSize)) {
+ 				outputX = centerX;
+ 				outputY = centerY;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CWorldCollision.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CWorldCollision.java
+index 46f96d8..37708c3 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CWorldCollision.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CWorldCollision.java
+@@ -28,6 +28,32 @@ public class CWorldCollision {
+ 	private final ItemEnumIntersector itemEnumIntersector;
+ 	private final ItemEnumIntersectorBoolean itemEnumIntersectorBoolean;
+ 
++	// Blizzard launcher: told who is friends with whom, for moving units that pass through their friends.
++	private CSimulation simulation;
++
++	public void setSimulation(final CSimulation simulation) {
++		this.simulation = simulation;
++	}
++
++	/**
++	 * Like {@link #intersectsAnythingOtherThan}, except that a friend of the player (the same player or an ally) that
++	 * is not a building does not count: units of a group walk through each other, and are spread out where they stop.
++	 * Safe for several threads.
++	 */
++	public boolean intersectsAnythingOtherThanFriends(final Rectangle newPossibleRectangle,
++			final CUnit sourceUnitToIgnore, final CUnit sourceSecondUnitToIgnore, final MovementType movementType,
++			final boolean forConstruction, final int friendsOfPlayer) {
++		final AnyUnitExceptTwoIntersector intersector = this.anyUnitExceptTwoIntersectorLocal.get();
++		intersector.passFriendsOf(friendsOfPlayer, this.simulation);
++		try {
++			return intersectsAnythingOtherThan(newPossibleRectangle, sourceUnitToIgnore, sourceSecondUnitToIgnore,
++					movementType, forConstruction);
++		}
++		finally {
++			intersector.passFriendsOf(-1, null);
++		}
++	}
++
+ 	public CWorldCollision(final Rectangle entireMapBounds, final float maxCollisionRadius) {
+ 		this.deadUnitCollision = new Quadtree<>(entireMapBounds);
+ 		this.groundUnitCollision = new Quadtree<>(entireMapBounds);
+@@ -353,6 +379,13 @@ public class CWorldCollision {
+ 		private CUnit firstUnit;
+ 		private CUnit secondUnit;
+ 		private boolean forConstruction;
++		private int friendsOf = -1;
++		private CSimulation friendsSimulation;
++
++		private void passFriendsOf(final int playerIndex, final CSimulation simulation) {
++			this.friendsOf = playerIndex;
++			this.friendsSimulation = simulation;
++		}
+ 
+ 		public AnyUnitExceptTwoIntersector reset(final CUnit firstUnit, final CUnit secondUnit,
+ 				final boolean forConstruction) {
+@@ -370,8 +403,20 @@ public class CWorldCollision {
+ 					|| (!this.forConstruction && intersectingObject.isNoUnitCollision())) {
+ 				return false;
+ 			}
++			if ((this.friendsOf >= 0) && !intersectingObject.isBuilding() && isFriend(intersectingObject)) {
++				return false;
++			}
+ 			return (intersectingObject != this.firstUnit) && (intersectingObject != this.secondUnit);
+ 		}
++
++		private boolean isFriend(final CUnit other) {
++			final int otherPlayer = other.getPlayerIndex();
++			if (otherPlayer == this.friendsOf) {
++				return true;
++			}
++			return (this.friendsSimulation != null) && this.friendsSimulation.getPlayer(this.friendsOf)
++					.hasAlliance(otherPlayer, com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CAllianceType.PASSIVE);
++		}
+ 	}
+ 
+ 	private static final class EachUnitOnlyOnceIntersector implements QuadtreeIntersector<CUnit> {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+index 038c01d..68fdfea 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+@@ -104,7 +104,7 @@ public class CBehaviorMove implements CBehavior {
+ 		if (this.firstUpdate) {
+ 			// when units start moving, if they're on top of other units, maybe push them to
+ 			// the side
+-			this.unit.setPointAndCheckUnstuck(this.unit.getX(), this.unit.getY(), simulation);
++			this.unit.setPointAndCheckUnstuck(this.unit.getX(), this.unit.getY(), simulation, true);
+ 			this.firstUpdate = false;
+ 		}
+ 		if (this.pathfindingFailedGiveUp) {
+@@ -241,7 +241,8 @@ public class CBehaviorMove implements CBehavior {
+ 						// collisionSize
+ 						// / 16)
+ 						// * 16
+-						&& !worldCollision.intersectsAnythingOtherThan(tempRect, this.unit, movementType, false))) {
++						&& !worldCollision.intersectsAnythingOtherThanFriends(tempRect, this.unit, null, movementType, false,
++								this.unit.getPlayerIndex()))) {
+ 					this.unit.setPoint(nextX, nextY, worldCollision, simulation.getRegionManager());
+ 					if (walkingAheadOfRoute) {
+ 						this.movedAheadOfRoute = true;
+@@ -368,6 +369,10 @@ public class CBehaviorMove implements CBehavior {
+ 	}
+ 
+ 	private void onMoveGiveUp(final CSimulation simulation) {
++		if (this.rangedBehavior == null) {
++			// a plain move has ended: step clear of the units of the group it walked through
++			this.unit.spreadFromOverlaps(simulation);
++		}
+ 		if (this.rangedBehavior != null) {
+ 			this.rangedBehavior.endMove(simulation, true);
+ 		}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+index ea37e7c..7509eff 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+@@ -275,8 +275,11 @@ public class CPathfindingProcessor {
+ 			}
+ 			slot = (slot + 1) & (DYNAMIC_CACHE_SIZE - 1);
+ 		}
+-		final boolean pathable = !this.worldCollision.intersectsAnythingOtherThan(tempRect.setCenter(x, y),
+-				ignoreIntersectionsWithThisUnit, ignoreIntersectionsWithThisSecondUnit, movementType, false);
++		// Blizzard launcher: the units of the mover's own side are not in its way (they are passed through, and
++		// spread out where they stop): a standing group made the ground round it look blocked.
++		final boolean pathable = !this.worldCollision.intersectsAnythingOtherThanFriends(tempRect.setCenter(x, y),
++				ignoreIntersectionsWithThisUnit, ignoreIntersectionsWithThisSecondUnit, movementType, false,
++				ignoreIntersectionsWithThisUnit == null ? -1 : ignoreIntersectionsWithThisUnit.getPlayerIndex());
+ 		if (room) {
+ 			dynamicCacheStamps[slot] = dynamicCacheStamp;
+ 			dynamicCacheKeys[slot] = key;
