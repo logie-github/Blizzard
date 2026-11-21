@@ -333,8 +333,18 @@ public class Setups extends Scenario {
       final String[] vis = { "" };
       new Later() { public void onFire(CSimulation sim) { vis[0] = "before sharing: player 1 sees beside player 2's footman=" + call.apply("IsVisibleToPlayer", java.util.List.of(sx, sy, p0)); call.apply("UnitShareVision", java.util.List.of(fs, p0, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE)); } }.go(s, 3f);
       new Later() { public void onFire(CSimulation sim) { vis[0] += "; after=" + call.apply("IsVisibleToPlayer", java.util.List.of(sx, sy, p0)); } }.go(s, 6f);
+      CUnit shortLived = unit(s, "hfoo", 0, p[0] + 200, p[1] + 200); var fsl = new com.etheller.interpreter.ast.value.HandleJassValue(ut, shortLived);
+      call.apply("UnitApplyTimedLife", java.util.List.of(fsl, com.etheller.interpreter.ast.value.IntegerJassValue.of(War3ID.fromString("BTLF").getValue()), com.etheller.interpreter.ast.value.RealJassValue.of(2)));
+      var raceH = call3(g, "ConvertRace", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(1)), null);
+      var raceO = call3(g, "ConvertRace", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(2)), null);
+      b.append(" footman human=").append(call.apply("IsUnitRace", java.util.List.of(fu, raceH))).append(" orc=").append(call.apply("IsUnitRace", java.util.List.of(fu, raceO)));
+      var utGround = call3(g, "ConvertUnitType", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(4)), null);
+      var utHero = call3(g, "ConvertUnitType", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(0)), null);
+      b.append(" hfoo ground=").append(call.apply("IsUnitIdType", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(War3ID.fromString("hfoo").getValue()), utGround))).append(" hero=").append(call.apply("IsUnitIdType", java.util.List.of(com.etheller.interpreter.ast.value.IntegerJassValue.of(War3ID.fromString("hfoo").getValue()), utHero)));
+      call.apply("SetTimeOfDayScale", java.util.List.of(com.etheller.interpreter.ast.value.RealJassValue.of(0)));
+      final float tod0 = s.getGameTimeOfDay();
       final String before = b.toString(); final float x0 = f.getX();
-      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\"" + minimapPings() + "; " + vis[0]; };
+      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\"" + minimapPings() + "; " + vis[0] + "; timed-life footman dead=" + shortLived.isDead() + "; day stopped (scale 0): time of day " + tod0 + " -> " + s.getGameTimeOfDay(); };
     }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);

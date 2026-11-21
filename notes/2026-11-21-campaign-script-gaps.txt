@@ -1,0 +1,1 @@
+Summoned units from mission scripts now expire, shops change their wares when missions say so, and race checks in scripts work.

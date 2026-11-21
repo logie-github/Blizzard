@@ -1,0 +1,239 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 93be311..4ac5b0f 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -670,6 +670,85 @@ public final class LauncherNatives {
+ 			}
+ 			return null;
+ 		});
++		// Units that expire (summons a script makes), what shops sell, races and type checks, the day's speed, handicap.
++		natives.createNative("UnitApplyTimedLife", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			if (unit != null) {
++				unit.add(simulation, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.util.CBuffTimedLife(
++						simulation.getHandleIdAllocator().createId(), new War3ID(intArg(arguments, 1)), realArg(arguments, 2), false));
++			}
++			return null;
++		});
++		natives.createNative("AddItemToStock", (arguments, globalScope, triggerScope) -> {
++			final CUnit shop = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellItems sell = shop == null ? null
++					: shop.getFirstAbilityOfType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellItems.class);
++			if (sell != null) {
++				sell.addItemType(new War3ID(intArg(arguments, 1)));
++			}
++			return null;
++		});
++		natives.createNative("RemoveItemFromStock", (arguments, globalScope, triggerScope) -> {
++			final CUnit shop = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellItems sell = shop == null ? null
++					: shop.getFirstAbilityOfType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellItems.class);
++			if (sell != null) {
++				sell.removeItemType(new War3ID(intArg(arguments, 1)));
++			}
++			return null;
++		});
++		natives.createNative("AddUnitToStock", (arguments, globalScope, triggerScope) -> {
++			final CUnit shop = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			if (shop != null) {
++				com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits sell = shop
++						.getFirstAbilityOfType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits.class);
++				if (sell == null) {
++					sell = new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits(
++							simulation.getHandleIdAllocator().createId(), new java.util.ArrayList<>());
++					shop.add(simulation, sell);
++				}
++				sell.addToStock(simulation, new War3ID(intArg(arguments, 1)), intArg(arguments, 2), intArg(arguments, 3));
++			}
++			return null;
++		});
++		natives.createNative("RemoveUnitFromStock", (arguments, globalScope, triggerScope) -> {
++			final CUnit shop = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits sell = shop == null ? null
++					: shop.getFirstAbilityOfType(com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.item.shop.CAbilitySellUnits.class);
++			if (sell != null) {
++				sell.removeFromStock(new War3ID(intArg(arguments, 1)));
++			}
++			return null;
++		});
++		final HandleJassType raceType = globals.getHandleType("race");
++		natives.createNative("GetUnitRace", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			return new HandleJassValue(raceType, unit == null ? null
++					: com.etheller.warsmash.util.WarsmashConstants.RACE_MANAGER.getRace(raceId(unit.getUnitType().getRace())));
++		});
++		// IsUnitRace compared the unit type's race with the script's race handle, two different kinds: always false.
++		natives.createNative("IsUnitRace", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CRace race = nullable(arguments, 1, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CRace>getInstance());
++			return BooleanJassValue.of((unit != null) && (race != null) && (raceId(unit.getUnitType().getRace()) == race.getId()));
++		});
++		natives.createNative("IsUnitIdType", (arguments, globalScope, triggerScope) -> {
++			final CUnitType type = simulation.getUnitData().getUnitType(new War3ID(intArg(arguments, 0)));
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass which = nullable(arguments, 1, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass>getInstance());
++			return BooleanJassValue.of((type != null) && (which != null) && isTypeOf(type, which));
++		});
++		natives.createNative("SetTimeOfDayScale", (arguments, globalScope, triggerScope) -> {
++			simulation.setTimeOfDayScale(realArg(arguments, 0));
++			return null;
++		});
++		natives.createNative("GetTimeOfDayScale", (arguments, globalScope, triggerScope) -> RealJassValue.of(simulation.getTimeOfDayScale()));
++		natives.createNative("SetPlayerHandicap", (arguments, globalScope, triggerScope) -> {
++			final CPlayerJass player = nullable(arguments, 0, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			if (player != null) {
++				simulation.getPlayer(player.getId()).setHandicap(realArg(arguments, 1));
++			}
++			return null;
++		});
+ 		natives.createNative("UnitShareVision", (arguments, globalScope, triggerScope) -> {
+ 			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
+ 			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
+@@ -745,6 +824,51 @@ public final class LauncherNatives {
+ 		});
+ 	}
+ 
++	/** The script's race numbers: human 1, orc 2, undead 3, night elf 4, demon 5, other 7. */
++	private static int raceId(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.data.CUnitRace race) {
++		switch (race) {
++		case HUMAN:
++			return 1;
++		case ORC:
++			return 2;
++		case UNDEAD:
++			return 3;
++		case NIGHTELF:
++			return 4;
++		case DEMON:
++			return 5;
++		default:
++			return 7;
++		}
++	}
++
++	private static boolean isTypeOf(final CUnitType type,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass which) {
++		final java.util.EnumSet<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification> c = type.getClassifications();
++		switch (which) {
++		case HERO:
++			return type.isHero();
++		case STRUCTURE:
++			return type.isBuilding();
++		case FLYING:
++			return type.getMovementType() == com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FLY;
++		case GROUND:
++			return !type.isBuilding() && (type.getMovementType() != com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid.MovementType.FLY);
++		case GIANT:
++		case UNDEAD:
++		case SUMMONED:
++		case MECHANICAL:
++		case PEON:
++		case SAPPER:
++		case TOWNHALL:
++		case ANCIENT:
++		case TAUREN:
++			return c.contains(com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnitClassification.valueOf(which.name()));
++		default:
++			return false;
++		}
++	}
++
+ 	private static void removeBuffs(final CSimulation simulation, final CUnit unit, final boolean positive,
+ 			final boolean negative, final boolean timedLife) {
+ 		if (unit == null) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index cd0afc9..0b683b2 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -138,6 +138,16 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 	private final EnumMap<JassGameEventsWar3, List<CGlobalEvent>> eventTypeToEvents = new EnumMap<>(
+ 			JassGameEventsWar3.class);
+ 	private boolean timeOfDaySuspended;
++	// Blizzard launcher: SetTimeOfDayScale (how fast the day goes, 1 by default).
++	private float timeOfDayScale = 1f;
++
++	public float getTimeOfDayScale() {
++		return this.timeOfDayScale;
++	}
++
++	public void setTimeOfDayScale(final float timeOfDayScale) {
++		this.timeOfDayScale = timeOfDayScale;
++	}
+ 	private Float nextGameTime = null;
+ 	private FalseTimeOfDay falseTimeOfDay = null;
+ 	private boolean daytime;
+@@ -601,7 +611,8 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 			}
+ 			else if (!this.timeOfDaySuspended) {
+ 				this.currentGameDayTimeElapsed = (this.currentGameDayTimeElapsed
+-						+ WarsmashConstants.SIMULATION_STEP_TIME) % this.gameplayConstants.getGameDayLength();
++						+ (WarsmashConstants.SIMULATION_STEP_TIME * this.timeOfDayScale))
++						% this.gameplayConstants.getGameDayLength();
+ 			}
+ 		}
+ 		final float timeOfDayAfter = getGameTimeOfDay();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
+index 4fd9244..36cb8d6 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellItems.java
+@@ -186,4 +186,15 @@ public final class CAbilitySellItems extends AbstractCAbility {
+ 	public CAbilityCategory getAbilityCategory() {
+ 		return CAbilityCategory.CORE;
+ 	}
++
++	/** Blizzard launcher: AddItemToStock and RemoveItemFromStock (this engine's shops keep no stock counts). */
++	public void addItemType(final War3ID itemTypeId) {
++		if (!this.itemsSold.contains(itemTypeId)) {
++			this.itemsSold.add(itemTypeId);
++		}
++	}
++
++	public void removeItemType(final War3ID itemTypeId) {
++		this.itemsSold.remove(itemTypeId);
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
+index 682b652..79e394a 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/shop/CAbilitySellUnits.java
+@@ -266,4 +266,28 @@ public final class CAbilitySellUnits extends AbstractCAbility {
+ 	public CAbilityCategory getAbilityCategory() {
+ 		return CAbilityCategory.CORE;
+ 	}
++
++	/** Blizzard launcher: AddUnitToStock: the shop sells the type, with the stock the script gives. */
++	public void addToStock(final CSimulation game, final War3ID unitTypeId, final int currentStock, final int stockMax) {
++		final CUnitType unitType = game.getUnitData().getUnitType(unitTypeId);
++		if (unitType == null) {
++			return;
++		}
++		SellStockState state = this.unitToSellState.get(unitTypeId);
++		if (state == null) {
++			state = new SellStockState(stockMax,
++					com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer.wholeSteps(unitType.getStockReplenishInterval()),
++					Math.max(currentStock, 1));
++			this.unitToSellState.put(unitTypeId, state);
++			if (!this.unitsSold.contains(unitTypeId)) {
++				this.unitsSold.add(unitTypeId);
++			}
++		}
++		state.setStock(currentStock, stockMax);
++	}
++
++	public void removeFromStock(final War3ID unitTypeId) {
++		this.unitToSellState.remove(unitTypeId);
++		this.unitsSold.remove(unitTypeId);
++	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index a4f41ff..9736d45 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -73,7 +73,7 @@ public class CPlayer extends CBasePlayer {
+ 	// which fields shouldn't be persisted if we do game state save later
+ 	private transient CPlayerStateNotifier stateNotifier = new CPlayerStateNotifier();
+ 	private float handicapXP = 1.0f;
+-	private float handicap = 0.9f;
++	private float handicap = 1.0f; // Blizzard launcher: 100 % by default, as in the original (it was 0.9)
+ 	private final CPlayerFogOfWar fogOfWar;
+ 
+ 	public CPlayer(final CRace race, final float[] startLocation, final CBasePlayer configPlayer,

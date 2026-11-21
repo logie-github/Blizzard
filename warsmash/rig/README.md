@@ -21,6 +21,7 @@ scripts, and Warcraft III 1.27's own files. Nothing here ships in the app.
 - `src/rig/Setups.java`: abilities that need a scene of their own (a tree, a building to hit, peons to call, an
   upgrade, a neutral critter, a walk before a channel): each case builds it, waits and prints what it measured.
 - `Idle` also prints when the cinematic filter (fades) shows and hides, and at its end the quest log, what the Quests dialog shows when opened, and every player's gold and lumber (`DRAIN=1` empties player 3's gold halfway, to see a map's top-up trigger). `Dump` with `MAPS=a.w3m:b.w3x` copies each map's `war3map.j` out. `Setups` has cases for the land mine, creep sleep, the Tavern (hire and Awaken), siege minimum range, and natives called through the map's script scope (alliances, orders, visibility, the damage event, the cinematic filter).
+- `src/rig/NativeAudit.java` (`NATIVES=` a file of native names): each one the engine registered without code (`RIG: NOCODE`).
 - `src/rig/TypeScan.java`: every ability alias listed in `$ALIASES` that the engine has no ability type for.
 - `Idle` runs `$FRAMES` frames (300 by default); a failed script thread prints `JASS thread ended on error`.
 - `src/rig/Skirmish.java`: a melee game with computer players (`COMPUTERS=1,2,3`, `FRAMES`): every 300 frames each player's units, workers, buildings, resources, food, blight around the hall and units lost; `UNITS=N` adds player N's units with their behaviours and each harvester's load, tree and target every 1500 frames, `BPLAYER=N` whose buildings to list.
