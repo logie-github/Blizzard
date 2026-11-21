@@ -4,7 +4,7 @@ import com.badlogic.gdx.*; import com.badlogic.gdx.backends.headless.*; import c
 import com.etheller.warsmash.*; import com.etheller.warsmash.units.DataTable; import com.etheller.warsmash.util.StringBundle;
 import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer;
 public class Main {
-  public static War3MapViewer viewer; public static int mapFrames; public static Object mapScreen;
+  public static War3MapViewer viewer; public static int mapFrames; public static Object mapScreen; public static Object menuScreen;
   static volatile long lastFrameMillis = System.currentTimeMillis(); static volatile Thread renderThread;
   public static void main(String[] args) throws Exception {
     // A frame that takes more than 20 s: print where the render thread is, three times, so a hang shows its loop.
@@ -31,7 +31,7 @@ public class Main {
     DataTable table = new DataTable(StringBundle.EMPTY); table.readTXT(new ByteArrayInputStream(sb.toString().getBytes()), true);
     KeysEmulator keys = new KeysEmulator();
     final WarsmashGdxMenuScreen[] menu = new WarsmashGdxMenuScreen[1];
-    WarsmashGdxMultiScreenGame g = new WarsmashGdxMultiScreenGame(engine -> { menu[0] = new WarsmashGdxMenuScreen(table, engine, keys); engine.setScreen(menu[0]); });
+    WarsmashGdxMultiScreenGame g = new WarsmashGdxMultiScreenGame(engine -> { menu[0] = new WarsmashGdxMenuScreen(table, engine, keys); menuScreen = menu[0]; engine.setScreen(menu[0]); });
     final int[] frame = {0}; final boolean[] started = {false};
     ApplicationListener wrap = new ApplicationListener() {
       public void create() { final Application real = Gdx.app; Gdx.app = (Application) java.lang.reflect.Proxy.newProxyInstance(Main.class.getClassLoader(), new Class<?>[]{Application.class}, (p2, m2, a2) -> m2.getName().equals("getType") ? Application.ApplicationType.Desktop : m2.invoke(real, a2));

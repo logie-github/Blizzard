@@ -1,0 +1,88 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/config/War3MapConfig.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/config/War3MapConfig.java
+index 27f15b4..f5b67a7 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/config/War3MapConfig.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/config/War3MapConfig.java
+@@ -23,7 +23,8 @@ public class War3MapConfig implements CPlayerAPI {
+ 	private final EnumMap<CMapFlag, Boolean> mapFlagToEnabled = new EnumMap<>(CMapFlag.class);
+ 	private CMapPlacement placement;
+ 	private CGameSpeed gameSpeed;
+-	private CMapDifficulty gameDifficulty;
++	// Blizzard launcher: Normal unless chosen (it was none, so every difficulty check in a map's script failed).
++	private CMapDifficulty gameDifficulty = CMapDifficulty.NORMAL;
+ 	private CMapDensity resourceDensity;
+ 	private CMapDensity creatureDensity;
+ 	private CGameType gameTypeSelected;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
+index 307caa7..c4713bd 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MenuUI.java
+@@ -75,6 +75,7 @@ import com.etheller.warsmash.viewer5.handlers.w3x.UnitSound;
+ import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer;
+ import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer.MapLoader;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.ai.AIDifficulty;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CMapDifficulty;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.config.CBasePlayer;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.config.War3MapConfig;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl;
+@@ -1255,6 +1256,7 @@ public class MenuUI {
+ 
+ 		this.campaignSelectFrame = this.rootFrame.getFrameByName("CampaignSelectFrame", 0);
+ 		this.campaignSelectFrame.setVisible(false);
++		setUpCampaignDifficulty();
+ 
+ 		this.campaignWarcraftIIILogo = (SpriteFrame) this.rootFrame.getFrameByName("WarCraftIIILogo", 0);
+ 		this.rootFrame.setSpriteFrameModel(this.campaignWarcraftIIILogo, this.rootFrame.getSkinField("MainMenuLogo"));
+@@ -1830,6 +1832,45 @@ public class MenuUI {
+ 		MenuUI.this.menuState = MenuState.GOING_TO_MAP;
+ 	}
+ 
++	/**
++	 * Blizzard launcher: the campaign screen's difficulty menu (the original's DifficultySelect, with Easy too, which
++	 * the original reaches only by lowering the difficulty after a defeat). Every mission started from the campaign
++	 * screen, and each map a won mission goes on to, is played at it; Normal until another is chosen.
++	 */
++	private void setUpCampaignDifficulty() {
++		final UIFrame frame = this.rootFrame.getFrameByName("DifficultySelect", 0);
++		if (!(frame instanceof com.etheller.warsmash.parsers.fdf.frames.PopupMenuFrame)) {
++			return;
++		}
++		final com.etheller.warsmash.parsers.fdf.frames.PopupMenuFrame difficultySelect = (com.etheller.warsmash.parsers.fdf.frames.PopupMenuFrame) frame;
++		final String[] keys = { "EASY", "NORMAL", "HARD" };
++		final CMapDifficulty[] difficulties = { CMapDifficulty.EASY, CMapDifficulty.NORMAL, CMapDifficulty.HARD };
++		final List<com.etheller.warsmash.parsers.fdf.datamodel.MenuItem> items = new ArrayList<>();
++		for (final String key : keys) {
++			items.add(new com.etheller.warsmash.parsers.fdf.datamodel.MenuItem(
++					this.rootFrame.getTemplates().getDecoratedString(key), -2));
++		}
++		((com.etheller.warsmash.parsers.fdf.frames.MenuFrame) difficultySelect.getPopupMenuFrame())
++				.setItems(this.uiViewport, items);
++		final UIFrame titleButton = difficultySelect.getPopupTitleFrame();
++		final StringFrame title = titleButton instanceof GlueTextButtonFrame
++				? (StringFrame) ((GlueTextButtonFrame) titleButton).getButtonText()
++				: titleButton instanceof StringFrame ? (StringFrame) titleButton : null;
++		if (title != null) {
++			this.rootFrame.setDecoratedText(title, keys[this.campaignDifficulty.ordinal()]);
++		}
++		difficultySelect.setMenuClickListener((button, menuItemIndex) -> {
++			if ((menuItemIndex >= 0) && (menuItemIndex < difficulties.length)) {
++				this.campaignDifficulty = difficulties[menuItemIndex];
++				if (title != null) {
++					this.rootFrame.setDecoratedText(title, keys[menuItemIndex]);
++				}
++			}
++		});
++	}
++
++	private CMapDifficulty campaignDifficulty = CMapDifficulty.NORMAL;
++
+ 	private void loadAndCacheMapConfigs(final String mapFilename) throws IOException {
+ 		final War3Map map = War3MapViewer.beginLoadingMap(MenuUI.this.dataSource, mapFilename);
+ 		final War3MapW3i mapInfo = map.readMapInformation();
+@@ -1840,6 +1881,7 @@ public class MenuUI {
+ 			final CBasePlayer player = war3MapConfig.getPlayer(i);
+ 			player.setName(MenuUI.this.rootFrame.getTrigStr(mapInfo.getPlayers().get(i).getName()));
+ 		}
++		war3MapConfig.setGameDifficulty(this.campaignDifficulty);
+ 		Jass2.loadConfig(map, MenuUI.this.uiViewport, MenuUI.this.uiScene, MenuUI.this.rootFrame, war3MapConfig,
+ 				WarsmashConstants.JASS_FILE_LIST).config();
+ 		MenuUI.this.currentMapConfig = war3MapConfig;

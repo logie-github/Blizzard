@@ -1,0 +1,1 @@
+Campaign missions now use a difficulty (Normal by default), and you can pick Easy, Normal or Hard on the campaign screen.

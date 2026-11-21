@@ -396,6 +396,8 @@ public class Setups extends Scenario {
       b.append("; hero dead=").append(hero.isDead());
       final String[] rev = { "" };
       new Later() { public void onFire(CSimulation sim) { rev[0] = "revive returned " + cs.apply("ReviveHero", java.util.List.of(hv, R.apply((double) p[0] + 500), R.apply((double) p[1]), T)) + " alive " + !hero.isDead() + " hidden " + hero.isHidden() + " life " + (int) hero.getLife() + " at +" + (int) (hero.getX() - p[0]); } }.go(s, 5f);
+      b.append("; game difficulty ").append(((com.etheller.interpreter.ast.value.HandleJassValue) cv.apply("GetGameDifficulty", java.util.List.of())).getJavaValue());
+      b.append("; ").append(difficultyMenu());
       final String before = b.toString();
       return () -> before + "; at 5 s " + rev[0] + "; at the end alive " + !hero.isDead() + " hidden " + hero.isHidden();
     }),
@@ -424,6 +426,19 @@ public class Setups extends Scenario {
   ));
   static com.etheller.interpreter.ast.value.JassValue call3(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
     return g.getNativeById(g.getNativeId(name)).call(args, g, scope == null ? new com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope((com.etheller.interpreter.ast.scope.trigger.Trigger) null) : scope);
+  }
+  static String difficultyMenu() {
+    try {
+      var f = com.etheller.warsmash.WarsmashGdxMenuScreen.class.getDeclaredField("menuUI"); f.setAccessible(true); var ui = f.get(Main.menuScreen);
+      var rf = ui.getClass().getDeclaredField("rootFrame"); rf.setAccessible(true); var root = (com.etheller.warsmash.parsers.fdf.GameUI) rf.get(ui);
+      var pop = (com.etheller.warsmash.parsers.fdf.frames.PopupMenuFrame) root.getFrameByName("DifficultySelect", 0);
+      var lf = com.etheller.warsmash.parsers.fdf.frames.PopupMenuFrame.class.getDeclaredField("menuClickListener"); lf.setAccessible(true);
+      var listener = (com.etheller.warsmash.parsers.fdf.frames.MenuFrame.MenuClickListener) lf.get(pop);
+      var df = ui.getClass().getDeclaredField("campaignDifficulty"); df.setAccessible(true);
+      String r = "difficulty menu listener " + (listener != null) + " start " + df.get(ui);
+      listener.onClick(0, 0); r += ", after picking item 0 " + df.get(ui); listener.onClick(0, 2); r += ", item 2 " + df.get(ui); listener.onClick(0, 1);
+      return r;
+    } catch (Exception e) { return "difficulty menu " + e; }
   }
   static String minimapPings() {
     try { var fld = com.etheller.warsmash.WarsmashGdxMapScreen.class.getDeclaredField("minimapUI"); fld.setAccessible(true); var ui = (com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI) fld.get(Main.mapScreen); return "; minimap pings live at the end=" + ui.getMinimap().getPingCount(viewer.simulation) + " (a 60 s one and a 1 s one were made)"; } catch (Exception e) { return "; minimap pings " + e; }
