@@ -1,0 +1,145 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index be7511d..c145287 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -1220,6 +1220,25 @@ public final class LauncherNatives {
+ 			return null;
+ 		});
+ 
++		// CampaignNatives: SetUnitRescuable
++		jassProgramVisitor.getJassNativeManager().createNative("SetUnitRescuable", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = object(arguments, 0);
++			final CPlayer player = object(arguments, 1);
++			if ((unit != null) && (player != null)) {
++				unit.setRescuable(player.getId(), bool(arguments, 2));
++			}
++			return null;
++		});
++
++		// CampaignNatives: SetUnitRescueRange
++		jassProgramVisitor.getJassNativeManager().createNative("SetUnitRescueRange", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = object(arguments, 0);
++			if (unit != null) {
++				unit.setRescueRange(real(arguments, 1));
++			}
++			return null;
++		});
++
+ 		// CampaignNatives: StoreBoolean
+ 		jassProgramVisitor.getJassNativeManager().createNative("StoreBoolean", (arguments, globalScope, triggerScope) -> {
+ 			final CGameCache cache = object(arguments, 0);
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+index ea8b9f4..30ac36b 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+@@ -334,6 +334,11 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 		return this;
+ 	}
+ 
++	public CommonTriggerExecutionScope rescued(final CUnit rescuer) {
++		this.rescuer = rescuer;
++		return this;
++	}
++
+ 	public CommonTriggerExecutionScope reviving(final CUnit revivingUnit) {
+ 		this.revivingUnit = revivingUnit;
+ 		return this;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 9c6d376..b756f25 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -575,6 +575,10 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 			}
+ 		}
+ 		finishAddingNewUnits();
++		// Blizzard launcher: rescuable units (the fork's, measured on 1.29), checked every tick.
++		for (int i = 0; i < this.units.size(); i++) {
++			this.units.get(i).checkRescue(this);
++		}
+ 		for (final CDestructable destructable : this.removedDestructables) {
+ 			this.simulationRenderController.removeDestructable(destructable);
+ 			destructable.onRemove(this);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index fb8f72f..a53ae5d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -4604,6 +4604,79 @@ public class CUnit extends CWidget {
+ 		game.heroReviveEvent(this, this);
+ 	}
+ 
++	// Blizzard launcher: rescue (the fork's, measured on 1.29). A unit of a player whose controller is "rescuable" is
++	// rescuable by the players that player has ALLIANCE_RESCUABLE towards; SetUnitRescuable turns that on or off for
++	// one unit and one player. The first tick a ground unit of such a player stands within the rescue range, the unit
++	// fires EVENT_UNIT_RESCUED and its owner's EVENT_PLAYER_UNIT_RESCUED; Blizzard.j's RescueUnitBJ (set up by
++	// InitRescuableBehaviorBJ) hands the unit over, and a rescued unit rescues those near it in turn.
++	public static final float DEFAULT_RESCUE_RANGE = 414.5f;
++	private static final int RESCUE_REPEAT_TICKS = (int) (1 / WarsmashConstants.SIMULATION_STEP_TIME);
++	private float rescueRange = DEFAULT_RESCUE_RANGE;
++	private int rescuableByPlayers;
++	private int unrescuableByPlayers;
++	private int lastRescueTick = Integer.MIN_VALUE / 2;
++
++	public void setRescuable(final int byPlayerIndex, final boolean rescuable) {
++		final int bit = 1 << byPlayerIndex;
++		if (rescuable) {
++			this.rescuableByPlayers |= bit;
++			this.unrescuableByPlayers &= ~bit;
++		}
++		else {
++			this.unrescuableByPlayers |= bit;
++			this.rescuableByPlayers &= ~bit;
++		}
++	}
++
++	public void setRescueRange(final float rescueRange) {
++		this.rescueRange = rescueRange;
++	}
++
++	public boolean isRescuableBy(final CSimulation simulation, final int byPlayerIndex) {
++		final int bit = 1 << byPlayerIndex;
++		if ((this.unrescuableByPlayers & bit) != 0) {
++			return false;
++		}
++		if ((this.rescuableByPlayers & bit) != 0) {
++			return true;
++		}
++		final CPlayer owner = simulation.getPlayer(this.playerIndex);
++		return (owner.getController() == com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl.RESCUABLE)
++				&& owner.hasAlliance(byPlayerIndex, com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CAllianceType.RESCUABLE);
++	}
++
++	public void checkRescue(final CSimulation simulation) {
++		if ((this.rescuableByPlayers == 0) && (simulation.getPlayer(this.playerIndex)
++				.getController() != com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CMapControl.RESCUABLE)) {
++			return;
++		}
++		if (isDead() || isHidden() || ((simulation.getGameTurnTick() - this.lastRescueTick) < RESCUE_REPEAT_TICKS)) {
++			return;
++		}
++		final float range = this.rescueRange;
++		final float x = getX();
++		final float y = getY();
++		final CUnit[] rescuer = { null };
++		simulation.getWorldCollision().enumUnitsInRect(new Rectangle(x - range, y - range, range * 2, range * 2),
++				(enumUnit) -> {
++					if ((enumUnit.getPlayerIndex() != this.playerIndex) && !enumUnit.isDead() && !enumUnit.isHidden()
++							&& !enumUnit.isBuilding() && (enumUnit.getMovementType() != MovementType.FLY)
++							&& (StrictMath.hypot(enumUnit.getX() - x, enumUnit.getY() - y) <= range)
++							&& isRescuableBy(simulation, enumUnit.getPlayerIndex())) {
++						rescuer[0] = enumUnit;
++						return true;
++					}
++					return false;
++				});
++		if (rescuer[0] == null) {
++			return;
++		}
++		this.lastRescueTick = simulation.getGameTurnTick();
++		final CUnit rescuingUnit = rescuer[0];
++		simulation.fireUnitEvents(this, JassGameEventsWar3.EVENT_UNIT_RESCUED, JassGameEventsWar3.EVENT_PLAYER_UNIT_RESCUED,
++				(scope) -> scope.rescued(rescuingUnit));
++	}
++
+ 	/** Blizzard launcher: the script's GetWidgetLife; SetWidgetLife on a dead unit leaves it dead. */
+ 	public float getScriptLife() {
+ 		return getLife();

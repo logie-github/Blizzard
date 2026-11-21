@@ -1,0 +1,1 @@
+Captive units in the Night Elf missions now join you when your units reach them.
