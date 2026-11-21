@@ -1,0 +1,2000 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedAddedFields.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedAddedFields.java
+new file mode 100644
+index 0000000..cebc8c8
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedAddedFields.java
+@@ -0,0 +1,17 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.save;
++
++import java.util.Set;
++
++/**
++ * For a class whose newer fields need values that depend on the rest of the object or on other objects, so a
++ * {@link SavedDefault} constant does not do.
++ */
++public interface SavedAddedFields {
++	/**
++	 * Called once the whole saved game has been read, for an object whose save had none of these fields. They hold
++	 * their {@link SavedDefault} or type default already.
++	 *
++	 * @param fieldNames the names of the fields the save lacked, declared by this class or its superclasses
++	 */
++	void initAddedFields(Set<String> fieldNames);
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedComponent.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedComponent.java
+new file mode 100644
+index 0000000..98b651b
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedComponent.java
+@@ -0,0 +1,15 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.save;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++/**
++ * A field holding a part of its object that was split off into a class of its own. Saved games from before the split
++ * have the part's fields in the holder, under the same names; loading them makes the part and fills it from those.
++ */
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.FIELD)
++public @interface SavedComponent {
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedDefault.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedDefault.java
+new file mode 100644
+index 0000000..c0fffe8
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedDefault.java
+@@ -0,0 +1,20 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.save;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++/**
++ * The value a field gets when a saved game from before the field existed is loaded. Loaded objects are not
++ * constructed, so a field added later is otherwise left 0, false or null (a final collection or map field gets a new
++ * empty one). A field whose constructor gives it anything else needs this, or its class implements
++ * {@link SavedAddedFields}.
++ *
++ * The text is read as the field's type: a number, true or false, a character, a string, or an enum constant's name.
++ */
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.FIELD)
++public @interface SavedDefault {
++	String value();
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedFormerly.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedFormerly.java
+new file mode 100644
+index 0000000..4001049
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedFormerly.java
+@@ -0,0 +1,16 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.save;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++/**
++ * Earlier names of a renamed field, so saved games that stored it under such a name still fill it. A renamed class is
++ * listed in {@link SavedObjectGraph}'s former class names instead.
++ */
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.FIELD)
++public @interface SavedFormerly {
++	String[] value();
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java
+new file mode 100644
+index 0000000..7273fb0
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java
+@@ -0,0 +1,1873 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.save;
++
++
++import com.google.gson.internal.LinkedTreeMap;
++
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.DataInputStream;
++import java.io.DataOutput;
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.io.ObjectInputStream;
++import java.io.ObjectOutputStream;
++import java.io.Serializable;
++import java.lang.reflect.Array;
++import java.lang.reflect.Field;
++import java.lang.reflect.Modifier;
++import java.nio.ByteBuffer;
++import java.nio.ByteOrder;
++import java.util.ArrayDeque;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.EnumMap;
++import java.util.EnumSet;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.IdentityHashMap;
++import java.util.LinkedHashMap;
++import java.util.LinkedHashSet;
++import java.util.LinkedList;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.TreeMap;
++import java.util.TreeSet;
++import java.util.concurrent.ConcurrentHashMap;
++
++/**
++ * Writes and reads a whole graph of game objects by their fields, so that the hundreds of ability, buff and behavior
++ * classes need no code of their own. Fields are stored by declaring class, name and type. A save from an engine whose
++ * classes differ still loads: fields it has that the class lost are skipped, fields the class gained get defaults
++ * (see {@link SavedDefault}). It is refused when a class is gone, when a field's type no longer takes the saved value,
++ * or when an anonymous class differs at all.
++ *
++ * Objects get numbers in the order they are first met. The table of what each number is comes after the bodies in the
++ * stream because bodies are what discover objects; reading takes the table first, allocates everything, then fills.
++ * Hash collections are filled last, since a key's hash can depend on fields of objects read later.
++ */
++public final class SavedObjectGraph {
++	private static final byte KIND_OBJECT = 0;
++	private static final byte KIND_ARRAY = 1;
++	private static final byte KIND_STRING = 2;
++	private static final byte KIND_BOX = 3;
++	private static final byte KIND_ENUM = 4;
++	private static final byte KIND_CLASS = 5;
++	private static final byte KIND_EXTERNAL = 6;
++	private static final byte KIND_LIST = 7;
++	private static final byte KIND_HASH_COLLECTION = 8;
++	private static final byte KIND_MAP = 9;
++	private static final byte KIND_ENUM_MAP = 10;
++	private static final byte KIND_ENUM_SET = 11;
++	private static final byte KIND_SERIALIZED = 12;
++	private static final byte KIND_BYTE_BUFFER = 13;
++
++	private static final int DROPPED = -1;
++
++	private static final Map<Class<?>, List<Field>> FIELDS = new HashMap<>();
++	// What writing a class's fields needs, resolved once: the field array and a width code per field.
++	private static final Map<Class<?>, FieldPlan> FIELD_PLANS = new ConcurrentHashMap<>();
++	// The class tests below compare class names, which costs more than the rest of storing an object on Android.
++	private static final Map<Class<?>, Boolean> UNSTORABLE_CLASSES = new ConcurrentHashMap<>();
++	private static final Map<Class<?>, Boolean> LIST_TYPES = new ConcurrentHashMap<>();
++	private static final Map<Class<?>, Boolean> HASH_COLLECTIONS = new ConcurrentHashMap<>();
++	private static final Map<Class<?>, Boolean> MAP_TYPES = new ConcurrentHashMap<>();
++	// The next save meets about as many objects as the last one; growing the identity table is a large part otherwise.
++	private static int lastObjectCount = 1 << 16;
++
++	private SavedObjectGraph() {
++	}
++
++	public interface Rules {
++		/** A name for an object the loading game already has (the same one, found again by this name), or null. */
++		String externalName(Object object);
++
++		/** Whether an external object's fields are stored too and put back into the existing object when loading. */
++		boolean isInPlace(Object object);
++
++		/** Whether references to this object are left out, to be set again after loading. */
++		boolean isDropped(Object object);
++
++		/** What to store instead, for objects that cannot be stored themselves but stand for something. */
++		Object replace(Object object);
++
++		Object resolveExternal(String name);
++
++		void reportDropped(Class<?> holder, String field, Object object);
++	}
++
++	private static List<Field> fieldsOf(final Class<?> type) {
++		List<Field> fields = FIELDS.get(type);
++		if (fields == null) {
++			fields = new ArrayList<>();
++			for (Class<?> current = type; (current != null) && !current.getName().startsWith("java."); current = current
++					.getSuperclass()) {
++				for (final Field field : current.getDeclaredFields()) {
++					final int modifiers = field.getModifiers();
++					if (!Modifier.isStatic(modifiers) && (field.getAnnotation(SavedTransient.class) == null)) {
++						field.setAccessible(true);
++						fields.add(field);
++					}
++				}
++			}
++			FIELDS.put(type, fields);
++		}
++		return fields;
++	}
++
++	private static final class FieldPlan {
++		final Field[] fields;
++		final byte[] kinds;
++
++		FieldPlan(final List<Field> list) {
++			this.fields = list.toArray(new Field[0]);
++			this.kinds = new byte[this.fields.length];
++			for (int i = 0; i < this.fields.length; i++) {
++				final Class<?> type = this.fields[i].getType();
++				byte kind = 0;
++				if (type == int.class) {
++					kind = 'I';
++				}
++				else if (type == float.class) {
++					kind = 'F';
++				}
++				else if (type == boolean.class) {
++					kind = 'Z';
++				}
++				else if (type == long.class) {
++					kind = 'J';
++				}
++				else if (type == double.class) {
++					kind = 'D';
++				}
++				else if (type == short.class) {
++					kind = 'S';
++				}
++				else if (type == byte.class) {
++					kind = 'B';
++				}
++				else if (type == char.class) {
++					kind = 'C';
++				}
++				this.kinds[i] = kind;
++			}
++		}
++	}
++
++	private static FieldPlan planOf(final Class<?> type) {
++		FieldPlan plan = FIELD_PLANS.get(type);
++		if (plan == null) {
++			plan = new FieldPlan(fieldsOf(type));
++			FIELD_PLANS.put(type, plan);
++		}
++		return plan;
++	}
++
++	/** The type is part of the key: a field that changed type would otherwise be read with the wrong width. */
++	private static String fieldKey(final Field field) {
++		return field.getDeclaringClass().getName() + "#" + field.getName() + "#" + field.getType().getName();
++	}
++
++	public static final class Writer {
++		private final Rules rules;
++		private final DataOutput bodies;
++		private final Bytes tableBytes = new Bytes(1 << 16);
++		private final DataOutputStream table = new DataOutputStream(this.tableBytes);
++		private final IdentityIds ids = new IdentityIds(lastObjectCount);
++		private final Set<Object> external = Collections.newSetFromMap(new IdentityHashMap<>());
++		private final ArrayDeque<Object> queue = new ArrayDeque<>();
++		private final Map<Class<?>, Integer> classIds = new HashMap<>();
++		private int nextId = 1;
++		private Class<?> currentHolder;
++		private Field currentField;
++
++		public Writer(final Rules rules, final DataOutput bodies) {
++			this.rules = rules;
++			this.bodies = bodies;
++		}
++
++		public void writeRoot(final Object root) throws IOException {
++			this.bodies.writeInt(ref(root));
++			while (!this.queue.isEmpty()) {
++				writeBody(this.queue.removeFirst());
++			}
++			lastObjectCount = this.nextId;
++		}
++
++		/** Goes after the bodies; a reader needs it first, so the caller stores it where it can be found. */
++		public byte[] finishTable() throws IOException {
++			return finishTableBytes().toByteArray();
++		}
++
++		/**
++		 * Like {@link #finishTable()}, without the copies of a table that runs to megabytes; the writer's own table
++		 * moves into the result, so this is to be called once.
++		 */
++		public Bytes finishTableBytes() throws IOException {
++			this.table.flush();
++			final Bytes result = new Bytes(1 << 16);
++			final DataOutputStream out = new DataOutputStream(result);
++			out.writeInt(this.nextId);
++			out.writeInt(this.classIds.size());
++			final Class<?>[] classes = new Class<?>[this.classIds.size()];
++			for (final Map.Entry<Class<?>, Integer> entry : this.classIds.entrySet()) {
++				classes[entry.getValue()] = entry.getKey();
++			}
++			for (final Class<?> type : classes) {
++				if (isAnonymous(type)) {
++					// Its name is its place in the source file, which the next edit there can give another class.
++					System.err.println("Saved game holds the anonymous class " + type.getName());
++				}
++				out.writeUTF(type.getName());
++				final List<Field> fields = type.isArray() || type.isEnum() ? new ArrayList<>() : fieldsOf(type);
++				out.writeInt(fields.size());
++				for (final Field field : fields) {
++					out.writeUTF(fieldKey(field));
++				}
++			}
++			out.flush();
++			result.take(this.tableBytes);
++			return result;
++		}
++
++		public int objectCount() {
++			return this.nextId - 1;
++		}
++
++		private int classId(final Class<?> type) {
++			Integer id = this.classIds.get(type);
++			if (id == null) {
++				id = this.classIds.size();
++				this.classIds.put(type, id);
++			}
++			return id;
++		}
++
++		private int ref(final Object given) throws IOException {
++			if (given == null) {
++				return 0;
++			}
++			final Object object = this.rules.replace(given);
++			if (object == null) {
++				return 0;
++			}
++			final int known = this.ids.get(object);
++			if (known != 0) {
++				return known;
++			}
++			final String externalName = this.rules.externalName(object);
++			if ((externalName == null) && (this.rules.isDropped(object) || isUnstorable(object))) {
++				this.rules.reportDropped(this.currentHolder,
++						this.currentField == null ? null : this.currentField.getName(), object);
++				return DROPPED;
++			}
++			final int id = this.nextId++;
++			this.ids.put(object, id);
++			writeTableEntry(object, externalName);
++			return id;
++		}
++
++		/**
++		 * Platform objects and lambdas cannot come back from their fields. Whatever is left to hit this is reported by
++		 * the rules; the game itself must not hold such state in what a save reaches.
++		 */
++		private static boolean isUnstorable(final Object object) {
++			final Class<?> type = object.getClass();
++			Boolean unstorable = UNSTORABLE_CLASSES.get(type);
++			if (unstorable == null) {
++				unstorable = isUnstorableClass(type, object);
++				UNSTORABLE_CLASSES.put(type, unstorable);
++			}
++			return unstorable;
++		}
++
++		private static boolean isUnstorableClass(final Class<?> type, final Object object) {
++			if (type.isArray() || (object instanceof String) || (object instanceof Number) || (object instanceof Boolean)
++					|| (object instanceof Character) || (object instanceof Enum) || (object instanceof Class)) {
++				return false;
++			}
++			final String name = type.getName();
++			if (name.contains("$$Lambda") || name.contains("ExternalSyntheticLambda")) {
++				return true;
++			}
++			return name.startsWith("java.") && !isListType(type) && !isHashCollection(type) && !isMapType(type)
++					&& !(object instanceof EnumMap) && !(object instanceof EnumSet) && !(object instanceof ByteBuffer)
++					&& !(object instanceof Serializable);
++		}
++
++		private void writeTableEntry(final Object object, final String externalName) throws IOException {
++			final Class<?> type = object.getClass();
++			if (externalName != null) {
++				this.external.add(object);
++				this.table.writeByte(KIND_EXTERNAL);
++				this.table.writeUTF(externalName);
++				if (this.rules.isInPlace(object)) {
++					classId(type);
++				}
++				this.queue.addLast(object);
++			}
++			else if (object instanceof String) {
++				writeLongUtf(this.table, (String) object, KIND_STRING);
++			}
++			else if (object instanceof Number) {
++				this.table.writeByte(KIND_BOX);
++				if (object instanceof Integer) {
++					this.table.writeByte('I');
++					this.table.writeInt((Integer) object);
++				}
++				else if (object instanceof Float) {
++					this.table.writeByte('F');
++					this.table.writeFloat((Float) object);
++				}
++				else if (object instanceof Double) {
++					this.table.writeByte('D');
++					this.table.writeDouble((Double) object);
++				}
++				else if (object instanceof Long) {
++					this.table.writeByte('J');
++					this.table.writeLong((Long) object);
++				}
++				else if (object instanceof Short) {
++					this.table.writeByte('S');
++					this.table.writeShort((Short) object);
++				}
++				else if (object instanceof Byte) {
++					this.table.writeByte('B');
++					this.table.writeByte((Byte) object);
++				}
++				else {
++					throw new IOException("Unsupported number " + type);
++				}
++			}
++			else if (object instanceof Boolean) {
++				this.table.writeByte(KIND_BOX);
++				this.table.writeByte('Z');
++				this.table.writeBoolean((Boolean) object);
++			}
++			else if (object instanceof Character) {
++				this.table.writeByte(KIND_BOX);
++				this.table.writeByte('C');
++				this.table.writeChar((Character) object);
++			}
++			else if (object instanceof Enum) {
++				this.table.writeByte(KIND_ENUM);
++				this.table.writeInt(classId(((Enum<?>) object).getDeclaringClass()));
++				this.table.writeUTF(((Enum<?>) object).name());
++			}
++			else if (object instanceof Class) {
++				this.table.writeByte(KIND_CLASS);
++				this.table.writeUTF(((Class<?>) object).getName());
++			}
++			else if (type.isArray()) {
++				this.table.writeByte(KIND_ARRAY);
++				this.table.writeInt(classId(type));
++				this.table.writeInt(Array.getLength(object));
++				this.queue.addLast(object);
++			}
++			else if (isListType(type)) {
++				this.table.writeByte(KIND_LIST);
++				this.table.writeUTF(listName(type));
++				this.queue.addLast(object);
++			}
++			else if (isHashCollection(type)) {
++				this.table.writeByte(KIND_HASH_COLLECTION);
++				this.table.writeUTF(type.getName().startsWith("java.util.Collections$") ? HashSet.class.getName()
++						: type.getName());
++				this.queue.addLast(object);
++			}
++			else if (isMapType(type)) {
++				this.table.writeByte(KIND_MAP);
++				this.table.writeUTF(mapName(type));
++				this.queue.addLast(object);
++			}
++			else if (object instanceof EnumMap) {
++				writeEmptyAwareEnumEntry(object, KIND_ENUM_MAP, ((EnumMap<?, ?>) object).isEmpty()
++						? null
++						: ((EnumMap<?, ?>) object).keySet().iterator().next().getDeclaringClass());
++				this.queue.addLast(object);
++			}
++			else if (object instanceof EnumSet) {
++				writeEmptyAwareEnumEntry(object, KIND_ENUM_SET, ((EnumSet<?>) object).isEmpty()
++						? null
++						: ((Enum<?>) ((EnumSet<?>) object).iterator().next()).getDeclaringClass());
++				this.queue.addLast(object);
++			}
++			else if (object instanceof ByteBuffer) {
++				final ByteBuffer buffer = ((ByteBuffer) object).duplicate();
++				this.table.writeByte(KIND_BYTE_BUFFER);
++				this.table.writeBoolean(buffer.isDirect());
++				this.table.writeBoolean(buffer.order() == ByteOrder.LITTLE_ENDIAN);
++				this.table.writeInt(buffer.capacity());
++				this.table.writeInt(buffer.position());
++				this.table.writeInt(buffer.limit());
++				buffer.clear();
++				final byte[] bytes = new byte[buffer.remaining()];
++				buffer.get(bytes);
++				this.table.write(bytes);
++			}
++			else if (type.getName().startsWith("java.") && (object instanceof Serializable)) {
++				this.table.writeByte(KIND_SERIALIZED);
++				final byte[] bytes = javaSerialize(object);
++				this.table.writeInt(bytes.length);
++				this.table.write(bytes);
++			}
++			else {
++				this.table.writeByte(KIND_OBJECT);
++				this.table.writeInt(classId(type));
++				this.queue.addLast(object);
++			}
++		}
++
++		/** An empty EnumMap or EnumSet does not tell its key type, but it can go through Java's own form as it is. */
++		private void writeEmptyAwareEnumEntry(final Object object, final byte kind, final Class<?> keyType)
++				throws IOException {
++			this.table.writeByte(kind);
++			if (keyType != null) {
++				this.table.writeBoolean(true);
++				this.table.writeUTF(keyType.getName());
++			}
++			else {
++				this.table.writeBoolean(false);
++				final byte[] bytes = javaSerialize(object);
++				this.table.writeInt(bytes.length);
++				this.table.write(bytes);
++			}
++		}
++
++		private void writeBody(final Object object) throws IOException {
++			final Class<?> type = object.getClass();
++			this.currentHolder = type;
++			this.currentField = null;
++			if (this.external.contains(object)) {
++				writeExternalBody(object);
++			}
++			else if (type.isArray()) {
++				writeArrayBody(object, type.getComponentType());
++			}
++			else if (isMapType(type) || (object instanceof EnumMap)) {
++				writeMapContents((Map<?, ?>) object);
++			}
++			else if (isListType(type) || isHashCollection(type) || (object instanceof EnumSet)) {
++				writeCollectionContents((Collection<?>) object);
++			}
++			else {
++				writeFields(object, planOf(type));
++				if (object instanceof Collection) {
++					writeCollectionContents((Collection<?>) object);
++				}
++				else if (object instanceof Map) {
++					writeMapContents((Map<?, ?>) object);
++				}
++			}
++		}
++
++		private int[] scratch = new int[256];
++
++		private void push(final int count, final int value) {
++			if (count == this.scratch.length) {
++				this.scratch = Arrays.copyOf(this.scratch, count << 1);
++			}
++			this.scratch[count] = value;
++		}
++
++		// ref() only queues objects, so no nested call can overwrite the scratch array while it is being filled.
++		private void writeMapContents(final Map<?, ?> map) throws IOException {
++			int count = 0;
++			for (final Map.Entry<?, ?> entry : map.entrySet()) {
++				final int key = ref(entry.getKey());
++				final int value = ref(entry.getValue());
++				if ((key != DROPPED) && (value != DROPPED)) {
++					push(count++, key);
++					push(count++, value);
++				}
++			}
++			this.bodies.writeInt(count / 2);
++			for (int i = 0; i < count; i++) {
++				this.bodies.writeInt(this.scratch[i]);
++			}
++		}
++
++		private void writeCollectionContents(final Collection<?> collection) throws IOException {
++			int count = 0;
++			for (final Object element : collection) {
++				final int id = ref(element);
++				if (id != DROPPED) {
++					push(count++, id);
++				}
++			}
++			this.bodies.writeInt(count);
++			for (int i = 0; i < count; i++) {
++				this.bodies.writeInt(this.scratch[i]);
++			}
++		}
++
++		private void writeExternalBody(final Object object) throws IOException {
++			final boolean inPlace = this.rules.isInPlace(object);
++			this.bodies.writeBoolean(inPlace);
++			if (inPlace) {
++				writeFields(object, planOf(object.getClass()));
++			}
++		}
++
++		private void writeFields(final Object object, final FieldPlan plan) throws IOException {
++			final Field[] fields = plan.fields;
++			final byte[] kinds = plan.kinds;
++			final DataOutput bodies = this.bodies;
++			for (int i = 0; i < fields.length; i++) {
++				final Field field = fields[i];
++				this.currentField = field;
++				try {
++					switch (kinds[i]) {
++					case 'I':
++						bodies.writeInt(field.getInt(object));
++						break;
++					case 'F':
++						bodies.writeFloat(field.getFloat(object));
++						break;
++					case 'Z':
++						bodies.writeBoolean(field.getBoolean(object));
++						break;
++					case 'J':
++						bodies.writeLong(field.getLong(object));
++						break;
++					case 'D':
++						bodies.writeDouble(field.getDouble(object));
++						break;
++					case 'S':
++						bodies.writeShort(field.getShort(object));
++						break;
++					case 'B':
++						bodies.writeByte(field.getByte(object));
++						break;
++					case 'C':
++						bodies.writeChar(field.getChar(object));
++						break;
++					default:
++						bodies.writeInt(ref(field.get(object)));
++						break;
++					}
++				}
++				catch (final IllegalAccessException exc) {
++					throw new IOException(exc);
++				}
++			}
++		}
++
++		private void writeArrayBody(final Object array, final Class<?> componentType) throws IOException {
++			if (componentType == int.class) {
++				for (final int value : (int[]) array) {
++					this.bodies.writeInt(value);
++				}
++			}
++			else if (componentType == float.class) {
++				for (final float value : (float[]) array) {
++					this.bodies.writeFloat(value);
++				}
++			}
++			else if (componentType == boolean.class) {
++				for (final boolean value : (boolean[]) array) {
++					this.bodies.writeBoolean(value);
++				}
++			}
++			else if (componentType == byte.class) {
++				this.bodies.write((byte[]) array);
++			}
++			else if (componentType == short.class) {
++				for (final short value : (short[]) array) {
++					this.bodies.writeShort(value);
++				}
++			}
++			else if (componentType == long.class) {
++				for (final long value : (long[]) array) {
++					this.bodies.writeLong(value);
++				}
++			}
++			else if (componentType == double.class) {
++				for (final double value : (double[]) array) {
++					this.bodies.writeDouble(value);
++				}
++			}
++			else if (componentType == char.class) {
++				for (final char value : (char[]) array) {
++					this.bodies.writeChar(value);
++				}
++			}
++			else {
++				// Any array of references is an Object[]; reading it through reflection costs a call per element.
++				for (final Object element : (Object[]) array) {
++					final int id = ref(element);
++					this.bodies.writeInt(id == DROPPED ? 0 : id);
++				}
++			}
++		}
++	}
++
++	/** Object to id (ids start at 1; 0 is absent) by identity, without boxing the ids. */
++	private static final class IdentityIds {
++		private Object[] keys;
++		private int[] values;
++		private int mask;
++		private int size;
++
++		IdentityIds(final int expected) {
++			int capacity = 1024;
++			while (capacity < (expected << 1)) {
++				capacity <<= 1;
++			}
++			this.keys = new Object[capacity];
++			this.values = new int[capacity];
++			this.mask = capacity - 1;
++		}
++
++		private static int spread(final Object key) {
++			final int hash = System.identityHashCode(key);
++			return hash ^ (hash >>> 15);
++		}
++
++		int get(final Object key) {
++			int slot = spread(key) & this.mask;
++			while (true) {
++				final Object found = this.keys[slot];
++				if (found == key) {
++					return this.values[slot];
++				}
++				if (found == null) {
++					return 0;
++				}
++				slot = (slot + 1) & this.mask;
++			}
++		}
++
++		void put(final Object key, final int value) {
++			if (((this.size + 1) << 1) > this.keys.length) {
++				grow();
++			}
++			insert(key, value);
++			this.size++;
++		}
++
++		private void insert(final Object key, final int value) {
++			int slot = spread(key) & this.mask;
++			while (this.keys[slot] != null) {
++				slot = (slot + 1) & this.mask;
++			}
++			this.keys[slot] = key;
++			this.values[slot] = value;
++		}
++
++		private void grow() {
++			final Object[] oldKeys = this.keys;
++			final int[] oldValues = this.values;
++			this.keys = new Object[oldKeys.length << 1];
++			this.values = new int[oldKeys.length << 1];
++			this.mask = this.keys.length - 1;
++			for (int i = 0; i < oldKeys.length; i++) {
++				if (oldKeys[i] != null) {
++					insert(oldKeys[i], oldValues[i]);
++				}
++			}
++		}
++	}
++
++	/**
++	 * Data output over {@link Bytes} that stores each value straight into its array; the bytes are those of
++	 * {@link DataOutputStream}, without a call per byte.
++	 */
++	public static final class BytesData implements DataOutput, java.io.Closeable {
++		private final Bytes target;
++
++		public BytesData(final Bytes target) {
++			this.target = target;
++		}
++
++		@Override
++		public void write(final int b) {
++			this.target.put1(b);
++		}
++
++		@Override
++		public void write(final byte[] b) {
++			this.target.write(b, 0, b.length);
++		}
++
++		@Override
++		public void write(final byte[] b, final int off, final int len) {
++			this.target.write(b, off, len);
++		}
++
++		@Override
++		public void writeBoolean(final boolean v) {
++			this.target.put1(v ? 1 : 0);
++		}
++
++		@Override
++		public void writeByte(final int v) {
++			this.target.put1(v);
++		}
++
++		@Override
++		public void writeShort(final int v) {
++			this.target.put2(v);
++		}
++
++		@Override
++		public void writeChar(final int v) {
++			this.target.put2(v);
++		}
++
++		@Override
++		public void writeInt(final int v) {
++			this.target.put4(v);
++		}
++
++		@Override
++		public void writeLong(final long v) {
++			this.target.put4((int) (v >>> 32));
++			this.target.put4((int) v);
++		}
++
++		@Override
++		public void writeFloat(final float v) {
++			this.target.put4(Float.floatToIntBits(v));
++		}
++
++		@Override
++		public void writeDouble(final double v) {
++			writeLong(Double.doubleToLongBits(v));
++		}
++
++		@Override
++		public void writeBytes(final String s) {
++			for (int i = 0; i < s.length(); i++) {
++				this.target.put1(s.charAt(i));
++			}
++		}
++
++		@Override
++		public void writeChars(final String s) {
++			for (int i = 0; i < s.length(); i++) {
++				this.target.put2(s.charAt(i));
++			}
++		}
++
++		@Override
++		public void writeUTF(final String s) throws IOException {
++			final ByteArrayOutputStream encoded = new ByteArrayOutputStream();
++			new DataOutputStream(encoded).writeUTF(s);
++			this.target.write(encoded.toByteArray(), 0, encoded.size());
++		}
++
++		@Override
++		public void close() {
++		}
++	}
++
++	/**
++	 * A byte buffer without the locking of {@link ByteArrayOutputStream}, which costs more than the copy itself when
++	 * a save writes millions of single values into it from one thread. The bytes are kept in chunks: a buffer that
++	 * doubles in one array needs the old and the new array at once, which on a phone with a large map is more than
++	 * the heap has left.
++	 */
++	public static final class Bytes extends ByteArrayOutputStream {
++		private static final int MAX_CHUNK = 1 << 20;
++		private byte[][] chunks = new byte[8][];
++		// How much of each chunk is used: a value is never split between chunks, so a chunk can end short.
++		private int[] used = new int[8];
++		private int chunkCount;
++		private byte[] current;
++		private int position;
++		private int total;
++		private int nextSize;
++
++		public Bytes(final int size) {
++			super(1);
++			this.nextSize = Math.max(16, Math.min(size, MAX_CHUNK));
++		}
++
++		private void grow(final int needed) {
++			if ((this.current != null) && ((this.position + needed) <= this.current.length)) {
++				return;
++			}
++			if (this.current != null) {
++				this.used[this.chunkCount - 1] = this.position;
++			}
++			if (this.chunkCount == this.chunks.length) {
++				this.chunks = Arrays.copyOf(this.chunks, this.chunkCount << 1);
++				this.used = Arrays.copyOf(this.used, this.chunkCount << 1);
++			}
++			this.current = new byte[Math.max(this.nextSize, needed)];
++			this.nextSize = Math.min(this.nextSize << 1, MAX_CHUNK);
++			this.chunks[this.chunkCount++] = this.current;
++			this.position = 0;
++		}
++
++		void put1(final int v) {
++			grow(1);
++			this.current[this.position++] = (byte) v;
++			this.total++;
++		}
++
++		void put2(final int v) {
++			grow(2);
++			final byte[] b = this.current;
++			int c = this.position;
++			b[c++] = (byte) (v >>> 8);
++			b[c++] = (byte) v;
++			this.position = c;
++			this.total += 2;
++		}
++
++		void put4(final int v) {
++			grow(4);
++			final byte[] b = this.current;
++			int c = this.position;
++			b[c++] = (byte) (v >>> 24);
++			b[c++] = (byte) (v >>> 16);
++			b[c++] = (byte) (v >>> 8);
++			b[c++] = (byte) v;
++			this.position = c;
++			this.total += 4;
++		}
++
++		@Override
++		public void write(final int b) {
++			put1(b);
++		}
++
++		@Override
++		public void write(final byte[] b, final int off, final int len) {
++			int from = off;
++			int left = len;
++			while (left > 0) {
++				if ((this.current == null) || (this.position == this.current.length)) {
++					grow(1);
++				}
++				final int count = Math.min(left, this.current.length - this.position);
++				System.arraycopy(b, from, this.current, this.position, count);
++				this.position += count;
++				from += count;
++				left -= count;
++			}
++			this.total += len;
++		}
++
++		@Override
++		public int size() {
++			return this.total;
++		}
++
++		@Override
++		public void reset() {
++			this.chunks = new byte[8][];
++			this.used = new int[8];
++			this.chunkCount = 0;
++			this.current = null;
++			this.position = 0;
++			this.total = 0;
++		}
++
++		@Override
++		public void writeTo(final java.io.OutputStream out) throws IOException {
++			for (int i = 0; i < this.chunkCount; i++) {
++				out.write(this.chunks[i], 0, i == (this.chunkCount - 1) ? this.position : this.used[i]);
++			}
++		}
++
++		/** Moves the contents of the other buffer to the end of this one, which leaves it empty. */
++		void take(final Bytes other) {
++			if (this.current != null) {
++				this.used[this.chunkCount - 1] = this.position;
++			}
++			if (other.current != null) {
++				other.used[other.chunkCount - 1] = other.position;
++			}
++			for (int i = 0; i < other.chunkCount; i++) {
++				if (this.chunkCount == this.chunks.length) {
++					this.chunks = Arrays.copyOf(this.chunks, this.chunkCount << 1);
++					this.used = Arrays.copyOf(this.used, this.chunkCount << 1);
++				}
++				this.chunks[this.chunkCount] = other.chunks[i];
++				this.used[this.chunkCount] = other.used[i];
++				this.chunkCount++;
++			}
++			this.total += other.total;
++			// Nothing is written into the last chunk taken, but it is read up to its used part.
++			this.current = null;
++			this.position = this.chunkCount == 0 ? 0 : this.used[this.chunkCount - 1];
++			other.reset();
++		}
++
++		/**
++		 * Writes the contents like {@link #writeTo}, and lets go of each chunk once it is written, so that a buffer
++		 * being compressed does not stay whole while the compressed bytes grow. The buffer is empty afterwards.
++		 */
++		void writeToAndRelease(final java.io.OutputStream out) throws IOException {
++			for (int i = 0; i < this.chunkCount; i++) {
++				out.write(this.chunks[i], 0, i == (this.chunkCount - 1) ? this.position : this.used[i]);
++				this.chunks[i] = null;
++			}
++			reset();
++		}
++
++		@Override
++		public byte[] toByteArray() {
++			final byte[] all = new byte[this.total];
++			int at = 0;
++			for (int i = 0; i < this.chunkCount; i++) {
++				final int length = i == (this.chunkCount - 1) ? this.position : this.used[i];
++				System.arraycopy(this.chunks[i], 0, all, at, length);
++				at += length;
++			}
++			return all;
++		}
++
++		@Override
++		public String toString() {
++			return new String(toByteArray(), java.nio.charset.StandardCharsets.ISO_8859_1);
++		}
++	}
++
++	private static void writeLongUtf(final DataOutputStream out, final String text, final byte kind)
++			throws IOException {
++		out.writeByte(kind);
++		final byte[] bytes = text.getBytes("UTF-8");
++		out.writeInt(bytes.length);
++		out.write(bytes);
++	}
++
++	private static byte[] javaSerialize(final Object object) throws IOException {
++		final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
++		try (ObjectOutputStream out = new ObjectOutputStream(bytes)) {
++			out.writeObject(object);
++		}
++		return bytes.toByteArray();
++	}
++
++	private static Object javaDeserialize(final byte[] bytes) throws IOException {
++		try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
++			return in.readObject();
++		}
++		catch (final ClassNotFoundException exc) {
++			throw new IOException(exc);
++		}
++	}
++
++	private static boolean isListType(final Class<?> type) {
++		Boolean known = LIST_TYPES.get(type);
++		if (known == null) {
++			known = isListTypeByName(type);
++			LIST_TYPES.put(type, known);
++		}
++		return known;
++	}
++
++	private static boolean isListTypeByName(final Class<?> type) {
++		return (type == ArrayList.class) || (type == LinkedList.class) || (type == ArrayDeque.class)
++				|| type.getName().startsWith("java.util.Collections$") && Collection.class.isAssignableFrom(type)
++						&& !Set.class.isAssignableFrom(type)
++				|| type.getName().equals("java.util.Arrays$ArrayList")
++				|| type.getName().startsWith("java.util.ImmutableCollections$List");
++	}
++
++	private static String listName(final Class<?> type) {
++		return (type == LinkedList.class) || (type == ArrayDeque.class) ? type.getName() : ArrayList.class.getName();
++	}
++
++	private static boolean isHashCollection(final Class<?> type) {
++		Boolean known = HASH_COLLECTIONS.get(type);
++		if (known == null) {
++			known = isHashCollectionByName(type);
++			HASH_COLLECTIONS.put(type, known);
++		}
++		return known;
++	}
++
++	private static boolean isHashCollectionByName(final Class<?> type) {
++		return (type == HashSet.class) || (type == LinkedHashSet.class) || (type == TreeSet.class)
++				|| type.getName().startsWith("java.util.Collections$") && Set.class.isAssignableFrom(type);
++	}
++
++	private static boolean isMapType(final Class<?> type) {
++		Boolean known = MAP_TYPES.get(type);
++		if (known == null) {
++			known = isMapTypeByName(type);
++			MAP_TYPES.put(type, known);
++		}
++		return known;
++	}
++
++	private static boolean isMapTypeByName(final Class<?> type) {
++		return (type == HashMap.class) || (type == LinkedHashMap.class) || (type == TreeMap.class) || (type == LinkedTreeMap.class)
++				|| (type == IdentityHashMap.class)
++				|| type.getName().startsWith("java.util.Collections$") && Map.class.isAssignableFrom(type);
++	}
++
++	/** The map class rebuilt on loading; an identity map stays one, its keys need not compare equal. */
++	private static String mapName(final Class<?> type) {
++		return (type == LinkedHashMap.class) || (type == TreeMap.class) || (type == LinkedTreeMap.class)
++				|| (type == IdentityHashMap.class) ? type.getName() : HashMap.class.getName();
++	}
++
++	/**
++	 * Fails when the saved classes cannot be read into this engine's, by the rules above. Changes nothing.
++	 */
++	public static void checkClassesMatch(final byte[] tableBytes) throws IOException {
++		checkClassesMatch(tableBytes, NEWEST_FORMAT);
++	}
++
++	/** The same for a save of the given file format, whose anonymous classes may have been numbered differently. */
++	public static void checkClassesMatch(final byte[] tableBytes, final int formatVersion) throws IOException {
++		final DataInputStream in = new DataInputStream(new ByteArrayInputStream(tableBytes));
++		in.readInt();
++		final int classCount = in.readInt();
++		for (int i = 0; i < classCount; i++) {
++			final String name = in.readUTF();
++			final String[] fieldKeys = new String[in.readInt()];
++			for (int j = 0; j < fieldKeys.length; j++) {
++				fieldKeys[j] = in.readUTF();
++			}
++			newClassInfo(name, fieldKeys, formatVersion).fields();
++		}
++	}
++
++	private static ClassInfo newClassInfo(final String name, final String[] fieldKeys, final int formatVersion) {
++		for (int i = 0; i < fieldKeys.length; i++) {
++			final int end = fieldKeys[i].indexOf('#');
++			if (end > 0) {
++				fieldKeys[i] = classNameInFormat(fieldKeys[i].substring(0, end), formatVersion)
++						+ fieldKeys[i].substring(end);
++			}
++		}
++		return new ClassInfo(classNameInFormat(name, formatVersion), fieldKeys);
++	}
++
++	public static final class Reader {
++		private final Rules rules;
++		private final DataInputStream bodies;
++		private Object[] objects;
++		private byte[] kinds;
++		private ClassInfo[] classes;
++		private int[] classOfObject;
++		private final List<Runnable> deferred = new ArrayList<>();
++		private final List<Runnable> addedFieldHooks = new ArrayList<>();
++
++		public Reader(final Rules rules, final byte[] tableBytes, final DataInputStream bodies) throws IOException {
++			this(rules, tableBytes, bodies, NEWEST_FORMAT);
++		}
++
++		public Reader(final Rules rules, final byte[] tableBytes, final DataInputStream bodies,
++				final int formatVersion) throws IOException {
++			this.rules = rules;
++			this.bodies = bodies;
++			readTable(new DataInputStream(new ByteArrayInputStream(tableBytes)), formatVersion);
++		}
++
++		private void readTable(final DataInputStream in, final int formatVersion) throws IOException {
++			final int count = in.readInt();
++			this.objects = new Object[count];
++			this.kinds = new byte[count];
++			this.classOfObject = new int[count];
++			final int classCount = in.readInt();
++			this.classes = new ClassInfo[classCount];
++			for (int i = 0; i < classCount; i++) {
++				final String name = in.readUTF();
++				final int fieldCount = in.readInt();
++				final String[] fieldNames = new String[fieldCount];
++				for (int j = 0; j < fieldCount; j++) {
++					fieldNames[j] = in.readUTF();
++				}
++				this.classes[i] = newClassInfo(name, fieldNames, formatVersion);
++			}
++			for (int id = 1; id < count; id++) {
++				final byte kind = in.readByte();
++				this.kinds[id] = kind;
++				this.objects[id] = allocate(id, kind, in);
++			}
++		}
++
++		private Object allocate(final int id, final byte kind, final DataInputStream in) throws IOException {
++			try {
++				switch (kind) {
++				case KIND_EXTERNAL:
++					final Object external = this.rules.resolveExternal(in.readUTF());
++					return external;
++				case KIND_STRING:
++					final byte[] utf = new byte[in.readInt()];
++					in.readFully(utf);
++					return new String(utf, "UTF-8");
++				case KIND_BOX:
++					return readBox(in);
++				case KIND_ENUM: {
++					final Class<?> enumType = this.classes[in.readInt()].type();
++					return enumValue(enumType, in.readUTF());
++				}
++				case KIND_CLASS:
++					return classForName(in.readUTF());
++				case KIND_ARRAY: {
++					final int classId = in.readInt();
++					this.classOfObject[id] = classId;
++					return Array.newInstance(this.classes[classId].type().getComponentType(), in.readInt());
++				}
++				case KIND_LIST:
++				case KIND_HASH_COLLECTION:
++				case KIND_MAP:
++					return classForName(in.readUTF()).getDeclaredConstructor().newInstance();
++				case KIND_ENUM_MAP:
++					return readEnumContainer(in, true);
++				case KIND_ENUM_SET:
++					return readEnumContainer(in, false);
++				case KIND_BYTE_BUFFER: {
++					final boolean direct = in.readBoolean();
++					final boolean littleEndian = in.readBoolean();
++					final int capacity = in.readInt();
++					final int position = in.readInt();
++					final int limit = in.readInt();
++					final byte[] bytes = new byte[capacity];
++					in.readFully(bytes);
++					final ByteBuffer buffer = direct ? ByteBuffer.allocateDirect(capacity) : ByteBuffer.allocate(capacity);
++					buffer.order(littleEndian ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
++					buffer.put(bytes);
++					buffer.limit(limit);
++					buffer.position(position);
++					return buffer;
++				}
++				case KIND_SERIALIZED: {
++					final byte[] bytes = new byte[in.readInt()];
++					in.readFully(bytes);
++					return javaDeserialize(bytes);
++				}
++				case KIND_OBJECT: {
++					final int classId = in.readInt();
++					this.classOfObject[id] = classId;
++					return ObjectAllocator.allocate(this.classes[classId].type());
++				}
++				default:
++					throw new IOException("Unknown object kind " + kind);
++				}
++			}
++			catch (final ReflectiveOperationException exc) {
++				throw new IOException(exc);
++			}
++		}
++
++		@SuppressWarnings({ "unchecked", "rawtypes" })
++		private Object readEnumContainer(final DataInputStream in, final boolean map)
++				throws IOException, ClassNotFoundException {
++			if (in.readBoolean()) {
++				final Class keyType = classForName(in.readUTF());
++				return map ? new EnumMap(keyType) : EnumSet.noneOf(keyType);
++			}
++			final byte[] bytes = new byte[in.readInt()];
++			in.readFully(bytes);
++			return javaDeserialize(bytes);
++		}
++
++		@SuppressWarnings({ "unchecked", "rawtypes" })
++		private static Object enumValue(final Class<?> type, final String name) {
++			return Enum.valueOf((Class) type, name);
++		}
++
++		private static Object readBox(final DataInputStream in) throws IOException {
++			final byte type = in.readByte();
++			switch (type) {
++			case 'I':
++				return in.readInt();
++			case 'F':
++				return in.readFloat();
++			case 'D':
++				return in.readDouble();
++			case 'J':
++				return in.readLong();
++			case 'S':
++				return in.readShort();
++			case 'B':
++				return in.readByte();
++			case 'Z':
++				return in.readBoolean();
++			case 'C':
++				return in.readChar();
++			default:
++				throw new IOException("Unknown box " + type);
++			}
++		}
++
++		public Object readRoot() throws IOException {
++			final int rootId = this.bodies.readInt();
++			for (int id = 1; id < this.objects.length; id++) {
++				readBody(id);
++			}
++			for (final Runnable fill : this.deferred) {
++				fill.run();
++			}
++			for (final Runnable hook : this.addedFieldHooks) {
++				hook.run();
++			}
++			return this.objects[rootId];
++		}
++
++		/** The objects of a type the save itself held (not the loading game's own, found by name). */
++		public <T> List<T> objectsOf(final Class<T> type) {
++			final List<T> found = new ArrayList<>();
++			for (int id = 1; id < this.objects.length; id++) {
++				if ((this.kinds[id] == KIND_OBJECT) && type.isInstance(this.objects[id])) {
++					found.add(type.cast(this.objects[id]));
++				}
++			}
++			return found;
++		}
++
++		@SuppressWarnings({ "unchecked", "rawtypes" })
++		private void readBody(final int id) throws IOException {
++			final Object object = this.objects[id];
++			switch (this.kinds[id]) {
++			case KIND_EXTERNAL:
++				if (this.bodies.readBoolean()) {
++					readFields(object, classInfoOf(object));
++				}
++				break;
++			case KIND_ARRAY:
++				readArrayBody(object, object.getClass().getComponentType());
++				break;
++			case KIND_LIST: {
++				final Collection list = (Collection) object;
++				final int size = this.bodies.readInt();
++				for (int i = 0; i < size; i++) {
++					list.add(this.objects[this.bodies.readInt()]);
++				}
++				break;
++			}
++			case KIND_HASH_COLLECTION:
++			case KIND_ENUM_SET:
++				readCollectionContents((Collection) object);
++				break;
++			case KIND_MAP:
++			case KIND_ENUM_MAP:
++				readMapContents((Map) object);
++				break;
++			case KIND_OBJECT: {
++				final ClassInfo info = this.classes[this.classOfObject[id]];
++				readFields(object, info);
++				// Collections and maps were built by their constructor, so their own fields have its values already.
++				if (!(object instanceof Collection) && !(object instanceof Map)) {
++					info.applyAddedFieldDefaults(object);
++					if ((object instanceof SavedAddedFields) && !info.addedFieldNames().isEmpty()) {
++						this.addedFieldHooks.add(() -> ((SavedAddedFields) object).initAddedFields(
++								java.util.Collections.unmodifiableSet(info.addedFieldNames)));
++					}
++				}
++				if (object instanceof Collection) {
++					readCollectionContents((Collection) object);
++				}
++				else if (object instanceof Map) {
++					readMapContents((Map) object);
++				}
++				break;
++			}
++			default:
++				break;
++			}
++		}
++
++		private void readCollectionContents(final Collection collection) throws IOException {
++			final int[] elements = new int[this.bodies.readInt()];
++			for (int i = 0; i < elements.length; i++) {
++				elements[i] = this.bodies.readInt();
++			}
++			this.deferred.add(() -> {
++				for (final int element : elements) {
++					collection.add(this.objects[element]);
++				}
++			});
++		}
++
++		private void readMapContents(final Map map) throws IOException {
++			final int[] entries = new int[this.bodies.readInt() * 2];
++			for (int i = 0; i < entries.length; i++) {
++				entries[i] = this.bodies.readInt();
++			}
++			this.deferred.add(() -> {
++				for (int i = 0; i < entries.length; i += 2) {
++					map.put(this.objects[entries[i]], this.objects[entries[i + 1]]);
++				}
++			});
++		}
++
++		private ClassInfo classInfoOf(final Object object) throws IOException {
++			final String name = object.getClass().getName();
++			for (final ClassInfo info : this.classes) {
++				if (currentClassName(info.name).equals(name)) {
++					return info;
++				}
++			}
++			throw new IOException("No fields stored for " + name);
++		}
++
++		private void readFields(final Object holder, final ClassInfo info) throws IOException {
++			final Field[] fields = info.fields();
++			final Class<?>[] storedTypes = info.storedTypes();
++			final Field[] components = info.components;
++			try {
++				for (int i = 0; i < fields.length; i++) {
++					final Field field = fields[i];
++					final Class<?> type = storedTypes[i];
++					final Object object = components[i] == null ? holder : component(holder, components[i]);
++					if (type == int.class) {
++						final int value = this.bodies.readInt();
++						if (field != null) {
++							field.setInt(object, value);
++						}
++					}
++					else if (type == float.class) {
++						final float value = this.bodies.readFloat();
++						if (field != null) {
++							field.setFloat(object, value);
++						}
++					}
++					else if (type == boolean.class) {
++						final boolean value = this.bodies.readBoolean();
++						if (field != null) {
++							field.setBoolean(object, value);
++						}
++					}
++					else if (type == long.class) {
++						final long value = this.bodies.readLong();
++						if (field != null) {
++							field.setLong(object, value);
++						}
++					}
++					else if (type == double.class) {
++						final double value = this.bodies.readDouble();
++						if (field != null) {
++							field.setDouble(object, value);
++						}
++					}
++					else if (type == short.class) {
++						final short value = this.bodies.readShort();
++						if (field != null) {
++							field.setShort(object, value);
++						}
++					}
++					else if (type == byte.class) {
++						final byte value = this.bodies.readByte();
++						if (field != null) {
++							field.setByte(object, value);
++						}
++					}
++					else if (type == char.class) {
++						final char value = this.bodies.readChar();
++						if (field != null) {
++							field.setChar(object, value);
++						}
++					}
++					else {
++						final int id = this.bodies.readInt();
++						if ((id != DROPPED) && (field != null)) {
++							field.set(object, this.objects[id]);
++						}
++					}
++				}
++			}
++			catch (final IllegalAccessException | IllegalArgumentException exc) {
++				throw new IOException("Reading " + info.name, exc);
++			}
++		}
++
++		/** The holder's part, made with the defaults of an added field when the save is from before the split. */
++		private static Object component(final Object holder, final Field field) throws IOException {
++			try {
++				Object component = field.get(holder);
++				if (component == null) {
++					component = ObjectAllocator.allocate(field.getType());
++					for (final Field partField : fieldsOf(field.getType())) {
++						final Object value = defaultValue(partField);
++						if (value != null) {
++							partField.set(component, value);
++						}
++					}
++					field.set(holder, component);
++				}
++				return component;
++			}
++			catch (final ReflectiveOperationException | IllegalArgumentException exc) {
++				throw new IOException("Making " + field, exc);
++			}
++		}
++
++		private void readArrayBody(final Object array, final Class<?> componentType) throws IOException {
++			if (componentType == int.class) {
++				final int[] values = (int[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readInt();
++				}
++			}
++			else if (componentType == float.class) {
++				final float[] values = (float[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readFloat();
++				}
++			}
++			else if (componentType == boolean.class) {
++				final boolean[] values = (boolean[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readBoolean();
++				}
++			}
++			else if (componentType == byte.class) {
++				this.bodies.readFully((byte[]) array);
++			}
++			else if (componentType == short.class) {
++				final short[] values = (short[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readShort();
++				}
++			}
++			else if (componentType == long.class) {
++				final long[] values = (long[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readLong();
++				}
++			}
++			else if (componentType == double.class) {
++				final double[] values = (double[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readDouble();
++				}
++			}
++			else if (componentType == char.class) {
++				final char[] values = (char[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.bodies.readChar();
++				}
++			}
++			else {
++				final Object[] values = (Object[]) array;
++				for (int i = 0; i < values.length; i++) {
++					values[i] = this.objects[this.bodies.readInt()];
++				}
++			}
++		}
++	}
++
++	private static Class<?> classForName(final String name) throws IOException {
++		try {
++			return Class.forName(currentClassName(name), false, SavedObjectGraph.class.getClassLoader());
++		}
++		catch (final ClassNotFoundException exc) {
++			throw new IOException("This engine has no class " + name, exc);
++		}
++	}
++
++	private static final class ClassInfo {
++		private final String name;
++		private final String[] fieldKeys;
++		private Class<?> type;
++		private Field[] fields;
++		private Class<?>[] storedTypes;
++		/** For a saved field that now belongs to a {@link SavedComponent}, the holder's field of that part. */
++		private Field[] components;
++		/** Fields of this engine's class that the save does not have. */
++		private Field[] addedFields;
++		private Set<String> addedFieldNames;
++		private boolean addedFieldsReported;
++
++		private ClassInfo(final String name, final String[] fieldKeys) {
++			this.name = name;
++			this.fieldKeys = fieldKeys;
++		}
++
++		private Class<?> type() throws IOException {
++			if (this.type == null) {
++				this.type = classForName(this.name);
++			}
++			return this.type;
++		}
++
++		/**
++		 * Matches the saved fields to this engine's by declaring class and name (earlier names count too). A saved field
++		 * the class no longer has is read and dropped; a field the save lacks gets a default after reading. A field
++		 * whose type changed so that the saved value cannot go in is refused, and so is any difference in an anonymous
++		 * class, whose name says nothing about which class it is.
++		 */
++		private Field[] fields() throws IOException {
++			if (this.fields == null) {
++				final Class<?> type = type();
++				final Map<String, Field> current = new LinkedHashMap<>();
++				final Map<String, Field> byFormerName = new HashMap<>();
++				for (final Field field : fieldsOf(type)) {
++					final String declaringClass = field.getDeclaringClass().getName();
++					current.put(declaringClass + "#" + field.getName(), field);
++					final SavedFormerly formerly = field.getAnnotation(SavedFormerly.class);
++					if (formerly != null) {
++						for (final String formerName : formerly.value()) {
++							byFormerName.put(declaringClass + "#" + formerName, field);
++						}
++					}
++				}
++				final Field[] fields = new Field[this.fieldKeys.length];
++				final Class<?>[] storedTypes = new Class<?>[this.fieldKeys.length];
++				final Field[] components = new Field[this.fieldKeys.length];
++				final Set<Field> movedIntoComponents = new HashSet<>();
++				boolean removed = false;
++				for (int i = 0; i < this.fieldKeys.length; i++) {
++					final String[] parts = this.fieldKeys[i].split("#", 3);
++					if (parts.length != 3) {
++						throw new IOException("Bad field key " + this.fieldKeys[i]);
++					}
++					final String nameKey = currentClassName(parts[0]) + "#" + parts[1];
++					Field field = current.remove(nameKey);
++					if (field == null) {
++						field = byFormerName.get(nameKey);
++						if (field == null) {
++							field = movedUp(type, currentClassName(parts[0]), parts[1], current);
++						}
++						if (field == null) {
++							components[i] = componentHolding(type, currentClassName(parts[0]), parts[1]);
++							if (components[i] != null) {
++								field = fieldNamed(components[i].getType(), parts[1]);
++								if (!movedIntoComponents.add(field)) {
++									throw new IOException("Two saved fields fill " + field);
++								}
++							}
++						}
++						else if (current.remove(field.getDeclaringClass().getName() + "#" + field.getName()) == null) {
++							throw new IOException("Two saved fields fill " + field);
++						}
++					}
++					final Class<?> primitive = PRIMITIVES.get(parts[2]);
++					if (field == null) {
++						removed = true;
++						storedTypes[i] = primitive != null ? primitive : Object.class;
++						continue;
++					}
++					checkTypeFits(field, parts[2], primitive);
++					fields[i] = field;
++					storedTypes[i] = field.getType();
++				}
++				if (type.isArray() || type.isEnum()) {
++					current.clear();
++				}
++				if ((removed || !current.isEmpty()) && isAnonymous(type)) {
++					throw new IOException("The anonymous class " + this.name + " changed since the save");
++				}
++				this.addedFields = current.values().toArray(new Field[0]);
++				this.addedFieldNames = new HashSet<>();
++				for (final Field added : this.addedFields) {
++					this.addedFieldNames.add(added.getName());
++					// Checked here so that a default that cannot be made refuses the save before anything is read.
++					defaultValue(added);
++				}
++				this.storedTypes = storedTypes;
++				this.components = components;
++				this.fields = fields;
++			}
++			return this.fields;
++		}
++
++		private Class<?>[] storedTypes() throws IOException {
++			fields();
++			return this.storedTypes;
++		}
++
++		private Set<String> addedFieldNames() throws IOException {
++			fields();
++			return this.addedFieldNames;
++		}
++
++		/**
++		 * Gives the fields the save lacked what a constructor most likely gave them: the declared default, a new empty
++		 * collection or map for a final one, or else the type's zero.
++		 */
++		private void applyAddedFieldDefaults(final Object object) throws IOException {
++			if (addedFieldNames().isEmpty()) {
++				return;
++			}
++			if (!this.addedFieldsReported) {
++				this.addedFieldsReported = true;
++				System.err.println("Saved game: " + this.name + " gets defaults for " + this.addedFieldNames);
++			}
++			try {
++				for (final Field field : this.addedFields) {
++					final Object value = defaultValue(field);
++					if (value != null) {
++						field.set(object, value);
++					}
++				}
++			}
++			catch (final IllegalAccessException | IllegalArgumentException exc) {
++				throw new IOException("Defaults for " + this.name, exc);
++			}
++		}
++	}
++
++	private static final Map<String, Class<?>> PRIMITIVES = new HashMap<>();
++	static {
++		for (final Class<?> primitive : new Class<?>[] { int.class, float.class, boolean.class, long.class, double.class,
++				short.class, byte.class, char.class }) {
++			PRIMITIVES.put(primitive.getName(), primitive);
++		}
++	}
++
++	/**
++	 * Classes that were saved under another name. Anonymous classes are numbered by their place in the file, so the ones
++	 * that games save were given names; saves from before keep loading through this.
++	 */
++	private static final Map<String, String> FORMER_CLASS_NAMES = new HashMap<>();
++	static {
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.parsers.jass.Jass2$CommonEnvironment$7",
++				"com.etheller.warsmash.parsers.jass.TriggerNatives$TimerEventRegistration");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.util.SubscriberSetNotifier$1",
++				"com.etheller.warsmash.util.SubscriberSetNotifier$SubscriberSet");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$1",
++				"com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$IdleFogTimer");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$2",
++				"com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$FogGpuUpdateTimer");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$1",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$FogUpdateTimer");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$2",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$TimeOfDayEventRegistration");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.test.CAbilityChannelTest",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.channel.CAbilityChannel");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.test.CBehaviorChannelTest",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.channel.CBehaviorChannel");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.test.CAbilityCarrionSwarmDummy",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.dreadlord.CAbilityCarrionSwarmDummy");
++		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.test.CBehaviorCarrionSwarmDummy",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.skills.undead.dreadlord.CBehaviorCarrionSwarmDummy");
++	}
++
++	/** For tables that carry no format, as the saves this engine writes. */
++	private static final int NEWEST_FORMAT = Integer.MAX_VALUE;
++	/** The first save format whose engines had named the timer expire event, which renumbered the classes after it. */
++	private static final int FORMAT_TIMER_EVENT_NAMED = 4;
++	private static final String COMMON_ENVIRONMENT = "com.etheller.warsmash.parsers.jass.Jass2$CommonEnvironment$";
++	/**
++	 * Anonymous classes of Jass2's CommonEnvironment whose numbers meant other classes in older saves, by the first
++	 * save format of each meaning.
++	 */
++	private static final Map<String, String> FORMER_CLASS_NAMES_BEFORE_NAMED_TIMER_EVENT = new HashMap<>();
++	private static final Map<String, String> FORMER_CLASS_NAMES_SINCE_NAMED_TIMER_EVENT = new HashMap<>();
++	static {
++		final String observerTimer = "com.etheller.warsmash.parsers.jass.PlayerNatives$ObserverTimer";
++		final String tickEvent = "com.etheller.warsmash.parsers.jass.TriggerNatives$TickEventRegistration";
++		final String unitTickEvent = "com.etheller.warsmash.parsers.jass.TriggerNatives$UnitTickEventRegistration";
++		FORMER_CLASS_NAMES_BEFORE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "8",
++				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimerExpireTriggerEvent");
++		FORMER_CLASS_NAMES_BEFORE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "9", observerTimer);
++		FORMER_CLASS_NAMES_BEFORE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "14", tickEvent);
++		FORMER_CLASS_NAMES_BEFORE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "15", unitTickEvent);
++		FORMER_CLASS_NAMES_SINCE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "8", observerTimer);
++		FORMER_CLASS_NAMES_SINCE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "13", tickEvent);
++		FORMER_CLASS_NAMES_SINCE_NAMED_TIMER_EVENT.put(COMMON_ENVIRONMENT + "14", unitTickEvent);
++	}
++
++	/** A saved class name as the engines of that save format meant it; others are left as they are. */
++	static String classNameInFormat(final String savedName, final int formatVersion) {
++		final String current = (formatVersion < FORMAT_TIMER_EVENT_NAMED ? FORMER_CLASS_NAMES_BEFORE_NAMED_TIMER_EVENT
++				: FORMER_CLASS_NAMES_SINCE_NAMED_TIMER_EVENT).get(savedName);
++		return current != null ? current : savedName;
++	}
++
++	private static String currentClassName(final String savedName) {
++		final String current = FORMER_CLASS_NAMES.get(savedName);
++		return current != null ? current : savedName;
++	}
++
++	private static boolean isAnonymous(final Class<?> type) {
++		return ANONYMOUS_NAME.matcher(type.getName()).matches();
++	}
++
++	private static final java.util.regex.Pattern ANONYMOUS_NAME = java.util.regex.Pattern.compile(".*\\$\\d+(\\$.*)?");
++
++	/** A field that moved from the saved class up into one of its superclasses, still unfilled; else null. */
++	private static Field movedUp(final Class<?> type, final String savedClass, final String name,
++			final Map<String, Field> current) {
++		boolean above = false;
++		for (Class<?> declaring = type; declaring != null; declaring = declaring.getSuperclass()) {
++			if (above) {
++				final Field field = current.get(declaring.getName() + "#" + name);
++				if (field != null) {
++					return field;
++				}
++			}
++			else if (declaring.getName().equals(savedClass)) {
++				above = true;
++			}
++		}
++		return null;
++	}
++
++	/** The {@link SavedComponent} field of the saved class whose part now has a field of this name; else null. */
++	private static Field componentHolding(final Class<?> type, final String savedClass, final String name) {
++		for (final Field field : fieldsOf(type)) {
++			if ((field.getAnnotation(SavedComponent.class) != null)
++					&& field.getDeclaringClass().getName().equals(savedClass)
++					&& (fieldNamed(field.getType(), name) != null)) {
++				return field;
++			}
++		}
++		return null;
++	}
++
++	private static Field fieldNamed(final Class<?> type, final String name) {
++		for (final Field field : fieldsOf(type)) {
++			if (field.getName().equals(name)) {
++				return field;
++			}
++		}
++		return null;
++	}
++
++	/** A primitive must stay the same primitive; a reference must still take what the old type held. */
++	private static void checkTypeFits(final Field field, final String savedTypeName, final Class<?> savedPrimitive)
++			throws IOException {
++		final Class<?> type = field.getType();
++		if (type.getName().equals(savedTypeName)) {
++			return;
++		}
++		if ((savedPrimitive == null) && !type.isPrimitive()) {
++			final Class<?> savedType;
++			try {
++				savedType = Class.forName(currentClassName(savedTypeName), false,
++						SavedObjectGraph.class.getClassLoader());
++			}
++			catch (final ClassNotFoundException exc) {
++				throw new IOException("The saved type " + savedTypeName + " of " + field + " is gone", exc);
++			}
++			if (type.isAssignableFrom(savedType)) {
++				return;
++			}
++		}
++		throw new IOException(field + " was saved as " + savedTypeName);
++	}
++
++	/** What {@link ClassInfo#applyAddedFieldDefaults} puts in; null leaves the type's zero. */
++	private static Object defaultValue(final Field field) throws IOException {
++		final Class<?> type = field.getType();
++		final SavedDefault declared = field.getAnnotation(SavedDefault.class);
++		if (declared != null) {
++			return parseDefault(field, type, declared.value());
++		}
++		if (Modifier.isFinal(field.getModifiers())
++				&& (Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type))) {
++			return emptyContainer(field, type);
++		}
++		return null;
++	}
++
++	private static Object emptyContainer(final Field field, final Class<?> type) throws IOException {
++		if (!type.isInterface() && !Modifier.isAbstract(type.getModifiers())) {
++			try {
++				final java.lang.reflect.Constructor<?> constructor = type.getDeclaredConstructor();
++				constructor.setAccessible(true);
++				return constructor.newInstance();
++			}
++			catch (final ReflectiveOperationException exc) {
++				throw new IOException("No empty " + type.getName() + " for " + field + "; implement SavedAddedFields",
++						exc);
++			}
++		}
++		if (type.isAssignableFrom(ArrayList.class)) {
++			return new ArrayList<>();
++		}
++		if (type.isAssignableFrom(HashSet.class)) {
++			return new HashSet<>();
++		}
++		if (type.isAssignableFrom(ArrayDeque.class)) {
++			return new ArrayDeque<>();
++		}
++		if (type.isAssignableFrom(HashMap.class)) {
++			return new HashMap<>();
++		}
++		if (type.isAssignableFrom(TreeSet.class)) {
++			return new TreeSet<>();
++		}
++		if (type.isAssignableFrom(TreeMap.class)) {
++			return new TreeMap<>();
++		}
++		throw new IOException("No empty " + type.getName() + " for " + field + "; implement SavedAddedFields");
++	}
++
++	@SuppressWarnings({ "unchecked", "rawtypes" })
++	private static Object parseDefault(final Field field, final Class<?> type, final String text) throws IOException {
++		try {
++			if ((type == int.class) || (type == Integer.class)) {
++				return Integer.valueOf(text);
++			}
++			if ((type == float.class) || (type == Float.class)) {
++				return Float.valueOf(text);
++			}
++			if ((type == boolean.class) || (type == Boolean.class)) {
++				return Boolean.valueOf(text);
++			}
++			if ((type == long.class) || (type == Long.class)) {
++				return Long.valueOf(text);
++			}
++			if ((type == double.class) || (type == Double.class)) {
++				return Double.valueOf(text);
++			}
++			if ((type == short.class) || (type == Short.class)) {
++				return Short.valueOf(text);
++			}
++			if ((type == byte.class) || (type == Byte.class)) {
++				return Byte.valueOf(text);
++			}
++			if (((type == char.class) || (type == Character.class)) && (text.length() == 1)) {
++				return text.charAt(0);
++			}
++			if (type == String.class) {
++				return text;
++			}
++			if (type.isEnum()) {
++				return Enum.valueOf((Class) type, text);
++			}
++		}
++		catch (final IllegalArgumentException exc) {
++			throw new IOException("Bad SavedDefault \"" + text + "\" on " + field, exc);
++		}
++		throw new IOException("SavedDefault does not fit " + field);
++	}
++
++	/**
++	 * Saved objects come back without running constructors, which on both desktop and Android is available through
++	 * the Unsafe class of the platform.
++	 */
++	private static final class ObjectAllocator {
++		private static final Object UNSAFE;
++		private static final java.lang.reflect.Method ALLOCATE;
++		static {
++			try {
++				final Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
++				final Field theUnsafe = unsafeClass.getDeclaredField("theUnsafe");
++				theUnsafe.setAccessible(true);
++				UNSAFE = theUnsafe.get(null);
++				ALLOCATE = unsafeClass.getMethod("allocateInstance", Class.class);
++			}
++			catch (final ReflectiveOperationException exc) {
++				throw new ExceptionInInitializerError(exc);
++			}
++		}
++
++		private static Object allocate(final Class<?> type) throws ReflectiveOperationException {
++			if (Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type)) {
++				return construct(type);
++			}
++			return ALLOCATE.invoke(UNSAFE, type);
++		}
++
++		/** The JDK collection underneath needs its own constructor; the subclass's fields are read over it after. */
++		private static Object construct(final Class<?> type) throws ReflectiveOperationException {
++			final java.lang.reflect.Constructor<?> constructor = type.getDeclaredConstructors()[0];
++			constructor.setAccessible(true);
++			final Class<?>[] parameters = constructor.getParameterTypes();
++			final Object[] arguments = new Object[parameters.length];
++			for (int i = 0; i < parameters.length; i++) {
++				if (parameters[i].isPrimitive()) {
++					arguments[i] = Array.get(Array.newInstance(parameters[i], 1), 0);
++				}
++			}
++			return constructor.newInstance(arguments);
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedTransient.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedTransient.java
+new file mode 100644
+index 0000000..8a3b77f
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedTransient.java
+@@ -0,0 +1,15 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.save;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++/**
++ * A field that is a cache of what the rest of the game state works out: a save leaves it out and a loaded game starts
++ * with it empty.
++ */
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.FIELD)
++public @interface SavedTransient {
++}
+diff --git a/warsmash b/warsmash
+new file mode 120000
+index 0000000..cd5cbdb
+--- /dev/null
++++ b/warsmash
+@@ -0,0 +1 @@
++/home/user/Blizzard/app/warsmash
+\ No newline at end of file
