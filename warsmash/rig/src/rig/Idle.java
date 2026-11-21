@@ -6,6 +6,7 @@ public class Idle extends Scenario {
   static final int FRAMES = Integer.parseInt(System.getenv().getOrDefault("FRAMES", "300"));
   boolean wasShown;
   public boolean frame(War3MapViewer v, int n) {
+    FrameStats.frame(v, n, FRAMES);
     if (n % 100 == 0) { String count = ""; String types = System.getenv("COUNT"); if (types != null) for (String t : types.split(",")) { int k = 0; java.util.Map<Integer, Integer> owners = new java.util.TreeMap<>(); for (CUnit u : v.simulation.getUnits()) if (u.getTypeId().toString().equals(t) && !u.isDead()) { k++; owners.merge(u.getPlayerIndex(), 1, Integer::sum); } count += " " + t + "=" + k + (owners.size() > 0 ? owners.toString() : ""); } System.err.println("RIG: tick " + v.simulation.getGameTurnTick() + " units " + v.simulation.getUnits().size() + count); }
     com.etheller.warsmash.viewer5.handlers.w3x.ui.CineFilter f = null; try { var fld = com.etheller.warsmash.WarsmashGdxMapScreen.class.getDeclaredField("minimapUI"); fld.setAccessible(true); var ui = (com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI) fld.get(Main.mapScreen); f = ui == null ? null : ui.getCineFilter(); } catch (Exception e) { }
     if (n == 50) System.err.println("RIG: cine filter object " + f);

@@ -34,7 +34,7 @@ application { mainClass = System.getenv('RIGMAIN') ?: 'rig.Main' }
 sourceSets.main.kotlin.srcDirs = sourceSets.main.java.srcDirs
 kotlin { jvmToolchain(21) }
 tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17 }
-tasks.named('run') { workingDir = file('run'); jvmArgs = ['-Djava.library.path=' + NATIVE.path, '-Xmx6g'] + (System.getenv('COMPUTERS') ? ['-Dwarsmash.computerPlayers=' + System.getenv('COMPUTERS')] : [])
+tasks.named('run') { workingDir = file('run'); jvmArgs = ['-Djava.library.path=' + NATIVE.path, '-Xmx6g'] + (System.getenv('COMPUTERS') ? ['-Dwarsmash.computerPlayers=' + System.getenv('COMPUTERS')] : []) + ['-Dwarsmash.logPreload=true'] + (System.getenv('TRACELOADS') ? ['-Dwarsmash.traceLoads=true'] : [])
   environment 'WSRC', W.path
   doFirst {
     // The engine's assets, linked into run/ (run/ holds only links, never written through). Its shaders are read as

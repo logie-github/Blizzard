@@ -10,6 +10,7 @@ public class Skirmish extends Scenario {
   int[] lost = new int[4]; java.util.Set<CUnit> seen = new java.util.HashSet<>();
   static final int FRAMES = Integer.parseInt(System.getenv().getOrDefault("FRAMES", "6000"));
   public boolean frame(War3MapViewer v, int n) {
+    FrameStats.frame(v, n, FRAMES);
     CSimulation s = v.simulation;
     for (CUnit u : s.getUnits()) { if (u.isDead() && seen.add(u) && u.getPlayerIndex() < 4) lost[u.getPlayerIndex()]++; }
     if (n % 300 == 0) {

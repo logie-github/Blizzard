@@ -1,0 +1,1125 @@
+diff --git a/core/src/com/etheller/warsmash/datasources/MpqDataSource.java b/core/src/com/etheller/warsmash/datasources/MpqDataSource.java
+index 1c733ab..07ef65c 100644
+--- a/core/src/com/etheller/warsmash/datasources/MpqDataSource.java
++++ b/core/src/com/etheller/warsmash/datasources/MpqDataSource.java
+@@ -40,7 +40,9 @@ public class MpqDataSource implements DataSource {
+ 	}
+ 
+ 	@Override
+-	public InputStream getResourceAsStream(final String filepath) throws IOException {
++	public synchronized InputStream getResourceAsStream(final String filepath) throws IOException {
++		// Blizzard launcher: read whole under the lock, so that another thread preloading assets cannot move the
++		// shared channel between two reads of this one (files here are small: textures, models, sounds).
+ 		ArchivedFile file = null;
+ 		try {
+ 			file = this.archive.lookupHash2(new HashLookup(filepath));
+@@ -53,13 +55,16 @@ public class MpqDataSource implements DataSource {
+ 				throw new IOException(exc);
+ 			}
+ 		}
+-		final ArchivedFileStream stream = new ArchivedFileStream(this.inputChannel, this.extractor, file);
+-		final InputStream newInputStream = Channels.newInputStream(stream);
+-		return newInputStream;
++		try (final ArchivedFileStream stream = new ArchivedFileStream(this.inputChannel, this.extractor, file)) {
++			final long size = stream.size();
++			final ByteBuffer buffer = ByteBuffer.allocate((int) size);
++			stream.read(buffer);
++			return new java.io.ByteArrayInputStream(buffer.array());
++		}
+ 	}
+ 
+ 	@Override
+-	public ByteBuffer read(final String path) throws IOException {
++	public synchronized ByteBuffer read(final String path) throws IOException {
+ 		ArchivedFile file = null;
+ 		try {
+ 			file = this.archive.lookupHash2(new HashLookup(path));
+@@ -81,7 +86,7 @@ public class MpqDataSource implements DataSource {
+ 	}
+ 
+ 	@Override
+-	public File getFile(final String filepath) throws IOException {
++	public synchronized File getFile(final String filepath) throws IOException {
+ 		// TODO Auto-generated method stub
+ 		// System.out.println("getting it from the outside: " +
+ 		// filepath);
+@@ -118,7 +123,7 @@ public class MpqDataSource implements DataSource {
+ 	}
+ 
+ 	@Override
+-	public boolean has(final String filepath) {
++	public synchronized boolean has(final String filepath) {
+ 		try {
+ 			this.archive.lookupPath(filepath);
+ 			return true;
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index aa4989c..f19f438 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -9616,7 +9616,6 @@ public class Jass2 {
+ 				(arguments, globalScope, triggerScope) -> {
+ 					final String funcName = arguments.get(0).visit(StringJassValueVisitor.getInstance());
+ 					final Integer functionByName = globalScope.getUserFunctionInstructionPtr(funcName);
+-					System.out.println("ExecuteFunc (\"" + funcName + "\")");
+ 					if (functionByName != null) {
+ 						// TODO below TriggerExecutionScope.EMPTY is probably not correct
+ 						globalScope.queueThread(globalScope.createThread(functionByName, TriggerExecutionScope.EMPTY));
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Tmpgen.java b/core/src/com/etheller/warsmash/parsers/jass/Tmpgen.java
+index 7d32790..ec3bc00 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Tmpgen.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Tmpgen.java
+@@ -12,8 +12,6 @@ public class Tmpgen {
+ 			final String line = scanner.nextLine();
+ 			if (line.startsWith("type ")) {
+ 				final String[] splitLine = line.split("\\s+");
+-				System.out.println("final HandleJassType " + splitLine[1] + "Type = globals.registerHandleType(\""
+-						+ splitLine[1] + "\");");
+ 			}
+ 		}
+ 
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Tmpgen2.java b/core/src/com/etheller/warsmash/parsers/jass/Tmpgen2.java
+index b9124c1..3263e52 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Tmpgen2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Tmpgen2.java
+@@ -12,14 +12,11 @@ public class Tmpgen2 {
+ 			final String line = scanner.nextLine();
+ 			final String[] splitLine = line.trim().split("\\s+");
+ 			if (line.trim().startsWith("//")) {
+-				System.out.println(line);
+ 			}
+ 			else {
+ 				if (splitLine.length > 3) {
+-					System.out.println(splitLine[2] + ",");
+ 				}
+ 				else {
+-					System.out.println();
+ 				}
+ 			}
+ 		}
+diff --git a/core/src/com/etheller/warsmash/pjblp/Blp2.java b/core/src/com/etheller/warsmash/pjblp/Blp2.java
+index 3d171af..d58f57c 100644
+--- a/core/src/com/etheller/warsmash/pjblp/Blp2.java
++++ b/core/src/com/etheller/warsmash/pjblp/Blp2.java
+@@ -229,7 +229,7 @@ public class Blp2 {
+ 	 * <p>
+ 	 * DXT1 is also known as BC1.
+ 	 */
+-	static imageData decodeDxt1(DataView src, int width, int height, imageData img) {
++	static synchronized imageData decodeDxt1(DataView src, int width, int height, imageData img) {
+ 		for (int blockY = 0, blockHeight = height / 4; blockY < blockHeight; blockY++) {
+ 			for (int blockX = 0, blockWidth = width / 4; blockX < blockWidth; blockX++) {
+ 				var i = 8 * (blockY * blockWidth + blockX);
+@@ -261,7 +261,7 @@ public class Blp2 {
+ 	 * <p>
+ 	 * DXT3 is also known as BC2.
+ 	 */
+-	static imageData decodeDxt3(DataView src, int width, int height, imageData img) {
++	static synchronized imageData decodeDxt3(DataView src, int width, int height, imageData img) {
+ 		var rowBytes = width * 4;
+ 		for (int blockY = 0, blockHeight = height / 4; blockY < blockHeight; blockY++) {
+ 			for (int blockX = 0, blockWidth = width / 4; blockX < blockWidth; blockX++) {
+@@ -294,7 +294,7 @@ public class Blp2 {
+ 	 * <p>
+ 	 * DXT5 is also known as BC3.
+ 	 */
+-	static imageData decodeDxt5(DataView src, int width, int height, imageData img) {
++	static synchronized imageData decodeDxt5(DataView src, int width, int height, imageData img) {
+ 		var rowBytes = width * 4;
+ 		for (int blockY = 0, blockHeight = height / 4; blockY < blockHeight; blockY++) {
+ 			for (int blockX = 0, blockWidth = width / 4; blockX < blockWidth; blockX++) {
+diff --git a/core/src/com/etheller/warsmash/util/ImageUtils.java b/core/src/com/etheller/warsmash/util/ImageUtils.java
+index 6494e1f..243d88c 100644
+--- a/core/src/com/etheller/warsmash/util/ImageUtils.java
++++ b/core/src/com/etheller/warsmash/util/ImageUtils.java
+@@ -38,7 +38,42 @@ public final class ImageUtils {
+ 		return textureData.consumePixmap();
+ 	}
+ 
++	// Blizzard launcher: textures decoded ahead of the load that needs them, by the threads that preload a map's unit
++	// types (decoding a BLP is most of the time a model takes to load). Found by what the file holds, and taken out
++	// when used.
++	private static final java.util.concurrent.ConcurrentHashMap<Long, Object[]> PREDECODED = new java.util.concurrent.ConcurrentHashMap<>();
++
++	private static long contentKey(final byte[] bytes) {
++		final java.util.zip.CRC32 crc = new java.util.zip.CRC32();
++		crc.update(bytes, 0, bytes.length);
++		return (crc.getValue() << 32) | bytes.length;
++	}
++
++	/** Decodes a BLP now and keeps the result for the {@link #getPixmap(byte[])} of the same file. */
++	public static void predecode(final byte[] bytes) {
++		final long key = contentKey(bytes);
++		if (PREDECODED.containsKey(key)) {
++			return;
++		}
++		final var data = Blp2.getImageData(Blp2.decode(bytes), 0);
++		PREDECODED.put(key, new Object[] { data.width, data.height, data.data });
++	}
++
++	public static void clearPredecoded() {
++		PREDECODED.clear();
++	}
++
+ 	public static Pixmap getPixmap(byte[] bytes) throws IOException {
++		if (!PREDECODED.isEmpty()) {
++			final Object[] done = PREDECODED.remove(contentKey(bytes));
++			if (done != null) {
++				final int width = (Integer) done[0];
++				final int height = (Integer) done[1];
++				final var ready = new Pixmap(width, height, Pixmap.Format.RGBA8888);
++				ready.setPixels((ByteBuffer) BufferUtils.createByteBuffer(width * height * 4).put((byte[]) done[2]).flip());
++				return ready;
++			}
++		}
+ 		var image = Blp2.decode(bytes);
+ 		var data = Blp2.getImageData(image, 0);
+ 		var pixmap = new Pixmap(data.width, data.height, Pixmap.Format.RGBA8888);
+diff --git a/core/src/com/etheller/warsmash/viewer5/ModelViewer.java b/core/src/com/etheller/warsmash/viewer5/ModelViewer.java
+index a90aff0..c9db4b6 100644
+--- a/core/src/com/etheller/warsmash/viewer5/ModelViewer.java
++++ b/core/src/com/etheller/warsmash/viewer5/ModelViewer.java
+@@ -138,6 +138,8 @@ public abstract class ModelViewer {
+ 		return null;
+ 	}
+ 
++	private static final boolean TRACE_LOADS = Boolean.getBoolean("warsmash.traceLoads");
++
+ 	public Resource load(final String src, final PathSolver pathSolver, final Object solverParams) {
+ 		String finalSrc = src;
+ 		String extension = "";
+@@ -182,6 +184,9 @@ public abstract class ModelViewer {
+ 					}
+ 				}
+ 
++				if (TRACE_LOADS) {
++					System.err.println("RIG: load miss " + finalSrc);
++				}
+ 				final ResourceHandler handler = (ResourceHandler) handlerAndDataType[0];
+ 				final Resource resource = handler.construct(new ResourceHandlerConstructionParams(this, handler,
+ 						extension, pathSolver, isFetch ? finalSrc : ""));
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/AssetPredecoder.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/AssetPredecoder.java
+new file mode 100644
+index 0000000..404d11d
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/AssetPredecoder.java
+@@ -0,0 +1,67 @@
++package com.etheller.warsmash.viewer5.handlers.w3x;
++
++import java.io.InputStream;
++import java.nio.ByteBuffer;
++
++import org.apache.commons.io.IOUtils;
++
++import com.etheller.warsmash.datasources.DataSource;
++import com.etheller.warsmash.util.ImageUtils;
++import com.etheller.warsmash.viewer5.handlers.mdx.ReplaceableIds;
++import com.hiveworkshop.rms.parsers.mdlx.MdlxModel;
++import com.hiveworkshop.rms.parsers.mdlx.MdlxTexture;
++
++/**
++ * Blizzard launcher: decodes the textures of a model ahead of the load that will need them (it can run on a thread of
++ * its own: nothing here touches the graphics card). Decoding a BLP is most of what loading a model takes.
++ */
++final class AssetPredecoder {
++	private AssetPredecoder() {
++	}
++
++	static byte[] readAll(final DataSource dataSource, final String path) {
++		try {
++			if (!dataSource.has(path)) {
++				return null;
++			}
++			try (InputStream in = dataSource.getResourceAsStream(path)) {
++				return in == null ? null : IOUtils.toByteArray(in);
++			}
++		}
++		catch (final Exception exc) {
++			return null;
++		}
++	}
++
++	static void predecodeModel(final DataSource dataSource, final String modelPath) {
++		try {
++			final byte[] model = readAll(dataSource, modelPath);
++			if (model == null) {
++				return;
++			}
++			final MdlxModel parser = new MdlxModel(ByteBuffer.wrap(model));
++			for (final MdlxTexture texture : parser.getTextures()) {
++				String path = texture.getPath();
++				final int replaceableId = texture.getReplaceableId();
++				if (replaceableId != 0) {
++					final String idString = ((replaceableId == 1) || (replaceableId == 2)) ? ReplaceableIds.getIdString(0)
++							: "";
++					path = "ReplaceableTextures\\" + ReplaceableIds.getPathString(replaceableId) + idString + ".blp";
++				}
++				else if ("".equals(path)) {
++					path = "Textures\\white.blp";
++				}
++				if ((path == null) || !path.toLowerCase().endsWith(".blp")) {
++					continue;
++				}
++				final byte[] bytes = readAll(dataSource, path);
++				if (bytes != null) {
++					ImageUtils.predecode(bytes);
++				}
++			}
++		}
++		catch (final Throwable exc) {
++			// whatever cannot be decoded early is decoded when its model loads, as before
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+index 64e2a47..ec96b3d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+@@ -715,7 +715,6 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 			String file = row.readSLKTag("file");//
+ 			if ("".equals(file)) {
+ 				final String blaBla = row.readSLKTag("file");
+-				System.out.println("bla");
+ 			}
+ 			if (file.toLowerCase().endsWith(".mdl")) {
+ 				file = file.substring(0, file.length() - 4);
+@@ -774,7 +773,6 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 				this.terrain.flushRemovedTerrainCells();
+ 			}
+ 
+-			System.out.println("Loading terrain doodad: " + file);
+ 			this.terrainDoodads.add(new TerrainDoodad(this, model, row, doodad, pathingTextureImage));
+ 		}
+ 
+@@ -995,8 +993,145 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 		this.anyReady = true;
+ 	}
+ 
++	/**
++	 * Blizzard launcher: loads, while the map loads, the models and textures of every kind of unit the units on the
++	 * map can make or build (the buildings a worker builds, the units a building trains, what it upgrades to, and so
++	 * on down the tree). Each was loaded when the first one of its kind was made, in the middle of play: a frame of a
++	 * fifth of a second on a phone when a Barracks went up or the first Footman came out, again for every new kind.
++	 */
++	private final Set<War3ID> placedUnitTypes = new HashSet<>();
++	private boolean unitTypesPreloaded = false;
++
++	public void preloadUnitTypes() {
++		final long start = System.nanoTime();
++		final java.util.ArrayDeque<War3ID> queue = new java.util.ArrayDeque<>();
++		final Set<War3ID> seen = new HashSet<>();
++		queue.addAll(this.placedUnitTypes);
++		final String[] fields = { "Builds", "Trains", "Upgrade" };
++		while (!queue.isEmpty()) {
++			final War3ID id = queue.poll();
++			if (!seen.add(id)) {
++				continue;
++			}
++			final GameObject row = this.allObjectData.getUnits().get(id);
++			if (row == null) {
++				continue;
++			}
++			for (final String field : fields) {
++				final List<String> ids = row.getFieldAsList(field);
++				if (ids != null) {
++					for (final String next : ids) {
++						final String trimmed = next.trim();
++						if (trimmed.length() == 4) {
++							queue.add(War3ID.fromString(trimmed));
++						}
++					}
++				}
++			}
++		}
++		// What is loaded, in order: each unit type's render data, then the art of the abilities those units have (a spell
++		// cast for the first time loaded its effect models the same way, in the middle of play).
++		final List<String> modelPaths = new java.util.ArrayList<>();
++		final List<Runnable> loads = new java.util.ArrayList<>();
++		for (final War3ID id : seen) {
++			if (this.renderUnitTypeData.peek(id) != null) {
++				continue;
++			}
++			modelPaths.add(this.renderUnitTypeData.getModelPath(id));
++			loads.add(() -> this.renderUnitTypeData.get(id));
++		}
++		final int unitTypeCount = loads.size();
++		final Set<War3ID> abilities = new HashSet<>();
++		abilities.add(War3ID.fromString("Asla"));
++		for (final War3ID id : seen) {
++			final GameObject row = this.allObjectData.getUnits().get(id);
++			if (row == null) {
++				continue;
++			}
++			for (final String field : new String[] { "abilList", "heroAbilList" }) {
++				final List<String> ids = row.getFieldAsList(field);
++				if (ids != null) {
++					for (final String next : ids) {
++						final String trimmed = next.trim();
++						if (trimmed.length() == 4) {
++							abilities.add(War3ID.fromString(trimmed));
++						}
++					}
++				}
++			}
++		}
++		final Set<String> effectModels = new HashSet<>();
++		for (final War3ID ability : abilities) {
++			for (final CEffectType effectType : new CEffectType[] { CEffectType.EFFECT, CEffectType.TARGET,
++					CEffectType.CASTER, CEffectType.SPECIAL, CEffectType.AREA_EFFECT }) {
++				try {
++					final List<EffectAttachmentUI> effects = getEffectAttachmentUIList(ability, effectType);
++					if (effects != null) {
++						for (final EffectAttachmentUI effect : effects) {
++							final String modelPath = effect.getModelPath();
++							if ((modelPath != null) && !modelPath.isEmpty() && effectModels.add(modelPath)) {
++								modelPaths.add(modelPath);
++								loads.add(() -> loadModelMdx(modelPath));
++							}
++						}
++					}
++				}
++				catch (final Exception exc) {
++					// an ability without art
++				}
++			}
++		}
++		// The textures are decoded on other threads a few models ahead of the loading here, which has to be on this
++		// thread (it makes graphics objects); the decoding was most of the time.
++		int loaded = 0;
++		final int threads = Math.max(1, Math.min(6, Runtime.getRuntime().availableProcessors() - 1));
++		final int window = threads * 2;
++		final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(threads,
++				runnable -> {
++					final Thread thread = new Thread(runnable, "unit type preload");
++					thread.setDaemon(true);
++					return thread;
++				});
++		final java.util.List<java.util.concurrent.Future<?>> ahead = new java.util.ArrayList<>();
++		try {
++			int submitted = 0;
++			for (int k = 0; k < loads.size(); k++) {
++				while ((submitted < loads.size()) && (submitted < (k + window))) {
++					final String submit = modelPaths.get(submitted++);
++					ahead.add(pool.submit(() -> {
++						if (submit != null) {
++							AssetPredecoder.predecodeModel(this.dataSource, submit);
++						}
++					}));
++				}
++				try {
++					ahead.get(k).get();
++				}
++				catch (final Exception exc) {
++					// not decoded ahead: decoded when loaded
++				}
++				try {
++					loads.get(k).run();
++					loaded++;
++				}
++				catch (final Exception exc) {
++					// a model that cannot be loaded now is no worse off than it was: it fails when it is used
++				}
++			}
++		}
++		finally {
++			pool.shutdownNow();
++			ImageUtils.clearPredecoded();
++		}
++		if (Boolean.getBoolean("warsmash.logPreload")) {
++			System.err.println("RIG: preloaded " + loaded + " models (" + unitTypeCount + " unit types, " + effectModels.size() + " ability effects) in "
++					+ ((System.nanoTime() - start) / 1000000) + " ms");
++		}
++	}
++
+ 	private CWidget createNewUnit(final Warcraft3MapRuntimeObjectData modifications, final War3ID unitId, float unitX,
+ 			float unitY, final int playerIndex, int customTeamColor, final float unitAngle) {
++		this.placedUnitTypes.add(unitId);
+ 		Splat buildingUberSplat = null;
+ 		SplatMover buildingUberSplatDynamicIngame = null;
+ 		Pixmap buildingPathingPixelMap = null;
+@@ -1193,8 +1328,22 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 				}
+ 			}
+ 
+-			while (this.updateTime >= WarsmashConstants.SIMULATION_STEP_TIME) {
++			// Blizzard launcher: once the map's script has made its starting units (its first step), what they can
++			// make is loaded, before the game goes on (the loading screen is still the last thing shown).
++			if (!this.unitTypesPreloaded && (this.simulation.getGameTurnTick() >= 1) && !this.placedUnitTypes.isEmpty()) {
++				this.unitTypesPreloaded = true;
++				preloadUnitTypes();
++				this.updateTime = 0;
++			}
++			// Blizzard launcher: path searches are worked a little in every frame, not all inside the steps.
++			this.simulation.updatePathfinding(CSimulation.PATHFINDING_FRAME_SLICE_NANOS);
++
++			// Blizzard launcher: at most two steps in a frame; a frame that ran late used to run all the steps it owed,
++			// a long frame that made the next one just as long.
++			int stepsThisFrame = 0;
++			while ((this.updateTime >= WarsmashConstants.SIMULATION_STEP_TIME) && (stepsThisFrame < 2)) {
+ 				if (this.gameTurnManager.getLatestCompletedTurn() >= this.simulation.getGameTurnTick()) {
++					stepsThisFrame++;
+ 					this.updateTime -= WarsmashConstants.SIMULATION_STEP_TIME;
+ 					this.simulation.update();
+ 					this.gameTurnManager.turnCompleted(this.simulation.getGameTurnTick());
+@@ -1207,6 +1356,10 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 					break;
+ 				}
+ 			}
++			if (this.updateTime > (WarsmashConstants.SIMULATION_STEP_TIME * 6)) {
++				// Far behind (a device that cannot keep up): the game goes on from here, not from time it owes.
++				this.updateTime = WarsmashConstants.SIMULATION_STEP_TIME * 2;
++			}
+ 			if (this.dncTerrain != null) {
+ 				this.dncTerrain.setFrameByRatio(
+ 						this.simulation.getGameTimeOfDay() / this.simulation.getGameplayConstants().getGameDayHours());
+@@ -1348,7 +1501,6 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 					}
+ 					final float x = unit.getX();
+ 					final float y = unit.getY();
+-					System.out.println("Selecting a unit at " + x + "," + y);
+ 					if (unit.isShowSelectionCircleAboveWater()) {
+ 						splats.get(path).aboveWater = true;
+ 					}
+@@ -2937,7 +3089,7 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 
+ 							@Override
+ 							public Pixmap getBuildingPathingPixelMap(final War3ID rawcode) {
+-								return War3MapViewer.this.renderUnitTypeData.get(rawcode).getBuildingPathingPixelMap();
++								return War3MapViewer.this.renderUnitTypeData.getBuildingPathingPixelMap(rawcode);
+ 							}
+ 
+ 							@Override
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/PathingGrid.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/PathingGrid.java
+index 5826fd1..03cbe42 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/PathingGrid.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/PathingGrid.java
+@@ -147,22 +147,18 @@ public class PathingGrid {
+ 				(positionY - (height / 2)) + offsetY, width, height);
+ 		if (cWorldCollision.intersectsAnythingOtherThan(pathingMapRectangle, unitToExcludeFromCollisionChecks,
+ 				MovementType.AMPHIBIOUS, true)) {
+-			System.out.println("intersects amph unit");
+ 			anyPathingTypesInRegion |= PathingFlags.UNBUILDABLE | PathingFlags.UNWALKABLE | PathingFlags.UNSWIMABLE;
+ 		}
+ 		if (cWorldCollision.intersectsAnythingOtherThan(pathingMapRectangle, unitToExcludeFromCollisionChecks,
+ 				MovementType.FLOAT, true)) {
+-			System.out.println("intersects float unit");
+ 			anyPathingTypesInRegion |= PathingFlags.UNSWIMABLE;
+ 		}
+ 		if (cWorldCollision.intersectsAnythingOtherThan(pathingMapRectangle, unitToExcludeFromCollisionChecks,
+ 				MovementType.FLY, true)) {
+-			System.out.println("intersects fly unit");
+ 			anyPathingTypesInRegion |= PathingFlags.UNFLYABLE;
+ 		}
+ 		if (cWorldCollision.intersectsAnythingOtherThan(pathingMapRectangle, unitToExcludeFromCollisionChecks,
+ 				MovementType.FOOT, true)) {
+-			System.out.println("intersects foot unit");
+ 			anyPathingTypesInRegion |= PathingFlags.UNBUILDABLE | PathingFlags.UNWALKABLE;
+ 		}
+ 		for (final CBuildingPathingType pathingType : preventPathingTypes) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+index 3f292f8..63b11d3 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+@@ -765,9 +765,6 @@ public class Terrain {
+ 	}
+ 
+ 	public void logRomp(final int x, final int y) {
+-		System.out.println("romp: " + this.corners[x][y].romp);
+-		System.out.println("ramp: " + this.corners[x][y].isRamp());
+-		System.out.println("cliff: " + this.corners[x][y].cliff);
+ 	}
+ 
+ 	public void updateGroundTextures(final Rectangle area) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnitTypeData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnitTypeData.java
+index 9fc9817..840d758 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnitTypeData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnitTypeData.java
+@@ -78,6 +78,26 @@ public class RenderUnitTypeData extends RenderWidgetTypeData<RenderUnitType> {
+ 		return path;
+ 	}
+ 
++	/**
++	 * Blizzard launcher: a unit type's footprint, for the simulation's data of that type, without making the type's
++	 * render data, which loads its model and textures. Computer players' scripts ask for the footprint of every kind
++	 * of unit they might build, and each of the first asks took the game a model load in the middle of play.
++	 */
++	public Pixmap getBuildingPathingPixelMap(final War3ID key) {
++		final RenderUnitType made = peek(key);
++		if (made != null) {
++			return made.getBuildingPathingPixelMap();
++		}
++		final GameObject row = this.objectData.get(key);
++		return row == null ? null : getBuildingPathingPixelMap(row);
++	}
++
++	/** The path of a unit type's model file, for loading it ahead of its first use. */
++	public String getModelPath(final War3ID key) {
++		final GameObject row = this.objectData.get(key);
++		return row == null ? null : getUnitModelPath(row);
++	}
++
+ 	private Pixmap getBuildingPathingPixelMap(final GameObject row) {
+ 		final String pathingTexture = row.getFieldAsString(UNIT_PATHING, 0);
+ 		final Pixmap buildingPathingPixelMap = this.mapViewer.loadPathingTexture(pathingTexture);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderWidgetTypeData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderWidgetTypeData.java
+index 47f58f9..fa51ede 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderWidgetTypeData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderWidgetTypeData.java
+@@ -22,6 +22,11 @@ public abstract class RenderWidgetTypeData<T> {
+ 		this.mapViewer = mapViewer;
+ 	}
+ 
++	/** The type's data if it has been made already, without making it (which loads its model and textures). */
++	public final T peek(War3ID key) {
++		return this.unitIdToTypeData.get(key);
++	}
++
+ 	public final T get(War3ID key) {
+ 		T unitTypeData = this.unitIdToTypeData.get(key);
+ 		if (unitTypeData != null) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 31b0691..8350b31 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -559,7 +559,60 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		this.unitInRangeEvents.remove(event);
+ 	}
+ 
++	// Blizzard launcher: how long each part of a simulation step took, in nanoseconds: the last step's and the worst
++	// step's since stageWorst was last emptied (the test rig reads them to find what makes a step slow).
++	public static final String[] STAGE_NAMES = { "units", "rescue", "projectiles", "pathfinding", "timers+time", "tick triggers",
++			"script threads", "AI", "callbacks" };
++	private static final boolean CHECK_TIMERS = Boolean.getBoolean("warsmash.checkTimers");
++	public static final long[] stageWorst = new long[STAGE_NAMES.length];
++	private long stageStart;
++	private int stageIndex;
++
++	private void stageEnd() {
++		final long now = System.nanoTime();
++		final long took = now - this.stageStart;
++		if (took > stageWorst[this.stageIndex]) {
++			stageWorst[this.stageIndex] = took;
++		}
++		this.stageStart = now;
++		this.stageIndex++;
++	}
++
++	/** The time a path search may take in one frame, and in a step when the host leaves it to the step. */
++	public static final long PATHFINDING_FRAME_SLICE_NANOS = 1_500_000L;
++	private static final long PATHFINDING_STEP_SLICE_NANOS = 4_000_000L;
++	private boolean pathfindingRanSinceStep = false;
++	private int nextPathfindingProcessor = 0;
++	public static long pathfindingSliceWorst = 0;
++
++	/**
++	 * Blizzard launcher: works the players' path searches for up to the given time, in turn (the one that was cut
++	 * short last time is not first again). Searching a few milliseconds in every frame instead of up to a dozen at
++	 * once in one step in three takes the stutter out of crowds that all start walking at the same moment, and
++	 * finds paths as soon as the old way did.
++	 */
++	public void updatePathfinding(final long budgetNanos) {
++		this.pathfindingRanSinceStep = true;
++		final long start = System.nanoTime();
++		final long deadline = start + budgetNanos;
++		final int count = this.pathfindingProcessors.length;
++		for (int k = 0; k < count; k++) {
++			final int index = (this.nextPathfindingProcessor + k) % count;
++			final CPathfindingProcessor processor = this.pathfindingProcessors[index];
++			if (processor.hasWork() && processor.update(this, deadline)) {
++				this.nextPathfindingProcessor = (index + 1) % count;
++				break;
++			}
++		}
++		final long took = System.nanoTime() - start;
++		if (took > pathfindingSliceWorst) {
++			pathfindingSliceWorst = took;
++		}
++	}
++
+ 	public void update() {
++		this.stageStart = System.nanoTime();
++		this.stageIndex = 0;
+ 		final Iterator<CUnit> unitIterator = this.units.iterator();
+ 		while (unitIterator.hasNext()) {
+ 			final CUnit unit = unitIterator.next();
+@@ -575,10 +628,12 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 			}
+ 		}
+ 		finishAddingNewUnits();
++		stageEnd();
+ 		// Blizzard launcher: rescuable units (the fork's, measured on 1.29), checked every tick.
+ 		for (int i = 0; i < this.units.size(); i++) {
+ 			this.units.get(i).checkRescue(this);
+ 		}
++		stageEnd();
+ 		for (final CDestructable destructable : this.removedDestructables) {
+ 			this.simulationRenderController.removeDestructable(destructable);
+ 			destructable.onRemove(this);
+@@ -593,9 +648,14 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		}
+ 		this.projectiles.addAll(this.newProjectiles);
+ 		this.newProjectiles.clear();
+-		for (final CPathfindingProcessor pathfindingProcessor : pathfindingProcessors) {
+-			pathfindingProcessor.update(this);
++		stageEnd();
++		// Blizzard launcher: the game loop works the path searches in a short slice of every frame (updatePathfinding);
++		// a host that only calls update() gets a slice here.
++		if (!this.pathfindingRanSinceStep) {
++			updatePathfinding(PATHFINDING_STEP_SLICE_NANOS);
+ 		}
++		this.pathfindingRanSinceStep = false;
++		stageEnd();
+ 		this.gameTurnTick++;
+ 		final float timeOfDayBefore = getGameTimeOfDay();
+ 		if (this.falseTimeOfDay != null) {
+@@ -630,16 +690,21 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 			internalUnregisterTimer(timer);
+ 		}
+ 		this.removedTimers.clear();
+-		final Set<CTimer> timers = new HashSet<>();
+-		for (final CTimer timer : this.activeTimers) {
+-			if (!timers.add(timer)) {
+-				throw new IllegalStateException("Duplicate timer add: " + timer);
++		// Blizzard launcher: this check built a set of every active timer on every step; it is only for finding a
++		// fault in the timer code, so it runs with -Dwarsmash.checkTimers=true and not in the game.
++		if (CHECK_TIMERS) {
++			final Set<CTimer> timers = new HashSet<>();
++			for (final CTimer timer : this.activeTimers) {
++				if (!timers.add(timer)) {
++					throw new IllegalStateException("Duplicate timer add: " + timer);
++				}
+ 			}
+ 		}
+ 		while (!this.activeTimers.isEmpty() && (this.activeTimers.peek().getEngineFireTick() <= this.gameTurnTick)) {
+ 			this.activeTimers.pop().fire(this);
+ 		}
+ 		checkTimeOfDayEvents(timeOfDayBefore, timeOfDayAfter);
++		stageEnd();
+ 		this.onTickTriggers.addAll(this.addedOnTickTriggers);
+ 		this.addedOnTickTriggers.clear();
+ 		for (final Trigger trigger : this.onTickTriggers) {
+@@ -659,7 +724,9 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		for (final CPlayer player : this.players) {
+ 			player.updatePlayerStateEvents(this);
+ 		}
++		stageEnd();
+ 		this.globalScope.runThreads();
++		stageEnd();
+ 		// Blizzard launcher: computer players' AI scripts run their own threads and think (Reforged's AI).
+ 		for (final CPlayer player : this.players) {
+ 			final com.etheller.warsmash.parsers.jass.JassAIEnvironment aiScript = player.getAiScript();
+@@ -667,6 +734,7 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 				aiScript.update();
+ 			}
+ 		}
++		stageEnd();
+ 
+ 		this.runningPostUpdateCallbacks.clear();
+ 		this.runningPostUpdateCallbacks.addAll(this.postUpdateCallbacks);
+@@ -674,6 +742,7 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		for (final Runnable runnable : this.runningPostUpdateCallbacks) {
+ 			runnable.run();
+ 		}
++		stageEnd();
+ 	}
+ 
+ 	public void removeUnit(final CUnit unit) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+index 229bc5b..f91bed3 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+@@ -250,10 +250,7 @@ public class CBehaviorMove implements CBehavior {
+ 							return this.unit.pollNextOrderBehavior(simulation);
+ 						}
+ 						else {
+-							System.out.println(this.path);
+ 							final Vector2 removed = this.path.remove(0);
+-							System.out.println(
+-									"We think we reached  " + removed + " because we are at " + nextX + "," + nextY);
+ 							final boolean emptyPath = this.path.isEmpty();
+ 							if (emptyPath) {
+ 								if (this.followUnit != null) {
+@@ -282,8 +279,6 @@ public class CBehaviorMove implements CBehavior {
+ 								onMoveGiveUp(simulation);
+ 								return this.unit.pollNextOrderBehavior(simulation);
+ 							}
+-							System.out.println("new target: " + currentTargetX + "," + currentTargetY);
+-							System.out.println("new delta: " + deltaX + "," + deltaY);
+ 							goalAngleRad = Math.atan2(deltaY, deltaX);
+ 							goalAngle = (float) Math.toDegrees(goalAngleRad);
+ 							if (goalAngle < 0) {
+@@ -427,7 +422,6 @@ public class CBehaviorMove implements CBehavior {
+ 		this.path = waypoints;
+ 		if (this.firstPathfindJob) {
+ 			this.firstPathfindJob = false;
+-			System.out.println("init path " + this.path);
+ 			// check for smoothing
+ 			if (!this.path.isEmpty()) {
+ 				float lastX = startFloatingX;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CDirection.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CDirection.java
+index c921729..7778ea0 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CDirection.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CDirection.java
+@@ -34,7 +34,18 @@ public enum CDirection {
+         this.position = position;
+     }
+ 
++    // Blizzard launcher: by array, not a boxed map lookup, since a search looks a direction up for every node it reads.
++    private final static CDirection[] BY_POSITION = new CDirection[9];
++    static {
++        for (final CDirection direction : values()) {
++            BY_POSITION[direction.position + 1] = direction;
++        }
++    }
++
+     public static CDirection valueOf(int position) {
+-        return map.getOrDefault(position, CDirection.NORTH_WEST);
++        if ((position < -1) || (position > 7)) {
++            return CDirection.NORTH_WEST;
++        }
++        return BY_POSITION[position + 1];
+     }
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+index 1f3491a..29b610b 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+@@ -35,9 +35,6 @@ public class CPathfindingProcessor {
+ 	private final int processorIndex;
+ 	private boolean nodesWasInit = false;
+ 
+-	static {
+-		System.loadLibrary("CNode");
+-	}
+ 
+ 	/**
+ 	 * Instead of initializing their own node arrays, CPathfindingProcessor assign a reference
+@@ -54,35 +51,90 @@ public class CPathfindingProcessor {
+ 		this.pathingGridCellCount = pathingGrid.getWidth() * pathingGrid.getHeight();
+ 	}
+ 
+-	private static native void initProcessor(int processor, int i, int j);
+-	private static native void initNode (int processor,int i, int j, float pointX, float pointY );
+-	private static native void initCornerNode (int processor,int i, int j, float pointX, float pointY );
+-	private static native void setNode ( int processor, int direction,
+-	float pointX,
+-	float pointY,
+-	double f,
+-	double g,
+-	boolean cameFromCornerNodes,
+-	int cameFromI, int cameFromJ,
+-	int pathfindJobId,
+-	boolean fromCornerNodes,
+-	int positionI,int positionJ);
+-
+-	private static native Object findNodeFromJni (int processor, boolean useCornerNodes, int i, int j);
+-
+-	private static CNode findNode (int processor, boolean useCornerNodes, int i, int j){
+-		return (CNode) findNodeFromJni(processor,useCornerNodes,i,j);
++	// Blizzard launcher: the search's nodes (the master node arrays) are kept here, in Java arrays, as plain fields per
++	// grid position; they were in C++ behind the JNI, where every read built a Java object through a native call
++	// (a quarter of all the time the game spent in play). A read still gives a copy of the node, as before; a write
++	// puts a copy's fields back, so the search behaves exactly as it did.
++	private static final int DEFAULT_DIRECTION = 0;
++	private static final float DEFAULT_SCORE = -100;
++	private int storeWidth;
++	private float[] cellWorldX, cellWorldY, cornerWorldX, cornerWorldY;
++	private double[] cellF, cellG, cornerF, cornerG;
++	private int[] cellDirection, cellCameFromI, cellCameFromJ, cellJobId;
++	private int[] cornerDirection, cornerCameFromI, cornerCameFromJ, cornerJobId;
++	private boolean[] cellCameFromCorner, cornerCameFromCorner;
++
++	private void initProcessor(final int rows, final int columns) {
++		this.storeWidth = columns;
++		final int count = rows * columns;
++		this.cellF = new double[count];
++		this.cellG = new double[count];
++		this.cornerF = new double[count];
++		this.cornerG = new double[count];
++		Arrays.fill(this.cellF, DEFAULT_SCORE);
++		Arrays.fill(this.cellG, DEFAULT_SCORE);
++		Arrays.fill(this.cornerF, DEFAULT_SCORE);
++		Arrays.fill(this.cornerG, DEFAULT_SCORE);
++		this.cellDirection = new int[count];
++		this.cornerDirection = new int[count];
++		this.cellCameFromI = filled(count, -1);
++		this.cellCameFromJ = filled(count, -1);
++		this.cellJobId = filled(count, -1);
++		this.cornerCameFromI = filled(count, -1);
++		this.cornerCameFromJ = filled(count, -1);
++		this.cornerJobId = filled(count, -1);
++		this.cellCameFromCorner = new boolean[count];
++		this.cornerCameFromCorner = new boolean[count];
++		// A grid point's world position depends only on its row (y) and its column (x).
++		this.cellWorldX = new float[columns];
++		this.cellWorldY = new float[rows];
++		this.cornerWorldX = new float[columns];
++		this.cornerWorldY = new float[rows];
++	}
++
++	private static int[] filled(final int count, final int value) {
++		final int[] array = new int[count];
++		Arrays.fill(array, value);
++		return array;
+ 	}
+ 
+-	private static void setNode (int processor, CNode node){
+-		setNode(processor, node.getCameFromDirection().position,
+-				node.getPoint().x,node.getPoint().y, node.getF(), node.getG(),
+-				node.getCameFromCornerNodes(), node.getCameFromI(), node.getCameFromJ(),
+-				node.getPathfindJobId(),node.getFromCornerNodes(), node.getPositionI(), node.getPositionJ());
++	private CNode findNode(final int processor, final boolean useCornerNodes, final int i, final int j) {
++		final int index = (i * this.storeWidth) + j;
++		if (useCornerNodes) {
++			return new CNode(this.cornerDirection[index], this.cornerWorldX[j], this.cornerWorldY[i],
++					this.cornerF[index], this.cornerG[index], this.cornerCameFromCorner[index],
++					this.cornerCameFromI[index], this.cornerCameFromJ[index], this.cornerJobId[index], true, i, j);
++		}
++		return new CNode(this.cellDirection[index], this.cellWorldX[j], this.cellWorldY[i], this.cellF[index],
++				this.cellG[index], this.cellCameFromCorner[index], this.cellCameFromI[index],
++				this.cellCameFromJ[index], this.cellJobId[index], false, i, j);
+ 	}
+ 
++	private void setNode(final int processor, final CNode node) {
++		final int index = (node.getPositionI() * this.storeWidth) + node.getPositionJ();
++		if (node.getFromCornerNodes()) {
++			this.cornerDirection[index] = node.getCameFromDirection().position;
++			this.cornerF[index] = node.getF();
++			this.cornerG[index] = node.getG();
++			this.cornerCameFromCorner[index] = node.getCameFromCornerNodes();
++			this.cornerCameFromI[index] = node.getCameFromI();
++			this.cornerCameFromJ[index] = node.getCameFromJ();
++			this.cornerJobId[index] = node.getPathfindJobId();
++		}
++		else {
++			this.cellDirection[index] = node.getCameFromDirection().position;
++			this.cellF[index] = node.getF();
++			this.cellG[index] = node.getG();
++			this.cellCameFromCorner[index] = node.getCameFromCornerNodes();
++			this.cellCameFromI[index] = node.getCameFromI();
++			this.cellCameFromJ[index] = node.getCameFromJ();
++			this.cellJobId[index] = node.getPathfindJobId();
++		}
++	}
+ 
+-	public static native void clearNodes();
++	/** Kept for the simulation's constructor: the nodes are this processor's own now, and a new game builds new ones. */
++	public static void clearNodes() {
++	}
+ 
+ 	/**
+ 	 * Finds the path to a point using a naive, slow, and unoptimized algorithm.
+@@ -127,19 +179,19 @@ public class CPathfindingProcessor {
+ 			return;
+ 		}
+ 
+-		initProcessor(processorIndex, pathingGrid.getHeight() + 1, pathingGrid.getWidth() + 1);
++		initProcessor(pathingGrid.getHeight() + 1, pathingGrid.getWidth() + 1);
+ 
+ 		for (int i = 0; i < pathingGrid.getHeight(); i++) {
+-			for (int j = 0; j < pathingGrid.getWidth(); j++) {
+-				initNode(processorIndex, i, j, pathingGrid.getWorldX(j), pathingGrid.getWorldY(i));
+-			}
++			this.cellWorldY[i] = pathingGrid.getWorldY(i);
++		}
++		for (int j = 0; j < pathingGrid.getWidth(); j++) {
++			this.cellWorldX[j] = pathingGrid.getWorldX(j);
+ 		}
+-
+ 		for (int i = 0; i < pathingGrid.getHeight() + 1; i++) {
+-			for (int j = 0; j < pathingGrid.getWidth() + 1; j++) {
+-				initCornerNode(processorIndex, i, j, pathingGrid.getWorldXFromCorner(j),
+-						pathingGrid.getWorldYFromCorner(i));
+-			}
++			this.cornerWorldY[i] = pathingGrid.getWorldYFromCorner(i);
++		}
++		for (int j = 0; j < pathingGrid.getWidth() + 1; j++) {
++			this.cornerWorldX[j] = pathingGrid.getWorldXFromCorner(j);
+ 		}
+ 
+ 		nodesWasInit = true;
+@@ -176,10 +228,42 @@ public class CPathfindingProcessor {
+ 				startY, job.movementType, job.collisionSize, x, y);
+ 	}
+ 
++	// Blizzard launcher: nothing moves while a processor works through its jobs for one tick, so a point asked about
++	// again for the same job (the neighbours of neighbouring nodes share most of theirs) has the same answer. The
++	// answers are kept in a table that is emptied when a tick's work begins and when another job starts.
++	private static final int DYNAMIC_CACHE_BITS = 17;
++	private static final int DYNAMIC_CACHE_SIZE = 1 << DYNAMIC_CACHE_BITS;
++	private static final long[] dynamicCacheKeys = new long[DYNAMIC_CACHE_SIZE];
++	private static final int[] dynamicCacheStamps = new int[DYNAMIC_CACHE_SIZE];
++	private static final boolean[] dynamicCacheValues = new boolean[DYNAMIC_CACHE_SIZE];
++	private static int dynamicCacheStamp = 1;
++	private static int dynamicCacheCount = 0;
++
++	private static void clearDynamicCache() {
++		dynamicCacheStamp++;
++		dynamicCacheCount = 0;
++	}
++
+ 	private boolean isPathableDynamically(final float x, final float y, final CUnit ignoreIntersectionsWithThisUnit,
+ 			final CUnit ignoreIntersectionsWithThisSecondUnit, final PathingGrid.MovementType movementType) {
+-		return !this.worldCollision.intersectsAnythingOtherThan(tempRect.setCenter(x, y),
++		final long key = (((long) Float.floatToIntBits(x)) << 32) | (Float.floatToIntBits(y) & 0xFFFFFFFFL);
++		int slot = (int) (((key ^ (key >>> 29)) * 0x9E3779B97F4A7C15L) >>> (64 - DYNAMIC_CACHE_BITS));
++		final boolean room = dynamicCacheCount < (DYNAMIC_CACHE_SIZE / 2);
++		while (dynamicCacheStamps[slot] == dynamicCacheStamp) {
++			if (dynamicCacheKeys[slot] == key) {
++				return dynamicCacheValues[slot];
++			}
++			slot = (slot + 1) & (DYNAMIC_CACHE_SIZE - 1);
++		}
++		final boolean pathable = !this.worldCollision.intersectsAnythingOtherThan(tempRect.setCenter(x, y),
+ 				ignoreIntersectionsWithThisUnit, ignoreIntersectionsWithThisSecondUnit, movementType, false);
++		if (room) {
++			dynamicCacheStamps[slot] = dynamicCacheStamp;
++			dynamicCacheKeys[slot] = key;
++			dynamicCacheValues[slot] = pathable;
++			dynamicCacheCount++;
++		}
++		return pathable;
+ 	}
+ 
+ 	public static boolean isCollisionSizeBetterSuitedForCorners(final float collisionSize) {
+@@ -247,7 +331,35 @@ public class CPathfindingProcessor {
+ 	}
+ 
+ 	public void update(final CSimulation simulation) {
++		update(simulation, Long.MAX_VALUE);
++	}
++
++	public static long pathFoundWorst = 0;
++
++	private static void timedPathFound(final PathfindingJob job, final java.util.List<Vector2> path,
++			final CSimulation simulation) {
++		final long start = System.nanoTime();
++		job.queueItem.pathFound(path, simulation);
++		final long took = System.nanoTime() - start;
++		if (took > pathFoundWorst) {
++			pathFoundWorst = took;
++		}
++	}
++
++	/** Whether a job is waiting or half done. */
++	public boolean hasWork() {
++		return !this.moveQueue.isEmpty();
++	}
++
++	/**
++	 * Works through the queued jobs until the queue is empty, the step's iteration limit is reached or the time
++	 * (System.nanoTime) passes the deadline. A job cut short goes on the next time, as one cut by the limit did.
++	 *
++	 * @return whether the work stopped for time or limit, with jobs still waiting
++	 */
++	public boolean update(final CSimulation simulation, final long deadlineNanos) {
+ 		int workIterations = 0;
++		clearDynamicCache();
+ 		JobsLoop: while (!this.moveQueue.isEmpty()) {
+ 			this.totalJobLoops++;
+ 			final PathfindingJob job = this.moveQueue.peek();
+@@ -256,7 +368,7 @@ public class CPathfindingProcessor {
+ 				this.totalIterations = 0;
+ 				this.totalJobLoops = 0;
+ 				job.jobStarted = true;
+-				System.out.println("starting job with smoothing=" + job.allowSmoothing);
++				clearDynamicCache();
+ 				workIterations += 5; // setup of job predicted cost
+ 				job.goalX = job.goal.x;
+ 				job.goalY = job.goal.y;
+@@ -273,10 +385,8 @@ public class CPathfindingProcessor {
+ 								job.ignoreIntersectionsWithThisSecondUnit, job.movementType)) {
+ 					job.weightForHittingWalls = 5E2f;
+ 				}
+-				System.out.println("beginning findNaiveSlowPath for  " + job.startX + "," + job.startY + "," + job.goalX
+-						+ "," + job.goalY);
+ 				if ((job.startX == job.goalX) && (job.startY == job.goalY)) {
+-					job.queueItem.pathFound(Collections.emptyList(), simulation);
++					timedPathFound(job, Collections.emptyList(), simulation);
+ 					this.moveQueue.poll();
+ 					continue JobsLoop;
+ 				}
+@@ -284,12 +394,10 @@ public class CPathfindingProcessor {
+ 				if (isCollisionSizeBetterSuitedForCorners(job.collisionSize)) {
+ 					job.useCornerNodes = true;
+ 					job.gridMapping = GridMapping.CORNERS;
+-					System.out.println("using corners");
+ 				}
+ 				else {
+ 					job.useCornerNodes = false;
+ 					job.gridMapping = GridMapping.CELLS;
+-					System.out.println("using cells");
+ 				}
+ 				final int goalCellY = job.gridMapping.getY(this.pathingGrid, job.goalY);
+ 				final int goalCellX = job.gridMapping.getX(this.pathingGrid, job.goalX);
+@@ -324,7 +432,9 @@ public class CPathfindingProcessor {
+ 				job.openSet = new PriorityQueue<>(new Comparator<CNode>() {
+ 					@Override
+ 					public int compare(final CNode a, final CNode b) {
+-						return Double.compare(f(a), f(b));
++						// Blizzard launcher: a queued node's stored f is its g plus its h, set just before it was
++						// queued and never changed after, so this is the same order without working h out again.
++						return Double.compare(a.getF(), b.getF());
+ 					}
+ 				});
+ 
+@@ -463,10 +573,8 @@ public class CPathfindingProcessor {
+ 						}
+ 						stepsBackward++;
+ 					}
+-					job.queueItem.pathFound(totalPath, simulation);
++					timedPathFound(job, totalPath, simulation);
+ 					this.moveQueue.poll();
+-					System.out.println("Task " + this.pathfindJobId + " took " + this.totalIterations
+-							+ " iterations and " + this.totalJobLoops + " job loops!");
+ 					continue JobsLoop;
+ 				}
+ 
+@@ -521,12 +629,14 @@ public class CPathfindingProcessor {
+ 					// breaking jobs loop will implicitly exit without calling pathFound() below
+ 					break JobsLoop;
+ 				}
++				if (((workIterations & 15) == 0) && (deadlineNanos != Long.MAX_VALUE) && (System.nanoTime() >= deadlineNanos)) {
++					break JobsLoop;
++				}
+ 			}
+-			job.queueItem.pathFound(partialPath(job), simulation);
++			timedPathFound(job, partialPath(job), simulation);
+ 			this.moveQueue.poll();
+-			System.out.println("Task " + this.pathfindJobId + " took " + this.totalIterations + " iterations and "
+-					+ this.totalJobLoops + " job loops!");
+ 		}
++		return !this.moveQueue.isEmpty();
+ 	}
+ 
+ 	/** The path to the best node a search found without reaching the goal; empty if it found none. */
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java
+index 8cbb6f9..aea348c 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeQuestDialog.java
+@@ -105,6 +105,10 @@ public class MeleeQuestDialog {
+ 		acceptButton.setOnClick(() -> setVisible(false));
+ 		questLog.setChangeListener(() -> this.changed = true);
+ 		this.container.setVisible(false);
++		// Blizzard launcher: the rows are made now, while the map loads, not on the first open in the middle of play
++		// (making a row builds a dozen interface frames: a frame of its own).
++		this.mainList.prepare();
++		this.optionalList.prepare();
+ 	}
+ 
+ 	private StringFrame createRequirementLine(final int row) {
+@@ -286,6 +290,15 @@ public class MeleeQuestDialog {
+ 			});
+ 		}
+ 
++		private void prepare() {
++			while (this.items.size() < LIST_ROWS) {
++				this.items.add(new ListItem());
++			}
++			for (final ListItem item : this.items) {
++				item.show(null);
++			}
++		}
++
+ 		private void show(final List<CQuest> quests) {
+ 			this.quests = quests;
+ 			while (this.items.size() < quests.size()) {

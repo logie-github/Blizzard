@@ -4,12 +4,23 @@ import com.badlogic.gdx.*; import com.badlogic.gdx.backends.headless.*; import c
 import com.etheller.warsmash.*; import com.etheller.warsmash.units.DataTable; import com.etheller.warsmash.util.StringBundle;
 import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer;
 public class Main {
-  public static War3MapViewer viewer; public static int mapFrames; public static Object mapScreen; public static Object menuScreen;
+  public static War3MapViewer viewer; public static int mapFrames; public static Object mapScreen; public static Object menuScreen; static Runnable profileDump = () -> {}; static final java.util.List<Object[]> frameSamples = new java.util.ArrayList<>(); static java.util.function.BiConsumer<java.util.Map<String, Integer>, java.util.Map<String, Integer>> slowSink;
+  /** Called by a scenario when a frame ended: if it was slow its samples count, else they are dropped. */
+  public static void frameDone(long ns) { java.util.List<Object[]> mine; synchronized (frameSamples) { mine = new java.util.ArrayList<>(frameSamples); frameSamples.clear(); } if (slowSink == null || ns < Long.parseLong(System.getenv().getOrDefault("SLOW_US", "8000")) * 1000) return; java.util.Map<String, Integer> a = new java.util.HashMap<>(), b = new java.util.HashMap<>(); for (Object[] o : mine) { a.merge((String) o[0], 1, Integer::sum); for (String k : (java.util.Set<String>) o[1]) b.merge(k, 1, Integer::sum); } slowSink.accept(a, b); }
   static volatile long lastFrameMillis = System.currentTimeMillis(); static volatile Thread renderThread;
   public static void main(String[] args) throws Exception {
     // A frame that takes more than 20 s: print where the render thread is, three times, so a hang shows its loop.
     Thread watchdog = new Thread(() -> { int dumps = 0; while (dumps < 4) { try { Thread.sleep(1000); } catch (InterruptedException e) { return; } Thread t = renderThread; if (t != null && System.currentTimeMillis() - lastFrameMillis > 3000) { dumps++; System.err.println("RIG: HANG render thread stack (" + (System.currentTimeMillis() - lastFrameMillis) / 1000 + " s in one frame):"); for (StackTraceElement e : t.getStackTrace()) System.err.println("RIG:   at " + e); } } });
     watchdog.setDaemon(true); watchdog.start();
+    if (System.getenv("PROFILE") != null) {
+      final java.util.Map<String, Integer> self = new java.util.HashMap<>(), incl = new java.util.HashMap<>(); final int[] total = {0};
+      Thread sampler = new Thread(() -> { while (true) { try { Thread.sleep(0, 500000); } catch (InterruptedException e) { return; } Thread t = renderThread; if (t == null || mapFrames < Integer.parseInt(System.getenv().getOrDefault("PROFILE_FROM", "300"))) continue; StackTraceElement[] st = t.getStackTrace(); if (st.length == 0) continue; total[0]++;
+        String top = null; for (StackTraceElement e : st) { if (e.getClassName().startsWith("com.etheller") || e.getClassName().startsWith("com.badlogic")) { top = e.getClassName().substring(e.getClassName().lastIndexOf('.') + 1) + "." + e.getMethodName(); break; } } if (top == null) top = st[0].getClassName() + "." + st[0].getMethodName(); java.util.Set<String> seen = new java.util.HashSet<>(); for (StackTraceElement e : st) { if (!e.getClassName().startsWith("com.etheller")) continue; String k = e.getClassName().substring(e.getClassName().lastIndexOf('.') + 1) + "." + e.getMethodName(); seen.add(k); }
+        synchronized (frameSamples) { frameSamples.add(new Object[]{top, seen}); } } });
+      slowSink = (self2, incl2) -> { for (var e : self2.entrySet()) self.merge(e.getKey(), e.getValue(), Integer::sum); for (var e : incl2.entrySet()) incl.merge(e.getKey(), e.getValue(), Integer::sum); };
+      sampler.setDaemon(true); sampler.start();
+      profileDump = () -> { System.err.println("RIG: PROFILE samples " + total[0]); self.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(22).forEach(e -> System.err.println("RIG: PROFILE self " + e.getValue() + " samples " + e.getKey())); incl.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(40).forEach(e -> System.err.println("RIG: PROFILE incl " + e.getValue() + " samples " + e.getKey())); };
+    }
     String game = System.getenv("GAME");
     String map = args[0]; Scenario sc = (Scenario) Class.forName(args[1]).getDeclaredConstructor().newInstance();
     android.system.Os.setenv("game_files", game, true); android.system.Os.setenv("GAME_VERSION", System.getenv().getOrDefault("GV","1"), true);
@@ -50,7 +61,7 @@ public class Main {
             mapScreen = ms;
             if (viewer == null) { Field f = WarsmashGdxMapScreen.class.getDeclaredField("viewer"); f.setAccessible(true); viewer = (War3MapViewer) f.get(ms); System.err.println("RIG: map screen at frame " + frame[0]); }
             mapFrames++;
-            if (sc.frame(viewer, mapFrames)) { System.err.println("RIG: scenario done"); System.out.flush(); System.err.flush(); Runtime.getRuntime().halt(sc.failed ? 1 : 0); }
+            if (sc.frame(viewer, mapFrames)) { System.err.println("RIG: scenario done"); profileDump.run(); System.out.flush(); System.err.flush(); Runtime.getRuntime().halt(sc.failed ? 1 : 0); }
           }
           if (frame[0] > 200000) { System.err.println("RIG: timeout"); Runtime.getRuntime().halt(3); }
         } catch (Throwable t) { t.printStackTrace(); Runtime.getRuntime().halt(2); }
