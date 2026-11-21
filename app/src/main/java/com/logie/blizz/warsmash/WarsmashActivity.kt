@@ -166,6 +166,22 @@ class WarsmashActivity : AndroidApplication() {
         foreground = true
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus || !started) return
+        val display = window.decorView.display ?: return
+        val current = display.mode
+        val mode = display.supportedModes
+            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+            .filter { it.refreshRate >= 59.5f }
+            .minByOrNull { it.refreshRate } ?: return
+        val attributes = window.attributes
+        if (attributes.preferredRefreshRate != mode.refreshRate) {
+            attributes.preferredRefreshRate = mode.refreshRate
+            window.attributes = attributes
+        }
+    }
+
     override fun onPause() {
         foreground = false
         super.onPause()
