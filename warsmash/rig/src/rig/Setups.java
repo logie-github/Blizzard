@@ -457,6 +457,27 @@ public class Setups extends Scenario {
       try { var fld = com.etheller.warsmash.WarsmashGdxMapScreen.class.getDeclaredField("minimapUI"); fld.setAccessible(true); var ui = (com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI) fld.get(Main.mapScreen); ui.scriptClearSelection(); ui.scriptSelectUnit(sel, true); } catch (Exception e) { seen.put("select error", e.toString()); }
       return () -> "load order " + loadOk + " hero hidden " + hero.isHidden() + "; " + seen;
     }),
+    c("Campaign unlock (0047): what the campaign screen shows for a fresh profile, then after wins", 100, (s, p) -> {
+      try {
+        var f = com.etheller.warsmash.WarsmashGdxMenuScreen.class.getDeclaredField("menuUI"); f.setAccessible(true); var ui = f.get(Main.menuScreen);
+        var rf = ui.getClass().getDeclaredField("campaignRootMenuUI"); rf.setAccessible(true); var root = rf.get(ui);
+        var bf = root.getClass().getDeclaredField("buttonUIs"); bf.setAccessible(true);
+        var gf = ui.getClass().getDeclaredField("rootFrame"); gf.setAccessible(true); var gameUi = gf.get(ui);
+        var vf = ui.getClass().getDeclaredField("uiViewport"); vf.setAccessible(true); var vp = vf.get(ui);
+        var refresh = root.getClass().getMethod("refresh", com.etheller.warsmash.parsers.fdf.GameUI.class, com.badlogic.gdx.utils.viewport.Viewport.class);
+        java.util.function.Supplier<String> shown = () -> { try { refresh.invoke(root, gameUi, vp); StringBuilder b = new StringBuilder(); int i = 0; for (Object o : (java.util.List<?>) bf.get(root)) { b.append(((com.etheller.warsmash.parsers.fdf.frames.AbstractUIFrame) o).isVisible() ? "1" : "0"); i++; } return "campaign buttons shown " + b; } catch (Exception e) { return e.toString(); } };
+        var CP = com.etheller.warsmash.util.CampaignProgress.class;
+        CP.getMethod("setProfile", String.class).invoke(null, "unlocktest-" + System.nanoTime());
+        StringBuilder b = new StringBuilder(); b.append(shown.get());
+        b.append("; missions open in campaign 1: "); for (int m = 0; m < 12; m++) b.append(((Boolean) CP.getMethod("isMissionAvailable", int.class, int.class).invoke(null, 1, m)) ? "1" : "0");
+        CP.getMethod("openMission", int.class, int.class).invoke(null, 1, 1); CP.getMethod("openMission", int.class, int.class).invoke(null, 1, 2);
+        b.append("; after winning Human 01 and 02: "); for (int m = 0; m < 12; m++) b.append(((Boolean) CP.getMethod("isMissionAvailable", int.class, int.class).invoke(null, 1, m)) ? "1" : "0");
+        b.append("; campaign 2 (Undead) open "); b.append(CP.getMethod("isCampaignAvailable", int.class).invoke(null, 2));
+        CP.getMethod("openMission", int.class, int.class).invoke(null, 2, 1);
+        b.append(" after one Undead mission opened: "); b.append(CP.getMethod("isCampaignAvailable", int.class).invoke(null, 2)).append("; ").append(shown.get());
+        final String r = b.toString(); return () -> r;
+      } catch (Exception e) { return () -> "failed " + e + " " + e.getCause(); }
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);
