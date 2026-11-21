@@ -1,0 +1,1 @@
+Missions now flash the minimap where an objective is; the score counters added in the last update are taken out.
