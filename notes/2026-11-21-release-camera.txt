@@ -1,0 +1,1 @@
+Cutscene camera moves no longer keep pulling the camera after the scene: a finished pan lets go, and dragging the view or the minimap takes the camera back.

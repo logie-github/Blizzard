@@ -1,0 +1,58 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/GameCameraManager.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/GameCameraManager.java
+index 269d7c0..258e710 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/GameCameraManager.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/GameCameraManager.java
+@@ -65,6 +65,10 @@ public final class GameCameraManager extends CameraManager {
+ 		if (this.panDestination != null) {
+ 			this.target.x = applyAtRate(this.target.x, this.panDestination.x, this.panRate.x);
+ 			this.target.y = applyAtRate(this.target.y, this.panDestination.y, this.panRate.y);
++			if ((this.target.x == this.panDestination.x) && (this.target.y == this.panDestination.y)) {
++				// The pan has arrived: let go of the camera, so that dragging it afterwards is not pulled back.
++				clearPan();
++			}
+ 		}
+ 	}
+ 
+@@ -217,6 +221,14 @@ public final class GameCameraManager extends CameraManager {
+ 
+ 	}
+ 
++	/**
++	 * The player takes the camera: a script's pan in flight and a followed unit are dropped.
++	 */
++	public void releaseToPlayer() {
++		clearPan();
++		this.targetControllerUnit = null;
++	}
++
+ 	private void clearPan() {
+ 		this.panDestination = null;
+ 		this.panRate = null;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index b5656af..8d07cf4 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -4191,6 +4191,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		if (this.minimapPanPointer == -1) {
+ 			this.minimapPanPointer = pointer;
+ 			this.minimapPanStartScreen.set(screenX, screenY);
++			this.cameraManager.releaseToPlayer();
+ 			this.minimapPanCameraStart.set(this.cameraManager.target);
+ 			// How far the ground under the middle of the screen moves for a pixel across and up, as the view looks now.
+ 			final int centerX = (int) (this.war3MapViewer.canvas.getWidth() / 2);
+@@ -4267,6 +4268,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		if (this.meleeUIMinimap.containsMouse(screenCoordsVector.x, screenCoordsVector.y)) {
+ 			final Vector2 worldPoint = this.meleeUIMinimap.getWorldPointFromScreen(screenCoordsVector.x,
+ 					screenCoordsVector.y);
++			this.cameraManager.releaseToPlayer();
+ 			this.cameraManager.target.x = worldPoint.x;
+ 			this.cameraManager.target.y = worldPoint.y;
+ 			return true;
+@@ -4476,6 +4478,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 					this.war3MapViewer.getClickLocation(this.lastMouseClickLocation, screenX, (int) worldScreenY, true,
+ 							true);
+ 					this.lastMouseDragStart.set(this.lastMouseClickLocation);
++					this.cameraManager.releaseToPlayer();
+ 					this.lastMouseDragCameraTargetStart.set(this.cameraManager.target);
+ 					this.tapStartX = screenX;
+ 					this.tapStartY = screenY;
