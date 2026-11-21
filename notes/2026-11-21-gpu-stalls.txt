@@ -1,0 +1,1 @@
+Less graphics work per frame (fog of war, ground circles) and the screen's highest refresh rate is used.

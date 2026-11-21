@@ -166,6 +166,22 @@ class WarsmashActivity : AndroidApplication() {
         foreground = true
     }
 
+    // From the closed frame-pacing change (#386): ask for the highest refresh rate this screen has at its resolution.
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus || !started) return
+        val display = window.decorView.display ?: return
+        val current = display.mode
+        val mode = display.supportedModes
+            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+            .maxByOrNull { it.refreshRate } ?: return
+        val attributes = window.attributes
+        if (attributes.preferredRefreshRate != mode.refreshRate) {
+            attributes.preferredRefreshRate = mode.refreshRate
+            window.attributes = attributes
+        }
+    }
+
     override fun onPause() {
         foreground = false
         super.onPause()
