@@ -1,0 +1,1 @@
+In The Culling, villagers now turn into zombies and Mal'Ganis's count works; summoning spells now set off the missions' summon triggers.

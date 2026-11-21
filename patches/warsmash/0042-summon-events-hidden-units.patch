@@ -1,0 +1,221 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+index 9d02b3e..8c13327 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+@@ -290,6 +290,20 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 	}
+ 
+ 	/** Blizzard launcher: "a unit is damaged": the damaged unit, the source and the damage it takes. */
++	/** Blizzard launcher: "a unit summons" (the fork's); the triggering unit is the one given. */
++	public static CommonTriggerExecutionScope unitSummonScope(final JassGameEventsWar3 triggerEventId,
++			final Trigger trigger, final CUnit triggeringUnit, final CUnit summoner, final CUnit summoned,
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerJass player) {
++		final CommonTriggerExecutionScope scope = new CommonTriggerExecutionScope(trigger, TriggerExecutionScope.EMPTY);
++		scope.triggeringUnit = triggeringUnit;
++		scope.triggerWidget = triggeringUnit;
++		scope.summoningUnit = summoner;
++		scope.summonedUnit = summoned;
++		scope.triggeringPlayer = player;
++		scope.triggerEventId = triggerEventId;
++		return scope;
++	}
++
+ 	public static CommonTriggerExecutionScope unitDamagedScope(final JassGameEventsWar3 triggerEventId,
+ 			final Trigger trigger, final CUnit damagedUnit, final CUnit source, final float damage,
+ 			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerJass player) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index 0b683b2..a524404 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -1331,8 +1331,25 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		return playerIndex == (this.players.size() - 4);
+ 	}
+ 
+-	/** A unit summoned by another: this engine has no summon events yet, so nothing more happens. */
++	/**
++	 * A unit summoned by another: the summoner's own "summons" triggers and its owner's (as the fork has it, measured
++	 * on 1.29). Human 06 counts Mal'Ganis's converted villagers and removes its hidden converters this way.
++	 */
+ 	public void unitSummoned(final CUnit summoner, final CUnit summoned) {
++		if ((summoner == null) || (summoned == null)) {
++			return;
++		}
++		final List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CWidgetEvent> unitEvents = summoner
++				.getEventList(com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SUMMON);
++		if (unitEvents != null) {
++			for (final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CWidgetEvent event : new ArrayList<>(
++					unitEvents)) {
++				event.fire(summoner, com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope.unitSummonScope(
++						com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SUMMON,
++						event.getTrigger(), summoner, summoner, summoned, getPlayer(summoner.getPlayerIndex())));
++			}
++		}
++		getPlayer(summoner.getPlayerIndex()).fireUnitSummonEvents(summoner, summoned);
+ 	}
+ 
+ 	/** Whether the order being issued came from a map script (the fork's); orders here aren't told apart. */
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index 1c0cd91..aeb8887 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2476,6 +2476,11 @@ public class CUnit extends CWidget {
+ 	}
+ 
+ 	public boolean autoAcquireTargets(final CSimulation game, final boolean disableMove) {
++		// Blizzard launcher: a hidden unit (ShowUnit false, a script's dummy caster) picks no fights; Human 06's
++		// hidden Dark Conversion casters attacked the villagers they were converting and killed them first.
++		if (isHidden()) {
++			return false;
++		}
+ 		final boolean autocast = this.autoCast ? autoAcquireAutocastTargets(game, disableMove) : false;
+ 		if (!autocast) {
+ 			if (this.autoAttack) {
+@@ -2521,6 +2526,9 @@ public class CUnit extends CWidget {
+ 	}
+ 
+ 	public boolean autoAcquireAttackTargets(final CSimulation game, final boolean disableMove) {
++		if (isHidden()) {
++			return false;
++		}
+ 		if (!getCurrentAttacks().isEmpty() && !this.classifications.contains(CUnitClassification.PEON)) {
+ 			if (this.collisionRectangle != null) {
+ 				tempRect.set(this.collisionRectangle);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemFigurineSummon.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemFigurineSummon.java
+index 0428cbe..8906dc2 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemFigurineSummon.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/item/CAbilityItemFigurineSummon.java
+@@ -52,6 +52,7 @@ public class CAbilityItemFigurineSummon extends CAbilityNoTargetSpellBase {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(this.summonUnitId, unit.getPlayerIndex(), x, y,
+ 					facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId, getDuration(), true));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+@@ -60,6 +61,7 @@ public class CAbilityItemFigurineSummon extends CAbilityNoTargetSpellBase {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(this.summonUnit2Id, unit.getPlayerIndex(), x, y,
+ 					facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId, getDuration(), true));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilitySummonWaterElemental.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilitySummonWaterElemental.java
+index 1ddd2d9..97d811c 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilitySummonWaterElemental.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/archmage/CAbilitySummonWaterElemental.java
+@@ -45,6 +45,7 @@ public class CAbilitySummonWaterElemental extends CAbilityNoTargetSpellBase {
+ 		for (int i = 0; i < summonUnitCount; i++) {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(summonUnitId, unit.getPlayerIndex(), x, y, facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), buffId, getDuration(), false));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/bloodmage/phoenix/CAbilitySummonPhoenix.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/bloodmage/phoenix/CAbilitySummonPhoenix.java
+index 174237b..8b9668a 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/bloodmage/phoenix/CAbilitySummonPhoenix.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/human/bloodmage/phoenix/CAbilitySummonPhoenix.java
+@@ -59,6 +59,7 @@ public class CAbilitySummonPhoenix extends CAbilityNoTargetSpellBase {
+ 		for (int i = 0; i < summonUnitCount; i++) {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(summonUnitId, unit.getPlayerIndex(), x, y, facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), buffId, getDuration(), false));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonGrizzly.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonGrizzly.java
+index c5546ff..d55cdb5 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonGrizzly.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonGrizzly.java
+@@ -47,6 +47,7 @@ public class CAbilitySummonGrizzly extends CAbilityNoTargetSpellBase {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(this.summonUnitId, unit.getPlayerIndex(), x, y,
+ 					facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId, getDuration(), true));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonHawk.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonHawk.java
+index 96356b4..d6d4b1d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonHawk.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonHawk.java
+@@ -47,6 +47,7 @@ public class CAbilitySummonHawk extends CAbilityNoTargetSpellBase {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(this.summonUnitId, unit.getPlayerIndex(), x, y,
+ 					facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId, getDuration(), true));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonQuilbeast.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonQuilbeast.java
+index 14f5351..6d41cf0 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonQuilbeast.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/beastmaster/CAbilitySummonQuilbeast.java
+@@ -47,6 +47,7 @@ public class CAbilitySummonQuilbeast extends CAbilityNoTargetSpellBase {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(this.summonUnitId, unit.getPlayerIndex(), x, y,
+ 					facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId, getDuration(), true));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityFactory.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityFactory.java
+index 8e2d26c..d7c5686 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityFactory.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/neutral/tinker/CAbilityFactory.java
+@@ -47,6 +47,7 @@ public class CAbilityFactory extends CAbilityPassiveSpellBase {
+ 			final CUnit spawnedUnit = game.createUnitSimple(this.spawnUnitId, factory.getPlayerIndex(), x, y, facing);
+ 			game.unitSoundEffectEvent(factory, getAlias());
+ 			spawnedUnit.addClassification(CUnitClassification.SUMMONED);
++			game.unitSummoned(factory, spawnedUnit);
+ 			spawnedUnit.add(game,
+ 					new CBuffTimedLife(game.getHandleIdAllocator().createId(), this.buffId, getDuration(), false));
+ 			final AbilityTarget rallyPoint = factory.getRallyPoint();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/keeper/CAbilityForceOfNature.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/keeper/CAbilityForceOfNature.java
+index 5a48b8c..7b9a8ac 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/keeper/CAbilityForceOfNature.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/nightelf/keeper/CAbilityForceOfNature.java
+@@ -82,6 +82,7 @@ public class CAbilityForceOfNature extends CAbilityPointTargetSpellBase {
+ 				final CUnit summonedUnit = simulation.createUnitSimple(this.summonedUnitId, caster.getPlayerIndex(),
+ 						tree.getX(), tree.getY(), simulation.getGameplayConstants().getBuildingAngle());
+ 				summonedUnit.addClassification(CUnitClassification.SUMMONED);
++				simulation.unitSummoned(caster, summonedUnit);
+ 				summonedUnit.add(simulation, new CBuffTimedLife(simulation.getHandleIdAllocator().createId(),
+ 						this.buffId, getDuration(), false));
+ 				summonedUnitCount++;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFeralSpirit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFeralSpirit.java
+index a4d2e88..5f64c8e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFeralSpirit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/skills/orc/farseer/CAbilityFeralSpirit.java
+@@ -61,6 +61,7 @@ public class CAbilityFeralSpirit extends CAbilityNoTargetSpellBase {
+ 			final CUnit summonedUnit = simulation.createUnitSimple(this.summonUnitId, unit.getPlayerIndex(), x, y,
+ 					facing);
+ 			summonedUnit.addClassification(CUnitClassification.SUMMONED);
++			simulation.unitSummoned(unit, summonedUnit);
+ 			summonedUnit.add(simulation,
+ 					new CBuffTimedLife(simulation.getHandleIdAllocator().createId(), this.buffId, getDuration(), true));
+ 			simulation.createTemporarySpellEffectOnUnit(summonedUnit, getAlias(), CEffectType.SPECIAL);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index 9736d45..ff6f63d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -827,6 +827,18 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	/** Blizzard launcher: "a unit of the player is damaged". */
++	/** Blizzard launcher: "a unit owned by the player summons" (the fork's); the triggering unit is the summoned. */
++	public void fireUnitSummonEvents(final CUnit summoner, final CUnit summoned) {
++		final List<CPlayerEvent> eventList = getEventList(JassGameEventsWar3.EVENT_PLAYER_UNIT_SUMMON);
++		if (eventList != null) {
++			for (final CPlayerEvent event : new java.util.ArrayList<>(eventList)) {
++				event.fire(summoned, com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope.unitSummonScope(
++						JassGameEventsWar3.EVENT_PLAYER_UNIT_SUMMON, event.getTrigger(), summoned, summoner, summoned,
++						this));
++			}
++		}
++	}
++
+ 	public void fireUnitDamagedEvents(final CUnit damagedUnit, final CUnit source, final float damage) {
+ 		final List<CPlayerEvent> eventList = getEventList(JassGameEventsWar3.EVENT_PLAYER_UNIT_DAMAGED);
+ 		if (eventList != null) {

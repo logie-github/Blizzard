@@ -401,6 +401,21 @@ public class Setups extends Scenario {
       final String before = b.toString();
       return () -> before + "; at 5 s " + rev[0] + "; at the end alive " + !hero.isDead() + " hidden " + hero.isHidden();
     }),
+    c("Dark Conversion by a hidden caster (Human 06's villagers)", 300, (s, p) -> {
+      final boolean hide = System.getenv("NOHIDE") == null || System.getenv("NOHIDE").isEmpty();
+      CUnit caster = unit(s, "UC05", 7, p[0], p[1]); CUnit vil = unit(s, "nC00", 8, p[0] + 40, p[1]);
+      if (hide) caster.setHidden(true);
+      caster.getHeroData().setHeroLevel(s, caster, 10, false);
+      caster.getHeroData().selectHeroSkill(s, caster, War3ID.fromString("SNdc"));
+      var g = s.getGlobalScope(); final String[] sum = { "no summon event" };
+      var trig = new com.etheller.interpreter.ast.scope.trigger.Trigger();
+      trig.addAction((args, gs, scope) -> { sum[0] = "summon event: summoning " + call2(g, "GetSummoningUnit", java.util.List.of(), scope) + " summoned " + call2(g, "GetSummonedUnit", java.util.List.of(), scope) + " triggering " + call2(g, "GetTriggerUnit", java.util.List.of(), scope); return null; });
+      s.getPlayer(7).addEvent(g, trig, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_SUMMON);
+      boolean ok = caster.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.darkconversion, vil);
+      final java.util.List<String> log = new java.util.ArrayList<>();
+      for (float t : new float[]{0.5f, 1f, 2f, 4f, 8f, 12f}) new Later() { public void onFire(CSimulation sim) { StringBuilder b = new StringBuilder(); for (var a : vil.getAbilities()) if (a instanceof com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CBuff) b.append(a.getAlias()).append(' '); log.add(t + "s: villager " + vil.getTypeId() + " life " + (int) vil.getLife() + " buffs " + b + " caster " + (caster.getCurrentBehavior() == null ? null : caster.getCurrentBehavior().getClass().getSimpleName()) + " mana " + (int) caster.getMana()); } }.go(s, t);
+      return () -> "hidden " + hide + " order " + ok + " (caster " + caster.getHandleId() + ", villager " + vil.getHandleId() + "); " + String.join("; ", log) + "; " + sum[0];
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);
