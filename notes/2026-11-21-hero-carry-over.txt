@@ -1,0 +1,1 @@
+Heroes now carry over between campaign missions with their level, items and skills, and missions can revive heroes and select units for you.

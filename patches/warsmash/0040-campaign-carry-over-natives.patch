@@ -1,0 +1,1687 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 4ac5b0f..be7511d 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -1,5 +1,6 @@
+ package com.etheller.warsmash.parsers.jass;
+ 
++import com.badlogic.gdx.files.FileHandle;
+ import com.badlogic.gdx.graphics.Color;
+ import com.badlogic.gdx.math.Rectangle;
+ import com.badlogic.gdx.math.Vector2;
+@@ -26,9 +27,11 @@ import com.etheller.interpreter.ast.value.StringJassValue;
+ import com.etheller.interpreter.ast.value.visitor.BooleanJassValueVisitor;
+ import com.etheller.interpreter.ast.value.visitor.CodeJassValueVisitor;
+ import com.etheller.interpreter.ast.value.visitor.IntegerJassValueVisitor;
++import com.etheller.interpreter.ast.value.visitor.JassTypeGettingValueVisitor;
+ import com.etheller.interpreter.ast.value.visitor.ObjectJassValueVisitor;
+ import com.etheller.interpreter.ast.value.visitor.RealJassValueVisitor;
+ import com.etheller.interpreter.ast.value.visitor.StringJassValueVisitor;
++import com.etheller.warsmash.datasources.DataSource;
+ import com.etheller.warsmash.parsers.fdf.GameUI;
+ import com.etheller.warsmash.parsers.jass.Jass2.CommonEnvironment;
+ import com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope;
+@@ -41,6 +44,7 @@ import com.etheller.warsmash.parsers.jass.triggers.LocationJass;
+ import com.etheller.warsmash.parsers.jass.triggers.TriggerAction;
+ import com.etheller.warsmash.parsers.jass.triggers.TriggerCondition;
+ import com.etheller.warsmash.parsers.jass.triggers.UnitGroup;
++import com.etheller.warsmash.units.Element;
+ import com.etheller.warsmash.units.GameObject;
+ import com.etheller.warsmash.util.Log;
+ import com.etheller.warsmash.util.RawcodeUtils;
+@@ -48,8 +52,12 @@ import com.etheller.warsmash.util.War3ID;
+ import com.etheller.warsmash.util.WarsmashConstants;
+ import com.etheller.warsmash.viewer5.handlers.w3x.AnimationTokens.PrimaryTag;
+ import com.etheller.warsmash.viewer5.handlers.w3x.AnimationTokens.SecondaryTag;
++import com.etheller.warsmash.viewer5.handlers.w3x.UnitSound;
+ import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer;
++import com.etheller.warsmash.viewer5.handlers.w3x.camera.GameCameraManager;
+ import com.etheller.warsmash.viewer5.handlers.w3x.environment.PathingGrid;
++import com.etheller.warsmash.viewer5.handlers.w3x.rendersim.RenderDestructable;
++import com.etheller.warsmash.viewer5.handlers.w3x.rendersim.RenderSpellEffect;
+ import com.etheller.warsmash.viewer5.handlers.w3x.rendersim.RenderUnit;
+ import com.etheller.warsmash.viewer5.handlers.w3x.rendersim.ability.AbilityDataUI;
+ import com.etheller.warsmash.viewer5.handlers.w3x.rendersim.ability.AbilityUI;
+@@ -102,13 +110,18 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilitybuilder.abil
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehavior;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.CBehaviorMove;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.harvest.CBehaviorHarvest;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign.CGameCache;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign.CSaveStorage;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign.CStoredUnit;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CAttackType;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.CGenericDamageFlags;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.combat.attacks.CUnitAttack;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.config.CBasePlayer;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.config.CPlayerAPI;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.config.War3MapConfig;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.config.War3MapConfigStartLoc;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.data.CUnitData;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.data.CUnitRace;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.item.CItemTypeJass;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIdUtils;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds;
+@@ -124,6 +137,7 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerScor
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerState;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayerUnitOrderExecutor;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CRace;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CRaceManager;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CRacePreference;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CStartLocPrio;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CCircleFogModifier;
+@@ -141,6 +155,7 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimer;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimerJassBase;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.timers.CTimerNativeEvent;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CAttackTypeJass;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CDamageType;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CEffectType;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CFogState;
+@@ -152,18 +167,24 @@ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.C
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CPlayerSlotState;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CRarityControl;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CSoundType;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CSoundVolumeGroup;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CVersion;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.enumtypes.CWeaponSoundTypeJass;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitInRangeEvent;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CUnitTypeJass;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.BooleanAbilityActivationReceiver;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.BooleanAbilityTargetCheckReceiver;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CHashtable;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.CWidgetAbilityTargetCheckReceiver;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.PointAbilityTargetCheckReceiver;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.ResourceType;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentLightning;
+ import com.etheller.warsmash.viewer5.handlers.w3x.simulation.util.SimulationRenderComponentLightningMovable;
++import com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI;
++import com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI;
+ import com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CScriptDialog;
+ import com.etheller.warsmash.viewer5.handlers.w3x.ui.dialog.CScriptDialogButton;
++import com.etheller.warsmash.viewer5.handlers.w3x.ui.toggle.MeleeToggleUI;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.HashMap;
+@@ -172,6 +193,7 @@ import java.util.List;
+ import java.util.Locale;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.function.BiConsumer;
+ 
+ /**
+  * Blizzard launcher: natives common.j declares that this engine did not have (they did nothing and returned nothing),
+@@ -185,6 +207,31 @@ public final class LauncherNatives {
+ 		return Jass2.nullable(arguments, index, visitor);
+ 	}
+ 
++	static <T> T object(final List<JassValue> arguments, final int index) {
++		return nullable(arguments, index, ObjectJassValueVisitor.<T>getInstance());
++	}
++
++	static String string(final List<JassValue> arguments, final int index) {
++		return nullable(arguments, index, StringJassValueVisitor.getInstance());
++	}
++
++	static int integer(final List<JassValue> arguments, final int index) {
++		return intArg(arguments, index);
++	}
++
++	static float real(final List<JassValue> arguments, final int index) {
++		return realArg(arguments, index);
++	}
++
++	static boolean bool(final List<JassValue> arguments, final int index) {
++		final Boolean value = nullable(arguments, index, BooleanJassValueVisitor.getInstance());
++		return (value != null) && value;
++	}
++
++	static String noneIfNull(final String value) {
++		return value == null ? "" : value;
++	}
++
+ 	static int intArg(final List<JassValue> arguments, final int index) {
+ 		return arguments.get(index).visit(IntegerJassValueVisitor.getInstance());
+ 	}
+@@ -197,6 +244,52 @@ public final class LauncherNatives {
+ 		return widget;
+ 	}
+ 
++	private static com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.inventory.CAbilityInventory usableInventory(
++			final CUnit unit) {
++		return unit == null ? null : unit.getInventoryData();
++	}
++
++	private interface CacheFlush {
++		void flush(com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign.CGameCache cache, String mission,
++				String key);
++	}
++
++	private static com.etheller.interpreter.ast.function.JassFunction flush(final CacheFlush flush) {
++		return (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign.CGameCache cache = object(arguments, 0);
++			if (cache != null) {
++				flush.flush(cache, string(arguments, 1), string(arguments, 2));
++			}
++			return null;
++		};
++	}
++
++	/** SelectUnit and ClearSelection: the map choosing what the player has selected (the interface's selection). */
++	private static void registerSelection(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI) {
++		jassProgramVisitor.getJassNativeManager().createNative("SelectUnit", (arguments, globalScope, triggerScope) -> {
++			final CUnit whichUnit = object(arguments, 0);
++			if ((whichUnit != null) && (meleeUI != null)) {
++				meleeUI.scriptSelectUnit(whichUnit, bool(arguments, 1));
++			}
++			return null;
++		});
++		jassProgramVisitor.getJassNativeManager().createNative("GetDestructableTypeId",
++				(arguments, globalScope, triggerScope) -> {
++					final CDestructable whichDestructable = object(arguments, 0);
++					return IntegerJassValue.of((whichDestructable == null)
++							|| (whichDestructable.getDestType().getTypeId() == null) ? 0
++									: whichDestructable.getDestType().getTypeId().getValue());
++				});
++		jassProgramVisitor.getJassNativeManager().createNative("ClearSelection",
++				(arguments, globalScope, triggerScope) -> {
++					if (meleeUI != null) {
++						meleeUI.scriptClearSelection();
++					}
++					return null;
++				});
++	}
++
+ 	private static CAbilityHero scriptHeroData(final CUnit unit) {
+ 		return ((unit == null) || unit.isIllusion()) ? null : unit.getHeroData();
+ 	}
+@@ -907,12 +1000,270 @@ public final class LauncherNatives {
+ 		final HandleJassType eventType = globals.getHandleType("event");
+ 		final HandleJassType abilityType = globals.getHandleType("ability");
+ 		final HandleJassType destructableType = globals.getHandleType("destructable");
++		final HandleJassType gamecacheType = globals.getHandleType("gamecache");
++		registerSelection(jassProgramVisitor, meleeUI);
+ 		registerGuardPositions(jassProgramVisitor, simulation);
+ 		registerCineFilter(jassProgramVisitor, meleeUI);
+ 		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerTimerDialogs(jassProgramVisitor, war3MapViewer, meleeUI);
+ 		registerUnitsAndSounds(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType, globals);
++		// CampaignNatives: CopySaveGame
++		jassProgramVisitor.getJassNativeManager().createNative("CopySaveGame", (arguments, globalScope, triggerScope) -> {
++			final FileHandle source = CSaveStorage.savedGame(noneIfNull(string(arguments, 0)));
++			if (!source.exists()) {
++				return BooleanJassValue.FALSE;
++			}
++			source.copyTo(CSaveStorage.savedGame(noneIfNull(string(arguments, 1))));
++			return BooleanJassValue.TRUE;
++		});
++
++		// CampaignNatives: CreateDeadDestructable
++		jassProgramVisitor.getJassNativeManager().createNative("CreateDeadDestructable", (arguments, globalScope, triggerScope) -> {
++			final CDestructable destructable = simulation.createDestructable(new War3ID(integer(arguments, 0)),
++					real(arguments, 1), real(arguments, 2), real(arguments, 3), real(arguments, 4), integer(arguments, 5));
++			destructable.setLife(simulation, 0);
++			return new HandleJassValue(destructableType, destructable);
++		});
++
++		// CampaignNatives: CreateDeadDestructableZ
++		jassProgramVisitor.getJassNativeManager().createNative("CreateDeadDestructableZ", (arguments, globalScope, triggerScope) -> {
++			final CDestructable destructable = simulation.createDestructableZ(new War3ID(integer(arguments, 0)),
++					real(arguments, 1), real(arguments, 2), real(arguments, 3), real(arguments, 4), real(arguments, 5),
++					integer(arguments, 6));
++			destructable.setLife(simulation, 0);
++			return new HandleJassValue(destructableType, destructable);
++		});
++
++		// CampaignNatives: FlushGameCache
++		jassProgramVisitor.getJassNativeManager().createNative("FlushGameCache", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			if (cache != null) {
++				cache.flush();
++			}
++			return null;
++		});
++
++		// CampaignNatives: FlushStoredBoolean
++		jassProgramVisitor.getJassNativeManager().createNative("FlushStoredBoolean", flush(CGameCache::flushBoolean));
++
++		// CampaignNatives: FlushStoredInteger
++		jassProgramVisitor.getJassNativeManager().createNative("FlushStoredInteger", flush(CGameCache::flushInteger));
++
++		// CampaignNatives: FlushStoredMission
++		jassProgramVisitor.getJassNativeManager().createNative("FlushStoredMission", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			if (cache != null) {
++				cache.flushMission(string(arguments, 1));
++			}
++			return null;
++		});
++
++		// CampaignNatives: FlushStoredReal
++		jassProgramVisitor.getJassNativeManager().createNative("FlushStoredReal", flush(CGameCache::flushReal));
++
++		// CampaignNatives: FlushStoredString
++		jassProgramVisitor.getJassNativeManager().createNative("FlushStoredString", flush(CGameCache::flushString));
++
++		// CampaignNatives: FlushStoredUnit
++		jassProgramVisitor.getJassNativeManager().createNative("FlushStoredUnit", flush(CGameCache::flushUnit));
++
++		// CampaignNatives: GetHeroProperName
++		jassProgramVisitor.getJassNativeManager().createNative("GetHeroProperName", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = object(arguments, 0);
++			if ((unit == null) || (unit.getHeroData() == null)) {
++				// Measured on 1.29: null, not an empty string, for a null unit or a unit that is not a hero.
++				return JassType.STRING.getNullValue();
++			}
++			final CAbilityHero hero = unit.isIllusion() ? null : unit.getHeroData();
++			return new StringJassValue(hero == null ? "" : noneIfNull(hero.getProperName()));
++		});
++
++		// CampaignNatives: GetStoredBoolean
++		jassProgramVisitor.getJassNativeManager().createNative("GetStoredBoolean", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			final Boolean value = cache == null ? null : cache.getBoolean(string(arguments, 1), string(arguments, 2));
++			return BooleanJassValue.of((value != null) && value);
++		});
++
++		// CampaignNatives: GetStoredInteger
++		jassProgramVisitor.getJassNativeManager().createNative("GetStoredInteger", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			final Integer value = cache == null ? null : cache.getInteger(string(arguments, 1), string(arguments, 2));
++			return IntegerJassValue.of(value == null ? 0 : value);
++		});
++
++		// CampaignNatives: GetStoredReal
++		jassProgramVisitor.getJassNativeManager().createNative("GetStoredReal", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			final Float value = cache == null ? null : cache.getReal(string(arguments, 1), string(arguments, 2));
++			return RealJassValue.of(value == null ? 0 : value);
++		});
++
++		// CampaignNatives: GetStoredString
++		jassProgramVisitor.getJassNativeManager().createNative("GetStoredString", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			final String value = cache == null ? null : cache.getString(string(arguments, 1), string(arguments, 2));
++			return new StringJassValue(noneIfNull(value));
++		});
++
++		// CampaignNatives: HaveStoredBoolean
++		jassProgramVisitor.getJassNativeManager().createNative("HaveStoredBoolean", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue
++					.of((cache != null) && (cache.getBoolean(string(arguments, 1), string(arguments, 2)) != null));
++		});
++
++		// CampaignNatives: HaveStoredInteger
++		jassProgramVisitor.getJassNativeManager().createNative("HaveStoredInteger", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue
++					.of((cache != null) && (cache.getInteger(string(arguments, 1), string(arguments, 2)) != null));
++		});
++
++		// CampaignNatives: HaveStoredReal
++		jassProgramVisitor.getJassNativeManager().createNative("HaveStoredReal", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue
++					.of((cache != null) && (cache.getReal(string(arguments, 1), string(arguments, 2)) != null));
++		});
++
++		// CampaignNatives: HaveStoredString
++		jassProgramVisitor.getJassNativeManager().createNative("HaveStoredString", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue
++					.of((cache != null) && (cache.getString(string(arguments, 1), string(arguments, 2)) != null));
++		});
++
++		// CampaignNatives: HaveStoredUnit
++		jassProgramVisitor.getJassNativeManager().createNative("HaveStoredUnit", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue
++					.of((cache != null) && (cache.getUnit(string(arguments, 1), string(arguments, 2)) != null));
++		});
++
++		// CampaignNatives: InitGameCache
++		jassProgramVisitor.getJassNativeManager().createNative("InitGameCache", (arguments, globalScope, triggerScope) -> new HandleJassValue(gamecacheType,
++				new CGameCache(noneIfNull(string(arguments, 0)))));
++
++		// CampaignNatives: IsItemOwned
++		jassProgramVisitor.getJassNativeManager().createNative("IsItemOwned", (arguments, globalScope, triggerScope) -> {
++			final CItem item = object(arguments, 0);
++			return BooleanJassValue.of((item != null) && (item.getContainedUnit() != null));
++		});
++
++		// CampaignNatives: ReloadGameCachesFromDisk
++		jassProgramVisitor.getJassNativeManager().createNative("ReloadGameCachesFromDisk", (arguments, globalScope, triggerScope) -> {
++			CGameCache.reloadAllFromDisk();
++			return BooleanJassValue.TRUE;
++		});
++
++		// CampaignNatives: RemoveSaveDirectory
++		jassProgramVisitor.getJassNativeManager().createNative("RemoveSaveDirectory", (arguments, globalScope, triggerScope) -> {
++			final FileHandle folder = CSaveStorage.saveFolder(noneIfNull(string(arguments, 0)));
++			if ((folder == null) || !folder.isDirectory()) {
++				return BooleanJassValue.FALSE;
++			}
++			return BooleanJassValue.of(folder.deleteDirectory());
++		});
++
++		// CampaignNatives: RenameSaveDirectory
++		jassProgramVisitor.getJassNativeManager().createNative("RenameSaveDirectory", (arguments, globalScope, triggerScope) -> {
++			final FileHandle source = CSaveStorage.saveFolder(noneIfNull(string(arguments, 0)));
++			final FileHandle target = CSaveStorage.saveFolder(noneIfNull(string(arguments, 1)));
++			if ((source == null) || (target == null) || !source.isDirectory() || target.exists()) {
++				return BooleanJassValue.FALSE;
++			}
++			source.moveTo(target);
++			return BooleanJassValue.of(target.isDirectory());
++		});
++
++		// CampaignNatives: RestoreUnit
++		jassProgramVisitor.getJassNativeManager().createNative("RestoreUnit", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			final CPlayer player = object(arguments, 3);
++			final CStoredUnit stored = cache == null ? null : cache.getUnit(string(arguments, 1), string(arguments, 2));
++			if ((stored == null) || (player == null)) {
++				return new HandleJassValue(unitType, null);
++			}
++			return new HandleJassValue(unitType, stored.restore(simulation, player.getId(), real(arguments, 4),
++					real(arguments, 5), real(arguments, 6)));
++		});
++
++		// CampaignNatives: ReviveHeroLoc
++		jassProgramVisitor.getJassNativeManager().createNative("ReviveHeroLoc", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = object(arguments, 0);
++			final AbilityPointTarget location = object(arguments, 1);
++			if ((unit == null) || (location == null) || (unit.getHeroData() == null) || !unit.isDead()) {
++				return BooleanJassValue.FALSE;
++			}
++			unit.reviveHeroAtPoint(simulation, location.x, location.y, bool(arguments, 2));
++			return BooleanJassValue.TRUE;
++		});
++
++		// CampaignNatives: SaveGameCache
++		jassProgramVisitor.getJassNativeManager().createNative("SaveGameCache", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue.of((cache != null) && cache.save());
++		});
++
++		// CampaignNatives: SaveGameExists
++		jassProgramVisitor.getJassNativeManager().createNative("SaveGameExists", (arguments, globalScope, triggerScope) -> BooleanJassValue
++				.of(CSaveStorage.savedGame(noneIfNull(string(arguments, 0))).exists()));
++
++		// CampaignNatives: SetUnitPathing
++		jassProgramVisitor.getJassNativeManager().createNative("SetUnitPathing", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = object(arguments, 0);
++			if (unit != null) {
++				unit.setPathingDisabled(!bool(arguments, 1));
++			}
++			return null;
++		});
++
++		// CampaignNatives: StoreBoolean
++		jassProgramVisitor.getJassNativeManager().createNative("StoreBoolean", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			if (cache != null) {
++				cache.storeBoolean(string(arguments, 1), string(arguments, 2), bool(arguments, 3));
++			}
++			return null;
++		});
++
++		// CampaignNatives: StoreInteger
++		jassProgramVisitor.getJassNativeManager().createNative("StoreInteger", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			if (cache != null) {
++				cache.storeInteger(string(arguments, 1), string(arguments, 2), integer(arguments, 3));
++			}
++			return null;
++		});
++
++		// CampaignNatives: StoreReal
++		jassProgramVisitor.getJassNativeManager().createNative("StoreReal", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			if (cache != null) {
++				cache.storeReal(string(arguments, 1), string(arguments, 2), real(arguments, 3));
++			}
++			return null;
++		});
++
++		// CampaignNatives: StoreString
++		jassProgramVisitor.getJassNativeManager().createNative("StoreString", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			return BooleanJassValue.of((cache != null)
++					&& cache.storeString(string(arguments, 1), string(arguments, 2), noneIfNull(string(arguments, 3))));
++		});
++
++		// CampaignNatives: StoreUnit
++		jassProgramVisitor.getJassNativeManager().createNative("StoreUnit", (arguments, globalScope, triggerScope) -> {
++			final CGameCache cache = object(arguments, 0);
++			final CUnit unit = object(arguments, 3);
++			if ((cache == null) || (unit == null)) {
++				return BooleanJassValue.FALSE;
++			}
++			return BooleanJassValue.of(cache.storeUnit(string(arguments, 1), string(arguments, 2), new CStoredUnit(unit)));
++		});
++
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+ 				(arguments, globalScope, triggerScope) -> {
+@@ -939,6 +1290,28 @@ public final class LauncherNatives {
+ 					return BooleanJassValue.of(!player.hasAlliance(otherPlayer.getId(), CAllianceType.PASSIVE));
+ 				});
+ 
++		// CustomMapNatives: GetDestructableName
++		jassProgramVisitor.getJassNativeManager().createNative("GetDestructableName", (arguments, globalScope, triggerScope) -> {
++			final CDestructable dest = object(arguments, 0);
++			return StringJassValue.of(dest == null ? "" : dest.getDestType().getName());
++		});
++
++		// CustomMapNatives: IsDestructableInvulnerable
++		jassProgramVisitor.getJassNativeManager().createNative("IsDestructableInvulnerable", (arguments, globalScope, triggerScope) -> {
++			final CDestructable dest = object(arguments, 0);
++			return BooleanJassValue.of((dest != null) && dest.isInvulnerable());
++		});
++
++		// CustomMapNatives: ReviveHero
++		jassProgramVisitor.getJassNativeManager().createNative("ReviveHero", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = object(arguments, 0);
++			if ((unit == null) || (unit.getHeroData() == null) || !unit.isDead()) {
++				return BooleanJassValue.FALSE;
++			}
++			unit.reviveHeroAtPoint(simulation, real(arguments, 1), real(arguments, 2), bool(arguments, 3));
++			return BooleanJassValue.TRUE;
++		});
++
+ 		// EffectNatives: GetAbilityEffect
+ 		jassProgramVisitor.getJassNativeManager().createNative("GetAbilityEffect",
+ 				(arguments, globalScope, triggerScope) -> StringJassValue.of(""));
+@@ -947,6 +1320,61 @@ public final class LauncherNatives {
+ 		jassProgramVisitor.getJassNativeManager().createNative("GetAbilitySound",
+ 				(arguments, globalScope, triggerScope) -> StringJassValue.of(""));
+ 
++		// HeroNatives: GetHeroAgi
++		jassProgramVisitor.getJassNativeManager().createNative("GetHeroAgi",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final boolean includeBonuses = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++					final CAbilityHero heroData = whichUnit == null ? null : scriptHeroData(whichUnit);
++					if (heroData == null) {
++						return IntegerJassValue.ZERO;
++					}
++					return IntegerJassValue.of(includeBonuses ? heroData.getAgility().getCurrent()
++							: heroData.getAgility().getCurrentBase());
++				});
++
++		// HeroNatives: GetHeroInt
++		jassProgramVisitor.getJassNativeManager().createNative("GetHeroInt",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final boolean includeBonuses = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++					final CAbilityHero heroData = whichUnit == null ? null : scriptHeroData(whichUnit);
++					if (heroData == null) {
++						return IntegerJassValue.ZERO;
++					}
++					return IntegerJassValue.of(includeBonuses ? heroData.getIntelligence().getCurrent()
++							: heroData.getIntelligence().getCurrentBase());
++				});
++
++		// HeroNatives: GetHeroSkillPoints
++		jassProgramVisitor.getJassNativeManager().createNative("GetHeroSkillPoints",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final CAbilityHero heroData = whichUnit == null ? null : scriptHeroData(whichUnit);
++					return IntegerJassValue.of(heroData == null ? 0 : heroData.getSkillPoints());
++				});
++
++		// HeroNatives: GetHeroStr
++		jassProgramVisitor.getJassNativeManager().createNative("GetHeroStr",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final boolean includeBonuses = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++					final CAbilityHero heroData = whichUnit == null ? null : scriptHeroData(whichUnit);
++					if (heroData == null) {
++						return IntegerJassValue.ZERO;
++					}
++					return IntegerJassValue.of(includeBonuses ? heroData.getStrength().getCurrent()
++							: heroData.getStrength().getCurrentBase());
++				});
++
++		// HeroNatives: GetHeroXP
++		jassProgramVisitor.getJassNativeManager().createNative("GetHeroXP",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final CAbilityHero heroData = whichUnit == null ? null : scriptHeroData(whichUnit);
++					return IntegerJassValue.of(heroData == null ? 0 : heroData.getXp());
++				});
++
+ 		// HeroNatives: GetUnitLevel
+ 		jassProgramVisitor.getJassNativeManager().createNative("GetUnitLevel",
+ 				(arguments, globalScope, triggerScope) -> {
+@@ -959,6 +1387,111 @@ public final class LauncherNatives {
+ 							heroData != null ? heroData.getHeroLevel() : whichUnit.getUnitType().getLevel());
+ 				});
+ 
++		// HeroNatives: IsSuspendedXP
++		jassProgramVisitor.getJassNativeManager().createNative("IsSuspendedXP",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichHero = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					// Measured on 1.29: a null unit or a unit that is not a hero counts as suspended.
++					return BooleanJassValue.of((whichHero == null) || (whichHero.getHeroData() == null)
++							|| whichHero.getHeroData().isXpSuspended());
++				});
++
++		// HeroNatives: SuspendHeroXP
++		jassProgramVisitor.getJassNativeManager().createNative("SuspendHeroXP",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichHero = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final boolean flag = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++					if ((whichHero != null) && (whichHero.getHeroData() != null)) {
++						whichHero.getHeroData().setXpSuspended(flag);
++					}
++					return null;
++				});
++
++		// HeroNatives: UnitModifySkillPoints
++		jassProgramVisitor.getJassNativeManager().createNative("UnitModifySkillPoints",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichHero = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final int delta = arguments.get(1).visit(IntegerJassValueVisitor.getInstance());
++					if ((whichHero == null) || (whichHero.getHeroData() == null)) {
++						return BooleanJassValue.FALSE;
++					}
++					final CAbilityHero heroData = whichHero.getHeroData();
++					final int newPoints = Math.max(0, heroData.getSkillPoints() + delta);
++					final boolean changed = newPoints != heroData.getSkillPoints();
++					heroData.setSkillPoints(newPoints);
++					whichHero.internalPublishHeroStatsChanged();
++					return BooleanJassValue.of(changed);
++				});
++
++		// ItemNatives: UnitDropItemPoint
++		jassProgramVisitor.getJassNativeManager().createNative("UnitDropItemPoint",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final CItem whichItem = nullable(arguments, 1, ObjectJassValueVisitor.getInstance());
++					final float x = arguments.get(2).visit(RealJassValueVisitor.getInstance()).floatValue();
++					final float y = arguments.get(3).visit(RealJassValueVisitor.getInstance()).floatValue();
++					final CAbilityInventory inventoryData = usableInventory(whichUnit);
++					if ((inventoryData == null) || (whichItem == null) || (inventoryData.getSlot(whichItem) == -1)
++							|| whichUnit.isIllusion()) {
++						return BooleanJassValue.FALSE;
++					}
++					simulation.getDefaultPlayerUnitOrderExecutor(whichUnit.getPlayerIndex())
++							.issueDropItemAtPointOrder(whichUnit.getHandleId(), inventoryData.getHandleId(),
++									OrderIds.dropitem, whichItem.getHandleId(), x, y, false);
++					return BooleanJassValue.TRUE;
++				});
++
++		// ItemNatives: UnitDropItemTarget
++		jassProgramVisitor.getJassNativeManager().createNative("UnitDropItemTarget",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final CItem whichItem = nullable(arguments, 1, ObjectJassValueVisitor.getInstance());
++					final CWidget target = nullable(arguments, 2, ObjectJassValueVisitor.getInstance());
++					final CAbilityInventory inventoryData = usableInventory(whichUnit);
++					if ((inventoryData == null) || (whichItem == null) || !(target instanceof CUnit)
++							|| (inventoryData.getSlot(whichItem) == -1) || whichUnit.isIllusion()) {
++						return BooleanJassValue.FALSE;
++					}
++					simulation.getDefaultPlayerUnitOrderExecutor(whichUnit.getPlayerIndex())
++							.issueDropItemAtTargetOrder(whichUnit.getHandleId(), inventoryData.getHandleId(),
++									OrderIds.dropitem, whichItem.getHandleId(), target.getHandleId(), false);
++					return BooleanJassValue.TRUE;
++				});
++
++		// ItemNatives: UnitHasItem
++		jassProgramVisitor.getJassNativeManager().createNative("UnitHasItem",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final CItem whichItem = nullable(arguments, 1, ObjectJassValueVisitor.getInstance());
++					final CAbilityInventory inventoryData = usableInventory(whichUnit);
++					return BooleanJassValue
++							.of((inventoryData != null) && (whichItem != null) && (inventoryData.getSlot(whichItem) != -1));
++				});
++
++		// ItemNatives: UnitInventorySize
++		jassProgramVisitor.getJassNativeManager().createNative("UnitInventorySize",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final CAbilityInventory inventoryData = usableInventory(whichUnit);
++					return IntegerJassValue.of(inventoryData == null ? 0 : inventoryData.getItemCapacity());
++				});
++
++		// ItemNatives: UnitRemoveItemFromSlot
++		jassProgramVisitor.getJassNativeManager().createNative("UnitRemoveItemFromSlot",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final int slot = arguments.get(1).visit(IntegerJassValueVisitor.getInstance());
++					final CAbilityInventory inventoryData = usableInventory(whichUnit);
++					if ((inventoryData == null) || (slot < 0) || (slot >= inventoryData.getItemCapacity())
++							|| (inventoryData.getItemInSlot(slot) == null)) {
++						return new HandleJassValue(itemType, null);
++					}
++					final CItem item = inventoryData.getItemInSlot(slot);
++					inventoryData.dropItem(simulation, whichUnit, slot, whichUnit.getX(), whichUnit.getY(),
++							false);
++					return new HandleJassValue(itemType, item);
++				});
++
+ 		// PlayerNatives: GetPlayerHandicapXP
+ 		jassProgramVisitor.getJassNativeManager().createNative("GetPlayerHandicapXP",
+ 				(arguments, globalScope, triggerScope) -> {
+@@ -1155,6 +1688,16 @@ public final class LauncherNatives {
+ 		jassProgramVisitor.getJassNativeManager().createNative("TriggerRegisterFilterUnitEvent",
+ 				(arguments, globalScope, triggerScope) -> eventType.getNullValue());
+ 
++		// UnitNatives: GetWidgetLife
++		jassProgramVisitor.getJassNativeManager().createNative("GetWidgetLife",
++				(arguments, globalScope, triggerScope) -> {
++					final CWidget whichWidget = inGame(nullable(arguments, 0, ObjectJassValueVisitor.getInstance()));
++					if (whichWidget instanceof CUnit) {
++						return new RealJassValue(((CUnit) whichWidget).getScriptLife());
++					}
++					return new RealJassValue(whichWidget == null ? 0 : whichWidget.getLife());
++				});
++
+ 		// UnitNatives: IsUnitInTransport
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsUnitInTransport",
+ 				(arguments, globalScope, triggerScope) -> {
+@@ -1178,5 +1721,41 @@ public final class LauncherNatives {
+ 					}
+ 					return BooleanJassValue.FALSE;
+ 				});
++
++		// UnitNatives: IsUnitPaused
++		jassProgramVisitor.getJassNativeManager().createNative("IsUnitPaused",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					return BooleanJassValue.of((whichUnit != null) && whichUnit.isPaused());
++				});
++
++		// UnitNatives: SetUnitUseFood
++		jassProgramVisitor.getJassNativeManager().createNative("SetUnitUseFood",
++				(arguments, globalScope, triggerScope) -> {
++					final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					final boolean useFood = arguments.get(1).visit(BooleanJassValueVisitor.getInstance());
++					if (whichUnit != null) {
++						final CPlayer player = simulation.getPlayer(whichUnit.getPlayerIndex());
++						player.setUnitFoodUsed(whichUnit, useFood ? whichUnit.getUnitType().getFoodUsed() : 0);
++						player.setUnitFoodMade(whichUnit, useFood ? whichUnit.getUnitType().getFoodMade() : 0);
++					}
++					return null;
++				});
++
++		// UnitNatives: SetWidgetLife
++		jassProgramVisitor.getJassNativeManager().createNative("SetWidgetLife",
++				(arguments, globalScope, triggerScope) -> {
++					final CWidget whichWidget = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
++					if (whichWidget != null) {
++						final float life = arguments.get(1).visit(RealJassValueVisitor.getInstance()).floatValue();
++						if ((whichWidget instanceof CUnit) && ((CUnit) whichWidget).isDead()) {
++							((CUnit) whichWidget).setDeadScriptLife(life);
++						}
++						else {
++							whichWidget.setLife(simulation, life);
++						}
++					}
++					return null;
++				});
+ 	}
+ }
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CDestructableType.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CDestructableType.java
+index db88bb4..297e733 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CDestructableType.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CDestructableType.java
+@@ -37,6 +37,18 @@ public class CDestructableType {
+ 		this.repairTime = repairTime;
+ 	}
+ 
++	// Blizzard launcher: the type's rawcode, for GetDestructableTypeId.
++	private com.etheller.warsmash.util.War3ID typeId;
++
++	public com.etheller.warsmash.util.War3ID getTypeId() {
++		return this.typeId;
++	}
++
++	public CDestructableType setTypeId(final com.etheller.warsmash.util.War3ID typeId) {
++		this.typeId = typeId;
++		return this;
++	}
++
+ 	public String getName() {
+ 		return this.name;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index 22a362d..1c0cd91 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -3287,6 +3287,8 @@ public class CUnit extends CWidget {
+ 							}
+ 						}
+ 					}
++					// Blizzard launcher: a hero whose experience the map suspended gets none, and its share goes to no one.
++					xpReceivingHeroes.removeIf((hero) -> hero.getHeroData().isXpSuspended());
+ 					for (final CUnit receivingHero : xpReceivingHeroes) {
+ 						final CAbilityHero heroData = receivingHero.getHeroData();
+ 						heroData.addXp(simulation, receivingHero,
+@@ -4562,6 +4564,51 @@ public class CUnit extends CWidget {
+ 		game.unitRepositioned(this);
+ 	}
+ 
++	/**
++	 * Blizzard launcher: ReviveHero, a dead hero raised by the map's script at a point, with full life and the
++	 * altar's share of mana.
++	 */
++	public void reviveHeroAtPoint(final CSimulation game, final float x, final float y, final boolean doEyecandy) {
++		// Still in the collision tables when the script revives it in its own death event: take it out first.
++		game.getWorldCollision().removeUnit(this);
++		getHeroData().setReviving(false);
++		getHeroData().setAwaitingRevive(false);
++		this.corpse = false;
++		this.boneCorpse = false;
++		this.deathTurnTick = 0;
++		setX(x);
++		setY(y);
++		game.getWorldCollision().addUnit(this);
++		setPoint(x, y, game.getWorldCollision(), game.getRegionManager());
++		setHidden(false);
++		setLife(game, getMaximumLife());
++		final CGameplayConstants gameplayConstants = game.getGameplayConstants();
++		setMana(Math.min(getMaximumMana(), (getMaximumMana() * gameplayConstants.getHeroReviveManaFactor())
++				+ (gameplayConstants.getHeroReviveManaStart() * this.unitType.getManaInitial())));
++		game.unitRepositioned(this);
++		game.heroReviveEvent(this, this);
++	}
++
++	/** Blizzard launcher: the script's GetWidgetLife; SetWidgetLife on a dead unit leaves it dead. */
++	public float getScriptLife() {
++		return getLife();
++	}
++
++	public void setDeadScriptLife(final float life) {
++	}
++
++	private boolean pathingDisabled;
++
++	/** Blizzard launcher: SetUnitPathing; a unit with its pathing off walks through other units. */
++	public boolean isPathingDisabled() {
++		return this.pathingDisabled;
++	}
++
++	public void setPathingDisabled(final boolean pathingDisabled) {
++		this.pathingDisabled = pathingDisabled;
++		setNoCollisionMovementType(pathingDisabled);
++	}
++
+ 	public void nudgeAround(final CSimulation simulation, final CUnit structure) {
+ 		setPointAndCheckUnstuck(structure.getX(), structure.getY(), simulation);
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
+index 570363a..ac2acbe 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/abilities/hero/CAbilityHero.java
+@@ -204,6 +204,17 @@ public class CAbilityHero extends AbstractCAbility {
+ 		}
+ 	}
+ 
++	// Blizzard launcher: SuspendHeroXP; kills give this hero no experience while it is set.
++	private boolean xpSuspended;
++
++	public boolean isXpSuspended() {
++		return this.xpSuspended;
++	}
++
++	public void setXpSuspended(final boolean xpSuspended) {
++		this.xpSuspended = xpSuspended;
++	}
++
+ 	public int getSkillPoints() {
+ 		return this.skillPoints;
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CGameCache.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CGameCache.java
+new file mode 100644
+index 0000000..6e04b64
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CGameCache.java
+@@ -0,0 +1,386 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign;
++
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.HashMap;
++import java.util.Locale;
++import java.util.Map;
++
++import com.badlogic.gdx.files.FileHandle;
++
++/**
++ * A game cache handle. Measured on 1.29: every InitGameCache call makes a new handle, handles of one file name share
++ * the data, keys ignore case and each value type has its own keys; FlushGameCache empties the file and leaves the
++ * handle dead (stores through it are lost).
++ *
++ * Measured on 1.29, on disk: SaveGameCache writes every cache as it is at that moment, not only the one it names, and
++ * returns false for a dead handle; nothing else writes (a store or a flush after the last save is lost at exit);
++ * ReloadGameCachesFromDisk puts every cache back to the last save, and a new game starts from it.
++ */
++public final class CGameCache {
++	private static final String STORE_FILE = "GameCaches.w3v";
++	private static final int STORE_VERSION = 1;
++	private static final Map<String, Data> FILES = new HashMap<>();
++	private static boolean loadedFromDisk;
++	private static Disk disk = ProfileDisk.INSTANCE;
++
++	private final String fileName;
++	private Data data;
++	private boolean flushed;
++
++	public CGameCache(final String fileName) {
++		loadFromDiskOnce();
++		this.fileName = fileName.toLowerCase(Locale.ROOT);
++		this.data = FILES.computeIfAbsent(this.fileName, key -> new Data());
++	}
++
++	public void flush() {
++		FILES.remove(this.fileName);
++		this.data = null;
++		this.flushed = true;
++	}
++
++	public boolean save() {
++		return live() && saveAllToDisk();
++	}
++
++	public static boolean saveAllToDisk() {
++		final byte[] bytes;
++		try {
++			bytes = toBytes();
++		}
++		catch (final IOException e) {
++			e.printStackTrace();
++			return false;
++		}
++		return disk.write(bytes);
++	}
++
++	public static void reloadAllFromDisk() {
++		final Map<String, Data> saved = new HashMap<>();
++		final byte[] bytes = disk.read();
++		if (bytes != null) {
++			try {
++				readAll(new DataInputStream(new ByteArrayInputStream(bytes)), saved);
++			}
++			catch (final IOException e) {
++				e.printStackTrace();
++			}
++		}
++		FILES.clear();
++		FILES.putAll(saved);
++		loadedFromDisk = true;
++	}
++
++	/**
++	 * Where the caches are saved to and read from. A replay records what the game read and plays it back from there,
++	 * since the profile's file may have changed in between.
++	 */
++	public interface Disk {
++		/** The saved file's bytes, or null without one. */
++		byte[] read();
++
++		boolean write(byte[] bytes);
++	}
++
++	public static Disk profileDisk() {
++		return ProfileDisk.INSTANCE;
++	}
++
++	/** Null puts back the profile's own file. */
++	public static void setDisk(final Disk disk) {
++		CGameCache.disk = disk == null ? ProfileDisk.INSTANCE : disk;
++	}
++
++	/** The caches as the game has them now, or null when none were read from the disk yet; for a replay's start. */
++	public static byte[] snapshot() {
++		if (!loadedFromDisk) {
++			return null;
++		}
++		try {
++			return toBytes();
++		}
++		catch (final IOException e) {
++			throw new IllegalStateException(e);
++		}
++	}
++
++	/** Puts back the caches of a {@link #snapshot()}. */
++	public static void restoreSnapshot(final byte[] snapshot) throws IOException {
++		if (snapshot == null) {
++			forgetLoaded();
++			return;
++		}
++		restoreAll(new DataInputStream(new ByteArrayInputStream(snapshot)));
++	}
++
++	private static byte[] toBytes() throws IOException {
++		final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
++		try (DataOutputStream out = new DataOutputStream(bytes)) {
++			writeAll(out);
++		}
++		return bytes.toByteArray();
++	}
++
++	private static final class ProfileDisk implements Disk {
++		private static final ProfileDisk INSTANCE = new ProfileDisk();
++
++		@Override
++		public byte[] read() {
++			final FileHandle file = CSaveStorage.profileFile(STORE_FILE);
++			if (!file.exists()) {
++				return null;
++			}
++			try {
++				return file.readBytes();
++			}
++			catch (final RuntimeException e) {
++				e.printStackTrace();
++				return null;
++			}
++		}
++
++		@Override
++		public boolean write(final byte[] bytes) {
++			return CSaveStorage.writeAtomically(CSaveStorage.profileFile(STORE_FILE), out -> out.write(bytes));
++		}
++	}
++
++	private static void loadFromDiskOnce() {
++		if (!loadedFromDisk) {
++			reloadAllFromDisk();
++		}
++	}
++
++	/**
++	 * Measured on 1.29: after ChangeLevel the next map sees only what was saved; stores after the last save and caches
++	 * never saved are gone.
++	 */
++	public static void dropUnsaved() {
++		forgetLoaded();
++	}
++
++	/** Another player profile has its own caches. */
++	static void forgetLoaded() {
++		FILES.clear();
++		loadedFromDisk = false;
++	}
++
++	public static void writeAll(final DataOutputStream out) throws IOException {
++		out.writeInt(STORE_VERSION);
++		out.writeInt(FILES.size());
++		for (final Map.Entry<String, Data> file : FILES.entrySet()) {
++			out.writeUTF(file.getKey());
++			file.getValue().write(out);
++		}
++	}
++
++	private static void readAll(final DataInputStream in, final Map<String, Data> into) throws IOException {
++		if (in.readInt() != STORE_VERSION) {
++			throw new IOException("Unknown game cache version");
++		}
++		final int files = in.readInt();
++		for (int i = 0; i < files; i++) {
++			final String name = in.readUTF();
++			final Data data = new Data();
++			data.read(in);
++			into.put(name, data);
++		}
++	}
++
++	/** A saved game carries the caches of the moment it was saved. */
++	public static void restoreAll(final DataInputStream in) throws IOException {
++		final Map<String, Data> saved = new HashMap<>();
++		readAll(in, saved);
++		FILES.clear();
++		FILES.putAll(saved);
++		loadedFromDisk = true;
++	}
++
++	public void flushMission(final String mission) {
++		if (live()) {
++			final String key = key(mission);
++			this.data.integers.remove(key);
++			this.data.reals.remove(key);
++			this.data.booleans.remove(key);
++			this.data.strings.remove(key);
++			this.data.units.remove(key);
++		}
++	}
++
++	public void storeInteger(final String mission, final String key, final int value) {
++		if (live()) {
++			put(this.data.integers, mission, key, value);
++		}
++	}
++
++	public void storeReal(final String mission, final String key, final float value) {
++		if (live()) {
++			put(this.data.reals, mission, key, value);
++		}
++	}
++
++	public void storeBoolean(final String mission, final String key, final boolean value) {
++		if (live()) {
++			put(this.data.booleans, mission, key, value);
++		}
++	}
++
++	public boolean storeString(final String mission, final String key, final String value) {
++		if (live()) {
++			put(this.data.strings, mission, key, value);
++			return true;
++		}
++		return false;
++	}
++
++	public boolean storeUnit(final String mission, final String key, final CStoredUnit value) {
++		if (live()) {
++			put(this.data.units, mission, key, value);
++			return true;
++		}
++		return false;
++	}
++
++	public Integer getInteger(final String mission, final String key) {
++		return live() ? get(this.data.integers, mission, key) : null;
++	}
++
++	public Float getReal(final String mission, final String key) {
++		return live() ? get(this.data.reals, mission, key) : null;
++	}
++
++	public Boolean getBoolean(final String mission, final String key) {
++		return live() ? get(this.data.booleans, mission, key) : null;
++	}
++
++	public String getString(final String mission, final String key) {
++		return live() ? get(this.data.strings, mission, key) : null;
++	}
++
++	public CStoredUnit getUnit(final String mission, final String key) {
++		return live() ? get(this.data.units, mission, key) : null;
++	}
++
++	public void flushInteger(final String mission, final String key) {
++		if (live()) {
++			remove(this.data.integers, mission, key);
++		}
++	}
++
++	public void flushReal(final String mission, final String key) {
++		if (live()) {
++			remove(this.data.reals, mission, key);
++		}
++	}
++
++	public void flushBoolean(final String mission, final String key) {
++		if (live()) {
++			remove(this.data.booleans, mission, key);
++		}
++	}
++
++	public void flushString(final String mission, final String key) {
++		if (live()) {
++			remove(this.data.strings, mission, key);
++		}
++	}
++
++	public void flushUnit(final String mission, final String key) {
++		if (live()) {
++			remove(this.data.units, mission, key);
++		}
++	}
++
++	/** A reload or a loaded game replaces the data behind every handle that was not flushed. */
++	private boolean live() {
++		if (this.flushed) {
++			return false;
++		}
++		this.data = FILES.computeIfAbsent(this.fileName, key -> new Data());
++		return true;
++	}
++
++	private static String key(final String text) {
++		return text == null ? "" : text.toLowerCase(Locale.ROOT);
++	}
++
++	private static <T> void put(final Map<String, Map<String, T>> values, final String mission, final String key,
++			final T value) {
++		values.computeIfAbsent(key(mission), ignored -> new HashMap<>()).put(key(key), value);
++	}
++
++	private static <T> T get(final Map<String, Map<String, T>> values, final String mission, final String key) {
++		final Map<String, T> missionValues = values.get(key(mission));
++		return missionValues == null ? null : missionValues.get(key(key));
++	}
++
++	private static <T> void remove(final Map<String, Map<String, T>> values, final String mission, final String key) {
++		final Map<String, T> missionValues = values.get(key(mission));
++		if (missionValues != null) {
++			missionValues.remove(key(key));
++		}
++	}
++
++	private static final class Data {
++		private final Map<String, Map<String, Integer>> integers = new HashMap<>();
++		private final Map<String, Map<String, Float>> reals = new HashMap<>();
++		private final Map<String, Map<String, Boolean>> booleans = new HashMap<>();
++		private final Map<String, Map<String, String>> strings = new HashMap<>();
++		private final Map<String, Map<String, CStoredUnit>> units = new HashMap<>();
++
++		private void write(final DataOutputStream out) throws IOException {
++			writeValues(out, this.integers, DataOutputStream::writeInt);
++			writeValues(out, this.reals, DataOutputStream::writeFloat);
++			writeValues(out, this.booleans, DataOutputStream::writeBoolean);
++			writeValues(out, this.strings, (stream, text) -> stream.writeUTF(text));
++			writeValues(out, this.units, (stream, unit) -> unit.write(stream));
++		}
++
++		private void read(final DataInputStream in) throws IOException {
++			readValues(in, this.integers, DataInputStream::readInt);
++			readValues(in, this.reals, DataInputStream::readFloat);
++			readValues(in, this.booleans, DataInputStream::readBoolean);
++			readValues(in, this.strings, stream -> stream.readUTF());
++			readValues(in, this.units, CStoredUnit::read);
++		}
++	}
++
++	private interface ValueWriter<T> {
++		void write(DataOutputStream out, T value) throws IOException;
++	}
++
++	private interface ValueReader<T> {
++		T read(DataInputStream in) throws IOException;
++	}
++
++	private static <T> void writeValues(final DataOutputStream out, final Map<String, Map<String, T>> values,
++			final ValueWriter<T> writer) throws IOException {
++		out.writeInt(values.size());
++		for (final Map.Entry<String, Map<String, T>> mission : values.entrySet()) {
++			out.writeUTF(mission.getKey());
++			out.writeInt(mission.getValue().size());
++			for (final Map.Entry<String, T> entry : mission.getValue().entrySet()) {
++				out.writeUTF(entry.getKey());
++				writer.write(out, entry.getValue());
++			}
++		}
++	}
++
++	private static <T> void readValues(final DataInputStream in, final Map<String, Map<String, T>> values,
++			final ValueReader<T> reader) throws IOException {
++		final int missions = in.readInt();
++		for (int i = 0; i < missions; i++) {
++			final Map<String, T> mission = new HashMap<>();
++			values.put(in.readUTF(), mission);
++			final int entries = in.readInt();
++			for (int j = 0; j < entries; j++) {
++				final String key = in.readUTF();
++				mission.put(key, reader.read(in));
++			}
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CSaveStorage.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CSaveStorage.java
+new file mode 100644
+index 0000000..85158e4
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CSaveStorage.java
+@@ -0,0 +1,181 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign;
++
++import java.util.Locale;
++
++import java.io.BufferedInputStream;
++import java.io.BufferedOutputStream;
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++import java.util.concurrent.ExecutionException;
++import java.util.concurrent.Future;
++import java.util.concurrent.LinkedBlockingQueue;
++import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
++
++import com.badlogic.gdx.files.FileHandle;
++
++/**
++ * Blizzard launcher: Warsmash Reforged's, kept in Gdx.files.local only. Where a player's saved games, game caches and campaign progress live: Save/&lt;profile&gt; in the application's own
++ * storage (Gdx.files.local), which is the working folder on desktop and the private files folder on Android, or
++ * the folder the platform names in {@link StorageRoot} (Android keeps the profiles in the shared storage, where an
++ * uninstall leaves them).
++ */
++public final class CSaveStorage {
++	public static final String SAVE_EXTENSION = ".w3z";
++	private static final String CURRENT_PROFILE_FALLBACK = "Player";
++	private static String profile = CURRENT_PROFILE_FALLBACK;
++	private static final ThreadPoolExecutor BACKGROUND_WRITER = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS,
++			new LinkedBlockingQueue<>(), runnable -> new Thread(runnable, "SaveWriter"));
++	private static Future<?> lastBackgroundWrite;
++
++	static {
++		BACKGROUND_WRITER.allowCoreThreadTimeOut(true);
++	}
++
++	private CSaveStorage() {
++	}
++
++	public static void setProfile(final String profileName) {
++		final String safe = safeName(profileName);
++		final String next = safe.isEmpty() ? CURRENT_PROFILE_FALLBACK : safe;
++		if (!next.equals(profile)) {
++			profile = next;
++			CGameCache.forgetLoaded();
++		}
++	}
++
++	public static FileHandle profileFile(final String name) {
++		return com.badlogic.gdx.Gdx.files.local("Save/" + profile + "/" + name);
++	}
++
++	public static FileHandle savedGame(final String name) {
++		finishBackgroundWrites();
++		return profileFile(fileNameOf(name));
++	}
++
++	/**
++	 * A script's name for a save can have folders and its own extension. The folders are kept, as in the original:
++	 * zone maps keep a save per zone in Blizzard\Zones, copy them to a folder named after the player's save and
++	 * remove the folder when the chapter starts again; the saved game list shows only the profile's own folder.
++	 */
++	private static String fileNameOf(final String name) {
++		String path = folderOf(name);
++		if (path.toLowerCase(Locale.ROOT).endsWith(SAVE_EXTENSION)) {
++			path = path.substring(0, path.length() - SAVE_EXTENSION.length());
++		}
++		return path + SAVE_EXTENSION;
++	}
++
++	/** Each part made safe; empty, "." and ".." parts are dropped, so a name never leaves the profile folder. */
++	private static String folderOf(final String name) {
++		final StringBuilder path = new StringBuilder();
++		for (final String part : name.replace('\\', '/').split("/")) {
++			final String safe = safeName(part);
++			if (!safe.isEmpty()) {
++				path.append(path.length() == 0 ? "" : "/").append(safe);
++			}
++		}
++		return path.toString();
++	}
++
++	/** A folder of saves named by a script, or null for an empty name (the profile folder itself). */
++	public static FileHandle saveFolder(final String name) {
++		finishBackgroundWrites();
++		final String path = folderOf(name);
++		return path.isEmpty() ? null : profileFile(path);
++	}
++
++	/** Names as typed by a player must stay inside the save folder and be legal on every file system. */
++	public static String safeName(final String name) {
++		return name.replaceAll("[\\\\/:*?\"<>|\\x00-\\x1f]", "_").replaceAll("^\\.+", "").trim();
++	}
++
++	public static List<String> savedGameNames() {
++		finishBackgroundWrites();
++		final List<String> names = new ArrayList<>();
++		final FileHandle folder = profileFile("");
++		if (folder.isDirectory()) {
++			for (final FileHandle file : folder.list(SAVE_EXTENSION)) {
++				names.add(file.nameWithoutExtension());
++			}
++		}
++		Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
++		return names;
++	}
++
++	public interface Writer {
++		void write(DataOutputStream out) throws IOException;
++	}
++
++	public interface Reader {
++		void read(DataInputStream in) throws IOException;
++	}
++
++	/** Written beside the target first: a crash or a full disk must not take the previous file with it. */
++	public static boolean writeAtomically(final FileHandle file, final Writer writer) {
++		final FileHandle temporary = file.sibling(file.name() + ".tmp");
++		try {
++			file.parent().mkdirs();
++			try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(temporary.write(false)))) {
++				writer.write(out);
++			}
++			temporary.moveTo(file);
++			return true;
++		}
++		catch (final Exception exc) {
++			exc.printStackTrace();
++			if (temporary.exists()) {
++				temporary.delete();
++			}
++			return false;
++		}
++	}
++
++	/**
++	 * Campaign scripts save checkpoints in the middle of play, and compressing and storing a save held the frame for
++	 * as long as it took; that part runs beside the game. Writes still happen one after another, in the order asked.
++	 */
++	public static synchronized void writeInBackground(final FileHandle file, final Writer writer) {
++		lastBackgroundWrite = BACKGROUND_WRITER.submit(() -> {
++			writeAtomically(file, writer);
++		});
++	}
++
++	/** Anything that reads or lists saved games first waits for the ones still being written. */
++	public static void finishBackgroundWrites() {
++		final Future<?> pending;
++		synchronized (CSaveStorage.class) {
++			pending = lastBackgroundWrite;
++		}
++		if ((pending == null) || pending.isDone()) {
++			return;
++		}
++		try {
++			pending.get();
++		}
++		catch (final InterruptedException exc) {
++			Thread.currentThread().interrupt();
++		}
++		catch (final ExecutionException exc) {
++			exc.printStackTrace();
++		}
++	}
++
++	public static boolean read(final FileHandle file, final Reader reader) {
++		if (!file.exists()) {
++			return false;
++		}
++		try (DataInputStream in = new DataInputStream(new BufferedInputStream(file.read()))) {
++			reader.read(in);
++			return true;
++		}
++		catch (final Exception exc) {
++			exc.printStackTrace();
++			return false;
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CStoredUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CStoredUnit.java
+new file mode 100644
+index 0000000..07dcdd8
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/campaign/CStoredUnit.java
+@@ -0,0 +1,170 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.campaign;
++
++import java.io.DataInputStream;
++import java.io.DataOutputStream;
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.List;
++
++import com.etheller.warsmash.util.War3ID;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CItem;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.CAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.generic.CLevelingAbility;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.hero.CAbilityHero;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.inventory.CAbilityInventory;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.Aliased;
++
++/**
++ * What StoreUnit keeps. Measured on 1.29: type, hero experience, skill points, base attributes, learned skills and
++ * items with their charges. A restored unit is a new one with full life and mana and the default move speed, and the
++ * stored unit keeps its items.
++ */
++public final class CStoredUnit {
++	private final War3ID typeId;
++	private boolean hero;
++	private int xp;
++	private int skillPoints;
++	private int strength;
++	private int agility;
++	private int intelligence;
++	private final List<StoredSkill> skills = new ArrayList<>();
++	private final List<StoredItem> items = new ArrayList<>();
++
++	public CStoredUnit(final CUnit unit) {
++		this.typeId = unit.getTypeId();
++		final CAbilityHero heroData = unit.getHeroData();
++		if (heroData != null) {
++			this.hero = true;
++			this.xp = heroData.getXp();
++			this.skillPoints = heroData.getSkillPoints();
++			this.strength = heroData.getStrength().getBase();
++			this.agility = heroData.getAgility().getBase();
++			this.intelligence = heroData.getIntelligence().getBase();
++			for (final CAbility learned : unit.getAbilities()) {
++				if (!heroData.getSkillsAvailable().contains(learned instanceof Aliased ? ((Aliased) learned).getAlias() : null)) {
++					continue;
++				}
++				if ((learned instanceof Aliased) && (learned instanceof CLevelingAbility)) {
++					this.skills.add(new StoredSkill(((Aliased) learned).getAlias(),
++							((CLevelingAbility) learned).getLevel()));
++				}
++			}
++		}
++		final CAbilityInventory inventory = unit.getInventoryData();
++		if (inventory != null) {
++			for (int slot = 0; slot < inventory.getItemCapacity(); slot++) {
++				final CItem item = inventory.getItemInSlot(slot);
++				if (item != null) {
++					this.items.add(new StoredItem(item.getTypeId(), item.getCharges(), slot));
++				}
++			}
++		}
++	}
++
++	private CStoredUnit(final War3ID typeId) {
++		this.typeId = typeId;
++	}
++
++	void write(final DataOutputStream out) throws IOException {
++		out.writeInt(this.typeId.getValue());
++		out.writeBoolean(this.hero);
++		out.writeInt(this.xp);
++		out.writeInt(this.skillPoints);
++		out.writeInt(this.strength);
++		out.writeInt(this.agility);
++		out.writeInt(this.intelligence);
++		out.writeInt(this.skills.size());
++		for (final StoredSkill skill : this.skills) {
++			out.writeInt(skill.abilityId.getValue());
++			out.writeInt(skill.level);
++		}
++		out.writeInt(this.items.size());
++		for (final StoredItem item : this.items) {
++			out.writeInt(item.typeId.getValue());
++			out.writeInt(item.charges);
++			out.writeInt(item.slot);
++		}
++	}
++
++	static CStoredUnit read(final DataInputStream in) throws IOException {
++		final CStoredUnit unit = new CStoredUnit(new War3ID(in.readInt()));
++		unit.hero = in.readBoolean();
++		unit.xp = in.readInt();
++		unit.skillPoints = in.readInt();
++		unit.strength = in.readInt();
++		unit.agility = in.readInt();
++		unit.intelligence = in.readInt();
++		final int skillCount = in.readInt();
++		for (int i = 0; i < skillCount; i++) {
++			final War3ID abilityId = new War3ID(in.readInt());
++			unit.skills.add(new StoredSkill(abilityId, in.readInt()));
++		}
++		final int itemCount = in.readInt();
++		for (int i = 0; i < itemCount; i++) {
++			final War3ID itemType = new War3ID(in.readInt());
++			final int charges = in.readInt();
++			unit.items.add(new StoredItem(itemType, charges, in.readInt()));
++		}
++		return unit;
++	}
++
++	public CUnit restore(final CSimulation game, final int playerIndex, final float x, final float y,
++			final float facing) {
++		final CUnit unit = game.createUnitSimple(this.typeId, playerIndex, x, y, facing);
++		if (unit == null) {
++			return null;
++		}
++		final CAbilityHero heroData = unit.getHeroData();
++		if (this.hero && (heroData != null)) {
++			heroData.setXp(game, unit, this.xp, false);
++			heroData.setStrengthBase(game, unit, this.strength);
++			heroData.setAgilityBase(game, unit, this.agility);
++			heroData.setIntelligenceBase(game, unit, this.intelligence);
++			// Blizzard launcher: each skill learned again, level by level, with points given for it.
++			for (final StoredSkill skill : this.skills) {
++				for (int level = 0; level < skill.level; level++) {
++					heroData.setSkillPoints(heroData.getSkillPoints() + 1);
++					heroData.selectHeroSkill(game, unit, skill.abilityId);
++				}
++			}
++			heroData.setSkillPoints(this.skillPoints);
++			unit.setLife(game, unit.getMaximumLife());
++			unit.setMana(unit.getMaximumMana());
++		}
++		final CAbilityInventory inventory = unit.getInventoryData();
++		if (inventory != null) {
++			for (final StoredItem stored : this.items) {
++				final CItem item = game.createItem(stored.typeId, unit.getX(), unit.getY());
++				if (item != null) {
++					item.setCharges(stored.charges);
++					inventory.giveItem(game, unit, item, stored.slot, false);
++				}
++			}
++		}
++		return unit;
++	}
++
++	public static final class StoredSkill {
++		public final War3ID abilityId;
++		public final int level;
++
++		StoredSkill(final War3ID abilityId, final int level) {
++			this.abilityId = abilityId;
++			this.level = level;
++		}
++	}
++
++	private static final class StoredItem {
++		private final War3ID typeId;
++		private final int charges;
++		private final int slot;
++
++		StoredItem(final War3ID typeId, final int charges, final int slot) {
++			this.typeId = typeId;
++			this.charges = charges;
++			this.slot = slot;
++		}
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CDestructableData.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CDestructableData.java
+index 35f42f5..cac964f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CDestructableData.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/data/CDestructableData.java
+@@ -73,7 +73,7 @@ public class CDestructableData {
+ 
+ 			unitTypeInstance = new CDestructableType(name, life, targetedAs, armorType, buildTime, goldRepairCost,
+ 					lumberRepairCost, repairTime, occlusionHeight, buildingPathingPixelMap,
+-					buildingPathingDeathPixelMap);
++					buildingPathingDeathPixelMap).setTypeId(typeId);
+ 			this.unitIdToUnitType.put(typeId, unitTypeInstance);
+ 		}
+ 		return unitTypeInstance;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 02e44ea..9d8380f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -3930,6 +3930,33 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
++	@Override
++	public void scriptSelectUnit(final CUnit unit, final boolean select) {
++		final RenderUnit renderUnit = unit == null ? null : this.war3MapViewer.getRenderPeer(unit);
++		if ((renderUnit == null) || (select && (unit.isDead() || unit.isHidden()))) {
++			return;
++		}
++		final List<RenderWidget> newSelection = new ArrayList<>(this.selectedUnits);
++		if (select == newSelection.contains(renderUnit)) {
++			return;
++		}
++		if (select) {
++			newSelection.add(renderUnit);
++		}
++		else {
++			newSelection.remove(renderUnit);
++		}
++		selectWidgets(newSelection);
++		this.war3MapViewer.doSelectUnit(newSelection);
++	}
++
++	@Override
++	public void scriptClearSelection() {
++		final List<RenderWidget> newSelection = new ArrayList<>();
++		selectWidgets(newSelection);
++		this.war3MapViewer.doSelectUnit(newSelection);
++	}
++
+ 	private void removeSubGroupHighlightSelectedUnitFromSelection() {
+ 		final RenderUnit preferredSelectionReplacement = this.selectedUnit.getPreferredSelectionReplacement();
+ 		final List<RenderWidget> newSelection;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+index eb5f383..a071e95 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/WarsmashUI.java
+@@ -75,6 +75,14 @@ public interface WarsmashUI extends CommandErrorListener, WarsmashBaseUI {
+ 		return null;
+ 	}
+ 
++	/** Blizzard launcher: SelectUnit and ClearSelection, the map's script choosing what the player has selected. */
++	default void scriptSelectUnit(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit unit,
++			final boolean select) {
++	}
++
++	default void scriptClearSelection() {
++	}
++
+ 	/** Blizzard launcher: FlashQuestDialogButton and ForceQuestDialogUpdate, where the interface has a quest dialog. */
+ 	default void flashQuestDialogButton() {
+ 	}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+index 055eb36..c8de216 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/toggle/MeleeToggleUI.java
+@@ -66,6 +66,17 @@ public class MeleeToggleUI implements WarsmashUI {
+ 		return this.meleeUI.getCineFilter();
+ 	}
+ 
++	@Override
++	public void scriptSelectUnit(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit unit,
++			final boolean select) {
++		this.meleeUI.scriptSelectUnit(unit, select);
++	}
++
++	@Override
++	public void scriptClearSelection() {
++		this.meleeUI.scriptClearSelection();
++	}
++
+ 	@Override
+ 	public void showInterfaceError(final int playerIndex, final String message) {
+ 		this.meleeUI.showInterfaceError(playerIndex, message);
