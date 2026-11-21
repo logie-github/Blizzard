@@ -173,8 +173,7 @@ class WarsmashActivity : AndroidApplication() {
         val current = display.mode
         val mode = display.supportedModes
             .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
-            .filter { it.refreshRate >= 59.5f }
-            .minByOrNull { it.refreshRate } ?: return
+            .maxByOrNull { it.refreshRate } ?: return
         val attributes = window.attributes
         if (attributes.preferredRefreshRate != mode.refreshRate) {
             attributes.preferredRefreshRate = mode.refreshRate
