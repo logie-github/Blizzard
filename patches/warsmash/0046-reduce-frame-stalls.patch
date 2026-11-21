@@ -83,33 +83,6 @@
  	}
  
  	public int getFogOfWarMap() {
---- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
-+++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
-@@ -232,6 +232,8 @@
- 	public MdxComplexInstance dncTerrain;
- 	public MdxComplexInstance dncTarget;
- 	public CSimulation simulation;
-+	// Reserve part of a 60 Hz frame for drawing when simulation ticks have backed up.
-+	private static final long SIMULATION_CATCH_UP_BUDGET_NANOS = 6_000_000L;
- 	private float updateTime = 0;
- 
- 	// for World Editor, I think
-@@ -1193,11 +1195,15 @@
- 				}
- 			}
- 
-+			final long simulationStart = System.nanoTime();
- 			while (this.updateTime >= WarsmashConstants.SIMULATION_STEP_TIME) {
- 				if (this.gameTurnManager.getLatestCompletedTurn() >= this.simulation.getGameTurnTick()) {
- 					this.updateTime -= WarsmashConstants.SIMULATION_STEP_TIME;
- 					this.simulation.update();
- 					this.gameTurnManager.turnCompleted(this.simulation.getGameTurnTick());
-+					if (System.nanoTime() - simulationStart >= SIMULATION_CATCH_UP_BUDGET_NANOS) {
-+						break;
-+					}
- 				}
- 				else {
- 					if (this.updateTime > (WarsmashConstants.SIMULATION_STEP_TIME * 3)) {
 --- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/SplatModel.java
 +++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/SplatModel.java
 @@ -344,6 +344,9 @@
