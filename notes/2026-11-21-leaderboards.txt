@@ -1,0 +1,1 @@
+The score counters that missions show at the top right (footmen left, orbs found and the like) now appear.

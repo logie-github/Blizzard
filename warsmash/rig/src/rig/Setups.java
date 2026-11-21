@@ -322,8 +322,16 @@ public class Setups extends Scenario {
       var T = com.etheller.interpreter.ast.value.BooleanJassValue.TRUE;
       call.apply("UnitRemoveBuffsEx", java.util.List.of(fcd, T, T, T, T, T, T, T));
       b.append(" after UnitRemoveBuffsEx(timed life too)=").append(nb.get());
+      var board = call3(g, "CreateLeaderboard", java.util.List.of(), null);
+      call.apply("PlayerSetLeaderboard", java.util.List.of(p0, (com.etheller.interpreter.ast.value.JassValue) board));
+      call.apply("LeaderboardSetLabel", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board, new com.etheller.interpreter.ast.value.StringJassValue("Footmen")));
+      call.apply("LeaderboardAddItem", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board, new com.etheller.interpreter.ast.value.StringJassValue("Alive"), com.etheller.interpreter.ast.value.IntegerJassValue.of(12), p0));
+      call.apply("LeaderboardAddItem", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board, new com.etheller.interpreter.ast.value.StringJassValue("Lost"), com.etheller.interpreter.ast.value.IntegerJassValue.of(3), p1));
+      call.apply("LeaderboardDisplay", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE));
+      call.apply("LeaderboardSetItemValue", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board, com.etheller.interpreter.ast.value.IntegerJassValue.of(0), com.etheller.interpreter.ast.value.IntegerJassValue.of(11)));
+      b.append(" leaderboard items=").append(call.apply("LeaderboardGetItemCount", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board))).append(" p1 index=").append(call.apply("LeaderboardGetPlayerIndex", java.util.List.of((com.etheller.interpreter.ast.value.JassValue) board, p1)));
       final String before = b.toString(); final float x0 = f.getX();
-      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\""; };
+      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\"" + leaderboardPanel(); };
     }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
@@ -350,6 +358,9 @@ public class Setups extends Scenario {
   ));
   static com.etheller.interpreter.ast.value.JassValue call3(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
     return g.getNativeById(g.getNativeId(name)).call(args, g, scope == null ? new com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope((com.etheller.interpreter.ast.scope.trigger.Trigger) null) : scope);
+  }
+  static String leaderboardPanel() {
+    try { var fld = com.etheller.warsmash.WarsmashGdxMapScreen.class.getDeclaredField("minimapUI"); fld.setAccessible(true); var ui = (com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI) fld.get(Main.mapScreen); var l = ui.getLeaderboard(); return "; leaderboard panel visible=" + l.isVisible() + " title=" + l.getTitleText() + " lines=" + l.getLines(); } catch (Exception e) { return "; leaderboard panel " + e; }
   }
   static Object call2(com.etheller.interpreter.ast.scope.GlobalScope g, String name, java.util.List<com.etheller.interpreter.ast.value.JassValue> args, com.etheller.interpreter.ast.scope.TriggerExecutionScope scope) {
     Integer id = g.getNativeId(name); if (id == null) return "NONE"; var r = g.getNativeById(id).call(args, g, scope);

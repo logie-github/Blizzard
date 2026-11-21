@@ -1,0 +1,653 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+index 60af8b9..13918d4 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/Jass2.java
+@@ -4979,16 +4979,7 @@ public class Jass2 {
+ 						meleeUI.getCameraManager().resetToGameCamera(forceDuration);
+ 						return null;
+ 					});
+-			jassProgramVisitor.getJassNativeManager().createNative("LeaderboardGetItemCount",
+-					(arguments, globalScope, triggerScope) -> {
+-						// TODO NYI
+-						return IntegerJassValue.of(0);
+-					});
+-			jassProgramVisitor.getJassNativeManager().createNative("LeaderboardGetPlayerIndex",
+-					(arguments, globalScope, triggerScope) -> {
+-						// TODO NYI
+-						return IntegerJassValue.of(0);
+-					});
++			// Blizzard launcher: LeaderboardGetItemCount and LeaderboardGetPlayerIndex are in LauncherNatives.
+ 			jassProgramVisitor.getJassNativeManager().createNative("SetUnitInvulnerable",
+ 					(arguments, globalScope, triggerScope) -> {
+ 						final CUnit whichUnit = nullable(arguments, 0, ObjectJassValueVisitor.getInstance());
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index 4156ca8..0986518 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -721,6 +721,216 @@ public final class LauncherNatives {
+ 		}
+ 	}
+ 
++	private static com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard lb(final List<JassValue> arguments, final int index) {
++		return nullable(arguments, index, ObjectJassValueVisitor.<com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard>getInstance());
++	}
++
++	private static int argb(final List<JassValue> arguments, final int first) {
++		return ((intArg(arguments, first + 3) & 0xFF) << 24) | ((intArg(arguments, first) & 0xFF) << 16)
++				| ((intArg(arguments, first + 1) & 0xFF) << 8) | (intArg(arguments, first + 2) & 0xFF);
++	}
++
++	/** Leaderboards: the counters campaign missions show at the top right. */
++	private static void registerLeaderboards(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
++			final CSimulation simulation, final War3MapViewer war3MapViewer,
++			final com.etheller.interpreter.ast.scope.GlobalScope globals) {
++		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
++		final HandleJassType leaderboardType = globals.getHandleType("leaderboard");
++		final java.util.function.Function<String, String> trigStr = (text) -> (text == null) || (war3MapViewer.getGameUI() == null) ? text
++				: war3MapViewer.getGameUI().getTrigStr(text);
++		natives.createNative("CreateLeaderboard", (arguments, globalScope, triggerScope) -> new HandleJassValue(leaderboardType, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard()));
++		natives.createNative("DestroyLeaderboard", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setDisplayed(false);
++				for (final CPlayer player : simulation.getPlayers()) {
++					if (player.getLeaderboard() == board) {
++						player.setLeaderboard(null);
++					}
++				}
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardDisplay", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setDisplayed(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("IsLeaderboardDisplayed", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			return BooleanJassValue.of((board != null) && board.isDisplayed());
++		});
++		natives.createNative("LeaderboardGetItemCount", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			return IntegerJassValue.of(board == null ? 0 : board.getItemCount());
++		});
++		natives.createNative("LeaderboardSetSizeByItemCount", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setSizeByItemCount(intArg(arguments, 1));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardAddItem", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final CPlayerJass player = nullable(arguments, 3, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			if (board != null) {
++				board.addItem(trigStr.apply(nullable(arguments, 1, StringJassValueVisitor.getInstance())), intArg(arguments, 2),
++						player == null ? -1 : player.getId());
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardRemoveItem", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.removeItem(intArg(arguments, 1));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardRemovePlayerItem", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			if ((board != null) && (player != null)) {
++				board.removePlayerItem(player.getId());
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardClear", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.clear();
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSortItemsByValue", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.sortByValue(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSortItemsByPlayer", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.sortByPlayer(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSortItemsByLabel", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.sortByLabel(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardHasPlayerItem", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			return BooleanJassValue.of((board != null) && (player != null) && (board.getPlayerIndex(player.getId()) != -1));
++		});
++		natives.createNative("LeaderboardGetPlayerIndex", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			return IntegerJassValue.of((board == null) || (player == null) ? -1 : board.getPlayerIndex(player.getId()));
++		});
++		natives.createNative("LeaderboardSetLabel", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setLabel(trigStr.apply(nullable(arguments, 1, StringJassValueVisitor.getInstance())));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardGetLabelText", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			return new StringJassValue(board == null ? "" : board.getLabel());
++		});
++		natives.createNative("PlayerSetLeaderboard", (arguments, globalScope, triggerScope) -> {
++			final CPlayerJass player = nullable(arguments, 0, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			if (player != null) {
++				simulation.getPlayer(player.getId()).setLeaderboard(lb(arguments, 1));
++			}
++			return null;
++		});
++		natives.createNative("PlayerGetLeaderboard", (arguments, globalScope, triggerScope) -> {
++			final CPlayerJass player = nullable(arguments, 0, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			return new HandleJassValue(leaderboardType, player == null ? null : simulation.getPlayer(player.getId()).getLeaderboard());
++		});
++		natives.createNative("LeaderboardSetLabelColor", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setLabelColor(argb(arguments, 1));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetValueColor", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setValueColor(argb(arguments, 1));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetStyle", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			if (board != null) {
++				board.setStyle(arguments.get(1).visit(BooleanJassValueVisitor.getInstance()),
++						arguments.get(2).visit(BooleanJassValueVisitor.getInstance()),
++						arguments.get(3).visit(BooleanJassValueVisitor.getInstance()),
++						arguments.get(4).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetItemValue", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard.Item item = board == null ? null : board.getItem(intArg(arguments, 1));
++			if (item != null) {
++				item.value = intArg(arguments, 2);
++				board.itemChanged();
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetItemLabel", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard.Item item = board == null ? null : board.getItem(intArg(arguments, 1));
++			if (item != null) {
++				final String label = trigStr.apply(nullable(arguments, 2, StringJassValueVisitor.getInstance()));
++				item.label = label == null ? "" : label;
++				board.itemChanged();
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetItemStyle", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard.Item item = board == null ? null : board.getItem(intArg(arguments, 1));
++			if (item != null) {
++				item.showLabel = arguments.get(2).visit(BooleanJassValueVisitor.getInstance());
++				item.showValue = arguments.get(3).visit(BooleanJassValueVisitor.getInstance());
++				item.showIcon = arguments.get(4).visit(BooleanJassValueVisitor.getInstance());
++				board.itemChanged();
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetItemLabelColor", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard.Item item = board == null ? null : board.getItem(intArg(arguments, 1));
++			if (item != null) {
++				item.labelColor = argb(arguments, 2);
++				board.itemChanged();
++			}
++			return null;
++		});
++		natives.createNative("LeaderboardSetItemValueColor", (arguments, globalScope, triggerScope) -> {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard board = lb(arguments, 0);
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard.Item item = board == null ? null : board.getItem(intArg(arguments, 1));
++			if (item != null) {
++				item.valueColor = argb(arguments, 2);
++				board.itemChanged();
++			}
++			return null;
++		});
++	}
++
+ 	private static JassValue orderOf(final JassValue orderString) {
+ 		final String s = orderString == null ? null : orderString.visit(StringJassValueVisitor.getInstance());
+ 		return IntegerJassValue.of(s == null ? 0 : OrderIdUtils.getOrderId(s));
+@@ -745,6 +955,7 @@ public final class LauncherNatives {
+ 		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerTimerDialogs(jassProgramVisitor, war3MapViewer, meleeUI);
+ 		registerUnitsAndSounds(jassProgramVisitor, simulation, war3MapViewer, meleeUI);
++		registerLeaderboards(jassProgramVisitor, simulation, war3MapViewer, globals);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType, globals);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/leaderboard/CLeaderboard.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/leaderboard/CLeaderboard.java
+new file mode 100644
+index 0000000..820f948
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/leaderboard/CLeaderboard.java
+@@ -0,0 +1,186 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard;
++
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.List;
++
++import com.etheller.interpreter.ast.util.CHandle;
++
++/**
++ * Blizzard launcher: a script's leaderboard (CreateLeaderboard and the rest): a titled list of rows, each a label and a
++ * value, most often one per player, that the players it is given to (PlayerSetLeaderboard) see at the top right while
++ * it is displayed. The campaigns count footmen, orbs and runners with them.
++ */
++public class CLeaderboard implements CHandle {
++	private static int nextHandleId = 0x310000;
++	private final int handleId = nextHandleId++;
++	private String label = "";
++	private final List<Item> items = new ArrayList<>();
++	private boolean displayed;
++	private boolean showLabel = true;
++	private boolean showNames = true;
++	private boolean showValues = true;
++	private boolean showIcons = true;
++	private int sizeByItemCount = -1;
++	private int labelColor = 0xFFFFFFFF;
++	private int valueColor = 0xFFFFFFFF;
++	private int version;
++
++	public static final class Item {
++		public int playerIndex = -1;
++		public String label = "";
++		public int value;
++		public boolean showLabel = true;
++		public boolean showValue = true;
++		public boolean showIcon = true;
++		public int labelColor = 0;
++		public int valueColor = 0;
++	}
++
++	@Override
++	public int getHandleId() {
++		return this.handleId;
++	}
++
++	/** Changes count up so the interface knows to redraw. */
++	public int getVersion() {
++		return this.version;
++	}
++
++	private void changed() {
++		this.version++;
++	}
++
++	public String getLabel() {
++		return this.label;
++	}
++
++	public void setLabel(final String label) {
++		this.label = label == null ? "" : label;
++		changed();
++	}
++
++	public boolean isDisplayed() {
++		return this.displayed;
++	}
++
++	public void setDisplayed(final boolean displayed) {
++		this.displayed = displayed;
++		changed();
++	}
++
++	public void setStyle(final boolean showLabel, final boolean showNames, final boolean showValues,
++			final boolean showIcons) {
++		this.showLabel = showLabel;
++		this.showNames = showNames;
++		this.showValues = showValues;
++		this.showIcons = showIcons;
++		changed();
++	}
++
++	public boolean isShowLabel() {
++		return this.showLabel;
++	}
++
++	public boolean isShowNames() {
++		return this.showNames;
++	}
++
++	public boolean isShowValues() {
++		return this.showValues;
++	}
++
++	public void setSizeByItemCount(final int count) {
++		this.sizeByItemCount = count;
++		changed();
++	}
++
++	public int getSizeByItemCount() {
++		return this.sizeByItemCount < 0 ? this.items.size() : this.sizeByItemCount;
++	}
++
++	public void setLabelColor(final int argb) {
++		this.labelColor = argb;
++		changed();
++	}
++
++	public int getLabelColor() {
++		return this.labelColor;
++	}
++
++	public void setValueColor(final int argb) {
++		this.valueColor = argb;
++		changed();
++	}
++
++	public int getValueColor() {
++		return this.valueColor;
++	}
++
++	public List<Item> getItems() {
++		return this.items;
++	}
++
++	public int getItemCount() {
++		return this.items.size();
++	}
++
++	public Item getItem(final int index) {
++		return ((index >= 0) && (index < this.items.size())) ? this.items.get(index) : null;
++	}
++
++	public void addItem(final String label, final int value, final int playerIndex) {
++		final Item item = new Item();
++		item.label = label == null ? "" : label;
++		item.value = value;
++		item.playerIndex = playerIndex;
++		this.items.add(item);
++		changed();
++	}
++
++	public void removeItem(final int index) {
++		if ((index >= 0) && (index < this.items.size())) {
++			this.items.remove(index);
++			changed();
++		}
++	}
++
++	public int getPlayerIndex(final int playerIndex) {
++		for (int i = 0; i < this.items.size(); i++) {
++			if (this.items.get(i).playerIndex == playerIndex) {
++				return i;
++			}
++		}
++		return -1;
++	}
++
++	public void removePlayerItem(final int playerIndex) {
++		removeItem(getPlayerIndex(playerIndex));
++	}
++
++	public void clear() {
++		this.items.clear();
++		changed();
++	}
++
++	public void itemChanged() {
++		changed();
++	}
++
++	public void sortByValue(final boolean ascending) {
++		sort(Comparator.comparingInt(item -> item.value), ascending);
++	}
++
++	public void sortByPlayer(final boolean ascending) {
++		sort(Comparator.comparingInt(item -> item.playerIndex), ascending);
++	}
++
++	public void sortByLabel(final boolean ascending) {
++		sort(Comparator.comparing(item -> item.label), ascending);
++	}
++
++	private void sort(final Comparator<Item> comparator, final boolean ascending) {
++		this.items.sort(ascending ? comparator : comparator.reversed());
++		changed();
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+index a4f41ff..47006e5 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/players/CPlayer.java
+@@ -803,6 +803,17 @@ public class CPlayer extends CBasePlayer {
+ 	}
+ 
+ 	// Blizzard launcher: a unit of this player attacked (EVENT_PLAYER_UNIT_ATTACKED), as Warsmash Reforged fires it.
++	// Blizzard launcher: the leaderboard the player sees (PlayerSetLeaderboard).
++	private com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard leaderboard;
++
++	public com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard getLeaderboard() {
++		return this.leaderboard;
++	}
++
++	public void setLeaderboard(final com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard leaderboard) {
++		this.leaderboard = leaderboard;
++	}
++
+ 	// Blizzard launcher: TriggerRegisterPlayerStateEvent's events, checked each step by the simulation.
+ 	private final List<CPlayerStateEvent> playerStateEvents = new java.util.ArrayList<>();
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeLeaderboard.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeLeaderboard.java
+new file mode 100644
+index 0000000..1595606
+--- /dev/null
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeLeaderboard.java
+@@ -0,0 +1,139 @@
++package com.etheller.warsmash.viewer5.handlers.w3x.ui;
++
++import java.util.ArrayList;
++import java.util.List;
++
++import com.badlogic.gdx.graphics.Color;
++import com.badlogic.gdx.utils.viewport.Viewport;
++import com.etheller.warsmash.parsers.fdf.GameUI;
++import com.etheller.warsmash.parsers.fdf.datamodel.AnchorDefinition;
++import com.etheller.warsmash.parsers.fdf.datamodel.FramePoint;
++import com.etheller.warsmash.parsers.fdf.datamodel.TextJustify;
++import com.etheller.warsmash.parsers.fdf.frames.SetPoint;
++import com.etheller.warsmash.parsers.fdf.frames.SimpleFrame;
++import com.etheller.warsmash.parsers.fdf.frames.StringFrame;
++import com.etheller.warsmash.parsers.fdf.frames.UIFrame;
++import com.etheller.warsmash.viewer5.handlers.w3x.simulation.leaderboard.CLeaderboard;
++
++/**
++ * Blizzard launcher: the leaderboard panel at the top right (Leaderboard.fdf): the local player's leaderboard while
++ * the script displays it, its title and one line per item, label on the left and value on the right.
++ */
++public class MeleeLeaderboard {
++	private static final float TOP_MARGIN = -0.03f;
++	private static final float RIGHT_MARGIN = -0.005f;
++	private static final float ROW_HEIGHT = 0.012f;
++	private static final float BASE_HEIGHT = 0.035f;
++	private static final float SIDE_INSET = 0.012f;
++
++	private final GameUI rootFrame;
++	private final Viewport uiViewport;
++	private final SimpleFrame container;
++	private final UIFrame board;
++	private final StringFrame title;
++	private final UIFrame list;
++	private final List<StringFrame[]> rows = new ArrayList<>();
++	private CLeaderboard shown;
++	private int shownVersion = -1;
++
++	public MeleeLeaderboard(final GameUI rootFrame, final Viewport uiViewport) {
++		this.rootFrame = rootFrame;
++		this.uiViewport = uiViewport;
++		this.container = (SimpleFrame) rootFrame.createSimpleFrame("SmashLeaderboard", rootFrame, 0);
++		this.container.addAnchor(new AnchorDefinition(FramePoint.TOPRIGHT, GameUI.convertX(uiViewport, RIGHT_MARGIN),
++				GameUI.convertY(uiViewport, TOP_MARGIN)));
++		this.board = rootFrame.createFrame("Leaderboard", this.container, 0, 0);
++		this.board.addSetPoint(new SetPoint(FramePoint.TOPRIGHT, this.container, FramePoint.TOPRIGHT, 0, 0));
++		this.container.add(this.board);
++		this.container.setWidth(this.board.getAssignedWidth());
++		this.title = (StringFrame) rootFrame.getFrameByName("LeaderboardTitle", 0);
++		this.list = rootFrame.getFrameByName("LeaderboardListContainer", 0);
++		this.container.setVisible(false);
++	}
++
++	public boolean isVisible() {
++		return this.container.isVisible();
++	}
++
++	public String getTitleText() {
++		return this.title.getText();
++	}
++
++	public List<String> getLines() {
++		final List<String> lines = new ArrayList<>();
++		for (final StringFrame[] row : this.rows) {
++			if (row[0].isVisible()) {
++				lines.add(row[0].getText() + " " + row[1].getText());
++			}
++		}
++		return lines;
++	}
++
++	/** Shows the given leaderboard (the local player's), or hides the panel for null or one not displayed. */
++	public void update(final CLeaderboard leaderboard) {
++		final CLeaderboard wanted = ((leaderboard != null) && leaderboard.isDisplayed()) ? leaderboard : null;
++		if ((wanted == this.shown) && ((wanted == null) || (wanted.getVersion() == this.shownVersion))) {
++			return;
++		}
++		this.shown = wanted;
++		if (wanted == null) {
++			this.container.setVisible(false);
++			return;
++		}
++		this.shownVersion = wanted.getVersion();
++		this.rootFrame.setText(this.title, wanted.isShowLabel() ? wanted.getLabel() : "");
++		this.title.setColor(color(wanted.getLabelColor()));
++		final List<CLeaderboard.Item> items = wanted.getItems();
++		final int count = Math.min(items.size(), Math.max(wanted.getSizeByItemCount(), items.size()));
++		while (this.rows.size() < count) {
++			this.rows.add(createRow(this.rows.size()));
++		}
++		for (int i = 0; i < this.rows.size(); i++) {
++			final StringFrame[] row = this.rows.get(i);
++			if (i < count) {
++				final CLeaderboard.Item item = items.get(i);
++				this.rootFrame.setText(row[0], (wanted.isShowNames() && item.showLabel) ? item.label : "");
++				this.rootFrame.setText(row[1],
++						(wanted.isShowValues() && item.showValue) ? Integer.toString(item.value) : "");
++				row[0].setColor(color(item.labelColor != 0 ? item.labelColor : wanted.getLabelColor()));
++				row[1].setColor(color(item.valueColor != 0 ? item.valueColor : wanted.getValueColor()));
++				row[0].setVisible(true);
++				row[1].setVisible(true);
++			}
++			else {
++				row[0].setVisible(false);
++				row[1].setVisible(false);
++			}
++		}
++		final float height = GameUI.convertY(this.uiViewport, BASE_HEIGHT + (count * ROW_HEIGHT));
++		this.board.setHeight(height);
++		this.container.setHeight(height);
++		this.container.setVisible(true);
++		this.container.positionBounds(this.rootFrame, this.uiViewport);
++	}
++
++	private StringFrame[] createRow(final int index) {
++		final StringFrame label = new StringFrame("SmashLeaderboardLabel" + index, this.container, Color.WHITE,
++				TextJustify.LEFT, TextJustify.MIDDLE, this.title.getFrameFont(), "", null, null);
++		final StringFrame value = new StringFrame("SmashLeaderboardValue" + index, this.container, Color.WHITE,
++				TextJustify.RIGHT, TextJustify.MIDDLE, this.title.getFrameFont(), "", null, null);
++		final float y = GameUI.convertY(this.uiViewport, -index * ROW_HEIGHT);
++		final float rowHeight = GameUI.convertY(this.uiViewport, ROW_HEIGHT);
++		label.addSetPoint(new SetPoint(FramePoint.TOPLEFT, this.list, FramePoint.TOPLEFT,
++				GameUI.convertX(this.uiViewport, SIDE_INSET), y));
++		label.setWidth(this.board.getAssignedWidth() * 0.7f);
++		label.setHeight(rowHeight);
++		value.addSetPoint(new SetPoint(FramePoint.TOPRIGHT, this.list, FramePoint.TOPRIGHT,
++				GameUI.convertX(this.uiViewport, -SIDE_INSET), y));
++		value.setWidth(this.board.getAssignedWidth() * 0.3f);
++		value.setHeight(rowHeight);
++		this.container.add(label);
++		this.container.add(value);
++		return new StringFrame[] { label, value };
++	}
++
++	private static Color color(final int argb) {
++		return new Color(((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f,
++				((argb >>> 24) & 0xFF) / 255f);
++	}
++}
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index b357442..6ca9c5b 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -390,6 +390,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 	private final ItemCommandCardCommandListener itemCommandCardCommandListener;
+ 	private SimpleButtonFrame questsButton;
+ 	private MeleeQuestDialog questDialog;
++	private MeleeLeaderboard leaderboard;
+ 	private SimpleButtonFrame menuButton;
+ 	private SimpleButtonFrame alliesButton;
+ 	private SimpleButtonFrame chatButton;
+@@ -630,6 +631,8 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		this.questDialog = new MeleeQuestDialog(this.rootFrame, this.uiViewport,
+ 				this.war3MapViewer.simulation.getQuestLog());
+ 		this.questsButton.setEnabled(true);
++		// Blizzard launcher: the leaderboard panel at the top right.
++		this.leaderboard = new MeleeLeaderboard(this.rootFrame, this.uiViewport);
+ 		this.questsButton.setOnClick(() -> this.questDialog.setVisible(!this.questDialog.isVisible()));
+ 		this.menuButton = (SimpleButtonFrame) this.rootFrame.getFrameByName("UpperButtonBarMenuButton", 0);
+ 		this.alliesButton = (SimpleButtonFrame) this.rootFrame.getFrameByName("UpperButtonBarAlliesButton", 0);
+@@ -1658,6 +1661,10 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		return units;
+ 	}
+ 
++	public MeleeLeaderboard getLeaderboard() {
++		return this.leaderboard;
++	}
++
+ 	public MeleeQuestDialog getQuestDialog() {
+ 		return this.questDialog;
+ 	}
+@@ -1668,6 +1675,10 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		if (this.questDialog != null) {
+ 			this.questDialog.update();
+ 		}
++		if (this.leaderboard != null) {
++			this.leaderboard.update(this.war3MapViewer.simulation
++					.getPlayer(this.war3MapViewer.getLocalPlayerIndex()).getLeaderboard());
++		}
+ 		this.portrait.update(deltaTime);
+ 		if (this.portrait.isResetNeeded()) {
+ 			this.portrait.resetCinematicSequence();
