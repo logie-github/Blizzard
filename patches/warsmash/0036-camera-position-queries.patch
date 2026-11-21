@@ -1,0 +1,60 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index d0e24d0..c79a91a 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -633,8 +633,29 @@ public final class LauncherNatives {
+ 	/** Buffs, cooldowns, selection and sounds: natives the campaign scripts reach through Blizzard.j. */
+ 	private static void registerUnitsAndSounds(final com.etheller.interpreter.ast.util.JassProgram jassProgramVisitor,
+ 			final CSimulation simulation, final War3MapViewer war3MapViewer,
+-			final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI) {
++			final com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI meleeUI,
++			final com.etheller.interpreter.ast.scope.GlobalScope globals) {
+ 		final com.etheller.interpreter.ast.function.JassNativeManager natives = jassProgramVisitor.getJassNativeManager();
++		// The camera's target (where it looks) and eye: cutscenes save and restore it, SmartCameraPanBJ pans by it.
++		final HandleJassType locationType = globals.getHandleType("location");
++		for (final boolean eye : new boolean[] { false, true }) {
++			final String prefix = eye ? "GetCameraEyePosition" : "GetCameraTargetPosition";
++			final java.util.function.Function<com.etheller.warsmash.viewer5.handlers.w3x.ui.WarsmashUI, com.badlogic.gdx.math.Vector3> point = (ui) -> {
++				if ((ui == null) || (ui.getCameraManager() == null)) {
++					return new com.badlogic.gdx.math.Vector3();
++				}
++				final com.badlogic.gdx.math.Vector3 v = eye ? ui.getCameraManager().getPosition() : ui.getCameraManager().target;
++				return v == null ? new com.badlogic.gdx.math.Vector3() : v;
++			};
++			natives.createNative(prefix + "X", (arguments, globalScope, triggerScope) -> RealJassValue.of(point.apply(meleeUI).x));
++			natives.createNative(prefix + "Y", (arguments, globalScope, triggerScope) -> RealJassValue.of(point.apply(meleeUI).y));
++			natives.createNative(prefix + "Z", (arguments, globalScope, triggerScope) -> RealJassValue.of(point.apply(meleeUI).z));
++			natives.createNative(prefix + "Loc", (arguments, globalScope, triggerScope) -> {
++				final com.badlogic.gdx.math.Vector3 v = point.apply(meleeUI);
++				return new HandleJassValue(locationType, new com.etheller.warsmash.parsers.jass.triggers.LocationJass(v.x, v.y,
++						simulation.getHandleIdAllocator().createId()));
++			});
++		}
+ 		// PingMinimap(x, y, duration) in the original's default green; PingMinimapEx(x, y, duration, r, g, b, extraEffects).
+ 		natives.createNative("PingMinimap", (arguments, globalScope, triggerScope) -> {
+ 			if (meleeUI != null) {
+@@ -758,7 +779,7 @@ public final class LauncherNatives {
+ 		registerCineFilter(jassProgramVisitor, meleeUI);
+ 		registerQuests(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerTimerDialogs(jassProgramVisitor, war3MapViewer, meleeUI);
+-		registerUnitsAndSounds(jassProgramVisitor, simulation, war3MapViewer, meleeUI);
++		registerUnitsAndSounds(jassProgramVisitor, simulation, war3MapViewer, meleeUI, globals);
+ 		registerVisibilityAndChecks(jassProgramVisitor, simulation, unitType, globals);
+ 		// ConfigNatives: IsPlayerAlly
+ 		jassProgramVisitor.getJassNativeManager().createNative("IsPlayerAlly",
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/CameraManager.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/CameraManager.java
+index d44d73e..86ddc15 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/CameraManager.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/camera/CameraManager.java
+@@ -56,6 +56,11 @@ public abstract class CameraManager {
+ 
+ 	public abstract void updateCamera();
+ 
++	/** Blizzard launcher: where the camera's eye is (GetCameraEyePosition*). */
++	public Vector3 getPosition() {
++		return this.position;
++	}
++
+ //	private void cameraUpdate() {
+ //
+ //	}

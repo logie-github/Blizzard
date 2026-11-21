@@ -1,0 +1,1 @@
+Cutscene cameras now glide to nearby spots instead of always jumping.

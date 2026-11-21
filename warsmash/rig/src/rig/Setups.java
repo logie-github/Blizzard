@@ -324,6 +324,10 @@ public class Setups extends Scenario {
       b.append(" after UnitRemoveBuffsEx(timed life too)=").append(nb.get());
       call.apply("PingMinimap", java.util.List.of(com.etheller.interpreter.ast.value.RealJassValue.of(p[0]), com.etheller.interpreter.ast.value.RealJassValue.of(p[1]), com.etheller.interpreter.ast.value.RealJassValue.of(60)));
       call.apply("PingMinimapEx", java.util.List.of(com.etheller.interpreter.ast.value.RealJassValue.of(p[0]), com.etheller.interpreter.ast.value.RealJassValue.of(p[1]), com.etheller.interpreter.ast.value.RealJassValue.of(1), com.etheller.interpreter.ast.value.IntegerJassValue.of(255), com.etheller.interpreter.ast.value.IntegerJassValue.of(0), com.etheller.interpreter.ast.value.IntegerJassValue.of(0), com.etheller.interpreter.ast.value.BooleanJassValue.FALSE));
+      call.apply("SetCameraPosition", java.util.List.of(com.etheller.interpreter.ast.value.RealJassValue.of(1234), com.etheller.interpreter.ast.value.RealJassValue.of(-567)));
+      b.append(" camera target after SetCameraPosition(1234,-567)=").append(call.apply("GetCameraTargetPositionX", java.util.List.of())).append(",").append(call.apply("GetCameraTargetPositionY", java.util.List.of()));
+      var camLoc = call3(g, "GetCameraTargetPositionLoc", java.util.List.of(), null);
+      b.append(" loc x=").append(call.apply("GetLocationX", java.util.List.of(camLoc)));
       final String before = b.toString(); final float x0 = f.getX();
       return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\"" + minimapPings(); };
     }),
