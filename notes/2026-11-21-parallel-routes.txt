@@ -1,0 +1,1 @@
+Every unit's route is now worked out at the same time on all the phone's cores, so big groups all get going together.

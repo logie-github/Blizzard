@@ -12,7 +12,6 @@ public class PathCheck extends Scenario {
     if (n != 400) return false;
     try {
       CSimulation sim = v.simulation; PathingGrid grid = sim.getPathingGrid();
-      var pf = CSimulation.class.getDeclaredField("pathfindingProcessors"); pf.setAccessible(true); CPathfindingProcessor[] procs = (CPathfindingProcessor[]) pf.get(sim);
       CUnit owner = null; for (CUnit u : sim.getUnits()) if (!u.isBuilding() && !u.isDead()) { owner = u; break; }
       final Vector2[] captured = new Vector2[1]; final List<Vector2>[] got = new List[1];
       Random rnd = new Random(42); int queries = Integer.parseInt(System.getenv().getOrDefault("QUERIES", "300"));
@@ -27,7 +26,7 @@ public class PathCheck extends Scenario {
         final List<Vector2>[] result = new List[1];
         CBehaviorMove move = new CBehaviorMove(owner) { @Override public void pathFound(List<Vector2> w, CSimulation s) { result[0] = w; } };
         sim.findNaiveSlowPath(owner, null, sx, sy, new Vector2(gx, gy), PathingGrid.MovementType.FOOT, size, smooth, move);
-        int pi = owner.getPlayerIndex(); int guard = 0; while (result[0] == null && guard++ < 5000) { procs[pi].update(sim); updates++; }
+        int guard = 0; while (result[0] == null && guard++ < 5000) { sim.updatePathfinding(20_000_000L); updates++; }
         if (result[0] == null) { hash = 31 * hash + 7; continue; }
         found++; if (result[0].isEmpty()) empty++;
         hash = 31 * hash + result[0].size(); for (Vector2 p : result[0]) { hash = 31 * hash + Float.floatToIntBits(p.x); hash = 31 * hash + Float.floatToIntBits(p.y); points++; }

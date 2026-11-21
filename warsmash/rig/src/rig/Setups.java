@@ -504,7 +504,15 @@ public class Setups extends Scenario {
       final int[] first = new int[12]; java.util.Arrays.fill(first, -1); final int t0 = s.getGameTurnTick();
       for (CUnit f : fs) f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget(p[0] + 500, p[1] + 300));
       for (int k = 1; k <= 40; k++) new Later() { public void onFire(CSimulation sim) { for (int i = 0; i < 12; i++) if (first[i] < 0 && Math.hypot(fs[i].getX() - start[i][0], fs[i].getY() - start[i][1]) > 3) first[i] = sim.getGameTurnTick() - t0; } }.go(s, k * 0.05f);
-      return () -> { StringBuilder b = new StringBuilder("searches run " + com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor.jobsFinished + ", units given a shared route " + com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor.followersServed + "; ticks until each of 12 first moved:"); for (int i = 0; i < 12; i++) b.append(' ').append(first[i]); return b.toString(); };
+      return () -> { StringBuilder b = new StringBuilder("searches run " + com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor.jobsFinished + "; ticks until each of 12 first moved:"); for (int i = 0; i < 12; i++) b.append(' ').append(first[i]); return b.toString(); };
+    }),
+    c("Mass move (0052): N units (default 60) ordered at once to different places, how long routes take", 400, (s, p) -> {
+      final int N0 = Integer.parseInt(System.getenv().getOrDefault("N", "60")); CUnit[] fs = new CUnit[N0]; float[][] start = new float[N0][2];
+      for (int i = 0; i < N0; i++) { fs[i] = unit(s, "hfoo", 0, p[0] + (i % 10) * 70, p[1] - 100 - (i / 10) * 70); start[i][0] = fs[i].getX(); start[i][1] = fs[i].getY(); }
+      final int N = N0; final int[] first = new int[N]; java.util.Arrays.fill(first, -1); final int t0 = s.getGameTurnTick();
+      for (CUnit f : fs) f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget(p[0] + 300 + (((CUnit) f).getHandleId() % 7) * 150, p[1] + 200 + (((CUnit) f).getHandleId() % 5) * 120));
+      for (int k = 1; k <= 40; k++) new Later() { public void onFire(CSimulation sim) { for (int i = 0; i < N0; i++) if (first[i] < 0 && Math.hypot(fs[i].getX() - start[i][0], fs[i].getY() - start[i][1]) > 3) first[i] = sim.getGameTurnTick() - t0; } }.go(s, k * 0.05f);
+      return () -> { StringBuilder b = new StringBuilder("searches run " + com.etheller.warsmash.viewer5.handlers.w3x.simulation.pathing.CPathfindingProcessor.jobsFinished + "; ticks until each first moved (sorted):"); int[] sorted = first.clone(); java.util.Arrays.sort(sorted); for (int i = 0; i < N0; i++) b.append(' ').append(sorted[i]); return b.toString(); };
     }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
