@@ -1,0 +1,135 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+index 038c01d..2b7eb01 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+@@ -431,6 +431,15 @@ public class CBehaviorMove implements CBehavior {
+ 		return this.unit;
+ 	}
+ 
++	/**
++	 * Blizzard launcher: the route a group's search found for another unit of it, for this one, which stood
++	 * somewhere near that unit's start: its first points are left out while it can already see the one after.
++	 */
++	public void pathFoundShared(final List<Vector2> waypoints, final CSimulation simulation) {
++		this.movedAheadOfRoute = true;
++		pathFound(waypoints, simulation);
++	}
++
+ 	public void pathFound(final List<Vector2> waypoints, final CSimulation simulation) {
+ 		this.pathfindingActive = false;
+ 
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+index 29b610b..dcf831f 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/pathing/CPathfindingProcessor.java
+@@ -157,18 +157,71 @@ public class CPathfindingProcessor {
+ 								  final Vector2 goal, final PathingGrid.MovementType movementType, final float collisionSize,
+ 								  final boolean allowSmoothing, final CBehaviorMove queueItem) {
+ 		initNodes();
++		// Blizzard launcher: units ordered to the same place together (a group) share one search: the first one's
++		// route is given to the others when it is found, so a group of twelve costs one search, not twelve one after
++		// another (the last of them set off a long moment after the first, longer on a phone).
++		for (final PathfindingJob queued : this.moveQueue) {
++			if ((queued.queueItem != queueItem) && (queued.movementType == movementType)
++					&& (queued.collisionSize == collisionSize) && (queued.allowSmoothing == allowSmoothing)
++					&& (queued.goal.dst(goal) <= GROUP_GOAL_DISTANCE)
++					&& (Math.hypot(queued.startX - startX, queued.startY - startY) <= GROUP_START_DISTANCE)
++					&& ((queued.followers == null) || (queued.followers.size() < GROUP_MAX_FOLLOWERS))) {
++				if (queued.followers == null) {
++					queued.followers = new java.util.ArrayList<>();
++				}
++				queued.followers.add(new Follower(queueItem, startX, startY, ignoreIntersectionsWithThisUnit,
++						ignoreIntersectionsWithThisSecondUnit));
++				return;
++			}
++		}
+ 		this.moveQueue.offer(new PathfindingJob(ignoreIntersectionsWithThisUnit, ignoreIntersectionsWithThisSecondUnit,
+ 				startX, startY, goal, movementType, collisionSize, allowSmoothing, queueItem));
+ 	}
+ 
++	private static final float GROUP_GOAL_DISTANCE = 64f;
++	private static final float GROUP_START_DISTANCE = 600f;
++	private static final int GROUP_MAX_FOLLOWERS = 60;
++
++	private static final class Follower {
++		private final CBehaviorMove item;
++		private final float startX;
++		private final float startY;
++		private final CUnit ignore1;
++		private final CUnit ignore2;
++
++		private Follower(final CBehaviorMove item, final float startX, final float startY, final CUnit ignore1,
++				final CUnit ignore2) {
++			this.item = item;
++			this.startX = startX;
++			this.startY = startY;
++			this.ignore1 = ignore1;
++			this.ignore2 = ignore2;
++		}
++	}
++
+ 	public void removeFromPathfindingQueue(final CBehaviorMove behaviorMove) {
+ 		// TODO because of silly java things, this remove is O(N) for now,
+ 		// we could do some refactors to make it O(1) but do we care?
+-		final Iterator<PathfindingJob> iterator = this.moveQueue.iterator();
++		final java.util.ListIterator<PathfindingJob> iterator = this.moveQueue.listIterator();
+ 		while (iterator.hasNext()) {
+ 			final PathfindingJob job = iterator.next();
+ 			if (job.queueItem == behaviorMove) {
+-				iterator.remove();
++				if ((job.followers != null) && !job.followers.isEmpty()) {
++					// the unit that led the search was given another order: the next of the group leads it
++					final Follower next = job.followers.remove(0);
++					final PathfindingJob promoted = new PathfindingJob(next.ignore1, next.ignore2, next.startX,
++							next.startY, job.goal, job.movementType, job.collisionSize, job.allowSmoothing, next.item);
++					if (!job.followers.isEmpty()) {
++						promoted.followers = job.followers;
++					}
++					iterator.set(promoted);
++				}
++				else {
++					iterator.remove();
++				}
++			}
++			else if (job.followers != null) {
++				job.followers.removeIf(follower -> follower.item == behaviorMove);
+ 			}
+ 		}
+ 
+@@ -335,11 +388,28 @@ public class CPathfindingProcessor {
+ 	}
+ 
+ 	public static long pathFoundWorst = 0;
++	public static int jobsFinished = 0;
++	public static int followersServed = 0;
+ 
+ 	private static void timedPathFound(final PathfindingJob job, final java.util.List<Vector2> path,
+ 			final CSimulation simulation) {
+ 		final long start = System.nanoTime();
++		jobsFinished++;
++		java.util.List<java.util.List<Vector2>> forFollowers = null;
++		if ((job.followers != null) && !job.followers.isEmpty()) {
++			// copies, since the unit that gets a route may cut it about
++			forFollowers = new java.util.ArrayList<>();
++			for (int i = 0; i < job.followers.size(); i++) {
++				forFollowers.add(new LinkedList<>(path));
++			}
++		}
+ 		job.queueItem.pathFound(path, simulation);
++		if (forFollowers != null) {
++			followersServed += forFollowers.size();
++			for (int i = 0; i < forFollowers.size(); i++) {
++				job.followers.get(i).item.pathFoundShared(forFollowers.get(i), simulation);
++			}
++		}
+ 		final long took = System.nanoTime() - start;
+ 		if (took > pathFoundWorst) {
+ 			pathFoundWorst = took;
+@@ -662,6 +732,7 @@ public class CPathfindingProcessor {
+ 		private final boolean allowSmoothing;
+ 		private final CBehaviorMove queueItem;
+ 		private boolean jobStarted;
++		private java.util.List<Follower> followers;
+ 		public float goalY;
+ 		public float goalX;
+ 		public float weightForHittingWalls;

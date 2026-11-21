@@ -1,0 +1,1 @@
+Groups of units ordered to the same spot now share one route search, so they all get going together.
