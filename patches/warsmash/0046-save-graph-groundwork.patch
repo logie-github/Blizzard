@@ -1990,11 +1990,3 @@ index 0000000..8a3b77f
 +@Target(ElementType.FIELD)
 +public @interface SavedTransient {
 +}
-diff --git a/warsmash b/warsmash
-new file mode 120000
-index 0000000..cd5cbdb
---- /dev/null
-+++ b/warsmash
-@@ -0,0 +1 @@
-+/home/user/Blizzard/app/warsmash
-\ No newline at end of file
