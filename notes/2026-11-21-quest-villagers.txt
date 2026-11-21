@@ -1,0 +1,1 @@
+Tapping a villager with a quest marker now walks your hero over to talk to them.

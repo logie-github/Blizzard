@@ -1,0 +1,50 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+index c79a91a..93be311 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/LauncherNatives.java
+@@ -670,6 +670,14 @@ public final class LauncherNatives {
+ 			}
+ 			return null;
+ 		});
++		natives.createNative("UnitShareVision", (arguments, globalScope, triggerScope) -> {
++			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
++			final CPlayerJass player = nullable(arguments, 1, ObjectJassValueVisitor.<CPlayerJass>getInstance());
++			if ((unit != null) && (player != null)) {
++				unit.setVisionShared(simulation, player.getId(), arguments.get(2).visit(BooleanJassValueVisitor.getInstance()));
++			}
++			return null;
++		});
+ 		natives.createNative("UnitResetCooldown", (arguments, globalScope, triggerScope) -> {
+ 			final CUnit unit = nullable(arguments, 0, ObjectJassValueVisitor.<CUnit>getInstance());
+ 			if (unit != null) {
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index d6a1ab1..22a362d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -6122,6 +6122,26 @@ public class CUnit extends CWidget {
+ 		fireCooldownsChangedEvent();
+ 	}
+ 
++	// Blizzard launcher: UnitShareVision: players who see what this unit sees though it isn't theirs.
++	private final java.util.Map<Integer, com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CUnitVisionFogModifier> sharedVision = new java.util.HashMap<>();
++
++	public void setVisionShared(final CSimulation game, final int playerIndex, final boolean share) {
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CUnitVisionFogModifier existing = this.sharedVision.get(playerIndex);
++		if (share && (existing == null)) {
++			final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CUnitVisionFogModifier modifier = new com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.vision.CUnitVisionFogModifier(this, false);
++			this.sharedVision.put(playerIndex, modifier);
++			game.getPlayer(playerIndex).addFogModifer(game, modifier, false);
++		}
++		else if (!share && (existing != null)) {
++			this.sharedVision.remove(playerIndex);
++			game.getPlayer(playerIndex).removeFogModifer(game, existing);
++		}
++	}
++
++	public boolean isVisionSharedWith(final int playerIndex) {
++		return this.sharedVision.containsKey(playerIndex);
++	}
++
+ 	/** Blizzard launcher: UnitResetCooldown: every ability of the unit is ready again. */
+ 	public void resetCooldowns() {
+ 		this.rawcodeToCooldownExpireTime.clear();

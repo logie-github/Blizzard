@@ -328,8 +328,13 @@ public class Setups extends Scenario {
       b.append(" camera target after SetCameraPosition(1234,-567)=").append(call.apply("GetCameraTargetPositionX", java.util.List.of())).append(",").append(call.apply("GetCameraTargetPositionY", java.util.List.of()));
       var camLoc = call3(g, "GetCameraTargetPositionLoc", java.util.List.of(), null);
       b.append(" loc x=").append(call.apply("GetLocationX", java.util.List.of(camLoc)));
+      CUnit scout = unit(s, "hfoo", 1, p[0] - 3000, p[1] + 2500); var fs = new com.etheller.interpreter.ast.value.HandleJassValue(ut, scout);
+      final com.etheller.interpreter.ast.value.JassValue sx = com.etheller.interpreter.ast.value.RealJassValue.of(scout.getX() + 100), sy = com.etheller.interpreter.ast.value.RealJassValue.of(scout.getY());
+      final String[] vis = { "" };
+      new Later() { public void onFire(CSimulation sim) { vis[0] = "before sharing: player 1 sees beside player 2's footman=" + call.apply("IsVisibleToPlayer", java.util.List.of(sx, sy, p0)); call.apply("UnitShareVision", java.util.List.of(fs, p0, com.etheller.interpreter.ast.value.BooleanJassValue.TRUE)); } }.go(s, 3f);
+      new Later() { public void onFire(CSimulation sim) { vis[0] += "; after=" + call.apply("IsVisibleToPlayer", java.util.List.of(sx, sy, p0)); } }.go(s, 6f);
       final String before = b.toString(); final float x0 = f.getX();
-      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\"" + minimapPings(); };
+      return () -> { var root = (com.etheller.warsmash.parsers.fdf.GameUI) viewer.getGameUI(); var tv = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogValue", 0); var tt = (com.etheller.warsmash.parsers.fdf.frames.StringFrame) root.getFrameByName("TimerDialogTitle", 0); return before + " footman moved " + (int) (f.getX() - x0) + "; timer dialog reads \"" + (tt == null ? "-" : tt.getText()) + " " + (tv == null ? "-" : tv.getText()) + "\"" + minimapPings() + "; " + vis[0]; };
     }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
