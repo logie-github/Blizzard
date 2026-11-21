@@ -1,0 +1,106 @@
+diff --git a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+index 30ac36b..a4f139b 100644
+--- a/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
++++ b/core/src/com/etheller/warsmash/parsers/jass/scope/CommonTriggerExecutionScope.java
+@@ -339,6 +339,17 @@ public class CommonTriggerExecutionScope extends TriggerExecutionScope {
+ 		return this;
+ 	}
+ 
++	public CommonTriggerExecutionScope transport(final CUnit transport, final CUnit loaded) {
++		this.transportUnit = transport;
++		this.loadedUnit = loaded;
++		return this;
++	}
++
++	public CommonTriggerExecutionScope triggerPlayer(final CPlayerJass player) {
++		this.triggeringPlayer = player;
++		return this;
++	}
++
+ 	public CommonTriggerExecutionScope reviving(final CUnit revivingUnit) {
+ 		this.revivingUnit = revivingUnit;
+ 		return this;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+index b756f25..31b0691 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CSimulation.java
+@@ -1390,6 +1390,30 @@ public class CSimulation implements CPlayerAPI, CFogMaskSettings {
+ 		}
+ 	}
+ 
++	/**
++	 * Blizzard launcher: the local player selected a unit: the unit's own "is selected" triggers and the selecting
++	 * player's (the triggering player is the one who selected).
++	 */
++	public void unitSelected(final CUnit unit, final int selectorIndex) {
++		if (unit == null) {
++			return;
++		}
++		final com.etheller.warsmash.viewer5.handlers.w3x.simulation.players.CPlayer selector = getPlayer(selectorIndex);
++		final List<com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CWidgetEvent> unitEvents = unit
++				.getEventList(com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SELECTED);
++		if (unitEvents != null) {
++			for (final com.etheller.warsmash.viewer5.handlers.w3x.simulation.unit.CWidgetEvent event : new ArrayList<>(
++					unitEvents)) {
++				event.fire(unit, com.etheller.warsmash.parsers.jass.scope.CommonTriggerExecutionScope.unitEventScope(
++						com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_SELECTED,
++						event.getTrigger(), unit, selector));
++			}
++		}
++		selector.fireUnitEvents(
++				com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_SELECTED,
++				unit, null);
++	}
++
+ 	/** Whether the order being issued came from a map script (the fork's); orders here aren't told apart. */
+ 	public boolean isScriptTargetOrder() {
+ 		return false;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+index a53ae5d..7a5de2a 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/CUnit.java
+@@ -2547,6 +2547,10 @@ public class CUnit extends CWidget {
+ 			tempRect.height += halfSize * 2;
+ 			game.getWorldCollision().enumUnitsInRect(tempRect,
+ 					autoAttackTargetFinderEnum.reset(game, this, disableMove));
++			if (autoAttackTargetFinderEnum.foundAnyTarget) {
++				// Blizzard launcher: "a unit acquires a target" (after the search, so a trigger may change units).
++				game.fireUnitEvents(this, JassGameEventsWar3.EVENT_UNIT_ACQUIRED_TARGET, null, null);
++			}
+ 			return autoAttackTargetFinderEnum.foundAnyTarget;
+ 		}
+ 		return false;
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/cargohold/CBehaviorLoad.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/cargohold/CBehaviorLoad.java
+index 0e51d30..e98b488 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/cargohold/CBehaviorLoad.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/cargohold/CBehaviorLoad.java
+@@ -42,6 +42,11 @@ public class CBehaviorLoad extends CAbstractRangedBehavior {
+ 			cargoData.addUnit(this.unit, targetUnit);
+ 			targetUnit.setHidden(true);
+ 			targetUnit.setPaused(true);
++			// Blizzard launcher: "a unit is loaded into a transport" (Night Elf X01's ship sets sail on it).
++			simulation.fireUnitEvents(targetUnit,
++					com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_UNIT_LOADED,
++					com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.EVENT_PLAYER_UNIT_LOADED,
++					(scope) -> scope.transport(this.unit, targetUnit));
+ 		}
+ 		else {
+ 			simulation.getCommandErrorListener().showInterfaceError(this.unit.getPlayerIndex(), CommandStringErrorKeys.UNABLE_TO_LOAD_TARGET);
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 9d8380f..b6523cb 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -4728,6 +4728,13 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 	private void selectUnits(final List<RenderUnit> selectedUnits) {
+ 		final List<RenderUnit> prevSelectedUnits = this.selectedUnits;
+ 		this.selectedUnits = selectedUnits;
++		// Blizzard launcher: "a unit is selected" for each unit newly selected.
++		for (final RenderUnit newlySelected : selectedUnits) {
++			if (!prevSelectedUnits.contains(newlySelected)) {
++				this.war3MapViewer.simulation.unitSelected(newlySelected.getSimulationUnit(),
++						this.war3MapViewer.getLocalPlayerIndex());
++			}
++		}
+ 		if (!selectedUnits.isEmpty()) {
+ 			final RenderUnit unit = selectedUnits.get(0);
+ 			boolean selectionChanged = (unit != this.selectedUnit)

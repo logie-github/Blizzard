@@ -443,6 +443,20 @@ public class Setups extends Scenario {
       new Later() { public void onFire(CSimulation sim) { int slot = hero.getInventoryData().getSlot(potion); used[0] = hero.order(sim, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.itemuse00 + slot, null); hero.getInventoryData().dropItem(sim, hero, tome, hero.getX() + 100, hero.getY(), false); } }.go(s, 1f);
       return () -> "orders train " + trainOk + " build " + buildOk + " potion use " + used[0] + "; events: " + seen;
     }),
+    c("Unit events (0045): selected, acquired target, loaded into a transport", 600, (s, p) -> {
+      var g = s.getGlobalScope(); final java.util.Map<String, String> seen = new java.util.TreeMap<>();
+      java.util.function.BiConsumer<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CUnit, String> watch = (u, ev) -> {
+        var trig = new com.etheller.interpreter.ast.scope.trigger.Trigger();
+        trig.addAction((args, gs, scope) -> { seen.merge(ev, "fired: triggering " + call2(g, "GetTriggerUnit", java.util.List.of(), scope) + " transport " + call2(g, "GetTransportUnit", java.util.List.of(), scope) + " loaded " + call2(g, "GetLoadedUnit", java.util.List.of(), scope) + " player " + call2(g, "GetTriggerPlayer", java.util.List.of(), scope), (a, c) -> a + " | " + c); return null; });
+        u.addEvent(g, trig, com.etheller.warsmash.viewer5.handlers.w3x.simulation.trigger.JassGameEventsWar3.valueOf(ev));
+      };
+      CUnit sel = unit(s, "hfoo", 0, p[0], p[1]); watch.accept(sel, "EVENT_UNIT_SELECTED");
+      CUnit guard = unit(s, "hfoo", 0, p[0] - 600, p[1]); watch.accept(guard, "EVENT_UNIT_ACQUIRED_TARGET"); unit(s, "hfoo", 1, p[0] - 500, p[1]);
+      CUnit ship = unit(s, "hbot", 0, p[0] + 600, p[1]); CUnit hero = unit(s, "Hpal", 0, p[0] + 700, p[1]); watch.accept(hero, "EVENT_UNIT_LOADED");
+      boolean loadOk = ship.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.load, hero);
+      try { var fld = com.etheller.warsmash.WarsmashGdxMapScreen.class.getDeclaredField("minimapUI"); fld.setAccessible(true); var ui = (com.etheller.warsmash.viewer5.handlers.w3x.ui.MeleeUI) fld.get(Main.mapScreen); ui.scriptClearSelection(); ui.scriptSelectUnit(sel, true); } catch (Exception e) { seen.put("select error", e.toString()); }
+      return () -> "load order " + loadOk + " hero hidden " + hero.isHidden() + "; " + seen;
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);
