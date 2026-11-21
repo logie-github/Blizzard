@@ -1,0 +1,134 @@
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+@@ -147,6 +147,8 @@
+ 	private byte[] shadowData;
+ 	private CPlayerFogOfWar fogOfWarData;
+ 	private ByteBuffer visualFogData;
++	private byte[] fogStates;
++	private byte[] visualFogStates;
+ 
+ 	public Terrain(final War3MapW3e w3eFile, final War3MapWpm terrainPathing, final War3MapW3i w3iFile,
+ 			final WebGL webGL, final DataSource dataSource, final WorldEditStrings worldEditStrings,
+@@ -1763,26 +1765,60 @@
+ 		return this.defaultCameraBounds;
+ 	}
+ 
+-	public void setFogOfWarData(CFogMaskSettings fogMaskSettings, final CPlayerFogOfWar fogOfWarData) {
++	public void setFogOfWarData(final CFogMaskSettings fogMaskSettings, final CPlayerFogOfWar fogOfWarData) {
+ 		this.fogOfWarData = fogOfWarData;
+-		this.visualFogData = ByteBuffer.allocateDirect(fogOfWarData.getFogOfWarBuffer().capacity());
+-		reloadFogOfWarDataToGPU(fogMaskSettings);
+-	}
+-
+-	public void reloadFogOfWarDataToGPU(CFogMaskSettings fogMaskSettings) {
++		final int size = fogOfWarData.getFogOfWarBuffer().capacity();
++		this.visualFogData = ByteBuffer.allocateDirect(size);
++		this.fogStates = new byte[size];
++		this.visualFogStates = new byte[size];
++
+ 		final GL30 gl = Gdx.gl30;
+-		final ByteBuffer fogOfWarBuffer = this.fogOfWarData.getFogOfWarBuffer();
+-		for (int i = 0; i < this.visualFogData.capacity(); i++) {
+-			this.visualFogData.put(i, War3MapViewer.fadeLineOfSightColor(this.visualFogData.get(i),
+-					fogMaskSettings.getFogStateFromSettings(fogOfWarBuffer.get(i))));
+-		}
+-		gl.glBindTexture(GL30.GL_TEXTURE_2D, Terrain.this.fogOfWarMap);
++		gl.glBindTexture(GL30.GL_TEXTURE_2D, this.fogOfWarMap);
+ 		gl.glTexParameteri(GL30.GL_TEXTURE_2D, GL30.GL_TEXTURE_MAG_FILTER, GL30.GL_LINEAR);
+ 		gl.glTexParameteri(GL30.GL_TEXTURE_2D, GL30.GL_TEXTURE_MIN_FILTER, GL30.GL_LINEAR);
+ 		gl.glTexParameteri(GL30.GL_TEXTURE_2D, GL30.GL_TEXTURE_WRAP_S, GL30.GL_CLAMP_TO_EDGE);
+ 		gl.glTexParameteri(GL30.GL_TEXTURE_2D, GL30.GL_TEXTURE_WRAP_T, GL30.GL_CLAMP_TO_EDGE);
+-		gl.glTexImage2D(GL30.GL_TEXTURE_2D, 0, GL30.GL_R8, this.fogOfWarData.getWidth(), this.fogOfWarData.getHeight(),
++		updateVisualFog(fogMaskSettings);
++		gl.glPixelStorei(GL30.GL_UNPACK_ALIGNMENT, 1);
++		gl.glTexImage2D(GL30.GL_TEXTURE_2D, 0, GL30.GL_R8, fogOfWarData.getWidth(), fogOfWarData.getHeight(),
+ 				0, GL30.GL_RED, GL30.GL_UNSIGNED_BYTE, this.visualFogData);
++		gl.glPixelStorei(GL30.GL_UNPACK_ALIGNMENT, 4);
++	}
++
++	public void reloadFogOfWarDataToGPU(final CFogMaskSettings fogMaskSettings) {
++		if (updateVisualFog(fogMaskSettings)) {
++			final GL30 gl = Gdx.gl30;
++			gl.glBindTexture(GL30.GL_TEXTURE_2D, this.fogOfWarMap);
++			gl.glPixelStorei(GL30.GL_UNPACK_ALIGNMENT, 1);
++			gl.glTexSubImage2D(GL30.GL_TEXTURE_2D, 0, 0, 0, this.fogOfWarData.getWidth(), this.fogOfWarData.getHeight(),
++					GL30.GL_RED, GL30.GL_UNSIGNED_BYTE, this.visualFogData);
++			gl.glPixelStorei(GL30.GL_UNPACK_ALIGNMENT, 4);
++		}
++	}
++
++	private boolean updateVisualFog(final CFogMaskSettings fogMaskSettings) {
++		final ByteBuffer source = this.fogOfWarData.getFogOfWarBuffer().duplicate();
++		source.clear();
++		source.get(this.fogStates);
++		final byte masked = fogMaskSettings.getFogStateFromSettings((byte) -1);
++		final byte fogged = fogMaskSettings.getFogStateFromSettings((byte) 127);
++		final byte visible = fogMaskSettings.getFogStateFromSettings((byte) 0);
++		boolean changed = false;
++		for (int i = 0; i < this.fogStates.length; i++) {
++			final byte state = this.fogStates[i];
++			final byte target = state < 0 ? masked : (state > 0 ? fogged : visible);
++			final byte previous = this.visualFogStates[i];
++			if (previous != target) {
++				this.visualFogStates[i] = War3MapViewer.fadeLineOfSightColor(previous, target);
++				changed = true;
++			}
++		}
++		if (changed) {
++			this.visualFogData.clear();
++			this.visualFogData.put(this.visualFogStates);
++			this.visualFogData.flip();
++		}
++		return changed;
+ 	}
+ 
+ 	public int getFogOfWarMap() {
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+@@ -232,6 +232,8 @@
+ 	public MdxComplexInstance dncTerrain;
+ 	public MdxComplexInstance dncTarget;
+ 	public CSimulation simulation;
++	// Reserve part of a 60 Hz frame for drawing when simulation ticks have backed up.
++	private static final long SIMULATION_CATCH_UP_BUDGET_NANOS = 6_000_000L;
+ 	private float updateTime = 0;
+ 
+ 	// for World Editor, I think
+@@ -1193,11 +1195,15 @@
+ 				}
+ 			}
+ 
++			final long simulationStart = System.nanoTime();
+ 			while (this.updateTime >= WarsmashConstants.SIMULATION_STEP_TIME) {
+ 				if (this.gameTurnManager.getLatestCompletedTurn() >= this.simulation.getGameTurnTick()) {
+ 					this.updateTime -= WarsmashConstants.SIMULATION_STEP_TIME;
+ 					this.simulation.update();
+ 					this.gameTurnManager.turnCompleted(this.simulation.getGameTurnTick());
++					if (System.nanoTime() - simulationStart >= SIMULATION_CATCH_UP_BUDGET_NANOS) {
++						break;
++					}
+ 				}
+ 				else {
+ 					if (this.updateTime > (WarsmashConstants.SIMULATION_STEP_TIME * 3)) {
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/SplatModel.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/SplatModel.java
+@@ -344,6 +344,9 @@
+ 		}
+ 
+ 		public void move(final float deltaX, final float deltaY, final float[] centerOffset) {
++			if ((deltaX == 0) && (deltaY == 0)) {
++				return;
++			}
+ 			this.locs[0] += deltaX;
+ 			this.locs[2] += deltaX;
+ 			this.locs[1] += deltaY;
+@@ -502,8 +505,8 @@
+ 			// It tries to only update if it is located at a new position... but here we are
+ 			// forcing it visible again by putting the position outside the map
+ 			this.ix0 = this.ix1 = this.iy0 = this.iy1 = Integer.MIN_VALUE;
+-			move(0, 0, centerOffset);
+ 			this.hidden = false;
++			updateAfterMove(centerOffset);
+ 		}
+ 
+ 		public void setHeightAbsolute(final boolean absolute, final float absoluteHeightValue) {
