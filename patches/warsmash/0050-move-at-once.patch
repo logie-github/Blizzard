@@ -1,0 +1,76 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+index f91bed3..038c01d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/simulation/behaviors/CBehaviorMove.java
+@@ -206,7 +206,11 @@ public class CBehaviorMove implements CBehavior {
+ 			this.unit.setFacing(facing);
+ 		}
+ 		final boolean blockedByGiveUpUntilTickDelay = simulation.getGameTurnTick() < this.giveUpUntilTurnTick;
+-		if (!blockedByGiveUpUntilTickDelay && (this.path != null) && !this.pathfindingActive
++		// Blizzard launcher: a unit set off only when its route was found, and stood turning on the spot until then (a
++		// crowd's routes are worked out one after another: the last unit of a group set off a long moment after the
++		// order). It now walks straight at its target from the first step and takes up the route when it arrives.
++		final boolean walkingAheadOfRoute = (this.path == null) && this.pathfindingActive && !this.disableAheadOfRoute;
++		if (!blockedByGiveUpUntilTickDelay && (((this.path != null) && !this.pathfindingActive) || walkingAheadOfRoute)
+ 				&& (absDelta < propulsionWindow)) {
+ 			final float speedTick = speed * WarsmashConstants.SIMULATION_STEP_TIME;
+ 			double continueDistance = speedTick;
+@@ -239,7 +243,17 @@ public class CBehaviorMove implements CBehavior {
+ 						// * 16
+ 						&& !worldCollision.intersectsAnythingOtherThan(tempRect, this.unit, movementType, false))) {
+ 					this.unit.setPoint(nextX, nextY, worldCollision, simulation.getRegionManager());
+-					if (done) {
++					if (walkingAheadOfRoute) {
++						this.movedAheadOfRoute = true;
++						if (done) {
++							// straight to the target without needing the route: arrived
++							simulation.removeFromPathfindingQueue(this);
++							this.pathfindingActive = false;
++							onMoveGiveUp(simulation);
++							return this.unit.pollNextOrderBehavior(simulation);
++						}
++					}
++					else if (done) {
+ 						// if we're making headway along the path then it's OK to start thinking fast
+ 						// again
+ 						if (travelDistance > 0) {
+@@ -336,6 +350,23 @@ public class CBehaviorMove implements CBehavior {
+ 		return this;
+ 	}
+ 
++	private boolean movedAheadOfRoute = false;
++	private final boolean disableAheadOfRoute = false;
++
++	private static boolean openLine(final PathingGrid pathingGrid, final MovementType movementType,
++			final float collisionSize, final float x0, final float y0, final float x1, final float y1) {
++		final float dx = x1 - x0;
++		final float dy = y1 - y0;
++		final int steps = (int) Math.ceil(Math.sqrt((dx * dx) + (dy * dy)) / 16f);
++		for (int i = 1; i <= steps; i++) {
++			final float t = i / (float) steps;
++			if (!pathingGrid.isPathable(x0 + (dx * t), y0 + (dy * t), movementType, collisionSize)) {
++				return false;
++			}
++		}
++		return true;
++	}
++
+ 	private void onMoveGiveUp(final CSimulation simulation) {
+ 		if (this.rangedBehavior != null) {
+ 			this.rangedBehavior.endMove(simulation, true);
+@@ -420,6 +451,15 @@ public class CBehaviorMove implements CBehavior {
+ 		final float startFloatingY = prevY;
+ 
+ 		this.path = waypoints;
++		if (this.movedAheadOfRoute) {
++			// The unit has walked on since the search began: leave out the route's first points while the way from
++			// here to the one after is open, so it does not turn back to a point it is past.
++			this.movedAheadOfRoute = false;
++			while ((this.path.size() > 1) && openLine(pathingGrid, movementType, collisionSize, prevX, prevY,
++					this.path.get(1).x, this.path.get(1).y)) {
++				this.path.remove(0);
++			}
++		}
+ 		if (this.firstPathfindJob) {
+ 			this.firstPathfindJob = false;
+ 			// check for smoothing

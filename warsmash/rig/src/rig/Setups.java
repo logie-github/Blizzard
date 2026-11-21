@@ -498,6 +498,14 @@ public class Setups extends Scenario {
         return () -> dbg + "; screen " + w + "x" + h + " camera target " + (int) cx + "," + (int) cy + "; after tap: " + seen[0];
       } catch (Exception e) { return () -> "failed " + e; }
     }),
+    c("Immediate move (0050): twelve units ordered at once, the tick each first moves", 400, (s, p) -> {
+      CUnit[] fs = new CUnit[12]; float[][] start = new float[12][2];
+      for (int i = 0; i < 12; i++) { fs[i] = unit(s, "hfoo", 0, p[0] + (i % 4) * 70, p[1] - 100 - (i / 4) * 70); start[i][0] = fs[i].getX(); start[i][1] = fs[i].getY(); }
+      final int[] first = new int[12]; java.util.Arrays.fill(first, -1); final int t0 = s.getGameTurnTick();
+      for (CUnit f : fs) f.order(s, com.etheller.warsmash.viewer5.handlers.w3x.simulation.orders.OrderIds.move, new com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.targeting.AbilityPointTarget(p[0] + 500, p[1] + 300));
+      for (int k = 1; k <= 40; k++) new Later() { public void onFire(CSimulation sim) { for (int i = 0; i < 12; i++) if (first[i] < 0 && Math.hypot(fs[i].getX() - start[i][0], fs[i].getY() - start[i][1]) > 3) first[i] = sim.getGameTurnTick() - t0; } }.go(s, k * 0.05f);
+      return () -> { StringBuilder b = new StringBuilder("ticks until each of 12 first moved:"); for (int i = 0; i < 12; i++) b.append(' ').append(first[i]); return b.toString(); };
+    }),
     c("Siege minimum range: catapults on a footman beside them and one far off", 700, (s, p) -> {
       CUnit c1 = unit(s, "ocat", 0, p[0], p[1]), c2 = unit(s, "ocat", 0, p[0] - 3000, p[1] - 1500);
       CUnit near = unit(s, "hfoo", 1, p[0] + 60, p[1]), far = unit(s, "hfoo", 1, p[0] - 2300, p[1] - 1500);

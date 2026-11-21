@@ -1,0 +1,1 @@
+Your units now start moving the instant you give an order, even a big group, instead of waiting for their routes.
