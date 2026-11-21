@@ -5,7 +5,11 @@ import com.etheller.warsmash.*; import com.etheller.warsmash.units.DataTable; im
 import com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer;
 public class Main {
   public static War3MapViewer viewer; public static int mapFrames; public static Object mapScreen;
+  static volatile long lastFrameMillis = System.currentTimeMillis(); static volatile Thread renderThread;
   public static void main(String[] args) throws Exception {
+    // A frame that takes more than 20 s: print where the render thread is, three times, so a hang shows its loop.
+    Thread watchdog = new Thread(() -> { int dumps = 0; while (dumps < 4) { try { Thread.sleep(1000); } catch (InterruptedException e) { return; } Thread t = renderThread; if (t != null && System.currentTimeMillis() - lastFrameMillis > 3000) { dumps++; System.err.println("RIG: HANG render thread stack (" + (System.currentTimeMillis() - lastFrameMillis) / 1000 + " s in one frame):"); for (StackTraceElement e : t.getStackTrace()) System.err.println("RIG:   at " + e); } } });
+    watchdog.setDaemon(true); watchdog.start();
     String game = System.getenv("GAME");
     String map = args[0]; Scenario sc = (Scenario) Class.forName(args[1]).getDeclaredConstructor().newInstance();
     android.system.Os.setenv("game_files", game, true); android.system.Os.setenv("GAME_VERSION", System.getenv().getOrDefault("GV","1"), true);
@@ -38,7 +42,7 @@ public class Main {
       public void render() {
         
         try {
-          frame[0]++;
+          frame[0]++; lastFrameMillis = System.currentTimeMillis(); if (renderThread == null) renderThread = Thread.currentThread();
           if (!started[0] && frame[0] == 5) { started[0] = true; System.err.println("RIG: startMap " + map); menu[0].startMap(map); }
           try { g.render(); } catch (Throwable t) { if (viewer == null) throw t; System.err.println("RIG: EXC " + t); for (StackTraceElement e : t.getStackTrace()) { if (e.getClassName().contains("etheller")) System.err.println("RIG:   at " + e); } for (Throwable c = t.getCause(); c != null && c != c.getCause(); c = c.getCause()) { System.err.println("RIG:   cause " + c); for (StackTraceElement e : c.getStackTrace()) { if (e.getClassName().contains("etheller")) { System.err.println("RIG:     at " + e); break; } } } sc.exception(t); }
           Screen s = g.getScreen();

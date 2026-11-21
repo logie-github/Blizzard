@@ -1,0 +1,1 @@
+The Orc mission that froze at its start now plays, and felling many trees at once no longer stalls the game.

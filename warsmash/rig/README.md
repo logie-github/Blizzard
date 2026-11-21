@@ -27,6 +27,8 @@ scripts, and Warcraft III 1.27's own files. Nothing here ships in the app.
 - `src/rig/Reach.java`: flood fill on foot from `$FROM` to `$TO` (x,y) at radius `$R`: whether the pathing grid joins them. `src/rig/ProgressCheck.java` (`RIGMAIN=rig.ProgressCheck`): the campaign openings in order. `Setups` runs only the cases whose name contains `$CASE`.
 - `src/rig/Dump.java`: copies files out of the game's MPQs (`Units\AbilityData.slk` and the like; `EXTRA` adds more MPQs, a map's own `war3map.j` with the map file there; run with `RIGMAIN=rig.Dump`).
 
+A frame that takes more than 3 s prints the render thread's stack (`RIG: HANG`), so a hang shows where it is.
+
 ## Running
 
 The game files: Blizzard's 1.27 download, built as the app builds it (`blizzard-legacy-dl install WAR3 --no-base --game

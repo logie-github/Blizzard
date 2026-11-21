@@ -1,0 +1,96 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+index 5aa1167..6098e07 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/War3MapViewer.java
+@@ -1165,6 +1165,10 @@ public class War3MapViewer extends AbstractMdxModelViewer implements MdxAssetLoa
+ 			for (final RenderWidget unit : this.widgets) {
+ 				unit.updateAnimations(this);
+ 			}
++			// Blizzard launcher: shadows removed or moved this frame (trees felled, buildings gone) uploaded once.
++			if (this.terrain != null) {
++				this.terrain.flushShadowChanges();
++			}
+ 			final Iterator<RenderEffect> projectileIterator = this.projectiles.iterator();
+ 			while (projectileIterator.hasNext()) {
+ 				final RenderEffect projectile = projectileIterator.next();
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+index 37cd16f..3f292f8 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/environment/Terrain.java
+@@ -1260,14 +1260,15 @@ public class Terrain {
+ 			@Override
+ 			public void remove() {
+ 				shadowList.remove(shadowPositionArray);
+-				reloadShadowDataToGPU();
++				// Blizzard launcher: reloaded once at the end of the frame, however many shadows changed in it.
++				Terrain.this.shadowsDirty = true;
+ 			}
+ 
+ 			@Override
+ 			public void move(final float x, final float y) {
+ 				shadowPositionArray[0] = x;
+ 				shadowPositionArray[1] = y;
+-				reloadShadowDataToGPU();
++				Terrain.this.shadowsDirty = true;
+ 			}
+ 		};
+ 	}
+@@ -1372,6 +1373,17 @@ public class Terrain {
+ 			final float v2, final byte[] shadowData) {
+ 		final int x0 = (int) Math.floor((v - centerOffset[0]) / 32.0) - x01;
+ 		final int y0 = (int) Math.floor((v2 - centerOffset[1]) / 32.0) + y01;
++		// Blizzard launcher: the shadow's pixels are read once for the whole blit (they were taken and a disposal
++		// queued for every pixel, millions of jobs when a map's script cleared many trees at once).
++		final com.badlogic.gdx.graphics.Texture gdxTexture = texture.getGdxTexture();
++		final TextureData textureData = gdxTexture.getTextureData();
++		if (!textureData.isPrepared()) {
++			textureData.prepare();
++		}
++		final Pixmap pixmap = textureData.consumePixmap();
++		if (pixmap.isDisposed()) {
++			return;
++		}
+ 		for (int y = 0; y < height; ++y) {
+ 			if (((y0 - y) < 0) || ((y0 - y) >= rows)) {
+ 				continue;
+@@ -1380,19 +1392,14 @@ public class Terrain {
+ 				if (((x0 + x) < 0) || ((x0 + x) >= columns)) {
+ 					continue;
+ 				}
+-				com.badlogic.gdx.graphics.Texture gdxTexture = texture.getGdxTexture();
+-				TextureData textureData = gdxTexture.getTextureData();
+-				if(!textureData.isPrepared()) {
+-					System.out.println("prepare: " + texture.fetchUrl);
+-					textureData.prepare();
+-				}
+-				Pixmap pixmap = textureData.consumePixmap();
+-				if(!pixmap.isDisposed() && (pixmap.getPixel(x, y) & 0xFF) != 0) {
++				if ((pixmap.getPixel(x, y) & 0xFF) != 0) {
+ 					shadowData[((y0 - y) * columns) + x0 + x] = (byte) 128;
+ 				}
+-				ImageUtils.disposePixMap(pixmap);
+ 			}
+ 		}
++		if (textureData.disposePixmap()) {
++			ImageUtils.disposePixMap(pixmap);
++		}
+ 	}
+ 
+ //	public Vector3 groundNormal(final Vector3 out, int x, int y) {
+@@ -1714,6 +1721,16 @@ public class Terrain {
+ 		return this.entireMapRectangle;
+ 	}
+ 
++	private boolean shadowsDirty;
++
++	/** Blizzard launcher: the building and tree shadows changed this frame are uploaded once. */
++	public void flushShadowChanges() {
++		if (this.shadowsDirty) {
++			this.shadowsDirty = false;
++			reloadShadowDataToGPU();
++		}
++	}
++
+ 	private void reloadShadowDataToGPU() {
+ 		final int columns = (Terrain.this.columns - 1) * 4;
+ 		final int rows = (Terrain.this.rows - 1) * 4;
