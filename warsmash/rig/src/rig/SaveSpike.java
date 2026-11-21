@@ -21,6 +21,14 @@ public class SaveSpike extends Scenario {
       var w = new SavedObjectGraph.Writer(rules, out); w.writeRoot(v.simulation); var table = w.finishTableBytes();
       long t1 = System.nanoTime();
       System.err.println("RIG: SAVESPIKE tick " + v.simulation.getGameTurnTick() + " objects " + w.objectCount() + " body " + bytes.size() + " bytes, table " + table.size() + " bytes, " + (t1 - t0) / 1000000 + " ms; dropped reference kinds " + dropped.size() + ", dropped classes " + droppedClasses.size());
+      // Round trip: read the saved bytes back into a second copy of the simulation and compare the two.
+      long t2 = System.nanoTime();
+      var reader = new SavedObjectGraph.Reader(rules, table.toByteArray(), new java.io.DataInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray())));
+      Object root = reader.readRoot(); long t3 = System.nanoTime();
+      var copy = (com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation) root;
+      java.util.function.Function<com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation, String> digest = sm -> { long h = 1125899906842597L; int n2 = 0, abil = 0, dead = 0; for (var u : sm.getUnits()) { n2++; abil += u.getAbilities().size(); if (u.isDead()) dead++; h = 31 * h + u.getHandleId(); h = 31 * h + u.getTypeId().getValue(); h = 31 * h + u.getPlayerIndex(); h = 31 * h + Float.floatToIntBits(u.getX()); h = 31 * h + Float.floatToIntBits(u.getY()); h = 31 * h + Float.floatToIntBits(u.getLife()); h = 31 * h + Float.floatToIntBits(u.getMana()); } for (int i = 0; i < 12; i++) { h = 31 * h + sm.getPlayer(i).getGold(); h = 31 * h + sm.getPlayer(i).getLumber(); } return n2 + " units, " + abil + " abilities, " + dead + " dead, tick " + sm.getGameTurnTick() + ", hash " + h; };
+      System.err.println("RIG: SAVESPIKE original: " + digest.apply(v.simulation));
+      System.err.println("RIG: SAVESPIKE reloaded: " + digest.apply(copy) + " (read in " + (t3 - t2) / 1000000 + " ms)");
       droppedClasses.entrySet().stream().sorted((a, b) -> b.getValue() - a.getValue()).limit(25).forEach(e -> System.err.println("RIG: SAVESPIKE dropped class " + e.getKey() + " x" + e.getValue()));
     } catch (Throwable t) { System.err.println("RIG: SAVESPIKE failed " + t); t.printStackTrace(); }
     return true;

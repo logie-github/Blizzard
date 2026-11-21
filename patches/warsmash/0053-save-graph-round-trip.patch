@@ -1,0 +1,34 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java
+index 7273fb0..9a0cc52 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/save/SavedObjectGraph.java
+@@ -1614,28 +1614,7 @@ public final class SavedObjectGraph {
+ 	 * that games save were given names; saves from before keep loading through this.
+ 	 */
+ 	private static final Map<String, String> FORMER_CLASS_NAMES = new HashMap<>();
+-	static {
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.parsers.jass.Jass2$CommonEnvironment$7",
+-				"com.etheller.warsmash.parsers.jass.TriggerNatives$TimerEventRegistration");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.util.SubscriberSetNotifier$1",
+-				"com.etheller.warsmash.util.SubscriberSetNotifier$SubscriberSet");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$1",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$IdleFogTimer");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$2",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.War3MapViewer$FogGpuUpdateTimer");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$1",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$FogUpdateTimer");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$2",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.CSimulation$TimeOfDayEventRegistration");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.test.CAbilityChannelTest",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.channel.CAbilityChannel");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.test.CBehaviorChannelTest",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.channel.CBehaviorChannel");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.test.CAbilityCarrionSwarmDummy",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.abilities.skills.undead.dreadlord.CAbilityCarrionSwarmDummy");
+-		FORMER_CLASS_NAMES.put("com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.test.CBehaviorCarrionSwarmDummy",
+-				"com.etheller.warsmash.viewer5.handlers.w3x.simulation.behaviors.skills.undead.dreadlord.CBehaviorCarrionSwarmDummy");
+-	}
++	// Blizzard launcher: this engine's saves are read by the build that wrote them; the fork's class renames are not ours.
+ 
+ 	/** For tables that carry no format, as the saves this engine writes. */
+ 	private static final int NEWEST_FORMAT = Integer.MAX_VALUE;
