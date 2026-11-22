@@ -3,10 +3,11 @@ package com.logie.blizz.importer
 import java.io.File
 
 /**
- * World of Warcraft: Infinite (the ForeverNXT server and its client), from two archives the player picks by hand at install:
- * **Add client** (the client's zip, 7z or RAR) and **Add server** (the ForeverNXT server package's 7z or zip). Each is one file chosen
- * with the phone's picker: nothing is searched for on the phone, no folder is taken and nothing is downloaded.
- * The client lands in the game's `client/` folder and the server package in `server/`; the player's own files only, no file ships with the app.
+ * World of Warcraft: Infinite (the ForeverNXT server and its client). **Add client**: the client's zip, 7z or RAR, one file the player picks
+ * by hand with the phone's picker (nothing is searched for on the phone, no folder is taken). **The server** is downloaded by the app from
+ * the MEGA link the user gave (22 November 2026, [SERVER_LINK], see [Mega]); if MEGA refuses it (its download limit, say), the install asks
+ * for **Add server** instead: the package's 7z or zip, picked by hand.
+ * The client lands in the game's `client/` folder and the server package in `server/`; no file ships with the app.
  *
  * This step makes the copies and checks them; the import ends as Imported — Launch Untested (the files can't show it starts under Winlator).
  * Running the server in Winlator is the next step.
@@ -25,6 +26,10 @@ class InfiniteImporter : GameImporter {
         const val SERVER = "server"
         /** The server package's marker files. */
         const val SERVER_START = "START_SERVER.cmd"
+        /** The ForeverNXTCore server package (build 70707), a public MEGA link given by the user; its size is MEGA's (checked on download). */
+        const val SERVER_LINK = "https://mega.nz/file/pvICFA5Q#wxQV0KH6QadFZmuFR7RGpmmU5ctvL1aRDHPo6xG_q-I"
+        const val SERVER_SIZE = 1_822_679_784L
+        const val SERVER_FILE = "ForeverNXTCore-Y1U14-Server-v2.3.0-70707.7z"
         /** Client builds the ForeverNXT launcher lists; any other build is shown as read, not refused. */
         val KNOWN_BUILDS = listOf(70450, 70532, 70685, 70707)
         const val PROMPT_CLIENT = "Add your Infinite client: pick its zip, 7z or RAR file."
@@ -54,15 +59,38 @@ class InfiniteImporter : GameImporter {
     override fun detect(env: ImportEnv): Detection =
         Detection(validateDir(env.paths.game(gameId)).filesOk, emptyMap())
 
-    override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> = emptyList()
+    /** Why the server's download didn't work: then the player is asked for the file. */
+    private var serverDownloadFailure: String? = null
 
-    override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) = Unit
+    private fun serverDownload(env: ImportEnv) = File(File(env.paths.downloads, gameId), SERVER_FILE)
+
+    override fun resolveSources(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<AutoSource> {
+        serverDownloadFailure = null
+        if (hasServer(env.paths.game(gameId)) || supplied[SERVER] is Supplied.Picked) return emptyList()
+        return listOf(AutoSource(SERVER, "The ForeverNXT server package (from MEGA)", SERVER_SIZE))
+    }
+
+    override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) {
+        if (sources.none { it.id == SERVER }) return
+        try {
+            Mega.download(Mega.parse(SERVER_LINK), serverDownload(env), env.cancel, SERVER_SIZE) { done, total ->
+                env.progress(Progress(Stage.DOWNLOADING, "Downloading the ForeverNXT server package", done, total))
+            }
+        } catch (e: ImportException) {
+            if (e.problem == Problem.CANCELLED) throw e
+            // Nothing is lost: the player picks the file themselves, and what was downloaded stays for a retry.
+            serverDownloadFailure = e.message ?: "The download failed."
+        }
+    }
 
     override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
         val game = env.paths.game(gameId)
         val missing = ArrayList<MissingInput>()
         if (!hasClient(game) && supplied[CLIENT] !is Supplied.Picked) missing += MissingInput(CLIENT, PROMPT_CLIENT, PickKind.FILE)
-        if (!hasServer(game) && supplied[SERVER] !is Supplied.Picked) missing += MissingInput(SERVER, PROMPT_SERVER, PickKind.FILE)
+        // The server comes from MEGA; only when that failed is it asked for.
+        if (!hasServer(game) && supplied[SERVER] !is Supplied.Picked && serverDownloadFailure != null && !serverDownload(env).isFile) {
+            missing += MissingInput(SERVER, "$serverDownloadFailure $PROMPT_SERVER", PickKind.FILE)
+        }
         return missing
     }
 
@@ -77,7 +105,9 @@ class InfiniteImporter : GameImporter {
             // What is already installed and still wanted stays.
             asm.reuse(listOf(CLIENT, SERVER)) { true }
             place(env, staging, scratch, supplied[CLIENT], CLIENT, "the Infinite client", PROMPT_CLIENT, isClientRoot)
-            place(env, staging, scratch, supplied[SERVER], SERVER, "the ForeverNXT server package", PROMPT_SERVER, isServerRoot)
+            val downloaded = serverDownload(env).takeIf { it.isFile && it.length() == SERVER_SIZE }
+            val serverSource = supplied[SERVER] ?: downloaded?.let { Supplied.Picked(SERVER, FileNode(it)) }
+            place(env, staging, scratch, serverSource, SERVER, "the ForeverNXT server package", PROMPT_SERVER, isServerRoot)
             env.progress(Progress(Stage.VALIDATING, "Checking the Infinite files"))
             val check = validateDir(staging)
             if (!check.filesOk) throw ImportException(
@@ -85,6 +115,8 @@ class InfiniteImporter : GameImporter {
                 "Checks: ${check.checks.joinToString("; ") { "${if (it.passed) "ok" else "FAILED"} ${it.name} (${it.detail})" }}\n${Packages.outline(staging)}",
             )
             asm.commit()
+            // The package is in the game's folder now: the 1.8 GB download goes.
+            serverDownload(env).delete()
         } catch (e: Throwable) {
             asm.abandon()
             throw e

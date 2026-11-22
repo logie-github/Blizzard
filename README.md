@@ -325,17 +325,20 @@ All four Warcraft games are imported and played in this app (no other app is nee
 
 The user asked for the ForeverNXT game again as a **new game**, built from nothing, using none of the removed Forever work, and named it
 Infinite (22 November 2026). It is the **Infinite** version on the World of Warcraft tile (`wow_infinite`, `importer/InfiniteImporter`).
-**Step 1, done here: the install takes two files, each picked by hand.** The install dialog shows **Add client** (the client's zip, 7z or
-RAR) and **Add server** (the ForeverNXT server package's 7z or zip). Each is one file chosen with the phone's picker: nothing is searched
-for on the phone, a folder is refused ("pick the file itself") and nothing is downloaded; no game file ships with the app. RAR is read by
-`junrar` (plain Java; nothing from inside an archive is run). The client is unpacked into the game's `client/` folder and checked
+**Step 1, done here: the install.** **Add client**: the client's zip, 7z or RAR, one file picked by hand with the phone's picker (nothing
+is searched for on the phone, a folder is refused: "pick the file itself"). **The server is downloaded by the app** from the MEGA link the
+user gave (22 November 2026, `InfiniteImporter.SERVER_LINK`, the ForeverNXTCore 7z, 1.8 GB, `importer/Mega.kt`): the link's key stays in
+the app, MEGA serves the file AES-128-CTR encrypted and it is decrypted as it is written, resuming from the last whole 16-byte block (a real
+block of that file decrypts to the bytes megatools downloaded, `MegaTest`). If MEGA refuses (its download limit, the file gone), the install
+asks for **Add server** instead: the package's 7z or zip, picked by hand. No game file ships with the app; RAR is read by `junrar`
+(plain Java; nothing from inside an archive is run). The client is unpacked into the game's `client/` folder and checked
 (`Wow.exe` is a Windows program, the `_forever_` data folder, the build number from `.build.info`, else the program's version; the
 ForeverNXT launcher's builds are 70450, 70532, 70685 and 70707, another build is shown as it is, not refused), the server package into
-`server/` (its `START_SERVER.cmd`, its `mysql/` and `releases/`). It ends as Imported, Launch Untested. Install recipe 2.
+`server/` (its `START_SERVER.cmd`, its `mysql/` and `releases/`; the download is deleted once it is in place). It ends as Imported, Launch Untested. Install recipe 2.
 **Not done: running it.** The server's Windows programs (MySQL, the login and world servers) are not started in Winlator yet, so Play
 cannot reach a realm. Whether the server and the client run in Winlator on the phone is unknown (the earlier attempt's client ended a
 second after its start). `InfiniteImporterTest` covers both archives, a folder refused, nothing found by itself, a missing client,
-an unknown build, a damaged RAR and the tile; a real RAR was not unpacked in a test (no RAR packer here); nothing has run on a phone.
+an unknown build, a damaged RAR and the tile; `MegaTest` the link, a real decrypted block, a download, a resume and the limit message (a fake MEGA, no network); a real RAR was not unpacked in a test (no RAR packer here); nothing has run on a phone.
 
 ## World of Warcraft: Forever (removed, 18 November 2026)
 

@@ -69,10 +69,19 @@ class InfiniteImporterTest {
         assertTrue(GameImportManager.importable("wow_infinite"))
     }
 
-    @Test fun itAsksForBothFilesAndTakesOnlyAFile() {
-        val missing = InfiniteImporter().getMissingInputs(env(), Detection(false, emptyMap()), emptyMap())
-        assertEquals(listOf("client", "server"), missing.map { it.id })
+    @Test fun itAsksForTheClientFileAndOffersTheServerFromMega() {
+        val importer = InfiniteImporter()
+        val missing = importer.getMissingInputs(env(), Detection(false, emptyMap()), emptyMap())
+        assertEquals(listOf("client"), missing.map { it.id })
         assertTrue(missing.all { it.kind == PickKind.FILE && !it.optional })
+        val sources = importer.resolveSources(env(), Detection(false, emptyMap()), emptyMap())
+        assertEquals(listOf("server"), sources.map { it.id })
+        assertEquals(InfiniteImporter.SERVER_SIZE, sources.single().size)
+    }
+
+    @Test fun aServerFileThePlayerPickedIsNotDownloaded() {
+        val picked = mapOf("server" to Supplied.Picked("server", FileNode(serverZip())))
+        assertTrue(InfiniteImporter().resolveSources(env(), Detection(false, emptyMap()), picked).isEmpty())
     }
 
     @Test fun nothingIsFoundByItself() {

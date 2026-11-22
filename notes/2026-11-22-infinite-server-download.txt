@@ -1,0 +1,1 @@
+World of Warcraft: Infinite downloads the server package by itself from MEGA at install (you still pick the client file); if MEGA refuses, it asks you to pick the server file.
