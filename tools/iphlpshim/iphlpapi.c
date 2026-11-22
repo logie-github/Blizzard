@@ -1,15 +1,19 @@
 /*
  * iphlpapi.dll shim for the ForeverNXT servers (bnetserver.exe, worldserver.exe) under Winlator's Wine.
  *
+ * Both servers import exactly one function from iphlpapi, GetAdaptersAddresses; the client (Wow.exe) looks up GetAdaptersInfo at run time
+ * (found with Wine's +relay trace on the real client, 22 November 2026) and calls it unchecked. Both are answered here.
+ *
  * Both servers import exactly one function from iphlpapi, GetAdaptersAddresses, which Trinity::Net::ScanLocalNetworks calls at
  * startup to learn the machine's networks. Wine 10.10's own GetAdaptersAddresses faults inside iphlpapi there (an access violation
  * read at address 9: found with Wine's debugger on the real server, 22 November 2026), and the server then dies in its crash
  * handler. This answers that one call with a single loopback adapter, 127.0.0.1/8, which is all a server that only listens on
- * 127.0.0.1 needs. It is placed in the servers' own folder (never the client's, never the games' system32) and chosen with
- * WINEDLLOVERRIDES="iphlpapi=n,b".
+ * 127.0.0.1 needs. It is placed in the program's own folder (the servers' bin, the client's _forever_; never the games' system32)
+ * and chosen with WINEDLLOVERRIDES="iphlpapi=n,b".
  *
  * Written from the Windows API's documented structures; no Wine or ReactOS code.
- * Build (scripts/build-tools.sh): zig cc -target x86_64-windows-gnu -shared -O2 -s iphlpapi.c -o iphlpapi.dll
+ * Build (scripts/build-tools.sh): zig cc -target x86_64-windows-gnu -shared -O2 -s iphlpapi.c iphlpapi.def -o iphlpapi.dll
+ * (iphlpapi.def lists every name; most are aliases of one stub).
  */
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -25,7 +29,7 @@ typedef struct {
 	WCHAR description[40];
 } LoopbackBlock;
 
-__declspec(dllexport) ULONG WINAPI GetAdaptersAddresses(ULONG family, ULONG flags, PVOID reserved, PIP_ADAPTER_ADDRESSES out, PULONG size)
+ULONG WINAPI GetAdaptersAddresses(ULONG family, ULONG flags, PVOID reserved, PIP_ADAPTER_ADDRESSES out, PULONG size)
 {
 	(void)flags;
 	(void)reserved;
@@ -68,3 +72,32 @@ __declspec(dllexport) ULONG WINAPI GetAdaptersAddresses(ULONG family, ULONG flag
 	b->adapter.Ipv4Metric = 75;
 	return ERROR_SUCCESS;
 }
+
+/* GetAdaptersInfo: the older call, one loopback entry. */
+ULONG WINAPI GetAdaptersInfo(PIP_ADAPTER_INFO out, PULONG size)
+{
+	if (!size) return ERROR_INVALID_PARAMETER;
+	if (!out || *size < sizeof(IP_ADAPTER_INFO)) {
+		*size = sizeof(IP_ADAPTER_INFO);
+		return ERROR_BUFFER_OVERFLOW;
+	}
+	memset(out, 0, sizeof(*out));
+	strcpy(out->AdapterName, "{00000000-0000-0000-0000-000000000001}");
+	strcpy(out->Description, "Software Loopback Interface 1");
+	out->Index = 1;
+	out->Type = MIB_IF_TYPE_LOOPBACK;
+	strcpy(out->IpAddressList.IpAddress.String, "127.0.0.1");
+	strcpy(out->IpAddressList.IpMask.String, "255.0.0.0");
+	return ERROR_SUCCESS;
+}
+
+/*
+ * Every other name of Wine's iphlpapi (the .def file aliases them) and the compartment calls the client makes by name
+ * (SetCurrentThreadCompartmentId: "Failed to load function ... Procedure not found" when missing): answered with a plain result.
+ * The client and the servers use the two adapter calls above; the rest of the names are only here so nothing is looked up in vain.
+ */
+ULONG stub_not_supported(void) { return ERROR_NOT_SUPPORTED; }
+ULONG stub_ok(void) { return ERROR_SUCCESS; }
+ULONG stub_one(void) { return 1; }
+ULONG stub_zero(void) { return 0; }
+void *stub_null(void) { return 0; }
