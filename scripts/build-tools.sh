@@ -131,6 +131,7 @@ fetch "$HACTOOL_REPO" "$HACTOOL_COMMIT" "$WORK/hactool"
 # unrar ------------------------------------------------------------------------------------------
 # RARLAB's extractor, built from the file list of its own makefile (UNRAR_OBJ and OBJECTS), with the defines of its makefile
 # (-DRAR_SMP threads, large files) and -DUNRAR; the C++ runtime is linked in (no libc++_shared.so beside it on the phone).
+# Android's libc has no getpass (only its interactive password prompt calls it; the app runs unrar with -p-, which never asks): stubbed to "".
 rm -rf "$WORK/unrar"
 mkdir -p "$WORK/unrar-src"
 download "$UNRAR_URL" "$UNRAR_SHA256" "$WORK/unrar.tar.gz"
@@ -145,7 +146,7 @@ tar -xzf "$WORK/unrar.tar.gz" -C "$WORK/unrar-src"
 	done
 	# shellcheck disable=SC2086
 	"$TOOLCHAIN/aarch64-linux-android26-clang++" -O2 -std=c++11 -w -fPIE -pie -static-libstdc++ \
-		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DRAR_SMP -DUNRAR $FILES -o "$WORK/unrar-bin" > "$WORK/unrar.log" 2>&1
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DRAR_SMP -DUNRAR '-Dgetpass(x)=""' $FILES -o "$WORK/unrar-bin" > "$WORK/unrar.log" 2>&1
 ) || { tail -40 "$WORK/unrar.log"; exit 1; }
 "$TOOLCHAIN/llvm-strip" -o "$OUT/libunrar.so" "$WORK/unrar-bin"
 
