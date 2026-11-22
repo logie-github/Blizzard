@@ -142,7 +142,6 @@ class Unpacker(private val innoextract: Innoextract?) {
         } catch (e: java.io.IOException) {
             throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is damaged or cut short.", e.message, e)
         } catch (e: RuntimeException) {
-            if (e is ImportException) throw e
             throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is damaged or in a format this app can't read.", e.toString(), e)
         }
     }

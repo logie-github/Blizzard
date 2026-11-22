@@ -99,7 +99,7 @@ class MegaTest {
     @Test fun aFinishedFileIsNotFetchedAgain() {
         val l = Mega.parse(link)
         val target = tmp.newFile("done.7z").also { it.writeBytes(ByteArray(64)) }
-        Mega.download(l, target, CancelToken(), 64) { fail("fetched again"); throw IllegalStateException() }
+        Mega.download(l, target, CancelToken(), 64, open = { fail("fetched again"); throw IllegalStateException() })
     }
 
     @Test fun theDownloadLimitIsSaidPlainly() {
