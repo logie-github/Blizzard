@@ -104,8 +104,8 @@ object GameImportManager {
         "wow" to { WowImporter() },
         "wow_legion" to { WowImporter(WowImporter.WowMode.LEGION) },
         "wow_octowow" to { WowImporter(WowImporter.WowMode.OCTOWOW) },
-        // World of Warcraft: Forever: the player's own client (Add client); the server comes in a later step.
-        "wow_forever" to { ForeverImporter() },
+        // World of Warcraft: Infinite: the player's own client and server archives, picked by hand at install.
+        "wow_infinite" to { InfiniteImporter() },
         // Diablo II: Resurrected: the player's own Switch packages (a 7z of the .nsp files, base game and update), unpacked with hactool.
         "diablo2_resurrected" to { Diablo2ResurrectedImporter() },
     )

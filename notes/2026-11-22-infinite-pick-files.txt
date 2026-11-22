@@ -1,0 +1,1 @@
+World of Warcraft: Infinite replaces the last Forever entry: its install asks you to pick the client and the server package files by hand (no folders, no searching); it can't be played yet.

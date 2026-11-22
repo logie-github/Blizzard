@@ -48,8 +48,8 @@ object Games {
                 Game("wow_octowow", "World of Warcraft", "OctoWoW", 2025, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "OctoWoW"),
                 // Experimental (docs/wrathpp): a third Wrath realm made from the Wrath+ import, with its own server and game copy.
                 Game("wow_wrathpp", "World of Warcraft", "Wrath++", 2008, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Wrath++ (experimental)"),
-                // A new game (22 November 2026), built from nothing: the ForeverNXT server and its client; Add client takes the client the player has.
-                Game("wow_forever", "World of Warcraft", "Forever", 2026, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Forever (experimental)"),
+                // A new game (22 November 2026), built from nothing: the ForeverNXT server and its client, both picked by hand at install.
+                Game("wow_infinite", "World of Warcraft", "Infinite", 2026, R.drawable.cover_wow, wide = R.drawable.wide_wow, variantLabel = "Infinite (experimental)"),
             )),
     ).sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, Game::title).thenBy(String.CASE_INSENSITIVE_ORDER) { it.subtitle.orEmpty() })
 
