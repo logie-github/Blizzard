@@ -43,7 +43,7 @@ class InfiniteImporterTest {
         File(dir, ".build.info").writeText(buildInfo(build))
         File(dir, ".battle.net/bts").mkdirs()
         File(dir, ".battle.net/bts/0000000001.idx").writeBytes(ByteArray(16))
-        if (withProgram) Fixtures.pe(File(dir, "Wow.exe"), "1.60.1.0")
+        if (withProgram) { File(dir, "_forever_").mkdirs(); Fixtures.pe(File(dir, "_forever_/Wow.exe"), "1.60.1.0", PeInfo.MACHINE_AMD64) }
         if (withData) {
             File(dir, "Data/data").mkdirs()
             File(dir, "Data/data/data.000").writeBytes(ByteArray(64))
@@ -106,7 +106,7 @@ class InfiniteImporterTest {
         result as ImportPipeline.Result.Done
         assertEquals(Stage.IMPORTED_UNTESTED, result.record.stage)
         assertEquals("Infinite client 70707", result.entry.clientVersion)
-        assertEquals("client/Wow.exe", result.entry.executable)
+        assertEquals("client/_forever_/Wow.exe", result.entry.executable)
         assertTrue(File(paths.game("wow_infinite"), "client/Data/data/data.000").isFile)
         assertTrue(File(paths.game("wow_infinite"), "client/.build.info").isFile)
         assertTrue(File(paths.game("wow_infinite"), "server/START_SERVER.cmd").isFile)
@@ -157,6 +157,15 @@ class InfiniteImporterTest {
         assertEquals(70707, InfiniteImporter.buildOf("1.60.1.70707"))
         assertNull(InfiniteImporter.buildOf("1.0.0"))
         assertNull(InfiniteImporter.buildOf(null))
+    }
+
+    @Test fun aRar5IsSaidToBeUnsupportedNotDamaged() {
+        // RAR5's signature: Rar!\u001A\u0007\u0001\u0000 (junrar refuses it by name; the real client is one).
+        val rar5 = tmp.newFile("client5.rar").also { it.writeBytes(byteArrayOf(0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00) + ByteArray(60)) }
+        val result = run(rar5, serverZip())
+        assertTrue(result.toString(), result is ImportPipeline.Result.Failed)
+        result as ImportPipeline.Result.Failed
+        assertTrue(result.error.message!!, result.error.message!!.contains("RAR5"))
     }
 
     @Test fun aDamagedRarIsSaidToBeOne() {

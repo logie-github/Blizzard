@@ -39,11 +39,18 @@ class InfiniteImporter : GameImporter {
         /** The client's folder: its `.build.info` and its `Data` folder (the archive holds it inside a `World of Warcraft` folder). */
         val isClientRoot: (Set<String>) -> Boolean = { ".build.info" in it && "data/" in it }
 
-        /** The game's program: a Windows program whose name starts with "wow" in the client's folder or just under it; null when none is found. */
-        fun programIn(client: File): File? = client.walkTopDown().maxDepth(3)
-            .filter { it.isFile && it.name.endsWith(".exe", true) && it.name.startsWith("wow", true) && PeInfo.read(it)?.isWindowsX86Family == true }
-            .sortedBy { it.relativeTo(client).path.count { c -> c == '/' } }
-            .firstOrNull()
+        /**
+         * The game's program: `_forever_/Wow.exe` (seen in the real client's listing, 22 November 2026: a 64-bit, Direct3D 12 program beside
+         * `dxgi.dll` (ReShade) and `Data/` at the root), else any Windows program named Wow*.exe; null when none is found.
+         */
+        fun programIn(client: File): File? {
+            val exact = File(client, "_forever_/Wow.exe").takeIf { it.isFile && PeInfo.read(it)?.isWindowsX86Family == true }
+            if (exact != null) return exact
+            return client.walkTopDown().maxDepth(3)
+                .filter { it.isFile && it.name.endsWith(".exe", true) && it.name.startsWith("wow", true) && !it.name.contains("voice", true) && PeInfo.read(it)?.isWindowsX86Family == true }
+                .sortedBy { it.relativeTo(client).path.count { c -> c == '/' } }
+                .firstOrNull()
+        }
 
         /** The server package's folder: its start script, its database and its releases. */
         val isServerRoot: (Set<String>) -> Boolean = { "start_server.cmd" in it && "mysql/" in it && "releases/" in it }
@@ -158,9 +165,9 @@ class InfiniteImporter : GameImporter {
         checks += Check("Client data ($DATA)", data != null && data.walkTopDown().any { it.isFile }, if (data == null) "missing" else "present")
         // Which build it is, said; any other than the launcher's listed ones is shown as it is, not refused.
         checks += Check("Client build", true, build?.let { if (it in KNOWN_BUILDS) "$it" else "$it (not one of ${KNOWN_BUILDS.joinToString()})" } ?: "unknown")
-        // The program's name was not seen when this was written (the archive's listing had not reached it): found by its name and type, said, and never refused for.
+        // The program (`_forever_/Wow.exe`) is said; a client whose program can't be found is still taken (Play says what is missing).
         val exe = programIn(client)
-        checks += Check("Game program (Wow*.exe)", true, exe?.relativeTo(client)?.path ?: "not found")
+        checks += Check("Game program (Wow.exe)", true, exe?.relativeTo(client)?.path ?: "not found")
         val server = File(dir, SERVER)
         val start = FileValidator.find(server, SERVER_START)?.takeIf { it.isFile }
         checks += Check("Server package ($SERVER_START)", start != null, if (start == null) "missing" else "present")

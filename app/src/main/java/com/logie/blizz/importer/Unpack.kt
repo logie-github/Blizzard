@@ -137,6 +137,8 @@ class Unpacker(private val innoextract: Innoextract?) {
                 }
                 if (!any) throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is empty.")
             }
+        } catch (e: com.github.junrar.exception.UnsupportedRarV5Exception) {
+            throw ImportException(Problem.UNSUPPORTED_INSTALLER, "That is a RAR5 archive, which this app can't open yet (it reads RAR 4, zip, 7z and tar). Pack it as a zip or 7z on another device, or unpack it to a folder and pick the folder's files.", e.message, e)
         } catch (e: com.github.junrar.exception.RarException) {
             throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is damaged, cut short or in a format this app can't read.", e.message, e)
         } catch (e: java.io.IOException) {

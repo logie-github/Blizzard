@@ -335,8 +335,9 @@ asks for **Add server** instead: the package's 7z or zip, picked by hand. No gam
 on 22 November 2026** (`ForeverNXT-Client-1.60.1.70707-ReshadeEnhanced.rar`, RAR5, about 37 GB or more): a `World of Warcraft` folder holding
 `.build.info`, `.battle.net/`, `.product.db` and `Data/` (Blizzard's CASC archives, `Data/data/data.NNN` of about 1 GB each). Its `.build.info`
 Version column reads `1.60.1.70707` (product `wowf`), which is the build read; the launcher's builds are 70450, 70532, 70685 and 70707,
-another build is shown as it is, not refused. The program's name was not seen (the listing had not reached it): any `Wow*.exe` Windows
-program in the folder is used, and "not found" is said, never refused for. An earlier version of this importer looked for `Wow.exe` and
+another build is shown as it is, not refused. The whole listing (1,783 files, 50 folders, 51.6 GB unpacked, 49.8 GB packed) was read after the download: the root has `.build.info`, `.battle.net/`,
+`.product.db`, `Data/` (`Data/data/data.NNN` and `Data/wowf/`) and `World of Warcraft Launcher.exe`; **`_forever_/Wow.exe`** is the game (with `dxgi.dll`, ReShade's,
+`D3D12/D3D12Core.dll`, `libxell.dll`, `wow_loader.dll`, `WTF/`, `Interface/AddOns/` with ForeverBots and ForeverNXT add-ons); a client whose program can't be found is still taken. An earlier version of this importer looked for `Wow.exe` and
 `_forever_` (from another project's README) and would have refused this client; it was fixed on seeing the real one; the server package into
 `server/` (its `START_SERVER.cmd`, its `mysql/` and `releases/`; the download is deleted once it is in place). It ends as Imported, Launch Untested. Install recipe 2.
 **Not done: running it.** The server's Windows programs (MySQL, the login and world servers) are not started in Winlator yet, so Play
