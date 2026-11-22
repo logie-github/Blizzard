@@ -78,7 +78,7 @@ class Unpacker(private val innoextract: Innoextract?) {
             Format.SEVEN_Z -> sevenZ(localCopy(source, scratch, cancel), dest, cancel, count)
             Format.ISO -> iso(localCopy(source, scratch, cancel), dest, cancel, count)
             Format.PROGRAM -> installer(source, siblings, dest, scratch, cancel, progress)
-            Format.RAR -> throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${source.name} is a RAR archive, which this app can't open. Pack it as a zip or 7z, or unpack it to a folder and select the folder.")
+            Format.RAR -> rar(localCopy(source, scratch, cancel), dest, cancel, count)
             Format.UNKNOWN -> throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${source.name} isn't a zip, 7z, tar, disc image or installer this app can read.")
         }
     }
@@ -118,6 +118,29 @@ class Unpacker(private val innoextract: Innoextract?) {
             }
         } catch (e: java.io.IOException) {
             throw ImportException(Problem.CORRUPT_ARCHIVE, "The 7z archive is damaged, or encrypted.", e.message, e)
+        }
+    }
+
+    /** A RAR archive (one file; split volumes beside it are found by junrar by name), read entry by entry. Encrypted ones are refused. */
+    private fun rar(file: File, dest: File, cancel: CancelToken, onBytes: (Long) -> Unit) {
+        try {
+            com.github.junrar.Archive(file).use { archive ->
+                if (archive.isEncrypted || archive.isPasswordProtected) throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive needs a password, which this app can't enter. Unpack it with the password on another device.")
+                var any = false
+                while (true) {
+                    val header = archive.nextFileHeader() ?: break
+                    cancel.check()
+                    any = true
+                    val target = SafePaths.resolve(dest, header.fileName.replace('\\', '/'))
+                    if (header.isDirectory) { target.mkdirs(); continue }
+                    archive.getInputStream(header).use { copyStream(it, target, cancel, onBytes) }
+                }
+                if (!any) throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is empty.")
+            }
+        } catch (e: com.github.junrar.exception.RarException) {
+            throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is damaged, cut short or in a format this app can't read.", e.message, e)
+        } catch (e: java.io.IOException) {
+            throw ImportException(Problem.CORRUPT_ARCHIVE, "The RAR archive is damaged or cut short.", e.message, e)
         }
     }
 
