@@ -331,9 +331,13 @@ user gave (22 November 2026, `InfiniteImporter.SERVER_LINK`, the ForeverNXTCore 
 the app, MEGA serves the file AES-128-CTR encrypted and it is decrypted as it is written, resuming from the last whole 16-byte block (a real
 block of that file decrypts to the bytes megatools downloaded, `MegaTest`). If MEGA refuses (its download limit, the file gone), the install
 asks for **Add server** instead: the package's 7z or zip, picked by hand. No game file ships with the app; RAR is read by `junrar`
-(plain Java; nothing from inside an archive is run). The client is unpacked into the game's `client/` folder and checked
-(`Wow.exe` is a Windows program, the `_forever_` data folder, the build number from `.build.info`, else the program's version; the
-ForeverNXT launcher's builds are 70450, 70532, 70685 and 70707, another build is shown as it is, not refused), the server package into
+(plain Java; nothing from inside an archive is run). The client is unpacked into the game's `client/` folder and checked against **the real client's layout, read from its archive's listing
+on 22 November 2026** (`ForeverNXT-Client-1.60.1.70707-ReshadeEnhanced.rar`, RAR5, about 37 GB or more): a `World of Warcraft` folder holding
+`.build.info`, `.battle.net/`, `.product.db` and `Data/` (Blizzard's CASC archives, `Data/data/data.NNN` of about 1 GB each). Its `.build.info`
+Version column reads `1.60.1.70707` (product `wowf`), which is the build read; the launcher's builds are 70450, 70532, 70685 and 70707,
+another build is shown as it is, not refused. The program's name was not seen (the listing had not reached it): any `Wow*.exe` Windows
+program in the folder is used, and "not found" is said, never refused for. An earlier version of this importer looked for `Wow.exe` and
+`_forever_` (from another project's README) and would have refused this client; it was fixed on seeing the real one; the server package into
 `server/` (its `START_SERVER.cmd`, its `mysql/` and `releases/`; the download is deleted once it is in place). It ends as Imported, Launch Untested. Install recipe 2.
 **Not done: running it.** The server's Windows programs (MySQL, the login and world servers) are not started in Winlator yet, so Play
 cannot reach a realm. Whether the server and the client run in Winlator on the phone is unknown (the earlier attempt's client ended a

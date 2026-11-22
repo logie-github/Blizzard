@@ -20,8 +20,9 @@ class InfiniteImporter : GameImporter {
     override val recipe = 2
 
     companion object {
-        const val EXE = "Wow.exe"
-        const val DATA = "_forever_"
+        /** The client is Blizzard's own folder layout (seen in the real client's archive, 22 November 2026): `.build.info`, `.battle.net/`, `Data/` (CASC archives `Data/data/data.NNN`). */
+        const val BUILD_INFO = ".build.info"
+        const val DATA = "Data"
         const val CLIENT = "client"
         const val SERVER = "server"
         /** The server package's marker files. */
@@ -35,8 +36,14 @@ class InfiniteImporter : GameImporter {
         const val PROMPT_CLIENT = "Add your Infinite client: pick its zip, 7z or RAR file."
         const val PROMPT_SERVER = "Add the ForeverNXT server package: pick its 7z or zip file."
 
-        /** The client's folder: its program and its `_forever_` data folder. */
-        val isClientRoot: (Set<String>) -> Boolean = { "wow.exe" in it && "_forever_/" in it }
+        /** The client's folder: its `.build.info` and its `Data` folder (the archive holds it inside a `World of Warcraft` folder). */
+        val isClientRoot: (Set<String>) -> Boolean = { ".build.info" in it && "data/" in it }
+
+        /** The game's program: a Windows program whose name starts with "wow" in the client's folder or just under it; null when none is found. */
+        fun programIn(client: File): File? = client.walkTopDown().maxDepth(3)
+            .filter { it.isFile && it.name.endsWith(".exe", true) && it.name.startsWith("wow", true) && PeInfo.read(it)?.isWindowsX86Family == true }
+            .sortedBy { it.relativeTo(client).path.count { c -> c == '/' } }
+            .firstOrNull()
 
         /** The server package's folder: its start script, its database and its releases. */
         val isServerRoot: (Set<String>) -> Boolean = { "start_server.cmd" in it && "mysql/" in it && "releases/" in it }
@@ -94,7 +101,7 @@ class InfiniteImporter : GameImporter {
         return missing
     }
 
-    private fun hasClient(game: File) = FileValidator.find(File(game, CLIENT), EXE) != null
+    private fun hasClient(game: File) = FileValidator.find(File(game, CLIENT), BUILD_INFO) != null
     private fun hasServer(game: File) = File(game, "$SERVER/$SERVER_START").isFile || FileValidator.find(File(game, SERVER), SERVER_START) != null
 
     override fun importFiles(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>) {
@@ -144,21 +151,23 @@ class InfiniteImporter : GameImporter {
     fun validateDir(dir: File): Validation {
         val checks = ArrayList<Check>()
         val client = File(dir, CLIENT)
-        val exe = FileValidator.find(client, EXE)?.takeIf { it.isFile }
-        val pe = exe?.let { PeInfo.read(it) }
-        checks += Check(EXE, pe != null && pe.isWindowsX86Family, if (exe == null) "missing" else if (pe == null) "not a Windows program" else "present")
+        val info = FileValidator.find(client, BUILD_INFO)?.takeIf { it.isFile }
+        val build = buildIn(client, null)
+        checks += Check("Client build info ($BUILD_INFO)", info != null && build != null, if (info == null) "missing" else build?.let { "build $it" } ?: "no version in it")
         val data = FileValidator.find(client, DATA)?.takeIf { it.isDirectory }
         checks += Check("Client data ($DATA)", data != null && data.walkTopDown().any { it.isFile }, if (data == null) "missing" else "present")
-        val build = buildIn(client, pe)
-        // A build that can't be read isn't held against the client; the listed ones are said, any other is shown as it is.
+        // Which build it is, said; any other than the launcher's listed ones is shown as it is, not refused.
         checks += Check("Client build", true, build?.let { if (it in KNOWN_BUILDS) "$it" else "$it (not one of ${KNOWN_BUILDS.joinToString()})" } ?: "unknown")
+        // The program's name was not seen when this was written (the archive's listing had not reached it): found by its name and type, said, and never refused for.
+        val exe = programIn(client)
+        checks += Check("Game program (Wow*.exe)", true, exe?.relativeTo(client)?.path ?: "not found")
         val server = File(dir, SERVER)
         val start = FileValidator.find(server, SERVER_START)?.takeIf { it.isFile }
         checks += Check("Server package ($SERVER_START)", start != null, if (start == null) "missing" else "present")
         val mysql = FileValidator.find(server, "mysql")?.takeIf { it.isDirectory }
         checks += Check("Server database (mysql)", mysql != null && mysql.walkTopDown().any { it.isFile }, if (mysql == null) "missing" else "present")
         checks += Check("Started under Winlator", false, "not tested")
-        val core = checks.take(5).all { it.passed }
+        val core = checks.all { it.passed || it.name == "Started under Winlator" }
         val problem = if (core) null else Problem.MISSING_SOURCE_DATA
         return Validation(checks, build?.let { "Infinite client $it" }, core, problem, if (core) null else "$PROMPT_CLIENT $PROMPT_SERVER")
     }
@@ -171,7 +180,7 @@ class InfiniteImporter : GameImporter {
         products = listOf("WOW"),
         clientVersion = validation.clientVersion ?: "",
         installPath = env.paths.game(gameId).path,
-        executable = FileValidator.find(File(env.paths.game(gameId), CLIENT), EXE)?.relativeTo(env.paths.game(gameId))?.path ?: "$CLIENT/$EXE",
+        executable = programIn(File(env.paths.game(gameId), CLIENT))?.relativeTo(env.paths.game(gameId))?.path ?: "$CLIENT/Wow.exe",
         runtime = LibraryEntry.RUNTIME_WINLATOR,
         arguments = "",
         stage = Stage.IMPORTED_UNTESTED,

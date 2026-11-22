@@ -1,0 +1,1 @@
+World of Warcraft: Infinite now recognises the real client's folder layout (World of Warcraft with .build.info and Data) when you pick its archive.

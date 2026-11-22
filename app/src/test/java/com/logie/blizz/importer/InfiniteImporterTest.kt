@@ -33,13 +33,20 @@ class InfiniteImporterTest {
         return ImportPipeline(ImportStateRepository(paths), Library(paths)).run(InfiniteImporter(), env(), supplied)
     }
 
-    private fun clientFiles(build: String = "1.60.1.70707", withData: Boolean = true): Map<String, ByteArray> {
+    /** The real client's `.build.info` (the archive's own, 22 November 2026), with the build replaced when asked. */
+    private fun buildInfo(build: String) = "Branch!STRING:0|Active!DEC:1|Build Key!HEX:16|CDN Key!HEX:16|Install Key!HEX:16|IM Size!DEC:4|CDN Path!STRING:0|CDN Hosts!STRING:0|CDN Servers!STRING:0|Tags!STRING:0|Armadillo!STRING:0|Last Activated!STRING:0|Version!STRING:0|KeyRing!HEX:16|Product!STRING:0\n" +
+        "us|1|7feb61f3c994bcb168526b8db521514a|2a6e419be5b7d7d896f7bc40395256dd|||tpr/wow|level3.blizzard.com us.cdn.blizzard.com|http://level3.blizzard.com/?maxhosts=8 http://us.cdn.blizzard.com/?maxhosts=4&fallback=1|Windows x86_64 US? acct-AUS? geoip-AU? enUS speech?:Windows x86_64 US? acct-AUS? geoip-AU? enUS text?|||$build||wowf\n"
+
+    /** The client as its archive holds it: a `World of Warcraft` folder with `.build.info`, `.battle.net/` and `Data/` (CASC archives). */
+    private fun clientFiles(build: String = "1.60.1.70707", withData: Boolean = true, withProgram: Boolean = true): Map<String, ByteArray> {
         val dir = tmp.newFolder("client-${System.nanoTime()}")
-        Fixtures.pe(File(dir, "Wow.exe"), "1.60.1.0")
-        File(dir, ".build.info").writeText("Branch!STRING:0|Active!DEC:1|Version!STRING:0\nus|1|$build\n")
+        File(dir, ".build.info").writeText(buildInfo(build))
+        File(dir, ".battle.net/bts").mkdirs()
+        File(dir, ".battle.net/bts/0000000001.idx").writeBytes(ByteArray(16))
+        if (withProgram) Fixtures.pe(File(dir, "Wow.exe"), "1.60.1.0")
         if (withData) {
-            File(dir, "_forever_/Data").mkdirs()
-            File(dir, "_forever_/Data/common.MPQ").writeBytes(ByteArray(64))
+            File(dir, "Data/data").mkdirs()
+            File(dir, "Data/data/data.000").writeBytes(ByteArray(64))
         }
         return entries(dir)
     }
@@ -57,7 +64,7 @@ class InfiniteImporterTest {
     private fun entries(dir: File) = dir.walkTopDown().filter { it.isFile }.associate { it.relativeTo(dir).path.replace('\\', '/') to it.readBytes() }
 
     private fun clientZip(name: String = "client.zip", files: Map<String, ByteArray> = clientFiles()) =
-        Fixtures.zip(tmp.newFile(name), files.mapKeys { "ForeverNXT-Client/${it.key}" })
+        Fixtures.zip(tmp.newFile(name), files.mapKeys { "World of Warcraft/${it.key}" })
 
     private fun serverZip(name: String = "server.zip", files: Map<String, ByteArray> = serverFiles()) =
         Fixtures.zip(tmp.newFile(name), files.mapKeys { "ForeverNXT-Server/${it.key}" })
@@ -100,7 +107,8 @@ class InfiniteImporterTest {
         assertEquals(Stage.IMPORTED_UNTESTED, result.record.stage)
         assertEquals("Infinite client 70707", result.entry.clientVersion)
         assertEquals("client/Wow.exe", result.entry.executable)
-        assertTrue(File(paths.game("wow_infinite"), "client/_forever_/Data/common.MPQ").isFile)
+        assertTrue(File(paths.game("wow_infinite"), "client/Data/data/data.000").isFile)
+        assertTrue(File(paths.game("wow_infinite"), "client/.build.info").isFile)
         assertTrue(File(paths.game("wow_infinite"), "server/START_SERVER.cmd").isFile)
         assertTrue(File(paths.game("wow_infinite"), "server/mysql/bin/mysqld.exe").isFile)
     }
@@ -116,6 +124,19 @@ class InfiniteImporterTest {
         val first = run(server = serverZip())
         // Without the client the import cannot finish; the pipeline waits for it.
         assertFalse(first.toString(), first is ImportPipeline.Result.Done)
+    }
+
+    @Test fun theRealBuildInfoGivesItsBuild() {
+        assertEquals(70707, InfiniteImporter.buildOf(buildInfo("1.60.1.70707")))
+    }
+
+    @Test fun aClientWithoutItsProgramIsStillTakenAndSaidSo() {
+        val dir = tmp.newFolder("noexe")
+        clientFiles(withProgram = false).forEach { (p, b) -> File(dir, "client/$p").also { it.parentFile.mkdirs() }.writeBytes(b) }
+        serverFiles().forEach { (p, b) -> File(dir, "server/$p").also { it.parentFile.mkdirs() }.writeBytes(b) }
+        val check = InfiniteImporter().validateDir(dir)
+        assertTrue(check.filesOk)
+        assertEquals("not found", check.checks.first { it.name.startsWith("Game program") }.detail)
     }
 
     @Test fun aClientWithoutItsDataIsRefused() {
