@@ -31,7 +31,8 @@ class ForeverImporterTest {
 
     private fun client(build: String = "1.60.1.70707", withData: Boolean = true): File {
         val dir = tmp.newFolder("client-${System.nanoTime()}")
-        Fixtures.pe(File(dir, "Wow.exe"), build)
+        Fixtures.pe(File(dir, "Wow.exe"), "1.60.1.0")
+        File(dir, ".build.info").writeText("Branch!STRING:0|Active!DEC:1|Version!STRING:0\nus|1|$build\n")
         if (withData) {
             File(dir, "_forever_/Data").mkdirs()
             File(dir, "_forever_/Data/common.MPQ").writeBytes(ByteArray(64))
@@ -83,7 +84,7 @@ class ForeverImporterTest {
 
     @Test fun theBuildIsReadFromTheVersion() {
         assertEquals(70707, ForeverImporter.buildOf("1.60.1.70707"))
-        assertNull(ForeverImporter.buildOf("1.0.0.0"))
+        assertNull(ForeverImporter.buildOf("1.0.0"))
         assertNull(ForeverImporter.buildOf(null))
     }
 

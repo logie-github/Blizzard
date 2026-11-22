@@ -22,8 +22,18 @@ class ForeverImporter : GameImporter {
         /** The client's folder: its program and its `_forever_` data folder. */
         val isGameRoot: (Set<String>) -> Boolean = { "wow.exe" in it && "_forever_/" in it }
 
-        /** The build number in a program version such as 1.60.1.70707, or null. */
-        fun buildOf(version: String?): Int? = version?.split('.')?.lastOrNull()?.toIntOrNull()?.takeIf { it > 1000 }
+        /** The build number in a version such as 1.60.1.70707, or null. */
+        fun buildOf(version: String?): Int? = Regex("""\d+\.\d+\.\d+\.(\d{4,6})""").find(version.orEmpty())?.groupValues?.get(1)?.toIntOrNull()
+
+        /**
+         * The client's build: from `.build.info` beside Wow.exe (its version column reads like 1.60.1.70707; a Windows program's own
+         * version field holds 16-bit numbers and can't carry a five-digit build), else from the program's version. null when neither says.
+         */
+        fun buildIn(dir: File, pe: PeInfo?): Int? {
+            val info = FileValidator.find(dir, ".build.info")?.takeIf { it.isFile }
+            val fromInfo = info?.let { runCatching { buildOf(it.readText()) }.getOrNull() }
+            return fromInfo ?: buildOf(pe?.version)
+        }
     }
 
     override fun detect(env: ImportEnv): Detection {
@@ -85,7 +95,7 @@ class ForeverImporter : GameImporter {
         checks += Check(EXE, pe != null && pe.isWindowsX86Family, if (exe == null) "missing" else if (pe == null) "not a Windows program" else "present")
         val data = FileValidator.find(dir, DATA)?.takeIf { it.isDirectory }
         checks += Check("Game data ($DATA)", data != null && data.walkTopDown().any { it.isFile }, if (data == null) "missing" else "present")
-        val build = buildOf(pe?.version)
+        val build = buildIn(dir, pe)
         // A build that can't be read isn't held against the client; the known ones are said, any other is shown as it is.
         checks += Check("Client build", true, build?.let { if (it in KNOWN_BUILDS) "$it" else "$it (not one of ${KNOWN_BUILDS.joinToString()})" } ?: "unknown")
         checks += Check("Executable started under Winlator", false, "not tested")
