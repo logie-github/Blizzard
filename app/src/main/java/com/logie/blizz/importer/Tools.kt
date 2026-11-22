@@ -99,3 +99,32 @@ class Hactool(private val program: File) {
         return result.code to output.toString()
     }
 }
+
+/**
+ * unrar, RARLAB's extractor: RAR and RAR5 archives (the Forever client is a 49.8 GB RAR5 that plain-Java junrar cannot read).
+ * It reads the archive where it is (a path on the phone) and writes the files into [Unrar.extract]'s folder; nothing from
+ * inside an archive is run. Its own protections keep paths inside the folder.
+ */
+class Unrar(private val program: File) {
+    /** Extracts [archive] (a path) into [dest]; each line it prints ("Extracting  path  OK") goes to [onLine]. */
+    fun extract(archive: File, dest: File, cancel: CancelToken, onLine: (String) -> Unit = {}) {
+        if (!program.canExecute()) throw ImportException(Problem.MISSING_RUNTIME_DEPENDENCY, "unrar is missing from this build of the app.")
+        dest.mkdirs()
+        // x: with paths. -y: answer yes. -o+: overwrite (a retry goes on over a half-made folder). -p-: never ask for a password.
+        // -idcp: no copyright line and no percentage (its lines are then one a file).
+        val result = Tools.run(listOf(program.path, "x", "-y", "-o+", "-p-", "-idcp", archive.path, dest.path + "/"), dest, cancel, onLine = onLine)
+        if (result.code != 0) {
+            val tail = result.tail.joinToString("\n")
+            throw ImportException(
+                Problem.CORRUPT_ARCHIVE,
+                when (result.code) {
+                    3 -> "${archive.name} failed its checksum: it is damaged or an incomplete download. Download it again."
+                    10 -> "${archive.name} is not a RAR archive unrar can read."
+                    11 -> "${archive.name} needs a password, which this app can't enter. Unpack it with the password on another device."
+                    else -> "${archive.name} couldn't be unpacked (unrar stopped with code ${result.code})."
+                },
+                tail,
+            )
+        }
+    }
+}

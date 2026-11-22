@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the programs the importers run on the phone (tools.env) into app/tools/jniLibs/arm64-v8a
-# (git-ignored): libbldl.so (blizzard-legacy-dl), libinnoextract.so and libhactool.so. Android runs programs from
+# (git-ignored): libbldl.so (blizzard-legacy-dl), libinnoextract.so, libhactool.so and libunrar.so. Android runs programs from
 # the app's native library folder, named like libraries.
 #
 # TOOLS_WORK is where to keep sources and builds (default build/tools).
@@ -128,6 +128,27 @@ fetch "$HACTOOL_REPO" "$HACTOOL_COMMIT" "$WORK/hactool"
 ) || { tail -40 "$WORK/hactool.log"; exit 1; }
 "$TOOLCHAIN/llvm-strip" -o "$OUT/libhactool.so" "$WORK/hactool/hactool"
 
+# unrar ------------------------------------------------------------------------------------------
+# RARLAB's extractor, built from the file list of its own makefile (UNRAR_OBJ and OBJECTS), with the defines of its makefile
+# (-DRAR_SMP threads, large files) and -DUNRAR; the C++ runtime is linked in (no libc++_shared.so beside it on the phone).
+rm -rf "$WORK/unrar"
+mkdir -p "$WORK/unrar-src"
+download "$UNRAR_URL" "$UNRAR_SHA256" "$WORK/unrar.tar.gz"
+tar -xzf "$WORK/unrar.tar.gz" -C "$WORK/unrar-src"
+(
+	cd "$WORK/unrar-src/unrar"
+	FILES=""
+	for f in filestr recvol rs scantree qopen rar strlist strfn pathfn smallfn global file filefn filcreat archive arcread unicode system \
+		crypt crc rawread encname resource match timefn rdwrfn consio options errhnd rarvm secpassword rijndael getbits sha1 sha256 \
+		blake2s hash extinfo extract volume list find unpack headers threadpool rs16 cmddata ui largepage; do
+		FILES="$FILES $f.cpp"
+	done
+	# shellcheck disable=SC2086
+	"$TOOLCHAIN/aarch64-linux-android26-clang++" -O2 -std=c++11 -w -fPIE -pie -static-libstdc++ \
+		-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -DRAR_SMP -DUNRAR $FILES -o "$WORK/unrar-bin" > "$WORK/unrar.log" 2>&1
+) || { tail -40 "$WORK/unrar.log"; exit 1; }
+"$TOOLCHAIN/llvm-strip" -o "$OUT/libunrar.so" "$WORK/unrar-bin"
+
 # blizzmaria: the mariadb client dbimport and the world server start, a freestanding program with no libc (see its source) -----
 "$CC" -O2 -static -nostdlib -ffreestanding -fno-stack-protector -fno-pic -fno-pie -Wl,--build-id=none \
 	-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384 -o "$WORK/blizzmaria" "$ROOT/tools/blizzmaria.c" || { echo "blizzmaria.c didn't build" >&2; exit 1; }
@@ -137,5 +158,6 @@ fetch "$HACTOOL_REPO" "$HACTOOL_COMMIT" "$WORK/hactool"
 	echo "blizzard-legacy-dl $BLDL_COMMIT"
 	echo "innoextract $INNOEXTRACT_COMMIT"
 	echo "hactool $HACTOOL_COMMIT"
+	echo "unrar $UNRAR_SHA256"
 } > "$ROOT/app/tools/VERSION"
 ls -la "$OUT"

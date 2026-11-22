@@ -56,7 +56,7 @@ enum class Format(val label: String) {
  * order). The format comes from the file's first bytes. Everything lands under [dest] by
  * [SafePaths]; nothing from inside an archive is ever run.
  */
-class Unpacker(private val innoextract: Innoextract?) {
+class Unpacker(private val innoextract: Innoextract?, private val unrar: Unrar? = null) {
     /**
      * [source] into [dest]. [siblings] are the files beside [source] (an installer's data), when
      * they can be seen; [scratch] is where a copy of [source] goes for formats that need one.
@@ -78,7 +78,7 @@ class Unpacker(private val innoextract: Innoextract?) {
             Format.SEVEN_Z -> sevenZ(localCopy(source, scratch, cancel), dest, cancel, count)
             Format.ISO -> iso(localCopy(source, scratch, cancel), dest, cancel, count)
             Format.PROGRAM -> installer(source, siblings, dest, scratch, cancel, progress)
-            Format.RAR -> rar(localCopy(source, scratch, cancel), dest, cancel, count)
+            Format.RAR -> if (unrar != null) unrarArchive(unrar, source, dest, scratch, cancel, progress) else rar(localCopy(source, scratch, cancel), dest, cancel, count)
             Format.UNKNOWN -> throw ImportException(Problem.UNSUPPORTED_INSTALLER, "${source.name} isn't a zip, 7z, tar, disc image or installer this app can read.")
         }
     }
@@ -119,6 +119,26 @@ class Unpacker(private val innoextract: Innoextract?) {
         } catch (e: java.io.IOException) {
             throw ImportException(Problem.CORRUPT_ARCHIVE, "The 7z archive is damaged, or encrypted.", e.message, e)
         }
+    }
+
+    /**
+     * A RAR or RAR5 archive through unrar, which reads it as a file on the phone: where the picked file already is one (the phone's
+     * storage, read by path) it is read in place; a document that is not is copied first, which for a client of 50 GB needs that much
+     * room again (said, with the way round it, when there isn't).
+     */
+    private fun unrarArchive(tool: Unrar, source: SourceNode, dest: File, scratch: File, cancel: CancelToken, progress: (Progress) -> Unit) {
+        val local = source.localFile()?.takeIf { it.isFile }
+        if (local == null) {
+            try {
+                FileValidator.requireSpace(scratch, source.size + (2L shl 30))
+            } catch (e: ImportException) {
+                throw ImportException(e.problem, "${source.name} has to be copied before it can be unpacked, and the phone hasn't room for the copy as well. " +
+                    "Switch on \"Allow access to all files\" for Blizzard (Search the phone) so it is read where it is, then pick it again.", e.detail, e)
+            }
+        }
+        val archive = local ?: localCopy(source, scratch, cancel) { n -> progress(Progress(Stage.EXTRACTING, "Copying ${source.name}", n, source.size)) }
+        progress(Progress(Stage.EXTRACTING, "Unpacking ${source.name} (RAR)"))
+        tool.extract(archive, dest, cancel) { line -> progress(Progress(Stage.EXTRACTING, "Unpacking ${source.name}: ${line.trim().take(90)}")) }
     }
 
     /** A RAR archive (one file; split volumes beside it are found by junrar by name), read entry by entry. Encrypted ones are refused. */
@@ -299,7 +319,7 @@ object Packages {
         }
         val package_ = setup ?: throw ImportException(Problem.MISSING_SOURCE_DATA, noGameMessage(source, what, prompt))
         FileValidator.requireSpace(scratch, (package_.size + siblings.sumOf { it.size }).coerceAtLeast(1L shl 30) + (2L shl 30))
-        Unpacker(env.innoextract).unpack(package_, siblings, out, scratch, env.cancel, env.progress)
+        Unpacker(env.innoextract, env.unrar).unpack(package_, siblings, out, scratch, env.cancel, env.progress)
         // The strict shape first; then a wildcard search for the game's own markers wherever they landed
         // (any depth, any case); then archives inside what was unpacked, unpacked in turn.
         var root = findRoot(out, 6, isRoot) ?: looseRoot(out)
@@ -336,7 +356,7 @@ object Packages {
             .filter { runCatching { Format.of(FileNode(it)) }.getOrDefault(Format.UNKNOWN) in NESTED }.take(6).toList()
         for ((i, archive) in archives.withIndex()) {
             val into = File(scratch, "nested-$i").also { it.deleteTree(); it.mkdirs() }
-            runCatching { Unpacker(env.innoextract).unpack(FileNode(archive), emptyList(), into, scratch, env.cancel, env.progress) }
+            runCatching { Unpacker(env.innoextract, env.unrar).unpack(FileNode(archive), emptyList(), into, scratch, env.cancel, env.progress) }
                 .onFailure { if (it is ImportException && it.problem == Problem.CANCELLED) throw it }
             (findRoot(into, 6, isRoot) ?: looseRoot(into))?.let { return it }
         }

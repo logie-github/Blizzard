@@ -21,9 +21,11 @@ class InfiniteImporterTest {
     @get:Rule val tmp = TemporaryFolder()
     private val paths by lazy { GamePaths(tmp.newFolder("files")) }
 
+    private var unrar: Unrar? = null
+
     private fun env(roots: List<SourceNode> = emptyList()) = ImportEnv(
         paths = paths, searchRoots = { roots }, online = { false }, downloads = DownloadManager(), releases = GitHubReleases(),
-        legacy = null, innoextract = null, cancel = CancelToken(), progress = {},
+        legacy = null, innoextract = null, cancel = CancelToken(), progress = {}, unrar = unrar,
     )
 
     private fun run(client: File? = null, server: File? = null): ImportPipeline.Result {
@@ -166,6 +168,43 @@ class InfiniteImporterTest {
         assertTrue(result.toString(), result is ImportPipeline.Result.Failed)
         result as ImportPipeline.Result.Failed
         assertTrue(result.error.message!!, result.error.message!!.contains("RAR5"))
+    }
+
+    private fun rar5File(name: String = "client5.rar") =
+        tmp.newFile(name).also { it.writeBytes(byteArrayOf(0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00) + ByteArray(60)) }
+
+    /** A stand-in for unrar: checks its arguments and writes the client where it is told, as the real one would. */
+    @Test fun aRar5ClientUnpacksThroughUnrar() {
+        val client = tmp.newFolder("rar-content")
+        clientFiles().forEach { (p, b) -> File(client, "World of Warcraft/$p").also { it.parentFile.mkdirs() }.writeBytes(b) }
+        val log = File(tmp.root, "unrar.txt")
+        val script = File(tmp.root, "unrar.sh").apply {
+            writeText("""#!/bin/sh
+                |echo "${'$'}*" > '${log.path}'
+                |for a; do dest="${'$'}a"; done
+                |cp -r '${client.path}'/. "${'$'}dest"
+                |echo "Extracting  World of Warcraft/.build.info  OK"
+                |""".trimMargin())
+            setExecutable(true)
+        }
+        unrar = Unrar(script)
+        val rar = rar5File()
+        val result = run(rar, serverZip())
+        assertTrue(result.toString(), result is ImportPipeline.Result.Done)
+        assertEquals("client/_forever_/Wow.exe", (result as ImportPipeline.Result.Done).entry.executable)
+        assertTrue(File(paths.game("wow_infinite"), "client/Data/data/data.000").isFile)
+        val args = log.readText().trim()
+        assertTrue(args, args.startsWith("x -y -o+ -p- -idcp ${rar.path} "))
+    }
+
+    @Test fun unrarsChecksumFailureIsSaidAsADamagedDownload() {
+        val script = File(tmp.root, "unrar-fail.sh").apply { writeText("#!/bin/sh\nexit 3\n"); setExecutable(true) }
+        unrar = Unrar(script)
+        val result = run(rar5File(), serverZip())
+        assertTrue(result.toString(), result is ImportPipeline.Result.Failed)
+        val error = (result as ImportPipeline.Result.Failed).error
+        assertEquals(Problem.CORRUPT_ARCHIVE, error.problem)
+        assertTrue(error.message!!, error.message!!.contains("checksum"))
     }
 
     @Test fun aDamagedRarIsSaidToBeOne() {

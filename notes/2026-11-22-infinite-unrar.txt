@@ -1,0 +1,1 @@
+World of Warcraft: Infinite can now unpack a RAR5 client archive (it uses the unrar tool); give the app all-files access so it reads the 50 GB file in place.

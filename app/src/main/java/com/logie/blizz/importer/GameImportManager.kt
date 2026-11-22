@@ -494,6 +494,7 @@ object GameImportManager {
         val bldl = Tools.file(context, "libbldl.so")
         val inno = Tools.file(context, "libinnoextract.so")
         val hactool = Tools.file(context, "libhactool.so")
+        val unrar = Tools.file(context, "libunrar.so")
         ConversionTools.installed = DeviceConversionTools(context.applicationContext)
         return ImportEnv(
             paths = paths,
@@ -507,6 +508,7 @@ object GameImportManager {
             progress = progress,
             keys = keys[gameId],
             hactool = if (hactool.isFile) Hactool(hactool) else null,
+            unrar = if (unrar.isFile) Unrar(unrar) else null,
         )
     }
 

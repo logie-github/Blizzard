@@ -22,6 +22,8 @@ class ImportEnv(
     val keys: LegacyDownloader.Keys? = null,
     /** Unpacks Switch packages (Diablo II: Resurrected); null in builds or tests without it. */
     val hactool: Hactool? = null,
+    /** Unpacks RAR and RAR5 archives (the Forever client); null in builds or tests without it, where plain-Java junrar reads RAR 4 only. */
+    val unrar: Unrar? = null,
 )
 
 /** What [GameImporter.detect] found. */
