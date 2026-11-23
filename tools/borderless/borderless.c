@@ -38,6 +38,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include "infinite.h"
 
 /*
  * What it did and saw, for the app's reports (C:\windows\borderless.log, a few lines a session, started anew each time): the
@@ -48,7 +49,7 @@ static HANDLE log_file = INVALID_HANDLE_VALUE;
 static DWORD log_started;
 
 /* One line: the seconds since this program started, then the text (wvsprintfA writes at most 1024 characters). */
-static void note(const char *format, ...)
+void note(const char *format, ...)
 {
     char text[1100];
     DWORD written;
@@ -345,7 +346,7 @@ static int game_processes(char *name)
     entry.dwSize = sizeof(entry);
     if (Process32FirstW(snapshot, &entry)) {
         do {
-            if (entry.th32ProcessID && entry.th32ProcessID != self && !kept_name(entry.szExeFile)) {
+            if (entry.th32ProcessID && entry.th32ProcessID != self && !infinite_service(entry.th32ProcessID) && !kept_name(entry.szExeFile)) {
                 if (!count) WideCharToMultiByte(CP_ACP, 0, entry.szExeFile, -1, name, 64, NULL, NULL);
                 count++;
             }
@@ -356,7 +357,7 @@ static int game_processes(char *name)
 }
 
 /* The command line after this program's own name and switches: what to start. Sets *frames to 0 for /noframes. */
-static WCHAR *rest_of_command_line(int *frames)
+static WCHAR *rest_of_command_line(int *frames, int *infinite)
 {
     WCHAR *p = GetCommandLineW();
     if (*p == L'"') { p++; while (*p && *p != L'"') p++; if (*p) p++; }
@@ -364,6 +365,7 @@ static WCHAR *rest_of_command_line(int *frames)
     for (;;) {
         while (*p == L' ' || *p == L'\t') p++;
         if (!_wcsnicmp(p, L"/noframes", 9) && (p[9] == 0 || p[9] == L' ' || p[9] == L'\t')) { *frames = 0; p += 9; continue; }
+        if (!_wcsnicmp(p, L"/infinite", 9) && (p[9] == 0 || p[9] == L' ' || p[9] == L'\t')) { *infinite = 1; p += 9; continue; }
         break;
     }
     return p;
@@ -371,9 +373,9 @@ static WCHAR *rest_of_command_line(int *frames)
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int show)
 {
-    int frames = 1, seen = 0, last_games = -2, helper_gone = 0;
+    int frames = 1, infinite = 0, seen = 0, last_games = -2, helper_gone = 0;
     DWORD started = GetTickCount(), last_seen = started, exit_code = 0, grace;
-    WCHAR *rest = rest_of_command_line(&frames);
+    WCHAR *rest = rest_of_command_line(&frames, &infinite);
     PROCESS_INFORMATION child;
     HDESK desktop = GetThreadDesktop(GetCurrentThreadId());
     char desktop_name[64] = "", game[64] = "";
@@ -391,15 +393,25 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     note("session keeper: desktop '%s' takes the input: %s; frames %s; screen %dx%d", desktop_name, switched ? "yes" : "NO",
          frames ? "off the games' windows" : "left", GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
 
+    if (infinite && (!*rest || !infinite_start())) {
+        infinite_stop();
+        return 1;
+    }
+    if (infinite) started = last_seen = GetTickCount();
+
     if (*rest) {
         STARTUPINFOW startup;
         WCHAR *copy = HeapAlloc(GetProcessHeap(), 0, (lstrlenW(rest) + 1) * sizeof(WCHAR));
         memset(&startup, 0, sizeof(startup));
         startup.cb = sizeof(startup);
-        if (!copy) return 1;
+        if (!copy) { infinite_stop(); return 1; }
         lstrcpyW(copy, rest);
-        if (!CreateProcessW(NULL, copy, NULL, NULL, FALSE, 0, NULL, NULL, &startup, &child)) {
-            note("could not start '%ls': error %lu", rest, GetLastError());
+        BOOL created = CreateProcessW(NULL, copy, NULL, NULL, FALSE, 0, NULL, NULL, &startup, &child);
+        DWORD create_error = GetLastError();
+        HeapFree(GetProcessHeap(), 0, copy);
+        if (!created) {
+            note("could not start '%ls': error %lu", rest, create_error);
+            infinite_stop();
             return 1;
         }
         note("started '%ls'", rest);
@@ -420,6 +432,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
             if (!changed) break;
             Sleep(100);
             continue;
+        }
+        if (infinite) {
+            BOOL requested = infinite_stop_requested();
+            if (requested || !infinite_poll()) {
+                exit_code = requested ? 0 : 1;
+                if (!helper_gone) TerminateProcess(child.hProcess, exit_code);
+                break;
+            }
         }
         if (helper_gone) Sleep(changed ? 100 : 400);
         else if (WaitForSingleObject(child.hProcess, changed ? 100 : 400) == WAIT_OBJECT_0) {
@@ -449,6 +469,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
             break;
         }
     }
+    infinite_stop();
     say_dialog(0);
     if (child.hProcess) CloseHandle(child.hProcess);
     return (int)exit_code;

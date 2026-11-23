@@ -18,6 +18,8 @@ import androidx.activity.ComponentDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import com.logie.blizz.game.GestureView
+import com.logie.blizz.game.InfiniteSetup
 import com.winlator.core.AppUtils
 import com.winlator.math.XForm
 import com.winlator.renderer.ViewTransformation
@@ -54,6 +56,11 @@ class WowGestureView(
     /** Leaves the game for the launcher. */
     private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
+    private val gameId = if (activity.intent.getStringExtra(GestureView.EXTRA_GAME) == InfiniteSetup.GAME_ID) {
+        InfiniteSetup.GAME_ID
+    } else {
+        "wow-client"
+    }
     private val density = resources.displayMetrics.density
     private val gestures = TouchGestures(this, density)
 
@@ -246,6 +253,9 @@ class WowGestureView(
         if (loginShown) return
         loginShown = true
         postDelayed(screenCheck, SCREEN_CHECK_MS)
+        // Learn the plain arrow shown at login for the WoW touch gestures.
+        for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
+        if (gameId == InfiniteSetup.GAME_ID) return
         val saved = activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD)?.let { pw -> account?.let { com.logie.blizz.wow.WowLogin.Login(it, pw) } }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         // A Legion client shows its window well before its login screen (it loads its data behind
@@ -291,8 +301,6 @@ class WowGestureView(
                 whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(PromptKind.PASSWORD) }
             }
         }
-        // The login screen only has the plain arrow: what the cursor looks like when it means a click.
-        for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
     }
 
     // Gestures ---------------------------------------------------------------------------------
@@ -618,21 +626,33 @@ class WowGestureView(
     override fun targetNearestEnemy() = tap(Key.TAB)
 
     override fun showMenu() = com.logie.blizz.game.GameMenu.show(
-        activity, "wow-client",
+        activity, gameId,
         onKeyboard = { ask(PromptKind.TEXT) },
         // Enter first opens the game's chat box, as the two-finger swipe does.
         onChat = { openChat() },
         onTypeKey = { key -> type(key, enter = false) },
         onLeave = { onLeave.run() },
+        onLogin = if (gameId == InfiniteSetup.GAME_ID && account != null) ::typeInfiniteLogin else null,
         onReport = {
             com.logie.blizz.reports.BugReports.reportTelling(
                 activity,
                 "World of Warcraft in-game report", "Sent from the game menu",
-                listOf("Game" to "wow-client", "Device" to Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
+                listOf("Game" to gameId, "Device" to Build.MODEL, "Screen" to "${xServer.screenInfo.width}x${xServer.screenInfo.height}"),
                 log = com.logie.blizz.game.GameLog.snapshot().ifEmpty { null },
             )
         },
     )
+
+    private fun typeInfiniteLogin() {
+        val email = account ?: return
+        val password = activity.intent.getStringExtra(EXTRA_LOGIN_PASSWORD) ?: return
+        androidx.appcompat.app.AlertDialog.Builder(activity)
+            .setTitle("Type into the selected login field")
+            .setItems(arrayOf("Type email", "Type password")) { _, index ->
+                type(if (index == 0) email else password, enter = false)
+            }
+            .show()
+    }
 
     // Text -------------------------------------------------------------------------------------
 
@@ -702,7 +722,7 @@ class WowGestureView(
     private fun ask(kind: PromptKind) {
         if (prompt?.isShowing == true) return
         prompt = com.logie.blizz.game.GamePrompt.show(
-            activity, "wow-client", chat = kind == PromptKind.CHAT, password = kind == PromptKind.PASSWORD,
+            activity, gameId, chat = kind == PromptKind.CHAT, password = kind == PromptKind.PASSWORD,
             onSend = { text -> send(kind, text, enter = true) },
             // A chat opened for the prompt closes again.
             onCancel = { if (kind == PromptKind.CHAT) tap(Key.ESCAPE) },

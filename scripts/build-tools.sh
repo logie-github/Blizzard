@@ -57,8 +57,14 @@ grep -q "\.path = \"../libd2\"" "$WORK/bldl/build.zig.zon" || { echo "build.zig.
 # subsystem (no console), into app/tools/assets, which the app packages.
 ASSETS="$ROOT/app/tools/assets"
 mkdir -p "$ASSETS"
-"$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/borderless/borderless.c" -luser32 -lkernel32 -o "$ASSETS/borderless.exe" 2> "$WORK/borderless.log" ||
+"$WORK/zig/zig" cc -target x86_64-windows-gnu -O2 -s -Wl,--subsystem,windows "$ROOT/tools/borderless/borderless.c" "$ROOT/tools/borderless/infinite.c" -luser32 -lkernel32 -lws2_32 -lpsapi -lcrypt32 -o "$ASSETS/borderless.exe" 2> "$WORK/borderless.log" ||
 	{ tail -40 "$WORK/borderless.log"; exit 1; }
+
+# Infinite's Windows compatibility DLLs, used by the Winlator launch diagnostics.
+"$WORK/zig/zig" cc -target x86_64-windows-gnu -shared -O2 -s \
+	"$ROOT/tools/iphlpshim/iphlpapi.c" "$ROOT/tools/iphlpshim/iphlpapi.def" -o "$ASSETS/iphlpapi.dll"
+"$WORK/zig/zig" cc -target x86_64-windows-gnu -shared -O2 -s \
+	"$ROOT/tools/icushim/icu.c" -o "$ASSETS/icu.dll"
 
 # innoextract ----------------------------------------------------------------------------------
 android() { # source build [cmake args...]

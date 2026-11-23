@@ -31,9 +31,10 @@ object Offline {
     ).distinct()
 
     /** The runtime's hosts file: this phone by its name, and with [blocked] Blizzard's names nowhere. */
-    fun hosts(blocked: Boolean): String = buildString {
+    fun hosts(blocked: Boolean, loopbackHost: String? = null): String = buildString {
         append("127.0.0.1\tlocalhost\n")
         append("::1\tlocalhost\n")
+        if (loopbackHost != null) append("127.0.0.1\t").append(loopbackHost).append('\n')
         if (blocked) {
             append("# Blizzard: its servers, out of reach.\n")
             for (name in BLOCKED) append("0.0.0.0\t").append(name).append('\n')

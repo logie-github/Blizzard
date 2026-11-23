@@ -62,7 +62,7 @@ class GestureView(
      * World of Warcraft's client has the World of Warcraft app's own controls ([WowGestureView]: its touch gestures, cursor reading,
      * text prompt and login), over this view; this one only hands them what Winlator tells it.
      */
-    private val wow = gameId == "wow-client"
+    private val wow = gameId == "wow-client" || gameId == InfiniteSetup.GAME_ID
     private var wowView: com.logie.blizz.wowinput.WowGestureView? = null
     private val controlsStore = ControlsStore(java.io.File(activity.filesDir, "controls"))
     /** The controls file as it was when [gestures] were made: a game kept running in the background doesn't restart when the controls change. */
@@ -235,7 +235,8 @@ class GestureView(
         postDelayed(noWindowReport, 90_000)
         // The World of Warcraft client's own controls go over this view.
         if (wow && wowView == null) {
-            val view = com.logie.blizz.wowinput.WowGestureView(activity, xServer, onLeave)
+            val leaveGame = if (gameId == InfiniteSetup.GAME_ID) Runnable { leave() } else onLeave
+            val view = com.logie.blizz.wowinput.WowGestureView(activity, xServer, leaveGame)
             wowView = view
             (parent as? ViewGroup)?.addView(view)
         }
@@ -461,6 +462,7 @@ class GestureView(
         left = true
         gestures.cancel()
         keyboard.hide()
+        if (gameId == InfiniteSetup.GAME_ID && InfiniteSetup.requestStop()) return
         onLeave.run()
     }
 
