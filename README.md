@@ -340,10 +340,15 @@ another build is shown as it is, not refused. The whole listing (1,783 files, 50
 `D3D12/D3D12Core.dll`, `libxell.dll`, `wow_loader.dll`, `WTF/`, `Interface/AddOns/` with ForeverBots and ForeverNXT add-ons); a client whose program can't be found is still taken. An earlier version of this importer looked for `Wow.exe` and
 `_forever_` (from another project's README) and would have refused this client; it was fixed on seeing the real one; the server package into
 `server/` (its `START_SERVER.cmd`, its `mysql/` and `releases/`; the download is deleted once it is in place). It ends as Imported, Launch Untested. Install recipe 2.
-**Not done: running it.** The server's Windows programs (MySQL, the login and world servers) are not started in Winlator yet, so Play
-cannot reach a realm. Whether the server and the client run in Winlator on the phone is unknown (the earlier attempt's client ended a
-second after its start). `InfiniteImporterTest` covers both archives, a folder refused, nothing found by itself, a missing client,
-an unknown build, a damaged RAR and the tile; `MegaTest` the link, a real decrypted block, a download, a resume and the limit message (a fake MEGA, no network); a real RAR was not unpacked in a test (no RAR packer here); nothing has run on a phone.
+**Play runs Infinite in its own Winlator container on the phone.** The launcher prepares the existing server installation and puts the
+two x86-64 compatibility DLLs in that container. The session keeper starts MySQL, waits for the Battle.net login service, then starts
+the world server and client. Winlator's runtime hosts file maps the package's TLS hostname to the phone's loopback address, and Wine trusts
+the package CA inside that container. At the login screen, select each field and use **Infinite login** in the game menu to type
+the email and password from the server package. The world can still be loading when the login screen opens. Bots are enabled for dungeons. Roaming bots, battleground fill, raid bots,
+the ranked bot arena, the optional LLM download and battle pets are disabled. Leaving through the game menu requests a server shutdown before closing the session.
+The keeper records startup timings, working-set memory and exit codes. Console output goes into `infinite-mysql.log`,
+`infinite-login.log` and `infinite-world.log` in the container's Windows folder. The login and world servers also write
+`server/logs/Bnet.log` and `server/logs/Server.log`. A full Android login and enter-world test is still pending.
 
 ## World of Warcraft: Forever (removed, 18 November 2026)
 

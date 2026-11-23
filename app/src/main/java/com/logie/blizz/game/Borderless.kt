@@ -43,7 +43,11 @@ object Borderless {
     fun frames(gameId: String?): Boolean = gameId != null && gameId != "installer" && gameId != "wow-client" && gameId != "wow" && !gameId.startsWith("wow_")
 
     /** What the game screen starts before winhandler.exe for [gameId] (the `exec_wrapper` extra). */
-    fun command(gameId: String?): String = if (frames(gameId)) PATH else "$PATH $NO_FRAMES"
+    fun command(gameId: String?): String = when {
+        gameId == InfiniteSetup.GAME_ID -> "$PATH $NO_FRAMES /infinite"
+        frames(gameId) -> PATH
+        else -> "$PATH $NO_FRAMES"
+    }
 
     /** Puts the program into the games' Windows at [containerRoot] (Winlator's container rootDir), over an older copy; whether it is there. */
     fun install(context: Context, containerRoot: File): Boolean {

@@ -6,6 +6,8 @@ import com.logie.blizz.MainActivity
 import com.logie.blizz.R
 import com.logie.blizz.importer.GameImportManager
 import com.logie.blizz.importer.LibraryEntry
+import com.logie.blizz.wow.Realm
+import com.logie.blizz.wow.WowRealm
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
 import com.winlator.container.ContainerManager
@@ -45,6 +47,7 @@ object WindowsRuntime {
     enum class Step { RUNTIME, WINDOWS, STARTING }
 
     private const val CONTAINER_NAME = "Blizzard"
+    private const val INFINITE_CONTAINER_NAME = "Blizzard Infinite"
 
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state
@@ -112,6 +115,7 @@ object WindowsRuntime {
     private suspend fun run(context: Context, entry: LibraryEntry, profile: LaunchProfile, size: Pair<Int, Int>, options: LaunchOptions.Resolved) {
         val folder = File(entry.installPath)
         val program = File(folder, entry.executable)
+        val infinite = entry.gameId == InfiniteSetup.GAME_ID
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
 
         _state.value = State.Preparing(Step.RUNTIME, 0f, WowPlay.splashIdOf(entry))
@@ -120,11 +124,21 @@ object WindowsRuntime {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
         if (!installed) throw IllegalStateException(context.getString(R.string.game_error_runtime))
-        withContext(Dispatchers.IO) { keepOffline(context) }
+        withContext(Dispatchers.IO) { keepOffline(context, infinite) }
 
         _state.value = State.Preparing(Step.WINDOWS, gameId = WowPlay.splashIdOf(entry))
         val (width, height) = size
-        val container = container(context, width, height, options)
+        if (infinite) {
+            val activeRealm = WowRealm.status.value.realm
+            if (WowRealm.isRunning() && (activeRealm == Realm.CHROMIE || activeRealm == Realm.LEGION)) {
+                WowRealm.stopAndWait(context)
+            }
+        }
+        val container = container(context, width, height, options, if (infinite) INFINITE_CONTAINER_NAME else CONTAINER_NAME)
+        val infiniteLogin = if (infinite) withContext(Dispatchers.IO) {
+            InfiniteSetup.prepare(context, folder, program, container.rootDir)
+            InfiniteSetup.bundledLogin(folder)
+        } else null
         withContext(Dispatchers.IO) { seedSaves(context, container, entry) }
         withContext(Dispatchers.IO) { registerInstall(context, container, entry) }
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId, options) }
@@ -132,7 +146,8 @@ object WindowsRuntime {
         val legion = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == LegionClientSetup.VERSION
         // Wine's esync on, as Winlator sets it: an earlier version turned it off in this shared container for one game.
         withContext(Dispatchers.IO) {
-            val env = EsyncSetting.apply(container.getEnvVars(), on = true)
+            val baseEnv = EsyncSetting.apply(container.getEnvVars(), on = true)
+            val env = if (infinite) InfiniteSetup.environment(baseEnv) else baseEnv
             if (env != container.getEnvVars()) { container.setEnvVars(env); container.saveData() }
         }
         // Diablo II: Windows 98 for Game.exe before 1.14, 800x600 in game ([Diablo2Setup]).
@@ -140,6 +155,7 @@ object WindowsRuntime {
         // borderless.exe (tools/borderless): the session's keeper, put into the games' Windows at every start (the app's copy
         // may be newer) and started before winhandler.exe and the game ([Borderless]); without it in place the game starts as before.
         val keeper = withContext(Dispatchers.IO) { runCatching { Borderless.install(context, container.rootDir) }.getOrDefault(false) }
+        check(!infinite || keeper) { "Infinite needs the Winlator session keeper." }
         // Its log of this session goes into the reports; the last session's is no word on this one.
         withContext(Dispatchers.IO) { runCatching { Borderless.logFile(container.rootDir).delete() } }
         GameLog.keeperLog = if (keeper) Borderless.logFile(container.rootDir) else null
@@ -184,6 +200,9 @@ object WindowsRuntime {
             .putExtra(GestureView.EXTRA_SPLASH, WowPlay.splashIdOf(entry))
             .putExtra(GestureView.EXTRA_PROFILE, profile.id)
             .apply {
+                infiniteLogin?.let {
+                    putExtra(GestureView.EXTRA_LOGIN_NAME, it.name).putExtra(GestureView.EXTRA_LOGIN_PASSWORD, it.password)
+                }
                 // World of Warcraft: the account the other app logged in with by itself, typed at the login screen.
                 if (entry.gameId == WowPlay.GAME_ID) com.logie.blizz.wow.WowLogin.forVersion(
                     context, com.logie.blizz.wow.WowLogin.versionOf(entry.clientVersion),
@@ -196,10 +215,11 @@ object WindowsRuntime {
     }
 
     /** The runtime's hosts file: Blizzard's names nowhere ([Offline]). */
-    private fun keepOffline(context: Context) {
+    private fun keepOffline(context: Context, infinite: Boolean) {
         val etc = File(RootFS.find(context).rootDir, "etc")
         etc.mkdirs()
-        File(etc, "hosts").writeText(Offline.hosts(true))
+        val loopbackHost = InfiniteSetup.LOGIN_HOST.takeIf { infinite }
+        File(etc, "hosts").writeText(Offline.hosts(blocked = true, loopbackHost = loopbackHost))
         File(etc, "nsswitch.conf").writeText(Offline.nsswitch())
     }
 
@@ -243,12 +263,12 @@ object WindowsRuntime {
 
     /** The games' Windows: made the first time, its screen, drives and launch options set every time. */
 
-    private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved): Container {
+    private suspend fun container(context: Context, width: Int, height: Int, options: LaunchOptions.Resolved, name: String): Container {
         // (disk: the manager reads every container's file, the drives make their folders)
         val manager = withContext(Dispatchers.IO) { ContainerManager(context) }
         val drives = withContext(Dispatchers.IO) { drives(context) }
         val screenSize = "${width}x$height"
-        val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
+        val existing = manager.containers.firstOrNull { it.name == name }
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
@@ -271,7 +291,7 @@ object WindowsRuntime {
         }
         val defaults = Container(0)
         val data = JSONObject()
-            .put("name", CONTAINER_NAME)
+            .put("name", name)
             .put("screenSize", screenSize)
             .put("envVars", defaults.getEnvVars())
             .put("graphicsDriver", options.graphicsDriver)

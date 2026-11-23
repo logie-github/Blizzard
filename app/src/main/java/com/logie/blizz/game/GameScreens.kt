@@ -366,7 +366,7 @@ private fun Panel(modifier: Modifier, content: @Composable () -> Unit) {
 object GameMenu {
     fun show(
         activity: Activity, gameId: String?, onKeyboard: () -> Unit, onChat: () -> Unit, onTypeKey: (String) -> Unit, onLeave: () -> Unit,
-        onReport: () -> Unit = {}, onType: (() -> Unit)? = null, onEscape: (() -> Unit)? = null,
+        onReport: () -> Unit = {}, onType: (() -> Unit)? = null, onEscape: (() -> Unit)? = null, onLogin: (() -> Unit)? = null,
     ) {
         var dialog: ComponentDialog? = null
         fun close(then: () -> Unit) = { dialog?.dismiss(); then() }
@@ -383,6 +383,7 @@ object GameMenu {
                         if (onType != null) FrameButton(stringResource(R.string.game_menu_type), Modifier.fillMaxWidth(), primary = false, onClick = close(onType))
                         FrameButton(stringResource(R.string.game_menu_chat), Modifier.fillMaxWidth(), primary = false, onClick = close(onChat))
                         if (onEscape != null) FrameButton(stringResource(R.string.game_menu_escape), Modifier.fillMaxWidth(), primary = false, onClick = close(onEscape))
+                        if (onLogin != null) FrameButton("Infinite login", Modifier.fillMaxWidth(), primary = false, onClick = close(onLogin))
                         FrameButton("Send a report (with the game's log)", Modifier.fillMaxWidth(), primary = false, onClick = close(onReport))
                         FrameButton(stringResource(R.string.game_menu_leave), Modifier.fillMaxWidth(), primary = false, onClick = close(onLeave))
                         Text(stringResource(R.string.game_menu_leave_note), style = MaterialTheme.typography.bodySmall)
