@@ -37,6 +37,7 @@
 #include <tlhelp32.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "infinite.h"
 
@@ -383,6 +384,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     BOOL switched;
 
     (void)instance; (void)previous; (void)command; (void)show;
+    if (!_wcsnicmp(rest, L"/stop-world ", 12)) return infinite_signal_world(wcstoul(rest + 12, NULL, 10));
     memset(&child, 0, sizeof(child));
     log_started = started;
     log_file = CreateFileA("C:\\windows\\borderless.log", GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -406,11 +408,20 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
         startup.cb = sizeof(startup);
         if (!copy) { infinite_stop(); return 1; }
         lstrcpyW(copy, rest);
-        BOOL created = CreateProcessW(NULL, copy, NULL, NULL, FALSE, 0, NULL, NULL, &startup, &child);
+        BOOL created = CreateProcessW(NULL, copy, NULL, NULL, FALSE, infinite ? CREATE_SUSPENDED : 0,
+                                      NULL, NULL, &startup, &child);
         DWORD create_error = GetLastError();
         HeapFree(GetProcessHeap(), 0, copy);
         if (!created) {
             note("could not start '%ls': error %lu", rest, create_error);
+            infinite_stop();
+            return 1;
+        }
+        if (infinite && (!infinite_add_process(child.hProcess) || ResumeThread(child.hThread) == (DWORD)-1)) {
+            note("Infinite: could not attach or resume the client launcher (error %lu)", GetLastError());
+            TerminateProcess(child.hProcess, 1);
+            CloseHandle(child.hThread);
+            CloseHandle(child.hProcess);
             infinite_stop();
             return 1;
         }

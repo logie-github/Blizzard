@@ -14,14 +14,14 @@ static unsigned short world_port;
 struct service {
     const char *name;
     const WCHAR *log;
-    HANDLE process, input;
+    HANDLE process;
     DWORD pid, started;
 };
 
-static struct service mysql = {"MySQL", L"C:\\windows\\infinite-mysql.log", NULL, NULL, 0, 0};
-static struct service login = {"login server", L"C:\\windows\\infinite-login.log", NULL, NULL, 0, 0};
-static struct service world = {"world server", L"C:\\windows\\infinite-world.log", NULL, NULL, 0, 0};
-static struct service mysql_admin = {"MySQL shutdown", L"C:\\windows\\infinite-mysql-shutdown.log", NULL, NULL, 0, 0};
+static struct service mysql = {"MySQL", L"C:\\windows\\infinite-mysql.log", NULL, 0, 0};
+static struct service login = {"login server", L"C:\\windows\\infinite-login.log", NULL, 0, 0};
+static struct service world = {"world server", L"C:\\windows\\infinite-world.log", NULL, 0, 0};
+static struct service mysql_admin = {"MySQL shutdown", L"C:\\windows\\infinite-mysql-shutdown.log", NULL, 0, 0};
 static WCHAR mysql_admin_exe[MAX_PATH], mysql_admin_config[MAX_PATH];
 static HANDLE job;
 static BOOL sockets, world_ready;
@@ -122,15 +122,13 @@ static BOOL start(struct service *service, const WCHAR *program, WCHAR *command)
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdOutput = CreateFileW(service->log, GENERIC_WRITE, FILE_SHARE_READ, &inherited, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     startup.hStdError = startup.hStdOutput;
+    startup.hStdInput = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited, OPEN_EXISTING, 0, NULL);
+    DWORD flags = CREATE_SUSPENDED | CREATE_NO_WINDOW;
     if (service == &world) {
-        if (!CreatePipe(&startup.hStdInput, &service->input, &inherited, 0))
-            startup.hStdInput = INVALID_HANDLE_VALUE;
-        else if (!SetHandleInformation(service->input, HANDLE_FLAG_INHERIT, 0)) {
-            CloseHandle(startup.hStdInput);
-            startup.hStdInput = INVALID_HANDLE_VALUE;
-        }
-    } else {
-        startup.hStdInput = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited, OPEN_EXISTING, 0, NULL);
+        // The package uses CTRL_BREAK for shutdown. Give the world server its own hidden console.
+        flags = CREATE_SUSPENDED | CREATE_NEW_CONSOLE;
+        startup.dwFlags |= STARTF_USESHOWWINDOW;
+        startup.wShowWindow = SW_HIDE;
     }
     if (startup.hStdOutput == INVALID_HANDLE_VALUE || startup.hStdInput == INVALID_HANDLE_VALUE) {
         note("Infinite: could not open standard handles for %s (error %lu)", service->name, GetLastError());
@@ -138,7 +136,7 @@ static BOOL start(struct service *service, const WCHAR *program, WCHAR *command)
         if (startup.hStdInput != INVALID_HANDLE_VALUE) CloseHandle(startup.hStdInput);
         return FALSE;
     }
-    created = CreateProcessW(program, command, NULL, NULL, TRUE, CREATE_SUSPENDED | CREATE_NO_WINDOW, NULL, root, &startup, &process);
+    created = CreateProcessW(program, command, NULL, NULL, TRUE, flags, NULL, root, &startup, &process);
     error = GetLastError();
     CloseHandle(startup.hStdInput);
     CloseHandle(startup.hStdOutput);
@@ -146,7 +144,7 @@ static BOOL start(struct service *service, const WCHAR *program, WCHAR *command)
         note("Infinite: could not start %s (error %lu)", service->name, error);
         return FALSE;
     }
-    if (!AssignProcessToJobObject(job, process.hProcess) || ResumeThread(process.hThread) == (DWORD)-1) {
+    if (!infinite_add_process(process.hProcess) || ResumeThread(process.hThread) == (DWORD)-1) {
         note("Infinite: could not attach or resume %s (error %lu)", service->name, GetLastError());
         TerminateProcess(process.hProcess, 1);
         CloseHandle(process.hThread);
@@ -270,23 +268,58 @@ BOOL infinite_service(DWORD pid)
     return pid == mysql.pid || pid == login.pid || pid == world.pid;
 }
 
+BOOL infinite_add_process(HANDLE process)
+{
+    return AssignProcessToJobObject(job, process);
+}
+
+static BOOL WINAPI ignore_console_event(DWORD event)
+{
+    (void)event;
+    return TRUE;
+}
+
+int infinite_signal_world(DWORD pid)
+{
+    if (!pid) return 1;
+    FreeConsole();
+    if (!AttachConsole(pid)) return 1;
+    BOOL sent = SetConsoleCtrlHandler(ignore_console_event, TRUE) && GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, 0);
+    if (sent) Sleep(250);
+    FreeConsole();
+    return sent ? 0 : 1;
+}
+
+static BOOL stop_world(void)
+{
+    // Deliver the console event from a helper so Wine cannot interrupt the keeper's cleanup.
+    static const WCHAR keeper[] = L"C:\\windows\\borderless.exe";
+    WCHAR command[96];
+    PROCESS_INFORMATION helper;
+    STARTUPINFOW startup = {0};
+    startup.cb = sizeof(startup);
+    swprintf(command, ARRAYSIZE(command), L"\"%ls\" /stop-world %lu", keeper, world.pid);
+    if (!CreateProcessW(keeper, command, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &startup, &helper)) {
+        note("Infinite: could not start the world server shutdown helper (error %lu)", GetLastError());
+        return FALSE;
+    }
+    CloseHandle(helper.hThread);
+    BOOL stopped = WaitForSingleObject(world.process, world_ready ? 60000 : 1000) == WAIT_OBJECT_0;
+    if (WaitForSingleObject(helper.hProcess, 0) == WAIT_TIMEOUT) TerminateProcess(helper.hProcess, 1);
+    CloseHandle(helper.hProcess);
+    return stopped;
+}
+
 void infinite_stop(void)
 {
-    if (world.input) {
-        const char shutdown[] = "server shutdown 0\r\n";
-        DWORD written;
-        if (world.process && WaitForSingleObject(world.process, 0) == WAIT_TIMEOUT &&
-            WriteFile(world.input, shutdown, sizeof(shutdown) - 1, &written, NULL)) {
-            DWORD timeout = world_ready ? 30000 : 1000;
-            if (WaitForSingleObject(world.process, timeout) == WAIT_OBJECT_0)
-                note("Infinite: world server stopped");
-        }
-        CloseHandle(world.input);
-    }
     if (world.process && WaitForSingleObject(world.process, 0) == WAIT_TIMEOUT) {
-        note("Infinite: world server did not shut down in time");
-        TerminateProcess(world.process, 1);
-        WaitForSingleObject(world.process, 3000);
+        if (stop_world()) {
+            note("Infinite: world server stopped");
+        } else {
+            note("Infinite: world server did not shut down in time");
+            TerminateProcess(world.process, 1);
+            WaitForSingleObject(world.process, 3000);
+        }
     }
     if (login.process && WaitForSingleObject(login.process, 0) == WAIT_TIMEOUT) {
         TerminateProcess(login.process, 0);
