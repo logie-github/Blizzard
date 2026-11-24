@@ -1,0 +1,1 @@
+Health bars now show only when a unit is hit, stay for 10 seconds and then fade out (red for enemies); hovering no longer shows one.
