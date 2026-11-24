@@ -1,0 +1,1 @@
+Launcher music fades out when a game opens, and launcher songs and previews stay out of Android media controls.

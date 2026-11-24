@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
         visible = false
         // A running game has its own sound.
         com.logie.blizz.music.MusicPlayer.foreground(this, false)
+        com.logie.blizz.music.MusicPreview.stop()
         super.onPause()
     }
 

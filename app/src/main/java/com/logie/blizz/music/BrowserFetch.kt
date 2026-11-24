@@ -36,6 +36,7 @@ object BrowserFetch {
             }
             web.settings.javaScriptEnabled = true
             web.settings.domStorageEnabled = true
+            web.settings.mediaPlaybackRequiresUserGesture = true
             web.webViewClient = object : WebViewClient() {}
             val deadline = SystemClock.uptimeMillis() + timeoutMs
             fun poll() {
