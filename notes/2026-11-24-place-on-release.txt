@@ -1,0 +1,1 @@
+Placing a building now happens when you lift your finger: touch and drag to aim the footprint, release to build.

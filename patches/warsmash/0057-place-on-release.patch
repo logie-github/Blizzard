@@ -1,0 +1,51 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 8d07cf4..036127d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -4237,8 +4237,32 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		return true;
+ 	}
+ 
++	/** A finger is down on the ground while a building is being placed: the order is given when it is lifted. */
++	private boolean buildPlacePending;
++
+ 	@Override
+ 	public boolean touchDown(final int screenX, final int screenY, final float worldScreenY, final int button) {
++		this.buildPlacePending = false;
++		if (this.userControlEnabled && (button == Input.Buttons.LEFT) && (this.activeCommand instanceof AbstractCAbilityBuild)
++				&& (this.draggingItem == null)) {
++			screenCoordsVector.set(screenX, screenY);
++			this.uiViewport.unproject(screenCoordsVector);
++			if (!this.meleeUIMinimap.containsMouse(screenCoordsVector.x, screenCoordsVector.y)
++					&& !(this.rootFrame.getFrameChildUnderMouse(screenCoordsVector.x,
++							screenCoordsVector.y) instanceof ClickableFrame)) {
++				// The footprint follows the finger; the building is placed where it is lifted.
++				previousTouchScreenX = screenX;
++				previousTouchScreenY = screenY;
++				previousWorldY = worldScreenY;
++				this.allowDrag = false;
++				this.buildPlacePending = true;
++				return true;
++			}
++		}
++		return touchDownNow(screenX, screenY, worldScreenY, button);
++	}
++
++	private boolean touchDownNow(final int screenX, final int screenY, final float worldScreenY, final int button) {
+ 		previousTouchScreenX = screenX;
+ 		previousTouchScreenY = screenY;
+ 		previousWorldY = worldScreenY;
+@@ -4868,6 +4892,13 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		if (!this.userControlEnabled) {
+ 			return false;
+ 		}
++		if (this.buildPlacePending && (button == Input.Buttons.LEFT)) {
++			this.buildPlacePending = false;
++			if (this.activeCommand instanceof AbstractCAbilityBuild) {
++				return touchDownNow(screenX, screenY, worldScreenY, button);
++			}
++			return false;
++		}
+ 		this.currentlyDraggingPointer = -1;
+ 
+ 
