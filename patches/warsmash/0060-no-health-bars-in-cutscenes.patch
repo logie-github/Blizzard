@@ -1,0 +1,14 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 3ac6c44..f35f6e8 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -2251,6 +2251,9 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 	private final Vector3 healthBarPoint = new Vector3();
+ 
+ 	private void renderUnitHealthBars(final SpriteBatch batch) {
++		if (!this.userControlEnabled) {
++			return; // a cutscene (the script took the controls): no bars
++		}
+ 		final CSimulation simulation = this.war3MapViewer.simulation;
+ 		final int tick = simulation.getGameTurnTick();
+ 		final int localIndex = this.war3MapViewer.getLocalPlayerIndex();

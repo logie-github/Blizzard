@@ -1,0 +1,1 @@
+Health bars over units are hidden during cutscenes.
