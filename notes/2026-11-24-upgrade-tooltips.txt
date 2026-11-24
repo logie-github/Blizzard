@@ -1,0 +1,1 @@
+Research tooltips such as Improved Lumber Harvesting show their number instead of 'Rhlh,mod1{missing}'.

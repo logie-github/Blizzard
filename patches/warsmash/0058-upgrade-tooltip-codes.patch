@@ -1,0 +1,15 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/ability/AbilityDataUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/ability/AbilityDataUI.java
+index c9a7056..d9d9a6b 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/ability/AbilityDataUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/ability/AbilityDataUI.java
+@@ -409,6 +409,10 @@ public class AbilityDataUI {
+ 				if (unit == null) {
+ 					unit = allObjectData.getAbilities().get(rawcode);
+ 				}
++				if (unit == null) {
++					// an upgrade's own numbers, as in <Rhlh,mod1> (Improved Lumber Harvesting's carry amount)
++					unit = allObjectData.getUpgrades().get(rawcode);
++				}
+ 				if (unit != null) {
+ 					if (percent) {
+ 						valueText = Integer.toString((int) (unit.readSLKTagFloat(codeTextParts[1]) * 100f));
