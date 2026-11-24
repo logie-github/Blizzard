@@ -1,0 +1,167 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
+index 8947ce1..10dbbf8 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/rendersim/RenderUnit.java
+@@ -594,10 +594,6 @@ public class RenderUnit implements RenderWidget {
+ 		return this.selectionScale;
+ 	}
+ 
+-	public float getSelectionHeight() {
+-		return this.selectionHeight;
+-	}
+-
+ 	@Override
+ 	public float getX() {
+ 		return this.location[0];
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index f35f6e8..04aad5e 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -32,7 +32,6 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+ import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator.FreeTypeFontParameter;
+ import com.badlogic.gdx.graphics.glutils.PixmapTextureData;
+-import com.badlogic.gdx.graphics.GL20;
+ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+ import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType;
+ import com.badlogic.gdx.math.Rectangle;
+@@ -2020,6 +2019,17 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		return null;
+ 	}
+ 
++	/** A unit of a player who is neither the local player nor allied to them (a neutral hostile counts). */
++	private boolean isEnemyOfLocalPlayer(final RenderWidget widget) {
++		if (!(widget instanceof RenderUnit)) {
++			return false;
++		}
++		final int owner = ((RenderUnit) widget).getSimulationUnit().getPlayerIndex();
++		final int local = this.war3MapViewer.getLocalPlayerIndex();
++		return (owner != local) && !this.war3MapViewer.simulation.getPlayer(local).hasAlliance(owner,
++				CAllianceType.PASSIVE);
++	}
++
+ 	private void positionHealthBar(final SimpleStatusBarFrame simpleStatusBarFrame, final RenderWidget unit,
+ 			final float alpha) {
+ 		simpleStatusBarFrame.setVisible(true);
+@@ -2038,8 +2048,14 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		simpleStatusBarFrame.getBorderFrame().setTexture("Textures\\Black32.blp", this.rootFrame);
+ 		simpleStatusBarFrame.getBorderFrame().setColor(0f, 0f, 0f, alpha);
+ 		final float lifeRatioRemaining = unit.getSimulationWidget().getLife() / unit.getSimulationWidget().getMaxLife();
+-		simpleStatusBarFrame.getBarFrame().setColor(Math.min(1.0f, 2.0f - (lifeRatioRemaining * 2)),
+-				Math.min(1.0f, lifeRatioRemaining * 2), 0, alpha);
++		if (isEnemyOfLocalPlayer(unit)) {
++			// the same bar as a friendly's, in red
++			simpleStatusBarFrame.getBarFrame().setColor(0.9f, 0.05f, 0.05f, alpha);
++		}
++		else {
++			simpleStatusBarFrame.getBarFrame().setColor(Math.min(1.0f, 2.0f - (lifeRatioRemaining * 2)),
++					Math.min(1.0f, lifeRatioRemaining * 2), 0, alpha);
++		}
+ 		final Vector2 unprojected = this.uiViewport.unproject(screenCoordsVector);
+ 		simpleStatusBarFrame.setWidth((unit.getSelectionScale() * 1.5f * Gdx.graphics.getWidth()) / 2560);
+ 		simpleStatusBarFrame.setHeight(16);
+@@ -2220,7 +2236,6 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 				}
+ 			}
+ 		}
+-		renderUnitHealthBars(batch);
+ 		if (this.draggingMouseButton == Input.Buttons.LEFT) {
+ 			batch.end();
+ 			this.shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+@@ -2243,96 +2258,6 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
+-	// A unit shows its health bar for HEALTH_BAR_HOLD_TICKS after it is hurt, then fades over HEALTH_BAR_FADE_TICKS; a
+-	// selected unit's bar stays. Green for the local player's units and allies, red for everyone else's.
+-	private static final int HEALTH_BAR_HOLD_TICKS = 60;
+-	private static final int HEALTH_BAR_FADE_TICKS = 20;
+-	private final List<float[]> healthBars = new ArrayList<>();
+-	private final Vector3 healthBarPoint = new Vector3();
+-
+-	private void renderUnitHealthBars(final SpriteBatch batch) {
+-		if (!this.userControlEnabled) {
+-			return; // a cutscene (the script took the controls): no bars
+-		}
+-		final CSimulation simulation = this.war3MapViewer.simulation;
+-		final int tick = simulation.getGameTurnTick();
+-		final int localIndex = this.war3MapViewer.getLocalPlayerIndex();
+-		final CPlayer localPlayer = simulation.getPlayer(localIndex);
+-		final com.etheller.warsmash.viewer5.Camera camera = this.war3MapViewer.worldScene.camera;
+-		this.healthBars.clear();
+-		for (final CUnit unit : simulation.getUnits()) {
+-			if (unit.isDead() || unit.isHidden() || (unit.getMaximumLife() <= 0)) {
+-				continue;
+-			}
+-			final int sinceHurt = (unit.getLastHurtTick() < 0) ? Integer.MAX_VALUE : (tick - unit.getLastHurtTick());
+-			float alpha = 0;
+-			if (sinceHurt < (HEALTH_BAR_HOLD_TICKS + HEALTH_BAR_FADE_TICKS)) {
+-				alpha = (sinceHurt < HEALTH_BAR_HOLD_TICKS) ? 1f
+-						: 1f - ((sinceHurt - HEALTH_BAR_HOLD_TICKS) / (float) HEALTH_BAR_FADE_TICKS);
+-			}
+-			final RenderUnit peer = this.war3MapViewer.getRenderPeer(unit);
+-			if (peer == null) {
+-				continue;
+-			}
+-			if ((alpha == 0) && this.selectedUnits.contains(peer)) {
+-				alpha = 1f;
+-			}
+-			if ((alpha == 0) || !unit.isVisible(simulation, localIndex)) {
+-				continue;
+-			}
+-			this.healthBarPoint.set(peer.getX(), peer.getY(), peer.getZ() + peer.getSelectionHeight() + 20);
+-			camera.worldToScreen(screenCoordsVector, this.healthBarPoint);
+-			final float screenX = screenCoordsVector.x;
+-			final float screenY = screenCoordsVector.y;
+-			if (!camera.rect.contains(screenX, Gdx.graphics.getHeight() - screenY)) {
+-				continue;
+-			}
+-			// the bar is as wide as the unit looks on the ground: the screen width of its selection scale
+-			final float size = Math.max(peer.getSelectionScale(), 40f);
+-			this.healthBarPoint.add(size, 0, 0);
+-			camera.worldToScreen(screenCoordsVector, this.healthBarPoint);
+-			final float dx = Math.abs(screenCoordsVector.x - screenX);
+-			this.healthBarPoint.add(-size, size, 0);
+-			camera.worldToScreen(screenCoordsVector, this.healthBarPoint);
+-			final float widthPixels = (float) Math.hypot(dx, Math.abs(screenCoordsVector.x - screenX));
+-			screenCoordsVector.set(screenX, screenY);
+-			final Vector2 base = this.uiViewport.unproject(screenCoordsVector);
+-			screenCoordsVector.set(screenX + widthPixels, screenY);
+-			final Vector2 side = this.uiViewport.unproject(screenCoordsVector);
+-			final float width = Math.max(28f, Math.abs(side.x - base.x));
+-			final boolean friendly = (unit.getPlayerIndex() == localIndex)
+-					|| localPlayer.hasAlliance(unit.getPlayerIndex(), CAllianceType.PASSIVE);
+-			this.healthBars.add(new float[] { base.x, base.y, width, unit.getLife() / unit.getMaximumLife(),
+-					friendly ? 1 : 0, alpha });
+-		}
+-		if (this.healthBars.isEmpty()) {
+-			return;
+-		}
+-		batch.end();
+-		Gdx.gl.glEnable(GL20.GL_BLEND);
+-		Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+-		this.shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix());
+-		this.shapeRenderer.begin(ShapeType.Filled);
+-		final float height = Math.max(5f, this.uiViewport.getWorldHeight() * 0.0075f);
+-		for (final float[] bar : this.healthBars) {
+-			final float left = bar[0] - (bar[2] / 2);
+-			final float ratio = Math.max(0f, Math.min(1f, bar[3]));
+-			this.shapeRenderer.setColor(0, 0, 0, 0.75f * bar[5]);
+-			this.shapeRenderer.rect(left - 1, bar[1] - 1, bar[2] + 2, height + 2);
+-			this.shapeRenderer.setColor(0.25f, 0.25f, 0.25f, 0.9f * bar[5]);
+-			this.shapeRenderer.rect(left, bar[1], bar[2], height);
+-			if (bar[4] > 0) {
+-				this.shapeRenderer.setColor(0.1f, 0.9f, 0.1f, bar[5]);
+-			}
+-			else {
+-				this.shapeRenderer.setColor(0.95f, 0.1f, 0.1f, bar[5]);
+-			}
+-			this.shapeRenderer.rect(left, bar[1], bar[2] * ratio, height);
+-		}
+-		this.shapeRenderer.end();
+-		batch.begin();
+-	}
+-
+ 	public void portraitTalk(final UnitSound us) {
+ 		this.portrait.talk(us, 0);
+ 	}
