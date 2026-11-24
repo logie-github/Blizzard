@@ -1,9 +1,6 @@
 package com.logie.blizz.music
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
@@ -15,7 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * The music picker's preview: one song at a time, streamed from khinsider ([Khinsider.audioUrl] finds its file), with what is playing,
@@ -39,15 +35,23 @@ object MusicPreview {
     val state: StateFlow<State> = _state
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val main = Handler(Looper.getMainLooper())
-    private var player: MediaPlayer? = null
+    private var player: LauncherAudio? = null
     private var job: Job? = null
     private var ticker: Job? = null
 
     /** Plays [pageUrl]'s song, or pauses/resumes it when it is the one already there. */
     fun toggle(context: Context, pageUrl: String, title: String, album: String, cover: String?) {
         val now = _state.value
-        if (now.pageUrl == pageUrl && !now.loading && player != null) {
-            runCatching { if (player!!.isPlaying) { player!!.pause(); _state.value = now.copy(playing = false) } else { player!!.start(); _state.value = now.copy(playing = true); tick() } }
+        val current = player
+        if (now.pageUrl == pageUrl && !now.loading && current != null) {
+            if (current.isPlaying) {
+                current.pause()
+                _state.value = now.copy(playing = false)
+            } else {
+                current.start()
+                _state.value = now.copy(playing = true)
+                tick()
+            }
             return
         }
         start(context, pageUrl, title, album, cover)
@@ -62,23 +66,39 @@ object MusicPreview {
             val url = try { Khinsider.audioUrl(pageUrl) } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.value = _state.value.copy(loading = false, error = e.message ?: "Couldn't find that song.")
+                MusicPlayer.previewing(false)
                 return@launch
             }
-            val p = MediaPlayer()
-            player = p
-            runCatching {
-                p.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-                p.setDataSource(context.applicationContext, Uri.parse(url), mapOf("User-Agent" to Khinsider.AGENT, "Referer" to "https://downloads.khinsider.com/"))
-                p.setOnPreparedListener { mp ->
-                    if (player !== mp) return@setOnPreparedListener
-                    mp.start()
-                    _state.value = _state.value.copy(loading = false, playing = true, durationMs = mp.duration.coerceAtLeast(0))
-                    tick()
-                }
-                p.setOnCompletionListener { _state.value = _state.value.copy(playing = false, positionMs = 0) }
-                p.setOnErrorListener { _, _, _ -> _state.value = _state.value.copy(loading = false, playing = false, error = "That song wouldn't play."); true }
-                p.prepareAsync()
-            }.onFailure { _state.value = _state.value.copy(loading = false, error = "That song wouldn't play.") }
+            lateinit var audio: LauncherAudio
+            audio = LauncherAudio(
+                source = { it.setDataSource(url, mapOf("User-Agent" to Khinsider.AGENT, "Referer" to "https://downloads.khinsider.com/")) },
+                prepared = {
+                    main.post {
+                        if (player === audio) {
+                            audio.start()
+                            _state.value = _state.value.copy(loading = false, playing = true, durationMs = audio.durationMs)
+                            tick()
+                        }
+                    }
+                },
+                ended = {
+                    main.post {
+                        if (player === audio) _state.value = _state.value.copy(playing = false, positionMs = 0)
+                    }
+                },
+                failed = {
+                    main.post {
+                        if (player === audio) {
+                            release()
+                            _state.value = _state.value.copy(loading = false, playing = false, error = "That song wouldn't play.")
+                            MusicPlayer.previewing(false)
+                        }
+                    }
+                },
+            )
+            audio.volume = 1f
+            player = audio
+            audio.prepare()
         }
     }
 
@@ -87,8 +107,8 @@ object MusicPreview {
         ticker = scope.launch {
             while (isActive) {
                 val p = player ?: break
-                val playing = runCatching { p.isPlaying }.getOrDefault(false)
-                if (playing) _state.value = _state.value.copy(positionMs = runCatching { p.currentPosition }.getOrDefault(0))
+                val playing = p.isPlaying
+                if (playing) _state.value = _state.value.copy(positionMs = p.positionMs)
                 delay(500)
                 if (!playing && !_state.value.playing) break
             }
@@ -104,6 +124,7 @@ object MusicPreview {
 
     private fun release() {
         job?.cancel(); ticker?.cancel()
-        player?.let { p -> player = null; runCatching { p.stop() }; runCatching { p.release() } }
+        player?.release()
+        player = null
     }
 }

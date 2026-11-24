@@ -1,8 +1,6 @@
 package com.logie.blizz.music
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
@@ -24,7 +22,7 @@ object MusicPlayer {
     private val worker: Handler by lazy { Handler(HandlerThread("music").apply { start() }.looper) }
 
     /** One song: its player, its gain now, and the fade it is in (from [fromGain] to [toGain] over [fadeMs], started at [fadeStart]). */
-    private class Voice(val player: MediaPlayer, val key: String) {
+    private class Voice(val player: LauncherAudio, val key: String) {
         var gain = 0f
         var fromGain = 0f
         var toGain = 0f
@@ -122,7 +120,7 @@ object MusicPlayer {
             return
         }
         if (now != null && now.key == id) {
-            if (now.paused) runCatching { now.player.start() }.onFailure { current = null; drop(now); return }
+            if (now.paused) now.player.start()
             now.paused = false
             fadeTo(now, 1f, Crossfade.MS)
             return
@@ -130,20 +128,22 @@ object MusicPlayer {
         // Another song: the old one fades out while the new one fades in, over the same time.
         now?.let { fadeTo(it, 0f, Crossfade.MS, release = true) }
         current = null
-        val voice = runCatching {
-            val p = MediaPlayer()
-            runCatching {
-                p.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-                p.setDataSource(file.path)
-                p.isLooping = true
-                p.setVolume(0f, 0f)
-                p.prepare()
-                p.start()
-            }.onFailure { runCatching { p.release() } }.getOrThrow()
-            Voice(p, id)
-        }.getOrNull() ?: return
+        lateinit var voice: Voice
+        val player = LauncherAudio(
+            source = { it.setDataSource(file.path) },
+            loop = true,
+            failed = {
+                worker.post {
+                    if (current === voice) current = null
+                    drop(voice)
+                }
+            },
+        )
+        voice = Voice(player, id)
         voices += voice
         current = voice
+        player.start()
+        player.prepare()
         // From silence (the app opening, the launcher coming back) a little longer than a crossfade.
         fadeTo(voice, 1f, if (now == null) Crossfade.FIRST_MS else Crossfade.MS)
     }
@@ -188,13 +188,12 @@ object MusicPlayer {
 
     private fun apply(v: Voice) {
         val level = v.gain * _volume.value
-        runCatching { v.player.setVolume(level, level) }
+        v.player.volume = level
     }
 
     private fun drop(v: Voice) {
         voices -= v
-        runCatching { v.player.stop() }
-        runCatching { v.player.release() }
+        v.player.release()
     }
 }
 
