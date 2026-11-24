@@ -5,7 +5,6 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Looper
 import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +39,6 @@ object MusicPlayer {
 
     private var current: Voice? = null
     private val voices = mutableListOf<Voice>()
-    private var ticking = false
 
     private var wanted: String = MusicCatalog.LAUNCHER
     private var wantedGame: String? = null
@@ -104,13 +102,22 @@ object MusicPlayer {
         val id = if (custom != null) "custom:$wantedGame:${custom.lastModified()}" else wanted
         val playable = _enabled.value && (custom != null || MusicStore(file.parentFile!!).has(wanted))
         val now = current
+        if (!foreground) {
+            if (!playable) current = null
+            // A game can open during a crossfade. Fade both songs, and keep only the selected one
+            // paused so the launcher can resume it when the player returns.
+            voices.toList().forEach { voice ->
+                val keep = voice === current
+                fadeTo(voice, 0f, Crossfade.EXIT_MS, pause = keep, release = !keep)
+            }
+            return
+        }
         if (!playable) {
             current = null
             now?.let { fadeTo(it, 0f, Crossfade.MS, release = true) }
             return
         }
-        if (!foreground || previewing) {
-            // Away: the song fades and pauses where it is, to go on from there when the launcher is back.
+        if (previewing) {
             now?.let { fadeTo(it, 0f, Crossfade.MS, pause = true) }
             return
         }
@@ -144,34 +151,38 @@ object MusicPlayer {
     private fun fadeTo(v: Voice, to: Float, ms: Long, pause: Boolean = false, release: Boolean = false) {
         // Already silent and paused: nothing to fade.
         if (v.paused) { if (release) drop(v); return }
+        if (v.toGain == to && v.pauseAtEnd == pause && v.releaseAtEnd == release && v.fadeMs <= ms) return
         v.fromGain = v.gain
         v.toGain = to
         v.fadeStart = SystemClock.uptimeMillis()
         v.fadeMs = maxOf(1L, ms)
         v.pauseAtEnd = pause
         v.releaseAtEnd = release
-        if (!ticking) { ticking = true; worker.post(tick) }
+        // A paused track leaves the timer on a slow cleanup interval. A new fade needs it now.
+        worker.removeCallbacks(tick)
+        worker.post(tick)
     }
 
     private val tick = object : Runnable {
         override fun run() {
             val t = SystemClock.uptimeMillis()
-            var busy = false
+            var fading = false
             for (v in voices.toList()) {
                 if (v.paused) {
-                    if (t - v.pausedAt > KEEP_PAUSED_MS) { if (v === current) current = null; drop(v) } else busy = true
+                    if (t - v.pausedAt > KEEP_PAUSED_MS) { if (v === current) current = null; drop(v) }
                     continue
                 }
                 val along = ((t - v.fadeStart).toFloat() / v.fadeMs).coerceIn(0f, 1f)
                 v.gain = Crossfade.ease(v.fromGain, v.toGain, along)
                 apply(v)
-                if (along < 1f) { busy = true; continue }
+                if (along < 1f) { fading = true; continue }
                 when {
                     v.releaseAtEnd -> drop(v)
-                    v.pauseAtEnd -> { runCatching { v.player.pause() }; v.paused = true; v.pausedAt = t; busy = true }
+                    v.pauseAtEnd -> { runCatching { v.player.pause() }; v.paused = true; v.pausedAt = t }
                 }
             }
-            if (busy) worker.postDelayed(this, if (voices.any { !it.paused && it.gain != it.toGain }) 16L else 30_000L) else ticking = false
+            if (fading) worker.postDelayed(this, 16L)
+            else if (voices.any { it.paused }) worker.postDelayed(this, 30_000L)
         }
     }
 
@@ -190,6 +201,7 @@ object MusicPlayer {
 /** The arithmetic of a fade: plain Kotlin, unit-tested. */
 object Crossfade {
     const val MS = 1500L
+    const val EXIT_MS = 600L
     /** Starting from silence. */
     const val FIRST_MS = 2200L
 
