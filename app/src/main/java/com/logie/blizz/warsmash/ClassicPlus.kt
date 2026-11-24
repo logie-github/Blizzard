@@ -54,8 +54,34 @@ object ClassicPlus {
         if (on) { m.parentFile?.mkdirs(); m.writeText("on\n") } else m.delete()
     }
 
+    /**
+     * Top-level folders of the pack that are not layered over the game: its units keep the game's own models and textures
+     * (the user, 24 November 2026: the HD textures and models for everything but units; buildings, the world and the rest are
+     * fine). Lower case; the pack's folder names are matched without regard to case.
+     */
+    internal val LEFT_OUT = setOf("units")
+
+    /** What a left-out folder is renamed to: no game path starts with it, so the engine never finds a file in it. */
+    internal const val LEFT_OUT_PREFIX = "_left-out_"
+
     /** The folder Warsmash layers over the game's files: null while it is off or not there. */
-    fun layer(context: Context): File? = if (on(context) && installed(context)) folder(context) else null
+    fun layer(context: Context): File? =
+        if (on(context) && installed(context)) folder(context).also { leaveOut(it) } else null
+
+    /**
+     * Renames each top-level folder of [pack] named in [leftOut] to [LEFT_OUT_PREFIX] and its name (a rename in the same
+     * folder: no copying, so cheap each start). The engine's folder source lists the folder and finds files in any case, and
+     * a link to a folder is not listed, so a link would lose that: the rename is what leaves the folder out. Safe to repeat.
+     */
+    internal fun leaveOut(pack: File, leftOut: Set<String> = LEFT_OUT) {
+        for (child in pack.listFiles().orEmpty()) {
+            if (!child.isDirectory || child.name.startsWith(LEFT_OUT_PREFIX)) continue
+            if (child.name.lowercase(Locale.US) !in leftOut) continue
+            val aside = File(pack, LEFT_OUT_PREFIX + child.name)
+            aside.deleteRecursively()
+            child.renameTo(aside)
+        }
+    }
 
     fun remove(context: Context) {
         root(context).deleteRecursively()

@@ -1,0 +1,1 @@
+Classic+ HD textures and models now apply to everything except units, which keep Warcraft III's own.

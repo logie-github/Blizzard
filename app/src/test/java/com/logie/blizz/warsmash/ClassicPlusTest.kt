@@ -172,4 +172,30 @@ class ClassicPlusTest {
         assertNotNull(Regex("Path03=.*Classic\\+").find(config))
         assertTrue(WarsmashConfig.sources(game, support, File(tmp.root, "missing")).contains("Count=4"))
     }
+
+    @Test
+    fun theLayerLeavesOutTheUnitsAndKeepsTheRest() {
+        val pack = tmp.newFolder("pack")
+        File(pack, "Units/Human/Footman").mkdirs()
+        File(pack, "Units/Human/Footman/Footman.mdx").writeText("unit")
+        File(pack, "Buildings/Human/Farm").mkdirs()
+        File(pack, "Buildings/Human/Farm/Farm.mdx").writeText("building")
+        File(pack, "Doodads/Terrain").mkdirs()
+        File(pack, "Doodads/Terrain/Tree.mdx").writeText("doodad")
+        File(pack, "ReplaceableTextures").mkdirs()
+        File(pack, "ReplaceableTextures/TeamColor.blp").writeText("team")
+        ClassicPlus.leaveOut(pack)
+        assertTrue(File(pack, "Buildings/Human/Farm/Farm.mdx").isFile)
+        assertTrue(File(pack, "Doodads/Terrain/Tree.mdx").isFile)
+        assertTrue(File(pack, "ReplaceableTextures/TeamColor.blp").isFile)
+        assertFalse(File(pack, "Units").exists())
+        assertEquals("unit", File(pack, "${ClassicPlus.LEFT_OUT_PREFIX}Units/Human/Footman/Footman.mdx").readText())
+        // repeating changes nothing, and a folder of units in another case is left out too
+        ClassicPlus.leaveOut(pack)
+        File(pack, "units/x").mkdirs()
+        ClassicPlus.leaveOut(pack)
+        assertFalse(File(pack, "units").exists())
+        assertTrue(File(pack, "${ClassicPlus.LEFT_OUT_PREFIX}units/x").isDirectory)
+        assertTrue(File(pack, "Buildings/Human/Farm/Farm.mdx").isFile)
+    }
 }
