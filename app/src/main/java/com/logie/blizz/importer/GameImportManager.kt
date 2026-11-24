@@ -94,9 +94,9 @@ object GameImportManager {
         "starcraft" to { StarCraftClassicImporter() },
         "starcraft_remastered" to { StarCraftRemasteredImporter() },
         "starcraft2" to { StarCraft2OfflineImporter() },
-        // Warcraft I and II: native Stratagus from the GOG files (the conversion tools are set in [env]).
+        // Warcraft I uses Stratagus with GOG data. Warcraft II plays its PlayStation disc.
         "warcraft" to { Warcraft1Importer() },
-        "warcraft2" to { Warcraft2Importer() },
+        "warcraft2" to { Warcraft2Ps1Importer() },
         // Warcraft III, one install for both ("warcraft3_tft" uses RoC's when it's there), played in the embedded Warsmash engine.
         "warcraft3_roc" to { Warcraft3WarsmashImporter(Warcraft3Importer.Product.ROC) },
         "warcraft3_tft" to { Warcraft3WarsmashImporter(Warcraft3Importer.Product.TFT) },
@@ -186,7 +186,7 @@ object GameImportManager {
                     is ImportPipeline.Result.Done -> {
                         // The game is in and checked: what was picked for it goes (unless switched off), and what could not go is said.
                         var record = result.record
-                        if (com.logie.blizz.game.GameSettings.deleteSources(app)) {
+                        if (gameId != "warcraft2" && com.logie.blizz.game.GameSettings.deleteSources(app)) {
                             val outcome = SourceCleanup.run(supplied, app.filesDir)
                             if (outcome.deleted.isNotEmpty()) File(paths(app).state, "export-source-$gameId.txt").delete()
                             outcome.summary?.let { note -> record = repo.update(gameId) { it.copy(detail = note) } }
@@ -329,7 +329,8 @@ object GameImportManager {
     /** Whether [gameId]'s install was made by an older recipe than this build's importer uses: a change that needs it installed again. */
     fun stale(context: Context, gameId: String): Boolean {
         val factory = importers[gameId] ?: return false
-        if (library(context).get(gameId) == null) return false
+        val entry = library(context).get(gameId) ?: return false
+        if (gameId == "warcraft2" && entry.runtime != com.logie.blizz.ps1.Ps1Activity.RUNTIME) return true
         return Recipes.stale(repo(context).load(gameId), factory().recipe)
     }
 
@@ -341,6 +342,11 @@ object GameImportManager {
         val app = context.applicationContext
         val factory = importers[gameId] ?: return
         if (synchronized(cancels) { cancels.containsKey(gameId) }) return
+        if (gameId == "warcraft2" && library(app).get(gameId)?.runtime != com.logie.blizz.ps1.Ps1Activity.RUNTIME) {
+            // Keep the old data until a PlayStation disc has been copied and checked.
+            start(app, gameId)
+            return
+        }
         scope.launch {
             publish(WizardState(gameId, repo(app).load(gameId), running = true, progress = Progress(Stage.DETECTING, "This update changed how ${factory().title} is installed: installing it again (saves kept)")))
             // Warcraft III's two products share one install: both go, and the install made again serves both.

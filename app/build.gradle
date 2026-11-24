@@ -102,7 +102,7 @@ android {
 			assets.srcDirs += ['winlator/assets', 'stratagus/assets', 'tools/assets']
 			java.srcDirs += ['winlator/java', 'stratagus/java']
 			res.srcDirs += ['winlator/res']
-			jniLibs.srcDirs += ['winlator/jniLibs', 'tools/jniLibs', 'stratagus/jniLibs']
+			jniLibs.srcDirs += ['winlator/jniLibs', 'tools/jniLibs', 'stratagus/jniLibs', 'ps1/jniLibs']
 		}
 	}
 

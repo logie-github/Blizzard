@@ -29,7 +29,7 @@ data class LaunchOptions(
 ) {
     /** Which DirectDraw the classic 2D games draw with (cnc-ddraw's renderers, or Wine's own). */
     enum class DDraw(val label: String, val note: String) {
-        DEFAULT("Default", "Best guess for the game (OpenGL for the classic games)."),
+        DEFAULT("Default", "Uses the renderer set for this game."),
         WINE("Wine's own", "No wrapper; Wine's DirectDraw. Slow, and plays no videos on some phones."),
         GDI("cnc-ddraw: GDI", "Software drawing; needs no OpenGL or Direct3D. The most likely to show something."),
         OPENGL("cnc-ddraw: OpenGL", "Drawn by the GPU through OpenGL."),
@@ -112,8 +112,8 @@ data class LaunchOptions(
         //  - singlecpu=false. "Force CPU0 affinity ... disable if the game is not running smooth or there
         //    are sound issues": on a phone CPU0 is a slow efficiency core, and under Box64 the whole of Wine
         //    shares it, which is both the 3 fps and the audio that never starts. The first release had it on.
-        //  - renderer opengl, not gdi: GDI drew and stretched every frame in emulated software; OpenGL
-        //    lets the GPU do it. GDI stays a choice (and is Safe mode's), as it needs no GL at all.
+        //  - OpenGL moves drawing and scaling to the GPU. StarCraft defaults to GDI because
+        //    Wine could not load libEGL.so.1 on the Fold (issue #403). GDI needs no OpenGL.
         //  - borderless fullscreen (windowed=true + fullscreen=true), not exclusive fullscreen: Wine has
         //    no display modes to switch to on Winlator's X server, which exclusive mode asks for.
         //  - redraw on: nonexclusive "in case videos are invisible" and minfps "if parts of the game are
@@ -130,7 +130,7 @@ data class LaunchOptions(
         }
         val renderer = when {
             s -> "gdi"
-            ddraw == DDraw.GDI -> "gdi"
+            ddraw == DDraw.GDI || (ddraw == DDraw.DEFAULT && key == "starcraft") -> "gdi"
             ddraw == DDraw.D3D9 -> "direct3d9"
             else -> "opengl"
         }
@@ -185,7 +185,7 @@ data class LaunchOptions(
         /** The classic 2D games, which draw with DirectDraw. */
         val CLASSIC = setOf("diablo2", "starcraft", "warcraft2")
 
-        /** Warcraft I and II are played natively (Stratagus), not in Windows: no options. */
+        /** Games with their own runtimes do not use these launch options. */
         val NATIVE = setOf("warcraft", "warcraft2", "diablo2_resurrected", "wow_legion", "wow_octowow", "wow_wrathpp")
 
         /** The WoW client's library entry ("wow-client") is the shelf's World of Warcraft. */
