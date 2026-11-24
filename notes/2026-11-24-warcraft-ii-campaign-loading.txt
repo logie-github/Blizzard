@@ -1,0 +1,1 @@
+Warcraft II checks disc length, can replace the disc while keeping saves, and offers a compatibility mode for loading problems.

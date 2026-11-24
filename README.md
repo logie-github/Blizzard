@@ -486,9 +486,15 @@ Play starts MariaDB, the auth server and the world server of the realm you last 
 - A realm that fails to start reports its log tail as an issue. The first start can take minutes.
 - Not verified on a phone: the programs running through the loader from this folder, MariaDB opening the imported InnoDB files, the world server reaching ready, and Wow.exe under DXVK/Box64.
 
+## StarCraft: Remastered startup
+
+StarCraft: Remastered prefers the installed 64-bit client when available and uses the Box64 build with the signal-context fix. Existing installs use this launch path automatically. This targets the Wine loader stall in [report #408](https://github.com/logie-github/Blizzard/issues/408).
+
 ## Warcraft II (PlayStation)
 
 **Play** starts Warcraft II: The Dark Saga in the embedded PCSX-ReARMed emulator. Open the Warcraft II tile and use **Install & repair** to pick an ISO or CHD file, or select the folder containing the CUE and its BIN tracks. The app copies the disc into its own storage and keeps its PlayStation memory card between installs. Older GOG saves are kept in their original format.
+
+If a campaign stalls at loading, use **Install & repair → Replace the PlayStation disc** to try another complete image while keeping your memory card. The importer checks the declared disc length on ISO and BIN/CUE. **Back → Troubleshoot** lets you enable compatibility mode for the next launch or send a game report with the disc format and emulator progress.
 
 The swipe controls are the same ones used in [Parasite Eve](https://github.com/logie-github/YeaBwoi/blob/7d9b855a2e10950889f5fdcded94338de3ee08ea/parasiteeve/README.md#controls). Swipe anywhere to steer the D-pad, tap for Cross, hold for Circle, and double tap for Triangle. Two fingers up sends Square for the selected unit's actions and two fingers down sends Start for the game's pause menu. Android Back opens Blizzard's game menu.
 

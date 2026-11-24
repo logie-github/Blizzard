@@ -437,7 +437,7 @@ object GameImportManager {
             .onFailure { runCatching { app.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } }
         repo(app).update(gameId) { it.copy(supplied = it.supplied + (inputId to (if (tree) "tree:" else "doc:") + uri)) }
         publish((_states.value[gameId] ?: WizardState(gameId, repo(app).load(gameId))).copy(missing = emptyList()))
-        start(app, gameId)
+        start(app, gameId, repair = gameId == "warcraft2" && inputId == Warcraft2Ps1Importer.DISC_INPUT)
     }
 
     fun skip(context: Context, gameId: String, inputId: String) {

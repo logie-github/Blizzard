@@ -6,6 +6,7 @@ import com.logie.blizz.MainActivity
 import com.logie.blizz.R
 import com.logie.blizz.importer.GameImportManager
 import com.logie.blizz.importer.LibraryEntry
+import com.logie.blizz.importer.StarCraftRemasteredImporter
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
 import com.winlator.container.ContainerManager
@@ -111,11 +112,17 @@ object WindowsRuntime {
 
     private suspend fun run(context: Context, entry: LibraryEntry, profile: LaunchProfile, size: Pair<Int, Int>, options: LaunchOptions.Resolved) {
         val folder = File(entry.installPath)
-        val program = File(folder, entry.executable)
+        val remastered = entry.gameId == "starcraft_remastered"
+        val program = withContext(Dispatchers.IO) {
+            val registered = File(folder, entry.executable)
+            if (remastered) StarCraftRemasteredImporter.program64In(folder,
+                entry.clientVersion.substringAfterLast(' ').takeIf { it.startsWith(StarCraftRemasteredImporter.FAMILY) },
+            ) ?: registered else registered
+        }
         if (!program.isFile) throw IllegalStateException(context.getString(R.string.game_error_missing, entry.title))
 
         _state.value = State.Preparing(Step.RUNTIME, 0f, WowPlay.splashIdOf(entry))
-        com.logie.blizz.reports.SessionLog.event("windows", "run: ${entry.gameId} ${entry.title} (${entry.clientVersion ?: "-"}), ${entry.executable}, window ${size.first}x${size.second}")
+        com.logie.blizz.reports.SessionLog.event("windows", "run: ${entry.gameId} ${entry.title} (${entry.clientVersion ?: "-"}), ${program.relativeTo(folder).path}, window ${size.first}x${size.second}")
         val installed = withContext(Dispatchers.IO) {
             RootFSInstaller.installIfNeeded(context) { percent -> _state.value = State.Preparing(Step.RUNTIME, percent / 100f, WowPlay.splashIdOf(entry)) }
         }
@@ -130,6 +137,8 @@ object WindowsRuntime {
         withContext(Dispatchers.IO) { writeDDrawConfig(container, entry.gameId, options) }
         // Legion: the Battle.net certificate bundle the patched client trusts goes into the game's Windows.
         val legion = entry.gameId == WowPlay.GAME_ID && entry.clientVersion == LegionClientSetup.VERSION
+        // Both clients have shown Wine loader-lock stalls while handling exceptions.
+        val box64Version = if (legion || remastered) LegionClientSetup.BOX64 else null
         // Wine's esync on, as Winlator sets it: an earlier version turned it off in this shared container for one game.
         withContext(Dispatchers.IO) {
             val env = EsyncSetting.apply(container.getEnvVars(), on = true)
@@ -162,7 +171,7 @@ object WindowsRuntime {
             .putInt("box64_logs", 0).apply()
 
         _state.value = State.Preparing(Step.STARTING, gameId = WowPlay.splashIdOf(entry))
-        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${if (legion) LegionClientSetup.BOX64 else "default"}")
+        com.logie.blizz.reports.SessionLog.event("windows", "starting the game screen: ${entry.gameId}, exec ${program.name}, keeper $keeper, Box64 preset ${container.getBox64Preset()}, Box64 ${box64Version ?: "default"}")
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
@@ -170,9 +179,8 @@ object WindowsRuntime {
             // (patches/winlator/0005): paths in them would otherwise break that conversion.
             .putExtra("exec_path", program.path)
             .putExtra("exec_args", GameArguments.of(entry.gameId, entry.arguments, LaunchOptionsStore(context).get(entry.gameId).extraArgs, entry.clientVersion))
-            // Legion's Wow_loader.dll start-up protection needs the Box64 with
-            // the signal-flags fix (Winlator patch 0007); without it the loader deadlocks on Wine's loader lock.
-            .apply { if (legion) putExtra("box64_version", LegionClientSetup.BOX64) }
+            // Use the Box64 build with the signal-context fix for these sessions.
+            .apply { if (box64Version != null) putExtra("box64_version", box64Version) }
             // The session's keeper before winhandler.exe and the game (Winlator patch 0009).
             .apply { if (keeper) putExtra("exec_wrapper", Borderless.command(entry.gameId)) }
             // The app's touch controls (GestureView) in place of Winlator's touchpad.

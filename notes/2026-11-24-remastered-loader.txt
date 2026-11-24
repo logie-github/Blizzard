@@ -1,0 +1,1 @@
+StarCraft: Remastered prefers the installed 64-bit client and uses the Box64 signal fix for startup.

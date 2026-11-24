@@ -119,6 +119,22 @@ class RemasteredTest {
         assertTrue(!StarCraftRemasteredImporter.isGameRoot(setOf("data/", "stardat.mpq", "starcraft.exe")))
     }
 
+    @Test fun playPrefersAMatching64BitClientFromAnExistingInstallation() {
+        val dir = tmp.newFolder("both-architectures")
+        val version = "1.23.10.13515"
+        val x86 = Fixtures.pe(File(dir, "x86/StarCraft.exe"), version)
+        val x64 = File(dir, "x86_64/StarCraft.exe")
+
+        assertEquals(x86, StarCraftRemasteredImporter.programIn(dir))
+        Fixtures.pe(x64, version, PeInfo.MACHINE_AMD64)
+        assertEquals(x64, StarCraftRemasteredImporter.programIn(dir))
+        assertEquals(x64, StarCraftRemasteredImporter.program64In(dir, version))
+        assertEquals(null, StarCraftRemasteredImporter.program64In(dir, "1.23.10.12409"))
+
+        Fixtures.pe(x64, version, PeInfo.MACHINE_I386)
+        assertEquals(x86, StarCraftRemasteredImporter.programIn(dir))
+    }
+
     @Test fun the123LayoutWithDataFilesOnlyDeepDownAndTheProgramInX86Validates() {
         val dir = java.io.File(System.getProperty("java.io.tmpdir"), "sc-r-${System.nanoTime()}")
         Fixtures.pe(java.io.File(dir, "x86/StarCraft.exe"), "1.23.10.13515")
