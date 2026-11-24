@@ -123,7 +123,8 @@ class UnpackTest {
     @Test fun rarIsSaidPlainly() {
         val rar = tmp.newFile("sc2.rar").apply { writeBytes(byteArrayOf('R'.code.toByte(), 'a'.code.toByte(), 'r'.code.toByte(), '!'.code.toByte(), 0x1A, 0x07, 0, 0, 0, 0)) }
         val result = run(rar) as ImportPipeline.Result.Failed
-        assertEquals(Problem.UNSUPPORTED_INSTALLER, result.error.problem)
+        // RAR archives are read now (junrar); one with nothing valid after its signature is damaged, and said to be a RAR.
+        assertEquals(Problem.CORRUPT_ARCHIVE, result.error.problem)
         assertTrue(result.error.message!!.contains("RAR"))
     }
 

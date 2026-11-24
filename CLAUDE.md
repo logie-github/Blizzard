@@ -47,6 +47,12 @@
   a helper started with plain `wine` lands on another desktop and sees none of the game's windows. On the phone every Windows
   game is started by the session's keeper (`borderless.exe`, `tools/borderless`: Winlator patch 0009's `exec_wrapper`), which is
   where such work belongs; on the test rig, `wine explorer /desktop=shell,WxH C:\windows\helper.exe`.
+- **Everything the user does for this app's games runs through a Winlator session on Android** (the user, 22 November 2026:
+  "everything I do for this app in games will be through running a session of winlator on android"). Judge any game, server,
+  client or tool proposal by whether it works inside that session on the phone: a Windows-only package, launcher or client
+  that needs a PC, a separate Windows machine or a native Linux/Windows desktop does not fit unless it runs under Winlator
+  (Wine plus Box64 on the phone). The test rig here (README, "Testing the Windows games here") reproduces faults; it does
+  not replace the phone's Winlator session as the target.
 - **Winlator is changed only through `patches/winlator`.** `app/winlator` is git-ignored: `scripts/prepare-winlator.sh` checks
   out Winlator's commit into `build/winlator-app`, applies `patches/winlator/NNNN-*.patch` and copies the result. An edit made
   only in `app/winlator` builds here and never ships (builds 178 to 180 said Warcraft III's clicks were fixed, and held nothing

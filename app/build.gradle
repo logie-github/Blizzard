@@ -150,6 +150,8 @@ dependencies {
 	implementation 'com.google.android.material:material:1.11.0'
 	implementation 'org.apache.commons:commons-compress:1.27.1'
 	implementation 'org.tukaani:xz:1.10'
+	// RAR archives (the Forever client comes as one): read in plain Java, nothing from inside is run.
+	implementation 'com.github.junrar:junrar:7.5.5'
 	implementation 'androidx.preference:preference:1.2.1'
 	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
 	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'

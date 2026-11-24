@@ -1,0 +1,1 @@
+World of Warcraft: Infinite says plainly that a RAR5 archive can't be opened yet (the client's file is one); a zip or 7z of the client works.
