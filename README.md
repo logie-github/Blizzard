@@ -486,6 +486,10 @@ Play starts MariaDB, the auth server and the world server of the realm you last 
 - A realm that fails to start reports its log tail as an issue. The first start can take minutes.
 - Not verified on a phone: the programs running through the loader from this folder, MariaDB opening the imported InnoDB files, the world server reaching ready, and Wow.exe under DXVK/Box64.
 
+## Warcraft I touch controls
+
+Tap to left-click, or hold and release to right-click. With one finger resting on the screen, tap with another to left-click at the second finger. Swipe to pan the map at half the previous speed.
+
 ## Warcraft II (PlayStation)
 
 **Play** starts Warcraft II: The Dark Saga in the embedded PCSX-ReARMed emulator. Open the Warcraft II tile and use **Install & repair** to pick an ISO or CHD file, or select the folder containing the CUE and its BIN tracks. The app copies the disc into its own storage and keeps its PlayStation memory card between installs. Older GOG saves are kept in their original format.

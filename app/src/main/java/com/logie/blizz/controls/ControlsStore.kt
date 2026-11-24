@@ -7,8 +7,15 @@ import java.io.File
 class ControlsStore(private val dir: File) {
     private fun file(gameId: String) = File(dir, "$gameId.json")
 
-    fun load(gameId: String): GameControls = runCatching { GameControls.fromJson(JSONObject(file(gameId).readText())) }
-        .getOrNull()?.let { current(gameId, it) } ?: defaults(gameId)
+    fun load(gameId: String): GameControls = runCatching {
+        val json = JSONObject(file(gameId).readText())
+        val saved = GameControls.fromJson(json)
+        if (gameId == "warcraft" && json.optInt("touchLayout") < WARCRAFT_TOUCH_LAYOUT) {
+            saved.copy(rules = Catalog.warcraftTouchRules(saved.rules))
+        } else {
+            current(gameId, saved)
+        }
+    }.getOrNull() ?: defaults(gameId)
 
     /**
      * [saved] as this build plays it. Warcraft III's layout was made anew on 10 November 2026 (the smart tap); rules saved
@@ -24,7 +31,9 @@ class ControlsStore(private val dir: File) {
     fun save(controls: GameControls) {
         dir.mkdirs()
         val temp = File(dir, ".${controls.gameId}.tmp")
-        temp.writeText(controls.toJson().toString(2))
+        val json = controls.toJson()
+        if (controls.gameId == "warcraft") json.put("touchLayout", WARCRAFT_TOUCH_LAYOUT)
+        temp.writeText(json.toString(2))
         temp.renameTo(file(controls.gameId))
     }
 
@@ -33,6 +42,8 @@ class ControlsStore(private val dir: File) {
     }
 
     companion object {
+        private const val WARCRAFT_TOUCH_LAYOUT = 1
+
         fun defaults(gameId: String) = GameControls(gameId, emptyMap(), Catalog.of(gameId).rules)
     }
 }

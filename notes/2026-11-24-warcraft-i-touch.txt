@@ -1,0 +1,1 @@
+Warcraft I now left-clicks on tap, right-clicks on hold, lets a second finger tap to select, and pans more slowly on swipes.

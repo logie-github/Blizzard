@@ -1,0 +1,18 @@
+diff --git a/src/stratagus/mainloop.cpp b/src/stratagus/mainloop.cpp
+index 1bcd380..9ada24b 100644
+--- a/src/stratagus/mainloop.cpp
++++ b/src/stratagus/mainloop.cpp
+@@ -120,6 +120,13 @@ void DoScrollArea(int state, bool fast, bool isKeyboard)
+ 		stepx = (int)(speed * PixelTileSize.x * CYCLES_PER_SECOND / 4);
+ 		stepy = (int)(speed * PixelTileSize.y * CYCLES_PER_SECOND / 4);
+ 	}
++#ifdef __ANDROID__
++	// The touch overlay pans with arrow keys. Keep the same fractional steps at half speed.
++	if (isKeyboard) {
++		stepx /= 2;
++		stepy /= 2;
++	}
++#endif
+ 	if ((state & (ScrollLeft | ScrollRight)) && (state & (ScrollLeft | ScrollRight)) != (ScrollLeft | ScrollRight)) {
+ 		stepx = stepx * 3;
+ 		remx += stepx - (stepx / 100) * 100;

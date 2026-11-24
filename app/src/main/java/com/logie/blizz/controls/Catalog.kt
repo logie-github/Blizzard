@@ -220,10 +220,21 @@ object Catalog {
         rules = rtsRules("gamemenu", listOf("panel")),
     )
 
+    /** Update the original Warcraft I bindings while retaining custom rules and key assignments. */
+    internal fun warcraftTouchRules(rules: List<Rule>): List<Rule> = rules.mapNotNull {
+        when (it) {
+            rule(Trigger.TAP, "rclick") -> it.copy(function = "click")
+            rule(Trigger.HOLD, "click") -> it.copy(function = "rclick")
+            rule(Trigger.REST_TAP, "shiftrclick") -> it.copy(function = "click")
+            rule(Trigger.DOUBLE_TAP_HOLD, "dclick") -> null
+            else -> it
+        }
+    }
+
     val WARCRAFT = Game(
         functions = common(RTS_LABELS) + RTS_COMMANDS.filter { it.id != "alert" && it.id != "advanced" } + groups(),
         areas = Area.STANDARD + listOf(Area("panel", "Side panel", 0f, 0f, 0.22f, 1f), Area("minimap", "Minimap", 0f, 0f, 0.22f, 0.3f)),
-        rules = rtsRules("gamemenu", listOf("panel")),
+        rules = warcraftTouchRules(rtsRules("gamemenu", listOf("panel"))),
     )
 
     // World of Warcraft (3.3.5a, mouse and keyboard on a touch screen) --------------------------------

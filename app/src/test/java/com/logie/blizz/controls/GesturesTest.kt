@@ -83,6 +83,37 @@ class GesturesTest {
         assertTrue(out.events.toString(), out.events.any { it.contains("LEFT") })
     }
 
+    @Test fun warcraftTapHoldAndRestingFingerClickTheExpectedButtons() {
+        val out = Recorder()
+        val g = engine("warcraft", out)
+        g.tap(500f, 400f, 0)
+        g.tap(505f, 400f, 100)
+        g.down(0, 505f, 400f, 200)
+        g.tick(200 + Gestures.HOLD_MS)
+        g.up(0, 505f, 400f, 700)
+        assertEquals(listOf("to 500,400", "click LEFT", "to 505,400", "click LEFT",
+            "buzz", "to 505,400", "click RIGHT"), out.events)
+
+        out.events.clear()
+        g.down(0, 150f, 400f, 1000)
+        g.tick(1000 + Gestures.HOLD_MS)
+        g.down(1, 600f, 400f, 1450)
+        g.up(1, 600f, 400f, 1500)
+        g.down(2, 700f, 400f, 1560)
+        g.up(2, 700f, 400f, 1610)
+        g.up(0, 150f, 400f, 1650)
+        assertEquals(listOf("buzz", "to 600,400", "click LEFT", "to 700,400", "click LEFT"), out.events)
+    }
+
+    @Test fun warcraftSwipePansWithoutClickingAndStopsOnRelease() {
+        val out = Recorder()
+        val g = engine("warcraft", out)
+        g.down(0, 450f, 400f, 0)
+        g.move(0, 510f, 400f, 65)
+        g.up(0, 510f, 400f, 200)
+        assertEquals(listOf("+Right", "-Right"), out.events)
+    }
+
     // Warcraft III's layout (the user, 10 November 2026) --------------------------------------------
 
     @Test fun warcraft3TapSelectsWhileThereIsNothingToCommandAtOnce() {
