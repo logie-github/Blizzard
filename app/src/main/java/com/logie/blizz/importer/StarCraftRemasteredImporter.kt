@@ -35,12 +35,13 @@ class StarCraftRemasteredImporter : GameImporter {
         private val NOT_THE_GAME = Regex("(?i)launcher|editor|setup|unins|crash|agent|update|redist|vc_|dxsetup|bnet|battle")
 
         /**
-         * The game's program: StarCraft.exe at the top, else the 32-bit one in x86/, else x86_64/; failing
-         * those, a wildcard search of the whole folder (to [depth] down) for the program that is the game:
+         * Prefer the official 64-bit client to avoid the 32-bit Wine loader. For older installations,
+         * use StarCraft.exe at the top or in x86/, then search (to [depth] down) for the game's program:
          * a Windows program with "starcraft" in its name that isn't a launcher, editor or installer, the
          * 32-bit one and then the biggest first.
          */
         fun programIn(dir: File, depth: Int = 5): File? {
+            program64In(dir)?.let { return it }
             FileValidator.find(dir, EXE)?.takeIf { it.isFile }?.let { return it }
             for (sub in listOf("x86", "x86_64")) {
                 val folder = FileValidator.find(dir, sub)?.takeIf { it.isDirectory } ?: continue
@@ -51,6 +52,17 @@ class StarCraftRemasteredImporter : GameImporter {
                 .mapNotNull { f -> PeInfo.read(f)?.takeIf { it.isWindowsX86Family }?.let { f to it } }
                 .sortedWith(compareByDescending<Pair<File, PeInfo>> { it.second.isX86 }.thenByDescending { it.first.length() })
                 .map { it.first }.firstOrNull()
+        }
+
+        /** The packaged 64-bit build, used on Play for installs registered before this preference. */
+        fun program64In(dir: File, version: String? = null): File? {
+            val folder = FileValidator.find(dir, "x86_64")?.takeIf { it.isDirectory } ?: return null
+            val exe = FileValidator.find(folder, EXE)?.takeIf { it.isFile } ?: return null
+            val pe = PeInfo.read(exe) ?: return null
+            return exe.takeIf {
+                pe.isX64 && (pe.version == null || pe.version.startsWith(FAMILY)) &&
+                    (version.isNullOrBlank() || pe.version == version)
+            }
         }
 
         /** What's in [dir], for an error's details: every program with its size, type and version, and the folders. */
@@ -79,7 +91,7 @@ class StarCraftRemasteredImporter : GameImporter {
     override fun downloadAvailableFiles(env: ImportEnv, sources: List<AutoSource>) = Unit
 
     override fun getMissingInputs(env: ImportEnv, detection: Detection, supplied: Map<String, Supplied>): List<MissingInput> {
-        val have = FileValidator.find(env.paths.game(gameId), EXE) != null || detection.found["install"] != null || supplied["install"] is Supplied.Picked || InstallerRun.out(env.paths, gameId).isDirectory
+        val have = detection.installed || detection.found["install"] != null || supplied["install"] is Supplied.Picked || InstallerRun.out(env.paths, gameId).isDirectory
         return if (have) emptyList() else listOf(MissingInput("install", PROMPT_INSTALL, PickKind.FILE_OR_FOLDER))
     }
 

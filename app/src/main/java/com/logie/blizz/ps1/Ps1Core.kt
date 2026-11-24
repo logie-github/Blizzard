@@ -5,7 +5,7 @@ internal object Ps1Core {
         System.loadLibrary("blizz_ps1")
     }
 
-    external fun open(image: String, saves: String): Double
+    external fun open(image: String, saves: String, compatibility: Boolean): Double
     external fun step(buttons: Int, frame: IntArray): Int
     external fun readAudio(samples: ShortArray): Int
     external fun close()

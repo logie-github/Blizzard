@@ -14,7 +14,7 @@ static int width, height, buttons;
 static enum retro_pixel_format pixel_format;
 static int16_t samples[16384];
 static size_t sample_count;
-static bool attempted, loaded;
+static bool attempted, loaded, compatibility;
 
 static bool environment(unsigned command, void *data)
 {
@@ -36,6 +36,13 @@ static bool environment(unsigned command, void *data)
             variable->value = "shared";
         else if (strcmp(variable->key, "pcsx_rearmed_memcard2") == 0)
             variable->value = "disabled";
+        else if (compatibility &&
+                 (!strcmp(variable->key, "pcsx_rearmed_drc") ||
+                  !strcmp(variable->key, "pcsx_rearmed_gpu_thread_rendering") ||
+                  !strcmp(variable->key, "pcsx_rearmed_spu_thread")))
+            variable->value = "disabled";
+        else if (compatibility && !strcmp(variable->key, "pcsx_rearmed_cd_readahead"))
+            variable->value = "0";
         else
             return false;
         return true;
@@ -116,13 +123,14 @@ static bool copy_path(JNIEnv *env, jstring path, char *out, size_t capacity)
     return written >= 0 && (size_t)written < capacity;
 }
 
-JNIEXPORT jdouble JNICALL JNI_METHOD(open)(JNIEnv *env, jobject self, jstring path, jstring saves)
+JNIEXPORT jdouble JNICALL JNI_METHOD(open)(JNIEnv *env, jobject self, jstring path, jstring saves, jboolean safe)
 {
     (void)self;
     if (attempted || !copy_path(env, path, image, sizeof(image)) ||
         !copy_path(env, saves, directory, sizeof(directory)))
         return 0;
     attempted = true;
+    compatibility = safe == JNI_TRUE;
     retro_set_environment(environment);
     retro_set_video_refresh(video);
     retro_set_audio_sample(audio_sample);

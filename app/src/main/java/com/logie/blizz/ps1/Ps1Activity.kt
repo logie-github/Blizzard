@@ -22,6 +22,8 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import com.logie.blizz.importer.LibraryEntry
+import com.logie.blizz.importer.Warcraft2Ps1Importer
+import com.logie.blizz.reports.BugReports
 import java.io.File
 
 class Ps1Activity : Activity() {
@@ -29,6 +31,11 @@ class Ps1Activity : Activity() {
     private lateinit var gameSurface: SurfaceView
     private var menu: AlertDialog? = null
     private var resumed = false
+    private val preferences by lazy { getSharedPreferences("warcraft2-ps1", MODE_PRIVATE) }
+    private val compatibility by lazy { preferences.getBoolean("compatibility", false) }
+    private var discFormat = ""
+    @Volatile private var completedFrames = 0
+    @Volatile private var lastFrameAt = 0L
     @Volatile private var active = false
     @Volatile private var stopped = false
     @Volatile private var touchButtons = 0
@@ -43,6 +50,7 @@ class Ps1Activity : Activity() {
             return
         }
 
+        discFormat = image.extension.uppercase()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         gameSurface = SurfaceView(this)
         gestures = Ps1GestureView(this, { button, pressed ->
@@ -123,15 +131,58 @@ class Ps1Activity : Activity() {
             .setTitle("Warcraft II")
             .setMessage("Swipe to steer · Tap for Cross · Hold for Circle · Double tap for Triangle\n\nTwo fingers up for Square · Down for Start · Right or left for L1 or R1")
             .setPositiveButton("Resume", null)
+            .setNeutralButton("Troubleshoot", null)
             .setNegativeButton("Return to Blizzard") { _, _ -> finish() }
             .create().apply {
                 setOnDismissListener {
-                    menu = null
-                    active = resumed && !isFinishing && hasWindowFocus()
+                    if (menu === it) {
+                        menu = null
+                        active = resumed && !isFinishing && hasWindowFocus()
+                    }
+                }
+                show()
+                getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                    dismiss()
+                    showTroubleshooting()
+                }
+            }
+    }
+
+    private fun showTroubleshooting() {
+        active = false
+        val switchMode = if (compatibility) "Use normal mode next launch" else "Use compatibility mode next launch"
+        menu = AlertDialog.Builder(this)
+            .setTitle("Warcraft II")
+            .setItems(arrayOf(switchMode, "Send a game report")) { _, item ->
+                if (item == 0) {
+                    // This is a separate process. Ending it also allows a fresh start if the core
+                    // is hung in a disc read and unable to shut itself down.
+                    if (preferences.edit().putBoolean("compatibility", !compatibility).commit()) {
+                        finish()
+                        android.os.Process.killProcess(android.os.Process.myPid())
+                    }
+                } else {
+                    BugReports.reportTelling(this, "Warcraft II campaign startup", "Sent from the PlayStation menu",
+                        reportDetails(), log = null)
+                }
+            }
+            .create().apply {
+                setOnDismissListener {
+                    if (menu === it) {
+                        menu = null
+                        active = resumed && !isFinishing && hasWindowFocus()
+                    }
                 }
                 show()
             }
     }
+
+    private fun reportDetails(): List<Pair<String, String?>> = listOf(
+        "Disc format" to discFormat,
+        "Compatibility mode" to compatibility.toString(),
+        "Frames completed" to completedFrames.toString(),
+        "Last frame (ms ago)" to lastFrameAt.takeIf { it != 0L }?.let { (SystemClock.uptimeMillis() - it).toString() },
+    )
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val bit = when (event.keyCode) {
@@ -160,12 +211,16 @@ class Ps1Activity : Activity() {
     }
 
     private fun runGame(image: File, saves: File) {
+        if (!Warcraft2Ps1Importer.isCompleteDisc(image)) {
+            fail("This PlayStation disc is incomplete. Use Install & repair to replace it.")
+            return
+        }
         // A previous instance may still be finishing when the player launches the game again.
         try {
             synchronized(Ps1Core) {
                 if (stopped) return
                 try {
-                    val fps = Ps1Core.open(image.path, saves.path)
+                    val fps = Ps1Core.open(image.path, saves.path, compatibility)
                     check(fps in 45.0..65.0) { "The emulator couldn't boot the disc" }
                     runFrames(fps)
                 } finally {
@@ -174,6 +229,10 @@ class Ps1Activity : Activity() {
             }
         } catch (error: Exception) {
             Log.e("BlizzardPS1", "PlayStation session stopped", error)
+            runCatching {
+                BugReports.report(applicationContext, "Warcraft II PlayStation session", error.javaClass.simpleName,
+                    reportDetails(), log = error.stackTraceToString())
+            }
             fail("Warcraft II couldn't run this disc. Check the image in Install & repair.")
         } catch (error: LinkageError) {
             Log.e("BlizzardPS1", "PlayStation core couldn't load", error)
@@ -204,6 +263,8 @@ class Ps1Activity : Activity() {
                 }
                 if (sound != null && sound.playState != AudioTrack.PLAYSTATE_PLAYING) sound.play()
                 val dimensions = Ps1Core.step(touchButtons or gamepadButtons, pixels)
+                completedFrames++
+                lastFrameAt = SystemClock.uptimeMillis()
                 val width = dimensions ushr 16
                 val height = dimensions and 0xffff
                 if (width > 0 && height > 0) {
