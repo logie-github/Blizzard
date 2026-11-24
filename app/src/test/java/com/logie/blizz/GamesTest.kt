@@ -8,7 +8,7 @@ class GamesTest {
         assertEquals(
             listOf(
                 "Diablo", "Diablo II", "StarCraft", "StarCraft II",
-                "Warcraft: Orcs & Humans", "Warcraft II: Tides of Darkness",
+                "Warcraft: Orcs & Humans", "Warcraft II: The Dark Saga",
                 "Warcraft III: Reign of Chaos", "World of Warcraft: Wrath+",
             ),
             Games.all.map { it.fullTitle },

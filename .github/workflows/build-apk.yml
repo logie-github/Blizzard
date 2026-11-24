@@ -117,6 +117,16 @@ jobs:
           path: app/stratagus
           key: ${{ steps.stratagus.outputs.cache-primary-key }}
 
+      - name: Cache PlayStation core
+        id: ps1
+        uses: actions/cache@v4
+        with:
+          path: app/ps1/jniLibs
+          key: blizz-ps1-v1-${{ hashFiles('scripts/build-ps1.sh', 'ps1/**') }}
+      - name: Build PlayStation core
+        if: steps.ps1.outputs.cache-hit != 'true'
+        run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-ps1.sh
+
       - name: Prepare Warsmash Android engine
         run: scripts/prepare-warsmash.sh
 

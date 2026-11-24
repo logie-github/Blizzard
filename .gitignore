@@ -15,3 +15,6 @@ __pycache__/
 app/ffmpeg/
 # The engine modules' native build trees (CMake), made by every build.
 warsmash/*/.cxx/
+
+# Built by scripts/build-ps1.sh
+/app/ps1/

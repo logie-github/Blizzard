@@ -37,11 +37,11 @@ class LaunchOptionsTest {
         assertNotEquals(wow.cacheKey, LaunchOptions(fps = Fps.FPS_30).resolve("wow-client").cacheKey)
     }
 
-    @Test fun classicGamesDefaultToCncDdrawOpenGlWithoutCpuPinning() {
+    @Test fun classicGamesDefaultToCncDdrawWithoutCpuPinning() {
         for (id in listOf("diablo2", "starcraft", "warcraft2")) {
             val r = LaunchOptions().resolve(id)
             assertEquals("cnc-ddraw", r.ddrawWrapper)
-            assertEquals("opengl", r.renderer)
+            assertEquals(if (id == "starcraft") "gdi" else "opengl", r.renderer)
             assertFalse(r.singleCpu)
             assertTrue(r.redraw)
             assertEquals(if (id == "diablo2") "STABILITY" else "INTERMEDIATE", r.box64Preset)

@@ -71,7 +71,16 @@
             </intent-filter>
         </receiver>
 
-        <!-- Warcraft I and II, native: Stratagus on SDL's screen, in a process of its own that ends
+        <activity
+            android:name=".ps1.Ps1Activity"
+            android:exported="false"
+            android:process=":playstation"
+            android:theme="@style/StratagusTheme"
+            android:screenOrientation="sensorLandscape"
+            android:launchMode="singleTask"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode" />
+
+        <!-- Warcraft I, native: Stratagus on SDL's screen, in a process of its own that ends
              with the game (the engine keeps its state in the process). -->
         <activity
             android:name=".game.StratagusActivity"

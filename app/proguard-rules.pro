@@ -11,3 +11,6 @@
 -dontwarn com.github.luben.zstd.**
 # SDL (Warcraft I and II, native): the engine's native code calls into its Java classes by name.
 -keep class org.libsdl.app.** { *; }
+
+# The PlayStation bridge uses JNI-exported method names.
+-keep class com.logie.blizz.ps1.Ps1Core { *; }
