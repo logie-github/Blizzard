@@ -1,0 +1,1 @@
+Enemy units now show the game's own health bar in red when you tap or hover them; the extra bar that popped up when units were hurt is gone.

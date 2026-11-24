@@ -1,0 +1,78 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 04aad5e..533726d 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -1714,15 +1714,10 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		this.hpBarFrameIndex = 0;
+ 		if (!this.allowDrag) {
+ 			if ((this.mouseOverUnit != null) && isUnitSelectable(this.mouseOverUnit)) {
++				// the hover's name tip hangs from a bar frame; the bar itself shows only on a hit (below)
+ 				final SimpleStatusBarFrame simpleStatusBarFrame = getHpBar();
+ 				positionHealthBar(simpleStatusBarFrame, this.mouseOverUnit, 1.0f);
+-				if (this.mouseOverUnit instanceof RenderUnit) {
+-					final RenderUnit renderUnit = (RenderUnit) this.mouseOverUnit;
+-					if (renderUnit.getSimulationUnit().getMaximumMana() > 0) {
+-						final SimpleStatusBarFrame simpleStatusManaBarFrame = getHpBar();
+-						positionManaBar(simpleStatusManaBarFrame, renderUnit, 1.0f);
+-					}
+-				}
++				simpleStatusBarFrame.setVisible(false);
+ 				final String hoverTipTextValue = getWorldFrameHoverTipText(this.war3MapViewer.simulation,
+ 						this.mouseOverUnit);
+ 				this.hovertipFrame.setVisible(hoverTipTextValue != null);
+@@ -1763,10 +1758,6 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 							&& renderUnit.isSelectable(MeleeUI.this.war3MapViewer.simulation,
+ 									MeleeUI.this.war3MapViewer.getLocalPlayerIndex())
+ 							&& MeleeUI.this.dragSelectPreviewUnitsUpcoming.add(renderUnit)) {
+-						final SimpleStatusBarFrame simpleStatusBarFrame = getHpBar();
+-						if (!unit.isInvulnerable()) {
+-							positionHealthBar(simpleStatusBarFrame, renderUnit, 1.0f);
+-						}
+ 						if (!MeleeUI.this.dragSelectPreviewUnits.contains(renderUnit)) {
+ 							MeleeUI.this.war3MapViewer.showUnitMouseOverHighlight(renderUnit);
+ 						}
+@@ -1789,6 +1780,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 				positionHealthBar(simpleStatusBarFrame, unit, 1.0f);
+ 			}
+ 		}
++		renderHitHealthBars();
+ 		for (int i = this.hpBarFrameIndex; i < this.hpBarFrames.size(); i++) {
+ 			this.hpBarFrames.get(i).setVisible(false);
+ 		}
+@@ -2019,6 +2011,36 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		return null;
+ 	}
+ 
++	// A unit that is hit shows the game's health bar (green to red by life for the local player's and allies', red for
++	// enemies') for HEALTH_BAR_HOLD_TICKS (10 seconds) and then fades out over HEALTH_BAR_FADE_TICKS.
++	private static final int HEALTH_BAR_HOLD_TICKS = 200;
++	private static final int HEALTH_BAR_FADE_TICKS = 40;
++
++	private void renderHitHealthBars() {
++		if (!this.userControlEnabled) {
++			return; // a cutscene
++		}
++		final CSimulation simulation = this.war3MapViewer.simulation;
++		final int tick = simulation.getGameTurnTick();
++		final int localIndex = this.war3MapViewer.getLocalPlayerIndex();
++		for (final CUnit unit : simulation.getUnits()) {
++			final int lastHurt = unit.getLastHurtTick();
++			if ((lastHurt < 0) || unit.isDead() || unit.isHidden() || unit.isInvulnerable()
++					|| ((tick - lastHurt) >= (HEALTH_BAR_HOLD_TICKS + HEALTH_BAR_FADE_TICKS))
++					|| (unit.getMaximumLife() <= 0)) {
++				continue;
++			}
++			final RenderUnit peer = this.war3MapViewer.getRenderPeer(unit);
++			if ((peer == null) || !unit.isVisible(simulation, localIndex)) {
++				continue;
++			}
++			final int sinceHurt = tick - lastHurt;
++			final float alpha = (sinceHurt < HEALTH_BAR_HOLD_TICKS) ? 1f
++					: 1f - ((sinceHurt - HEALTH_BAR_HOLD_TICKS) / (float) HEALTH_BAR_FADE_TICKS);
++			positionHealthBar(getHpBar(), peer, alpha);
++		}
++	}
++
+ 	/** A unit of a player who is neither the local player nor allied to them (a neutral hostile counts). */
+ 	private boolean isEnemyOfLocalPlayer(final RenderWidget widget) {
+ 		if (!(widget instanceof RenderUnit)) {
