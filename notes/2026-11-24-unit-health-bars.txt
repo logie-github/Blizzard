@@ -1,0 +1,1 @@
+Units now show a health bar over them when hurt (green for yours and allies, red for enemies) that fades after a few seconds, and while selected.
