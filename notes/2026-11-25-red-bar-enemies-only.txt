@@ -1,0 +1,1 @@
+Only enemy units show the red on-hit health bar (3 seconds, then it fades); friendlies and neutrals show the game's own bar as before.

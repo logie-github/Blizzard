@@ -1,0 +1,81 @@
+diff --git a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+index 533726d..cfeaafc 100644
+--- a/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
++++ b/core/src/com/etheller/warsmash/viewer5/handlers/w3x/ui/MeleeUI.java
+@@ -1714,10 +1714,20 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		this.hpBarFrameIndex = 0;
+ 		if (!this.allowDrag) {
+ 			if ((this.mouseOverUnit != null) && isUnitSelectable(this.mouseOverUnit)) {
+-				// the hover's name tip hangs from a bar frame; the bar itself shows only on a hit (below)
+ 				final SimpleStatusBarFrame simpleStatusBarFrame = getHpBar();
+ 				positionHealthBar(simpleStatusBarFrame, this.mouseOverUnit, 1.0f);
+-				simpleStatusBarFrame.setVisible(false);
++				final boolean enemyHover = isEnemyOfLocalPlayer(this.mouseOverUnit);
++				if (enemyHover) {
++					// an enemy's bar shows only on a hit (below); the name tip still hangs from the frame
++					simpleStatusBarFrame.setVisible(false);
++				}
++				else if (this.mouseOverUnit instanceof RenderUnit) {
++					final RenderUnit renderUnit = (RenderUnit) this.mouseOverUnit;
++					if (renderUnit.getSimulationUnit().getMaximumMana() > 0) {
++						final SimpleStatusBarFrame simpleStatusManaBarFrame = getHpBar();
++						positionManaBar(simpleStatusManaBarFrame, renderUnit, 1.0f);
++					}
++				}
+ 				final String hoverTipTextValue = getWorldFrameHoverTipText(this.war3MapViewer.simulation,
+ 						this.mouseOverUnit);
+ 				this.hovertipFrame.setVisible(hoverTipTextValue != null);
+@@ -1758,6 +1768,10 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 							&& renderUnit.isSelectable(MeleeUI.this.war3MapViewer.simulation,
+ 									MeleeUI.this.war3MapViewer.getLocalPlayerIndex())
+ 							&& MeleeUI.this.dragSelectPreviewUnitsUpcoming.add(renderUnit)) {
++						final SimpleStatusBarFrame simpleStatusBarFrame = getHpBar();
++						if (!unit.isInvulnerable() && !isEnemyOfLocalPlayer(renderUnit)) {
++							positionHealthBar(simpleStatusBarFrame, renderUnit, 1.0f);
++						}
+ 						if (!MeleeUI.this.dragSelectPreviewUnits.contains(renderUnit)) {
+ 							MeleeUI.this.war3MapViewer.showUnitMouseOverHighlight(renderUnit);
+ 						}
+@@ -2012,8 +2026,8 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 	}
+ 
+ 	// A unit that is hit shows the game's health bar (green to red by life for the local player's and allies', red for
+-	// enemies') for HEALTH_BAR_HOLD_TICKS (10 seconds) and then fades out over HEALTH_BAR_FADE_TICKS.
+-	private static final int HEALTH_BAR_HOLD_TICKS = 200;
++	// enemies') for HEALTH_BAR_HOLD_TICKS (3 seconds) and then fades out over HEALTH_BAR_FADE_TICKS.
++	private static final int HEALTH_BAR_HOLD_TICKS = 60;
+ 	private static final int HEALTH_BAR_FADE_TICKS = 40;
+ 
+ 	private void renderHitHealthBars() {
+@@ -2025,7 +2039,7 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		final int localIndex = this.war3MapViewer.getLocalPlayerIndex();
+ 		for (final CUnit unit : simulation.getUnits()) {
+ 			final int lastHurt = unit.getLastHurtTick();
+-			if ((lastHurt < 0) || unit.isDead() || unit.isHidden() || unit.isInvulnerable()
++			if ((lastHurt < 0) || !isEnemyPlayer(unit.getPlayerIndex()) || unit.isDead() || unit.isHidden() || unit.isInvulnerable()
+ 					|| ((tick - lastHurt) >= (HEALTH_BAR_HOLD_TICKS + HEALTH_BAR_FADE_TICKS))
+ 					|| (unit.getMaximumLife() <= 0)) {
+ 				continue;
+@@ -2041,15 +2055,15 @@ public class MeleeUI implements CUnitStateListener, CommandButtonListener, Comma
+ 		}
+ 	}
+ 
+-	/** A unit of a player who is neither the local player nor allied to them (a neutral hostile counts). */
++	/** A unit of an enemy player: not the local player's, not an ally's, not a neutral's (neutral hostiles are not enemies here). */
+ 	private boolean isEnemyOfLocalPlayer(final RenderWidget widget) {
+-		if (!(widget instanceof RenderUnit)) {
+-			return false;
+-		}
+-		final int owner = ((RenderUnit) widget).getSimulationUnit().getPlayerIndex();
++		return (widget instanceof RenderUnit) && isEnemyPlayer(((RenderUnit) widget).getSimulationUnit().getPlayerIndex());
++	}
++
++	private boolean isEnemyPlayer(final int owner) {
+ 		final int local = this.war3MapViewer.getLocalPlayerIndex();
+-		return (owner != local) && !this.war3MapViewer.simulation.getPlayer(local).hasAlliance(owner,
+-				CAllianceType.PASSIVE);
++		return (owner != local) && (owner < (WarsmashConstants.MAX_PLAYERS - 4))
++				&& !this.war3MapViewer.simulation.getPlayer(local).hasAlliance(owner, CAllianceType.PASSIVE);
+ 	}
+ 
+ 	private void positionHealthBar(final SimpleStatusBarFrame simpleStatusBarFrame, final RenderWidget unit,
